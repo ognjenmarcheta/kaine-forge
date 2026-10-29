@@ -71,7 +71,7 @@ export function OrganizationSettings({
       {canRename ? (
         <SettingsSection title={t("organizations.settings.nameTitle")}>
           <form
-            className="grid gap-[var(--ds-space-100)]"
+            className="grid gap-ds-100"
             onSubmit={(event) => {
               event.preventDefault();
               rename.mutate(name.trim());
@@ -114,7 +114,7 @@ export function OrganizationSettings({
         title={t("organizations.settings.exitTitle")}
       >
         {organization.personal ? null : (
-          <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+          <div className="flex flex-wrap gap-ds-100">
             <Button appearance="subtle" onClick={() => openDialog("leave")}>
               {t("organizations.settings.leave")}
             </Button>

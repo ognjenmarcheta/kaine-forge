@@ -18,7 +18,7 @@ export function LegalRoute({ page }: LegalRouteProps) {
 
   return (
     <AuthLayout subtitle={t("legal.stubNotice")} title={t(copy.title)}>
-      <p className="mb-[var(--ds-space-300)]">{t(copy.body)}</p>
+      <p className="mb-ds-300">{t(copy.body)}</p>
       <Button appearance="subtle" asChild className="w-full">
         <Link to="/auth">{t("auth.backToSignIn")}</Link>
       </Button>

@@ -44,6 +44,10 @@ _Avoid_: raw upload, blob
 An image that anyone with its URL may see, served from a separate public bucket through a CDN: a **User**'s avatar or an **Organization**'s logo. It is not an **Attachment** and has no table; its URL lives on the user or organization record.
 _Avoid_: public attachment, public file
 
+**Organization Theme**:
+The registered theme from `@repo/theme`, such as `byte-forge` or `moss`, that every member of an **Organization** sees. A member with the `organization:update` **Permission** changes it, and an **Audit Event** records each change. Each member still picks light or dark (Appearance) on their own device. An Organization without one, or with one that is no longer registered, gets the default theme. It names a registered theme, never custom colors.
+_Avoid_: brand, skin, organization colors
+
 **Invitation**:
 A pending offer for an email address to join an **Organization** with a role (admin, member, or a **Custom Role**). Only an authenticated **User** whose email matches can accept it; it expires and can be revoked with the `invitation:cancel` **Permission**.
 _Avoid_: invite link, access request

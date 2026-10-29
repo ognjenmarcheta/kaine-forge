@@ -21,11 +21,13 @@
     "./styles/globals.css": "./src/styles/globals.css"
   },
   "sideEffects": [
-    "./src/styles/globals.css"
+    "./src/styles/globals.css",
+    "./src/styles/tokens.generated.css"
   ],
   "files": [
     "dist",
-    "src/styles/globals.css"
+    "src/styles/globals.css",
+    "src/styles/tokens.generated.css"
   ],
   "scripts": {
     "dev": "echo \"@repo/ui has no dev runtime\"",
@@ -43,18 +45,24 @@
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
+    "@repo/theme": "workspace:*",
     "@tanstack/react-form": "^1.33.5",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "cmdk": "catalog:",
-    "lucide-react": "^0.577.0",
+    "d3-scale": "4.0.2",
+    "d3-shape": "3.2.0",
+    "lucide-react": "catalog:",
     "radix-ui": "^1.8.1",
     "react": "catalog:",
+    "recharts": "3.10.1",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
+    "@types/d3-scale": "4.0.9",
+    "@types/d3-shape": "3.2.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "jsdom": "catalog:",

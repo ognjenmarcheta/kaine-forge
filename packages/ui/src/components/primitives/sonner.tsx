@@ -11,12 +11,10 @@ export function Toaster({ className, toastOptions, ...props }: ToasterProps) {
       toastOptions={{
         ...toastOptions,
         classNames: {
-          toast:
-            "border border-[var(--ds-border)] bg-[var(--ds-surface-overlay)] text-[color:var(--ds-text)] shadow-[var(--ds-shadow-overlay)]",
-          description: "text-[color:var(--ds-text-subtle)]",
-          actionButton:
-            "bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-brand-inverse)]",
-          cancelButton: "bg-[var(--ds-background-neutral-subtle)] text-[color:var(--ds-text)]",
+          toast: "border border-ds-border bg-ds-surface-overlay text-ds-text shadow-overlay",
+          description: "text-ds-text-subtle",
+          actionButton: "bg-ds-bg-brand-bold text-ds-text-brand-inverse",
+          cancelButton: "bg-ds-bg-neutral-subtle text-ds-text",
           ...toastOptions?.classNames
         }
       }}

@@ -22,6 +22,7 @@ import { LoadingRows } from "../../components/loading-rows";
 import { useDeleteConversationMutation } from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
+import "./assistant.styles.css";
 
 export function AssistantRoute() {
   const { activeOrganizationId, isLoading } = useOrganization();

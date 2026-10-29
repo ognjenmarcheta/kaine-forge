@@ -43,7 +43,7 @@ const systemScheme = (dark: boolean) => {
   };
 };
 
-const theme = (): string | undefined => document.documentElement.dataset["theme"];
+const theme = (): string | undefined => document.documentElement.dataset["colorMode"];
 
 const choose = async (name: string, panel = "Preferences"): Promise<void> => {
   if (screen.queryByRole("dialog", { name: panel }) === null) {

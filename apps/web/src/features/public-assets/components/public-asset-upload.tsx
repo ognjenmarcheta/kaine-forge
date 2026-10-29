@@ -40,15 +40,13 @@ export function PublicAssetUpload({
 
   return (
     <SettingsSection description={t(COPY[kind].description)} title={title}>
-      <div className="flex items-center gap-[var(--ds-space-150)]">
-        <Avatar className="h-[var(--ds-space-600)] w-[var(--ds-space-600)]">
+      <div className="flex items-center gap-ds-150">
+        <Avatar className="h-ds-600 w-ds-600">
           {url ? <AvatarImage alt={title} src={url} /> : null}
           <AvatarFallback>{resolveNavUserInitials(ownerName)}</AvatarFallback>
         </Avatar>
         {assets?.uploadsEnabled === false ? (
-          <p className="text-body text-[color:var(--ds-text-subtle)]">
-            {t("storage.publicAssets.disabled")}
-          </p>
+          <p className="text-body text-ds-text-subtle">{t("storage.publicAssets.disabled")}</p>
         ) : (
           <>
             <input
@@ -77,7 +75,7 @@ export function PublicAssetUpload({
         )}
       </div>
       {failed ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
+        <p role="alert" className="text-body text-ds-text-danger">
           {t("storage.publicAssets.error")}
         </p>
       ) : null}

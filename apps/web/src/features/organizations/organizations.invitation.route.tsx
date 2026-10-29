@@ -71,32 +71,28 @@ export function OrganizationInvitationRoute() {
       title={invitation?.organizationName ?? t("organizations.invitation.title")}
     >
       {invitationQuery.status === "pending" ? (
-        <div aria-busy="true" role="status" className="grid gap-[var(--ds-space-150)]">
+        <div aria-busy="true" role="status" className="grid gap-ds-150">
           <span className="sr-only">{t("common.loadingShort")}</span>
-          <Skeleton className="h-[var(--ds-space-400)] w-1/2" />
-          <div className="grid grid-cols-2 gap-[var(--ds-space-100)]">
-            <Skeleton className="h-[var(--ds-control-medium)]" />
-            <Skeleton className="h-[var(--ds-control-medium)]" />
+          <Skeleton className="h-ds-400 w-1/2" />
+          <div className="grid grid-cols-2 gap-ds-100">
+            <Skeleton className="h-ds-control-medium" />
+            <Skeleton className="h-ds-control-medium" />
           </div>
         </div>
       ) : null}
       {invitationQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
+        <p role="alert" className="text-body text-ds-text-danger">
           {loadError}
         </p>
       ) : null}
       {invitation ? (
-        <div className="grid gap-[var(--ds-space-150)]">
-          <dl className="grid gap-[var(--ds-space-050)]">
-            <dt className="text-body-sm text-[color:var(--ds-text-subtle)]">
-              {t("organizations.role.label")}
-            </dt>
-            <dd className="text-body text-[color:var(--ds-text)]">
-              {t(`organizations.role.${invitation.role}`)}
-            </dd>
+        <div className="grid gap-ds-150">
+          <dl className="grid gap-ds-050">
+            <dt className="text-body-sm text-ds-text-subtle">{t("organizations.role.label")}</dt>
+            <dd className="text-body text-ds-text">{t(`organizations.role.${invitation.role}`)}</dd>
           </dl>
           {actionError ? <FieldError>{t(getAuthErrorMessageKey(actionError))}</FieldError> : null}
-          <div className="grid grid-cols-2 gap-[var(--ds-space-100)]">
+          <div className="grid grid-cols-2 gap-ds-100">
             <Button
               disabled={accept.isPending || decline.isPending}
               onClick={() => accept.mutate()}
@@ -124,7 +120,7 @@ export function OrganizationInvitationRoute() {
         </div>
       ) : null}
       {invitationQuery.status === "error" ? (
-        <Button appearance="link" asChild className="mt-[var(--ds-space-150)]">
+        <Button appearance="link" asChild className="mt-ds-150">
           <Link to="/dashboard">{t("common.goToDashboard")}</Link>
         </Button>
       ) : null}

@@ -26,6 +26,18 @@ export const organizationsResolvers = {
     },
     organizationPermissions(_parent: unknown, _args: unknown, ctx: ResolverContext) {
       return ctx.requireOrganizationScope().membership.permissions;
+    },
+    async organizationTheme(_parent: unknown, _args: unknown, ctx: ResolverContext) {
+      return ctx.organizationThemes.current();
+    }
+  },
+  Mutation: {
+    async setOrganizationTheme(
+      _parent: unknown,
+      args: { theme?: string | null },
+      ctx: ResolverContext
+    ) {
+      return ctx.organizationThemes.set(args.theme ?? null);
     }
   }
 };

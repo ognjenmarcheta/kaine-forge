@@ -8,13 +8,16 @@ export const buttonVariants = cva("ui-button", {
       subtle: "ui-button--subtle",
       ghost: "ui-button--ghost",
       link: "ui-button--link",
+      outline: "ui-button--outline",
+      raised: "ui-button--raised",
       warning: "ui-button--warning",
       danger: "ui-button--danger"
     },
     spacing: {
       compact: "ui-button--sm",
       default: "ui-button--md",
-      spacious: "ui-button--lg"
+      spacious: "ui-button--lg",
+      icon: "ui-button--icon"
     }
   },
   defaultVariants: {

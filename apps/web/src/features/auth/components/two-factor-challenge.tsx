@@ -81,17 +81,13 @@ export function TwoFactorChallenge({ methods, onDone }: TwoFactorChallengeProps)
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
       }}
     >
-      <div
-        className="grid gap-[var(--ds-space-100)]"
-        role="group"
-        aria-label={t("auth.twoFactor.title")}
-      >
+      <div className="grid gap-ds-100" role="group" aria-label={t("auth.twoFactor.title")}>
         {availableMethods.map((option) => (
           <Button
             key={option}
@@ -122,7 +118,7 @@ export function TwoFactorChallenge({ methods, onDone }: TwoFactorChallengeProps)
         onChange={setCode}
       />
 
-      <div className="flex items-center gap-[var(--ds-space-100)]">
+      <div className="flex items-center gap-ds-100">
         <Checkbox
           id="two-factor-trust-device"
           checked={trustDevice}

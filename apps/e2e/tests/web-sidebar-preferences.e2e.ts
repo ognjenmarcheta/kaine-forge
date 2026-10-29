@@ -25,12 +25,12 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   await expect(germanLanguage).toContainText("Deutsch");
   await expect(germanLanguage).toBeFocused();
   await expect(composer).toHaveValue("Preferences must preserve this draft");
-  const theme = footer.getByRole("button", { name: /^Design\b/ });
+  const theme = footer.getByRole("button", { name: /^Darstellung\b/ });
   await theme.click();
   await page.getByRole("menuitemradio", { name: "Dunkel", exact: true }).click();
   await expect(theme).toBeFocused();
   await expect(composer).toHaveValue("Preferences must preserve this draft");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
 
   await page.locator('[data-slot="sidebar-trigger"]').click();
   await expect
@@ -57,7 +57,7 @@ test("footer choices preserve drafts and restore focus across collapse and reloa
   await expect(composer).toHaveValue("Preferences must preserve this draft");
   await page.reload();
   await expect(footer.getByRole("button", { name: /^Sprache\b/ })).toContainText("Deutsch");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
 });
 
 test("responsive drawer keeps labeled preferences usable with reduced motion", async ({ page }) => {
@@ -66,14 +66,14 @@ test("responsive drawer keeps labeled preferences usable with reduced motion", a
   await signIn(page);
   await page.locator('[data-slot="sidebar-trigger"]').click();
   const footer = page.locator(".ui-sidebar-preferences-footer");
-  for (const label of ["Language", "Theme"]) {
+  for (const label of ["Language", "Appearance"]) {
     const control = footer.getByRole("button", { name: new RegExp(`^${label}\\b`) });
     const box = await control.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
     expect(box?.width).toBeGreaterThanOrEqual(44);
     await expect(control).toContainText(label);
   }
-  const theme = footer.getByRole("button", { name: /^Theme\b/ });
+  const theme = footer.getByRole("button", { name: /^Appearance\b/ });
   await theme.click();
   await expect(page.getByRole("menuitemradio", { name: "System", exact: true })).toBeChecked();
   await page.getByRole("menuitemradio", { name: "Light", exact: true }).click();

@@ -32,13 +32,13 @@ export function BackupCodesList({ codes, onDone }: BackupCodesListProps) {
     >
       <ul
         aria-label={t("auth.security.backupCodesTitle")}
-        className="grid grid-cols-2 gap-[var(--ds-space-100)] font-mono"
+        className="grid grid-cols-2 gap-ds-100 font-mono"
       >
         {codes.map((code) => (
           <li key={code}>{code}</li>
         ))}
       </ul>
-      <div className="flex flex-wrap gap-[var(--ds-space-100)]">
+      <div className="flex flex-wrap gap-ds-100">
         <CopyButton
           copiedLabel={t("common.copied")}
           label={t("auth.security.copyBackupCodes")}

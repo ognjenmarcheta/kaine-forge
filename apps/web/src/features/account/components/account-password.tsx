@@ -40,7 +40,7 @@ export function AccountPassword() {
   return (
     <SettingsSection title={t("auth.account.password.title")}>
       <form
-        className="grid gap-[var(--ds-space-150)]"
+        className="grid gap-ds-150"
         onSubmit={(event) => {
           event.preventDefault();
           const error =
@@ -73,7 +73,7 @@ export function AccountPassword() {
             onChange={(event) => setNewPassword(event.target.value)}
           />
         </Field>
-        <label className="flex items-center gap-[var(--ds-space-100)]" htmlFor={revokeId}>
+        <label className="flex items-center gap-ds-100" htmlFor={revokeId}>
           <Checkbox
             checked={revokeOtherSessions}
             id={revokeId}

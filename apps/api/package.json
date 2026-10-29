@@ -31,6 +31,7 @@
     "@repo/jobs": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/storage": "workspace:*",
+    "@repo/theme": "workspace:*",
     "@repo/translation": "workspace:*",
     "ai": "^7.0.151",
     "better-auth": "catalog:",

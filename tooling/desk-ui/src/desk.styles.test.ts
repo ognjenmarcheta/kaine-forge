@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(path.resolve(import.meta.dirname, "desk.styles.css"), "utf8");
 const tokensCss = readFileSync(
-  path.resolve(import.meta.dirname, "../../../packages/ui/src/styles/globals.css"),
+  path.resolve(import.meta.dirname, "../../../packages/ui/src/styles/tokens.generated.css"),
   "utf8"
 );
 

@@ -163,12 +163,12 @@ function Preferences({
             trigger.current?.focus();
           }}
         >
-          <h2 className="desk-prefs__title">{t("desk.prefs.theme")}</h2>
+          <h2 className="desk-prefs__title">{t("desk.prefs.appearance")}</h2>
           <Segmented
-            label={t("desk.prefs.theme")}
+            label={t("desk.prefs.appearance")}
             value={theme}
             options={THEMES}
-            name={(entry) => t(`desk.prefs.theme.${entry}`)}
+            name={(entry) => t(`desk.prefs.appearance.${entry}`)}
             onChange={setTheme}
           />
           <h2 className="desk-prefs__title">{t("desk.prefs.language")}</h2>

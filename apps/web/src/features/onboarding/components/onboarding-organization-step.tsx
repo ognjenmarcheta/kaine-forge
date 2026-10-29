@@ -44,7 +44,7 @@ export function OnboardingOrganizationStep({
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         save.mutate("rename");
@@ -62,7 +62,7 @@ export function OnboardingOrganizationStep({
         />
       </Field>
       {save.error ? <FieldError>{t(getAuthErrorMessageKey(save.error))}</FieldError> : null}
-      <div className="grid gap-[var(--ds-space-100)]">
+      <div className="grid gap-ds-100">
         <Button disabled={save.isPending || trimmedName === ""} type="submit">
           {t("auth.onboarding.organization.rename")}
         </Button>

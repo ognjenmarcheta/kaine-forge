@@ -59,12 +59,12 @@ export function OrganizationSwitcher({
             {/* Named by its visible text (organization name and label): an aria-label that
                 replaces it fails WCAG 2.5.3 Label in Name (#545). */}
             <SidebarMenuButton className={className} size="lg">
-              <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-brand-inverse)] flex aspect-square size-8 items-center justify-center rounded-lg">
+              <div className="bg-ds-bg-brand-bold text-ds-text-brand-inverse flex aspect-square size-8 items-center justify-center rounded-lg">
                 <ActiveIcon className="size-4" />
               </div>
               <div className="grid flex-1 min-w-0 text-left leading-tight">
                 <span className="truncate font-medium">{activeOrganization.name}</span>
-                <span className="truncate text-xs text-[color:var(--ds-text-subtle)]">
+                <span className="truncate text-body-sm text-ds-text-subtle">
                   {activeOrganization.subtitle ?? label}
                 </span>
               </div>
@@ -73,11 +73,11 @@ export function OrganizationSwitcher({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-body-xs text-[color:var(--ds-text-subtle)]">
+            <DropdownMenuLabel className="text-body-xs text-ds-text-subtle">
               {label}
             </DropdownMenuLabel>
             {organizations.map((organization) => {
@@ -96,7 +96,7 @@ export function OrganizationSwitcher({
                     }
                   }}
                 >
-                  <div className="flex size-6 items-center justify-center rounded-md border border-[var(--ds-border)]">
+                  <div className="flex size-6 items-center justify-center rounded-md border border-ds-border">
                     <OrganizationIcon className="size-3.5" />
                   </div>
                   {organization.name}
@@ -108,7 +108,7 @@ export function OrganizationSwitcher({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={actionItem.onSelect}>
-                  <div className="flex size-6 items-center justify-center rounded-md border border-[var(--ds-border)] bg-transparent">
+                  <div className="flex size-6 items-center justify-center rounded-md border border-ds-border bg-transparent">
                     <Plus className="size-4" />
                   </div>
                   {actionItem.label}

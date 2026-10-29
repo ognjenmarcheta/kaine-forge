@@ -12,4 +12,20 @@ describe("PageHeader", () => {
 
     expect(markup).toContain("<h1>Todos</h1>");
   });
+
+  it.each([
+    [undefined, "ui-page-header__description"],
+    ["small", "ui-page-header__description text-body-sm"],
+    ["large", "ui-page-header__description text-body-lg"]
+  ] as const)("sets a %s description in its type step (TYPE-1)", (descriptionSize, classes) => {
+    const markup = renderToStaticMarkup(
+      <PageHeader
+        description="Track work"
+        title="Todos"
+        {...(descriptionSize ? { descriptionSize } : {})}
+      />
+    );
+
+    expect(markup).toContain(`<p class="${classes}">Track work</p>`);
+  });
 });

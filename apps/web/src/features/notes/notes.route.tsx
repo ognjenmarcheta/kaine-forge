@@ -24,6 +24,7 @@ import { LoadingRows } from "../../components/loading-rows";
 import { useWorkspaceNavigation } from "../../components/workspace-navigation.provider";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
+import "./notes.styles.css";
 
 export function NotesRoute() {
   const { activeOrganizationId, isLoading } = useOrganization();

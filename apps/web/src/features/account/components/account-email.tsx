@@ -31,7 +31,7 @@ export function AccountEmail() {
       title={t("auth.account.email.title")}
     >
       <form
-        className="grid gap-[var(--ds-space-100)]"
+        className="grid gap-ds-100"
         onSubmit={(event) => {
           event.preventDefault();
           const error = validateAuthEmail(newEmail);

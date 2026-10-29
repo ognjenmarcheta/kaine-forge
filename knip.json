@@ -83,7 +83,7 @@
     },
     "packages/mobile-ui": {
       "entry": ["src/index.ts", "**/*.test.{ts,tsx}", "vitest.config.ts"],
-      "ignore": ["src/test/react-native.stub.tsx"]
+      "ignore": ["src/test/react-native.stub.tsx", "src/test/react-native-svg.stub.tsx"]
     },
     "packages/ui": {
       "entry": ["src/index.ts", "src/primitives/*.tsx", "**/*.test.{ts,tsx}"]

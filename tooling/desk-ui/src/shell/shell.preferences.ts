@@ -41,7 +41,7 @@ export function useTheme(): readonly [Theme, (theme: Theme) => void] {
 
   const resolved = theme === "system" ? (dark ? "dark" : "light") : theme;
   useEffect(() => {
-    document.documentElement.dataset["theme"] = resolved;
+    document.documentElement.dataset["colorMode"] = resolved;
   }, [resolved]);
 
   const choose = (next: Theme): void => {

@@ -5,9 +5,9 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 ## Required Reading
 
 - Read `MONOREPO_GUIDE.md` before generating, modifying, or reviewing code.
-- Read `DESIGN_SYSTEM.md` before UI, styling, theming, token, or component work.
+- Read `DESIGN_SYSTEM.md` before UI, styling, theming, token, or component work. For a screen, also read `docs/ui/guidelines.md` and the active theme's `DESIGN.md` (the root `DESIGN.md` for the default theme).
 - Treat `MONOREPO_GUIDE.md` as authoritative for architecture, package boundaries, naming, data rules, GraphQL flow, and engineering conventions.
-- Treat `DESIGN_SYSTEM.md` as authoritative for visual language, tokens, theming, and component behavior.
+- Treat `DESIGN_SYSTEM.md` as authoritative for tokens, theming, and component behavior, and `docs/ui/guidelines.md` for the UI rules and their precedence. A theme's look lives in its `DESIGN.md` under `packages/theme/src/themes/`.
 - Read `CONTEXT.md` before naming domain concepts or shaping organization-scoped APIs.
 - Read `REVIEW.md` before reviewing code or when acting as a reviewer (canonical source `.ai/review.md`).
 - Read `docs/agents/day-one.md` when contributing with an agent for the first time or with little repo context.

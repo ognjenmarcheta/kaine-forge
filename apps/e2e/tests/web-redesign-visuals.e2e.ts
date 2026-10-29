@@ -97,7 +97,7 @@ for (const theme of ["light", "dark"] as const) {
     ).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`todos-${theme}.png`) });
     await page.locator('[data-slot="sidebar-trigger"]').click();
-    await page.getByRole("button", { name: /^Theme\b/ }).hover();
+    await page.getByRole("button", { name: /^Appearance\b/ }).hover();
     await page.mouse.move(800, 500);
     await page.screenshot({ path: testInfo.outputPath(`collapsed-${theme}.png`) });
     await page.setViewportSize({ width: 360, height: 900 });

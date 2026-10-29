@@ -4,6 +4,7 @@ import { XIcon } from "lucide-react";
 import { Dialog as SheetPrimitive } from "radix-ui";
 import * as React from "react";
 
+import { useDialogReturnFocus } from "./modal";
 import { cn } from "../../lib/cn";
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -29,7 +30,7 @@ function SheetOverlay({
   return (
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
-      className={cn("fixed inset-0 z-50 bg-[var(--ds-blanket)]", className)}
+      className={cn("fixed inset-0 z-50 bg-ds-blanket", className)}
       {...props}
     />
   );
@@ -39,6 +40,8 @@ function SheetContent({
   className,
   children,
   closeLabel,
+  onCloseAutoFocus,
+  onOpenAutoFocus,
   side = "right",
   showCloseButton = true,
   ...props
@@ -47,6 +50,8 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
 }) {
+  const returnFocus = useDialogReturnFocus();
+
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -54,18 +59,26 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "ui-sheet-content bg-[var(--ds-surface-overlay)] fixed z-50 flex flex-col gap-4 shadow-overlay",
+          "ui-sheet-content bg-ds-surface-overlay fixed z-50 flex flex-col gap-4 shadow-overlay",
           side === "right" && "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
           side === "left" && "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
           side === "top" && "inset-x-0 top-0 h-auto border-b",
           side === "bottom" && "inset-x-0 bottom-0 h-auto border-t",
           className
         )}
+        onOpenAutoFocus={(event) => {
+          returnFocus.onOpenAutoFocus();
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          returnFocus.onCloseAutoFocus(event);
+        }}
         {...props}
       >
         {children}
         {showCloseButton ? (
-          <SheetPrimitive.Close className="ring-offset-[var(--ds-background-default)] focus:ring-[var(--ds-border-focused)] data-[state=open]:bg-[var(--ds-background-neutral)] absolute top-4 right-4 rounded-xs text-[color:var(--ds-text-subtle)] transition-colors hover:text-[color:var(--ds-text)] focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+          <SheetPrimitive.Close className="ring-offset-ds-bg focus:ring-ds-border-focused data-[state=open]:bg-ds-bg-neutral absolute top-4 right-4 rounded-sm text-ds-text-subtle transition-colors hover:text-ds-text focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
             <XIcon className="size-4" />
             {closeLabel ? <span className="sr-only">{closeLabel}</span> : null}
           </SheetPrimitive.Close>
@@ -99,7 +112,7 @@ function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPr
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("text-[color:var(--ds-text)] font-semibold", className)}
+      className={cn("text-ds-text font-semibold", className)}
       {...props}
     />
   );
@@ -112,7 +125,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-[color:var(--ds-text-subtle)] text-sm", className)}
+      className={cn("text-ds-text-subtle text-body", className)}
       {...props}
     />
   );

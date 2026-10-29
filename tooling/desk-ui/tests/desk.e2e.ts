@@ -1055,7 +1055,7 @@ test("switches language and theme without leaving the page", async ({ page, desk
   await page.getByRole("button", { name: "Preferences" }).click();
   const prefs = page.getByRole("dialog", { name: "Preferences" });
   await prefs.getByRole("button", { name: "Dark" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(
     lightBackground
   );
@@ -1081,15 +1081,15 @@ test("switches language and theme without leaving the page", async ({ page, desk
 test("follows the system dark theme until the engineer picks one", async ({ page, desk }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await desk.open();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "light");
   await page.getByRole("button", { name: "Preferences" }).click();
   await page
     .getByRole("dialog", { name: "Preferences" })
     .getByRole("button", { name: "Dark" })
     .click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
   await expect(group(page, /^Needs you/)).toContainText("#103");
 });
 
@@ -1241,7 +1241,7 @@ test("on a phone the decision's buttons are a bar at the bottom, and the page en
   expect((end?.y ?? 0) + (end?.height ?? 0)).toBeLessThanOrEqual(fixedBar?.y ?? 0);
 
   await page.emulateMedia({ colorScheme: "dark" });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   );

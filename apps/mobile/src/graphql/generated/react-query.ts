@@ -39,6 +39,10 @@ export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type MobileHealthQuery = { health: string };
 
+export type MobileOrganizationThemeQueryVariables = Exact<{ [key: string]: never }>;
+
+export type MobileOrganizationThemeQuery = { organizationTheme: string };
+
 export type GetMobileFileQueryVariables = Exact<{
   id: string | number;
 }>;
@@ -323,6 +327,36 @@ export const useMobileHealthQuery = <TData = MobileHealthQuery, TError = unknown
 
 useMobileHealthQuery.getKey = (variables?: MobileHealthQueryVariables) =>
   variables === undefined ? ["MobileHealth"] : ["MobileHealth", variables];
+
+export const MobileOrganizationThemeDocument = new TypedDocumentString(`
+    query MobileOrganizationTheme {
+  organizationTheme
+}
+    `);
+
+export const useMobileOrganizationThemeQuery = <
+  TData = MobileOrganizationThemeQuery,
+  TError = unknown
+>(
+  variables?: MobileOrganizationThemeQueryVariables,
+  options?: Omit<UseQueryOptions<MobileOrganizationThemeQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<MobileOrganizationThemeQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<MobileOrganizationThemeQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["MobileOrganizationTheme"]
+        : ["MobileOrganizationTheme", variables],
+    queryFn: useGraphqlFetcher<MobileOrganizationThemeQuery, MobileOrganizationThemeQueryVariables>(
+      MobileOrganizationThemeDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useMobileOrganizationThemeQuery.getKey = (variables?: MobileOrganizationThemeQueryVariables) =>
+  variables === undefined ? ["MobileOrganizationTheme"] : ["MobileOrganizationTheme", variables];
 
 export const GetMobileFileDocument = new TypedDocumentString(`
     query GetMobileFile($id: ID!) {

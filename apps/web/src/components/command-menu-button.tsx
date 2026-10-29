@@ -1,32 +1,32 @@
-import { Button, Search } from "@repo/ui";
-import { useState } from "react";
+import { SearchTrigger, useApplePlatform } from "@repo/ui";
 
-import { isApplePlatform } from "./command-menu.util";
 import { useTranslation } from "../hooks/use-translation";
 
 /** The header's search-style button that opens the command menu; an icon alone on a phone. */
 export function CommandMenuButton({ onOpen }: { onOpen: () => void }) {
   const { t } = useTranslation();
-  const [applePlatform] = useState(isApplePlatform);
+  const applePlatform = useApplePlatform();
+  const trigger = {
+    appearance: "subtle",
+    "aria-keyshortcuts": applePlatform ? "Meta+K" : "Control+K",
+    label: t("navigation.commandMenu.open"),
+    onClick: onOpen,
+    spacing: "compact"
+  } as const;
 
+  // CSS picks the form, so the first paint is right: the magnifier alone below md, where the
+  // header has no room for the label and the shortcut hint.
   return (
-    <Button
-      appearance="subtle"
-      aria-keyshortcuts={applePlatform ? "Meta+K" : "Control+K"}
-      className="gap-[var(--ds-space-100)] text-[color:var(--ds-text-subtle)]"
-      onClick={onOpen}
-      spacing="compact"
-      type="button"
-    >
-      <Search aria-hidden="true" className="size-4" />
-      <span className="sr-only md:not-sr-only">{t("navigation.commandMenu.open")}</span>
-      <kbd aria-hidden="true" className="ui-command-menu__kbd hidden md:inline">
-        {t(
-          applePlatform
-            ? "navigation.commandMenu.shortcutMac"
-            : "navigation.commandMenu.shortcutOther"
-        )}
-      </kbd>
-    </Button>
+    <>
+      <SearchTrigger {...trigger} className="md:hidden" show="icon" />
+      <SearchTrigger
+        {...trigger}
+        className="hidden md:inline-flex"
+        shortcut={{
+          apple: t("navigation.commandMenu.shortcutMac"),
+          other: t("navigation.commandMenu.shortcutOther")
+        }}
+      />
+    </>
   );
 }

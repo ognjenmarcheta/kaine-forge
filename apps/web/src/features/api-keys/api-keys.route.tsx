@@ -45,7 +45,7 @@ function CreateApiKeyForm({ onCreated }: { onCreated: () => Promise<void> }) {
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         create.mutate({
@@ -122,7 +122,7 @@ export function ApiKeysRoute() {
   const formatDate = (value: unknown) => new Date(String(value)).toLocaleString(language);
 
   return (
-    <section className="grid gap-[var(--ds-space-300)]">
+    <section className="grid gap-ds-300">
       <PageHeader
         description={t("organizations.apiKeys.description")}
         title={t("organizations.apiKeys.title")}
@@ -135,7 +135,7 @@ export function ApiKeysRoute() {
       ) : null}
 
       {keysQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
+        <p role="alert" className="text-body text-ds-text-danger">
           {t("organizations.apiKeys.error")}{" "}
           <Button appearance="subtle" onClick={() => void keysQuery.refetch()}>
             {t("common.retry")}
@@ -144,19 +144,17 @@ export function ApiKeysRoute() {
       ) : null}
 
       {keysQuery.status === "success" && keys.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.apiKeys.empty")}
-        </p>
+        <p className="text-body text-ds-text-subtle">{t("organizations.apiKeys.empty")}</p>
       ) : null}
 
       {keys.length > 0 ? (
         <ul aria-label={t("organizations.apiKeys.title")} className="ui-work-list">
           {keys.map((apiKey) => (
-            <li key={apiKey.id} className="ui-work-row grid gap-[var(--ds-space-050)]">
-              <div className="flex flex-wrap items-center justify-between gap-[var(--ds-space-100)]">
-                <p className="text-body font-semibold text-[color:var(--ds-text)]">
+            <li key={apiKey.id} className="ui-work-row grid gap-ds-050">
+              <div className="flex flex-wrap items-center justify-between gap-ds-100">
+                <p className="text-body font-semibold text-ds-text">
                   {apiKey.name}{" "}
-                  <span className="font-mono text-body-sm text-[color:var(--ds-text-subtle)]">
+                  <span className="font-mono text-body-sm text-ds-text-subtle">
                     {apiKey.prefix}
                   </span>
                 </p>
@@ -169,7 +167,7 @@ export function ApiKeysRoute() {
                   </Button>
                 ) : null}
               </div>
-              <dl className="grid gap-x-[var(--ds-space-150)] gap-y-[var(--ds-space-025)] text-body-sm text-[color:var(--ds-text-subtle)] md:grid-cols-[auto_1fr]">
+              <dl className="grid gap-x-ds-150 gap-y-ds-025 text-body-sm text-ds-text-subtle md:grid-cols-[auto_1fr]">
                 <dt>{t("organizations.apiKeys.createdBy")}</dt>
                 <dd className="min-w-0 break-words">
                   {apiKey.createdBy?.name ?? t("organizations.audit.unknownActor")}

@@ -128,6 +128,7 @@ function Patch({
   return (
     <div
       className="desk-patch__lines"
+      role="region"
       tabIndex={0}
       aria-label={t("desk.diff.patchOf", { path: file.path })}
     >

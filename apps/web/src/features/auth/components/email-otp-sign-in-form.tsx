@@ -74,7 +74,7 @@ export function EmailOtpSignInForm({ onDone }: EmailOtpSignInFormProps) {
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         void (codeSent ? signIn() : sendCode());

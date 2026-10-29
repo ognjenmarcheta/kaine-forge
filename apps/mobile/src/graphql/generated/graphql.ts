@@ -38,6 +38,10 @@ export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type MobileHealthQuery = { health: string };
 
+export type MobileOrganizationThemeQueryVariables = Exact<{ [key: string]: never }>;
+
+export type MobileOrganizationThemeQuery = { organizationTheme: string };
+
 export type GetMobileFileQueryVariables = Exact<{
   id: string | number;
 }>;
@@ -294,6 +298,20 @@ export const MobileHealthDocument = {
     }
   ]
 } as unknown as DocumentNode<MobileHealthQuery, MobileHealthQueryVariables>;
+export const MobileOrganizationThemeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "MobileOrganizationTheme" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "organizationTheme" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<MobileOrganizationThemeQuery, MobileOrganizationThemeQueryVariables>;
 export const GetMobileFileDocument = {
   kind: "Document",
   definitions: [

@@ -78,6 +78,7 @@ import {
   OrganizationMembersTab,
   OrganizationRolesTab
 } from "./features/organizations/organizations.tabs.route";
+import { useApplyOrganizationTheme } from "./features/organizations/organizations.theme";
 import { usePublicAssets } from "./features/public-assets/public-assets.hook";
 import { TodosRoute } from "./features/todos/todos.route";
 import { useWebhooksAccess } from "./features/webhooks/webhooks.hook";
@@ -90,9 +91,9 @@ import { useTranslation } from "./hooks/use-translation";
 import { saveEmailLanguageRequest } from "./lib/auth-api";
 
 const THEME_OPTIONS = [
-  { labelKey: "navigation.themeSystem", value: "system" },
-  { labelKey: "navigation.themeLight", value: "light" },
-  { labelKey: "navigation.themeDark", value: "dark" }
+  { labelKey: "navigation.appearanceSystem", value: "system" },
+  { labelKey: "navigation.appearanceLight", value: "light" },
+  { labelKey: "navigation.appearanceDark", value: "dark" }
 ] as const;
 
 function RootLayout() {
@@ -115,19 +116,19 @@ function ShellSkeleton({ label }: { label: string }) {
       <AppLayout
         header={
           <header className="ui-app-shell__header">
-            <div className="flex flex-1 items-center gap-[var(--ds-space-150)] px-[var(--ds-space-200)]">
-              <Skeleton className="size-[var(--ds-space-300)]" />
-              <Skeleton className="h-[var(--ds-space-200)] w-1/4" />
+            <div className="flex flex-1 items-center gap-ds-150 px-ds-200">
+              <Skeleton className="size-ds-300" />
+              <Skeleton className="h-ds-200 w-1/4" />
             </div>
           </header>
         }
         main={
           <SidebarInset className="ui-app-shell__content">
-            <div aria-busy="true" className="grid gap-[var(--ds-space-200)]" role="status">
+            <div aria-busy="true" className="grid gap-ds-200" role="status">
               <span className="sr-only">{label}</span>
-              <Skeleton className="h-[var(--ds-space-500)] w-1/3" />
+              <Skeleton className="h-ds-500 w-1/3" />
               {[0, 1, 2].map((row) => (
-                <Skeleton key={row} className="h-[var(--ds-space-800)] w-full" />
+                <Skeleton key={row} className="h-ds-800 w-full" />
               ))}
             </div>
           </SidebarInset>
@@ -135,11 +136,11 @@ function ShellSkeleton({ label }: { label: string }) {
         sidebar={
           <Sidebar collapsible="icon">
             <SidebarHeader>
-              <Skeleton className="h-[var(--ds-space-600)] w-full" />
+              <Skeleton className="h-ds-600 w-full" />
             </SidebarHeader>
-            <SidebarContent className="gap-[var(--ds-space-150)] p-[var(--ds-space-200)]">
+            <SidebarContent className="gap-ds-150 p-ds-200">
               {[0, 1, 2, 3].map((row) => (
-                <Skeleton key={row} className="h-[var(--ds-space-400)] w-full" />
+                <Skeleton key={row} className="h-ds-400 w-full" />
               ))}
             </SidebarContent>
           </Sidebar>
@@ -171,6 +172,7 @@ function ShellContent() {
   const canReadAuditLog = useAuditLogAccess(activeOrganizationId);
   const canReadApiKeys = useApiKeysAccess(activeOrganizationId);
   const canReadWebhooks = useWebhooksAccess(activeOrganizationId);
+  useApplyOrganizationTheme(session ? activeOrganizationId : null);
 
   if (isLoading) {
     return <ShellSkeleton label={t("common.loadingSession")} />;
@@ -208,7 +210,7 @@ function ShellContent() {
       value: language
     },
     theme: {
-      label: t("navigation.theme"),
+      label: t("navigation.appearance"),
       onValueChange: (value) => {
         if (value === "dark" || value === "light" || value === "system") {
           setThemeMode(value);
@@ -252,14 +254,14 @@ function ShellContent() {
     <AppLayout
       header={
         <header className="ui-app-shell__header">
-          <div className="flex w-full items-center gap-[var(--ds-space-100)] px-[var(--ds-space-200)]">
+          <div className="flex w-full items-center gap-ds-100 px-ds-200">
             <SidebarTrigger className="-ml-1" label={t("navigation.toggleSidebar")} />
             <Separator
               orientation="vertical"
-              className="mr-[var(--ds-space-100)] data-[orientation=vertical]:h-4"
+              className="mr-ds-100 data-[orientation=vertical]:h-4"
             />
             <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
-            <div className="ml-auto flex items-center gap-[var(--ds-space-100)]">
+            <div className="ml-auto flex items-center gap-ds-100">
               <CommandMenuButton onOpen={() => setIsCommandMenuOpen(true)} />
               <NotificationBell />
             </div>
@@ -273,6 +275,7 @@ function ShellContent() {
       }
       sidebar={
         <AppSidebar
+          label={t("navigation.sidebarTitle")}
           mobileSheetCloseLabel={t("common.close")}
           mobileSheetDescription={t("navigation.mobileSidebarDescription")}
           mobileSheetTitle={t("navigation.sidebarTitle")}

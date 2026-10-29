@@ -1,12 +1,7 @@
 {
   "extends": "../config/typescript/tsconfig.react.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

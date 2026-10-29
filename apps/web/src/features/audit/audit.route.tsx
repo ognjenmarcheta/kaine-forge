@@ -6,6 +6,7 @@ import { LoadingRows } from "../../components/loading-rows";
 import { useOrganization } from "../../hooks/use-organization";
 import { useTranslation } from "../../hooks/use-translation";
 import { formatRelativeTime } from "../../lib/relative-time";
+import "./audit.styles.css";
 
 export function AuditLogRoute() {
   const { language, t } = useTranslation();

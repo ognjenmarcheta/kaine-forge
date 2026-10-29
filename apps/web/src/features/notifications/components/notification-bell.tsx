@@ -77,7 +77,7 @@ export function NotificationBell() {
               appearance="danger"
               emphasis="bold"
               aria-hidden="true"
-              className="absolute -right-[var(--ds-space-050)] -top-[var(--ds-space-050)] px-[var(--ds-space-050)] py-0 text-body-sm"
+              className="absolute -right-ds-050 -top-ds-050 px-ds-050 py-0 text-body-sm"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
@@ -88,7 +88,7 @@ export function NotificationBell() {
         align="end"
         className="w-[calc(100vw-var(--ds-space-400))] max-w-[calc(var(--ds-space-1000)*5)]"
       >
-        <div className="flex items-center justify-between gap-[var(--ds-space-100)] px-[var(--ds-space-100)]">
+        <div className="flex items-center justify-between gap-ds-100 px-ds-100">
           <DropdownMenuLabel className="px-0">{t("notifications.inbox.title")}</DropdownMenuLabel>
           {unreadCount > 0 ? (
             <Button appearance="link" spacing="compact" onClick={markAllRead}>
@@ -98,42 +98,35 @@ export function NotificationBell() {
         </div>
         <DropdownMenuSeparator />
         {inbox.status === "pending" ? (
-          <div
-            aria-busy="true"
-            role="status"
-            className="grid gap-[var(--ds-space-100)] p-[var(--ds-space-100)]"
-          >
+          <div aria-busy="true" role="status" className="grid gap-ds-100 p-ds-100">
             <span className="sr-only">{t("notifications.inbox.loading")}</span>
             {[0, 1, 2].map((row) => (
-              <Skeleton key={row} className="h-[var(--ds-space-400)] w-full" />
+              <Skeleton key={row} className="h-ds-400 w-full" />
             ))}
           </div>
         ) : null}
         {inbox.status === "error" ? (
-          <p
-            role="alert"
-            className="p-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text-danger)]"
-          >
+          <p role="alert" className="p-ds-100 text-body-sm text-ds-text-danger">
             {t("notifications.inbox.error")}
           </p>
         ) : null}
         {inbox.status === "success" && items.length === 0 ? (
-          <p className="p-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text-subtle)]">
+          <p className="p-ds-100 text-body-sm text-ds-text-subtle">
             {t("notifications.inbox.empty")}
           </p>
         ) : null}
         {items.map((notification) => (
           <DropdownMenuItem
             key={notification.id}
-            className="grid items-start gap-[var(--ds-space-025)]"
+            className="grid items-start gap-ds-025"
             onSelect={() => open(notification)}
           >
-            <span className="flex items-start gap-[var(--ds-space-100)]">
+            <span className="flex items-start gap-ds-100">
               <span
                 className={
                   notification.readAt
-                    ? "text-body text-[color:var(--ds-text-subtle)]"
-                    : "text-body font-semibold text-[color:var(--ds-text)]"
+                    ? "text-body text-ds-text-subtle"
+                    : "text-body font-semibold text-ds-text"
                 }
               >
                 {messageOf(t, notification)}
@@ -142,7 +135,7 @@ export function NotificationBell() {
                 <Badge appearance="information">{t("notifications.inbox.unread")}</Badge>
               )}
             </span>
-            <span className="text-body-sm text-[color:var(--ds-text-subtlest)]">
+            <span className="text-body-sm text-ds-text-subtlest">
               {date.format(new Date(notification.createdAt))}
             </span>
           </DropdownMenuItem>

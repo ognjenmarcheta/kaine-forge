@@ -51,7 +51,7 @@ export function ShellUserMenu({
             <SidebarMenuButton
               aria-label={ariaLabel ?? displayName}
               className={cn(
-                "data-[state=open]:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:text-[color:var(--ds-text)]",
+                "data-[state=open]:bg-ds-bg-neutral-hovered data-[state=open]:text-ds-text",
                 className
               )}
               size="lg"
@@ -60,17 +60,10 @@ export function ShellUserMenu({
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 min-w-0 text-left leading-tight">
-                <span className="truncate text-body font-medium text-[color:var(--ds-text)]">
-                  {displayName}
-                </span>
-                <span className="truncate text-body-xs text-[color:var(--ds-text-subtle)]">
-                  {email}
-                </span>
+                <span className="truncate text-body font-medium text-ds-text">{displayName}</span>
+                <span className="truncate text-body-xs text-ds-text-subtle">{email}</span>
               </div>
-              <MoreVertical
-                aria-hidden
-                className="ml-auto size-4 text-[color:var(--ds-icon-subtle)]"
-              />
+              <MoreVertical aria-hidden className="ml-auto size-4 text-ds-icon-subtle" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -78,7 +71,7 @@ export function ShellUserMenu({
             className="w-(--radix-dropdown-menu-trigger-width) min-w-[12rem]"
           >
             <DropdownMenuLabel className="truncate">{displayName}</DropdownMenuLabel>
-            <DropdownMenuLabel className="truncate font-normal text-[color:var(--ds-text-subtle)]">
+            <DropdownMenuLabel className="truncate font-normal text-ds-text-subtle">
               {email}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

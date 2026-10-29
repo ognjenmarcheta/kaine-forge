@@ -1,16 +1,18 @@
+import { defaultTheme } from "@repo/theme";
 import type { ReactNode } from "react";
 
 // Email clients ignore CSS custom properties and stylesheets, so the layout
-// inlines the light-theme values of the --ds-* tokens in
-// packages/ui/src/styles/globals.css.
+// inlines the light values of the default theme from @repo/theme.
+const light = defaultTheme.modes.light;
 const EMAIL_TOKENS = {
-  brand: "#d4421a",
-  border: "#e3e6eb",
-  surface: "#ffffff",
-  surfaceSunken: "#f5f6f8",
-  text: "#121419",
-  textInverse: "#ffffff",
-  textSubtle: "#4a505c",
+  brand: light["background-brand-bold"],
+  border: light.border,
+  link: light.link,
+  surface: light.surface,
+  surfaceSunken: light["surface-sunken"],
+  text: light.text,
+  textInverse: light["text-brand-inverse"],
+  textSubtle: light["text-subtle"],
   fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 } as const;
 
@@ -139,7 +141,7 @@ export function EmailButton({ href, label, fallback }: EmailButtonProps) {
         }}
       >
         {fallback}{" "}
-        <a href={href} style={{ color: EMAIL_TOKENS.brand }}>
+        <a href={href} style={{ color: EMAIL_TOKENS.link }}>
           {href}
         </a>
       </p>

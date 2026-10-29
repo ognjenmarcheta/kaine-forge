@@ -66,16 +66,16 @@ export function AccountSessions() {
             return (
               <li
                 key={session.id}
-                className="ui-work-row flex flex-wrap items-center justify-between gap-[var(--ds-space-150)]"
+                className="ui-work-row flex flex-wrap items-center justify-between gap-ds-150"
               >
-                <div className="grid min-w-0 gap-[var(--ds-space-050)]">
-                  <p className="flex flex-wrap items-center gap-[var(--ds-space-100)] break-all text-body text-[color:var(--ds-text)]">
+                <div className="grid min-w-0 gap-ds-050">
+                  <p className="flex flex-wrap items-center gap-ds-100 break-all text-body text-ds-text">
                     {device}
                     {session.current ? (
                       <Badge appearance="success">{t("auth.account.sessions.thisDevice")}</Badge>
                     ) : null}
                   </p>
-                  <p className="text-body-sm text-[color:var(--ds-text-subtle)]">
+                  <p className="text-body-sm text-ds-text-subtle">
                     {t("auth.account.sessions.details")
                       .replace("{ip}", session.ipAddress ?? t("auth.account.sessions.unknownIp"))
                       .replace("{date}", date.format(new Date(session.createdAt)))}

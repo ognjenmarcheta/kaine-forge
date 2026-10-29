@@ -87,7 +87,7 @@ function OnboardingFlow() {
       title={t(step ? STEP_COPY_KEYS[step].title : "auth.onboarding.title")}
     >
       {step && steps && steps.length > 1 ? (
-        <p className="mb-[var(--ds-space-200)] text-body-sm text-[color:var(--ds-text-subtle)]">
+        <p className="mb-ds-200 text-body-sm text-ds-text-subtle">
           {t("auth.onboarding.step")
             .replace("{current}", String(stepIndex + 1))
             .replace("{total}", String(steps.length))}
@@ -101,7 +101,7 @@ function OnboardingFlow() {
       ) : null}
       {step === "invite" ? <OnboardingInviteStep /> : null}
       {steps === null && resolved.status === "error" ? (
-        <div className="grid gap-[var(--ds-space-100)]">
+        <div className="grid gap-ds-100">
           <FieldError>{t("auth.onboarding.loadError")}</FieldError>
           <div>
             <Button appearance="subtle" type="button" onClick={resolved.retry}>
@@ -111,11 +111,9 @@ function OnboardingFlow() {
         </div>
       ) : null}
       {complete.error ? (
-        <FieldError className="mt-[var(--ds-space-150)]">
-          {t(getAuthErrorMessageKey(complete.error))}
-        </FieldError>
+        <FieldError className="mt-ds-150">{t(getAuthErrorMessageKey(complete.error))}</FieldError>
       ) : null}
-      <div className="mt-[var(--ds-space-200)] flex justify-end gap-[var(--ds-space-100)]">
+      <div className="mt-ds-200 flex justify-end gap-ds-100">
         <Button
           appearance="subtle"
           disabled={complete.isPending}

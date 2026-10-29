@@ -64,7 +64,7 @@ function EndpointForm({
 
   return (
     <form
-      className="grid gap-[var(--ds-space-150)]"
+      className="grid gap-ds-150"
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit({ url: url.trim(), eventTypes: [...selected] });
@@ -84,13 +84,13 @@ function EndpointForm({
       </Field>
       <FieldSet>
         <FieldLegend variant="label">{t("organizations.webhooks.events")}</FieldLegend>
-        <div className="grid gap-[var(--ds-space-050)] sm:grid-cols-2">
+        <div className="grid gap-ds-050 sm:grid-cols-2">
           {eventTypes.map((eventType) => {
             const id = `${idPrefix}-${eventType}`;
             return (
               <label
                 key={eventType}
-                className="flex items-center gap-[var(--ds-space-100)] text-body-sm text-[color:var(--ds-text)]"
+                className="flex items-center gap-ds-100 text-body-sm text-ds-text"
                 htmlFor={id}
               >
                 <Checkbox
@@ -137,7 +137,7 @@ function DeliveryLog({ endpointId }: { endpointId: string }) {
 
   if (deliveriesQuery.status === "error") {
     return (
-      <p role="alert" className="text-body-sm text-[color:var(--ds-text-danger)]">
+      <p role="alert" className="text-body-sm text-ds-text-danger">
         {t("organizations.webhooks.deliveriesError")}
       </p>
     );
@@ -145,24 +145,21 @@ function DeliveryLog({ endpointId }: { endpointId: string }) {
 
   if (deliveries.length === 0) {
     return (
-      <p className="text-body-sm text-[color:var(--ds-text-subtle)]">
+      <p className="text-body-sm text-ds-text-subtle">
         {t("organizations.webhooks.deliveriesEmpty")}
       </p>
     );
   }
 
   return (
-    <div className="grid gap-[var(--ds-space-100)]">
-      <ul
-        aria-label={t("organizations.webhooks.deliveries")}
-        className="grid gap-[var(--ds-space-050)]"
-      >
+    <div className="grid gap-ds-100">
+      <ul aria-label={t("organizations.webhooks.deliveries")} className="grid gap-ds-050">
         {deliveries.map((delivery) => (
           <li
             key={delivery.id}
-            className="flex flex-wrap gap-x-[var(--ds-space-150)] text-body-sm text-[color:var(--ds-text-subtle)]"
+            className="flex flex-wrap gap-x-ds-150 text-body-sm text-ds-text-subtle"
           >
-            <span className="font-mono text-[color:var(--ds-text)]">{delivery.eventType}</span>
+            <span className="font-mono text-ds-text">{delivery.eventType}</span>
             <span>
               {delivery.error === null
                 ? t("organizations.webhooks.delivered")
@@ -225,12 +222,12 @@ function EndpointItem({
   });
 
   return (
-    <li className="ui-work-row grid gap-[var(--ds-space-100)]">
-      <div className="flex flex-wrap items-center justify-between gap-[var(--ds-space-100)]">
-        <p className="min-w-0 break-all font-mono text-body font-semibold text-[color:var(--ds-text)]">
+    <li className="ui-work-row grid gap-ds-100">
+      <div className="flex flex-wrap items-center justify-between gap-ds-100">
+        <p className="min-w-0 break-all font-mono text-body font-semibold text-ds-text">
           {endpoint.url}
         </p>
-        <div className="flex gap-[var(--ds-space-050)]">
+        <div className="flex gap-ds-050">
           <Button appearance="subtle" onClick={() => setShowDeliveries(!showDeliveries)}>
             {showDeliveries
               ? t("organizations.webhooks.hideDeliveries")
@@ -253,9 +250,7 @@ function EndpointItem({
           ) : null}
         </div>
       </div>
-      <p className="font-mono text-body-sm text-[color:var(--ds-text-subtle)]">
-        {endpoint.eventTypes.join(", ")}
-      </p>
+      <p className="font-mono text-body-sm text-ds-text-subtle">{endpoint.eventTypes.join(", ")}</p>
       {editing ? (
         <EndpointForm
           eventTypes={eventTypes}
@@ -273,7 +268,7 @@ function EndpointItem({
         />
       ) : null}
       {rotate.isError ? (
-        <p role="alert" className="text-body-sm text-[color:var(--ds-text-danger)]">
+        <p role="alert" className="text-body-sm text-ds-text-danger">
           {t("organizations.webhooks.rotateError")}
         </p>
       ) : null}
@@ -325,14 +320,14 @@ export function WebhooksRoute() {
   const endpoints = endpointsQuery.data?.pages.flatMap((page) => page.webhookEndpoints.items) ?? [];
 
   return (
-    <section className="grid gap-[var(--ds-space-300)]">
+    <section className="grid gap-ds-300">
       <PageHeader
         description={t("organizations.webhooks.description")}
         title={t("organizations.webhooks.title")}
       />
 
       {permissions?.has("webhook:create") && eventTypes.length > 0 ? (
-        <div className="grid gap-[var(--ds-space-150)]">
+        <div className="grid gap-ds-150">
           <EndpointForm
             key={formKey}
             eventTypes={eventTypes}
@@ -356,7 +351,7 @@ export function WebhooksRoute() {
       ) : null}
 
       {endpointsQuery.status === "error" ? (
-        <p role="alert" className="text-body text-[color:var(--ds-text-danger)]">
+        <p role="alert" className="text-body text-ds-text-danger">
           {t("organizations.webhooks.error")}{" "}
           <Button appearance="subtle" onClick={() => void endpointsQuery.refetch()}>
             {t("common.retry")}
@@ -365,9 +360,7 @@ export function WebhooksRoute() {
       ) : null}
 
       {endpointsQuery.status === "success" && endpoints.length === 0 ? (
-        <p className="text-body text-[color:var(--ds-text-subtle)]">
-          {t("organizations.webhooks.empty")}
-        </p>
+        <p className="text-body text-ds-text-subtle">{t("organizations.webhooks.empty")}</p>
       ) : null}
 
       {endpoints.length > 0 ? (

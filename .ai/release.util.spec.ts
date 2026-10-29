@@ -154,11 +154,7 @@ describe("collectAffectedApps", () => {
 
   it("ignores root files no dockerfile copies", () => {
     expect(
-      collectAffectedApps(
-        [".nvmrc", "scripts/sync-mobile-design-tokens.mjs"],
-        deployableApps,
-        workspaces
-      )
+      collectAffectedApps([".nvmrc", "scripts/doctor.mjs"], deployableApps, workspaces)
     ).toEqual(new Set());
   });
 

@@ -115,10 +115,9 @@ export function ShellSelectControl({
       // named by their visible label and value (WCAG 2.5.3 Label in Name, #545).
       aria-label={isIconDisplay ? (ariaLabel ?? label) : undefined}
       className={cn(
-        "data-[state=open]:bg-[var(--ds-background-neutral-hovered)] data-[state=open]:text-[color:var(--ds-text)]",
-        isIconDisplay &&
-          "size-8 justify-center p-0 bg-[var(--ds-background-neutral)] text-[color:var(--ds-text-subtle)]",
-        isCompact && "ui-shell-select-compact",
+        "data-[state=open]:bg-ds-bg-neutral-hovered data-[state=open]:text-ds-text",
+        isIconDisplay && "size-8 justify-center p-0 bg-ds-bg-neutral text-ds-text-subtle",
+        isCompact && "ui-shell-select-compact max-md:h-ds-control-xlarge",
         className
       )}
       disabled={disabled}
@@ -131,25 +130,18 @@ export function ShellSelectControl({
           {iconNode}
           <span className="ui-shell-select-compact__label">{label}</span>
           <span className="ui-shell-select-compact__value">{displayText}</span>
-          <ChevronRight aria-hidden className="text-[color:var(--ds-icon-subtle)]" />
+          <ChevronRight aria-hidden className="text-ds-icon-subtle" />
         </>
       ) : (
         <>
-          <div className="bg-[var(--ds-background-brand-bold)] text-[color:var(--ds-text-brand-inverse)] flex shrink-0 aspect-square size-8 items-center justify-center rounded-lg">
+          <div className="bg-ds-bg-brand-bold text-ds-text-brand-inverse flex shrink-0 aspect-square size-8 items-center justify-center rounded-lg">
             {iconNode}
           </div>
           <div className="grid flex-1 min-w-0 text-left leading-tight">
-            <span className="truncate text-body-xs text-[color:var(--ds-text-subtle)]">
-              {label}
-            </span>
-            <span className="truncate text-body font-medium text-[color:var(--ds-text)]">
-              {displayText}
-            </span>
+            <span className="truncate text-body-xs text-ds-text-subtle">{label}</span>
+            <span className="truncate text-body font-medium text-ds-text">{displayText}</span>
           </div>
-          <ChevronsUpDown
-            aria-hidden
-            className="ml-auto size-4 text-[color:var(--ds-icon-subtle)]"
-          />
+          <ChevronsUpDown aria-hidden className="ml-auto size-4 text-ds-icon-subtle" />
         </>
       )}
     </SidebarMenuButton>
@@ -217,7 +209,7 @@ export function ShellSelectControl({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="text-[color:var(--ds-link)]"
+                  className="text-ds-link"
                   onSelect={() => {
                     applyShellSelectControlChange({
                       actionItem,

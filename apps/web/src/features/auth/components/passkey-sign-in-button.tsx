@@ -32,7 +32,7 @@ export function PasskeySignInButton({ onDone }: PasskeySignInButtonProps) {
   };
 
   return (
-    <div className="grid gap-[var(--ds-space-100)]">
+    <div className="grid gap-ds-100">
       <Button
         appearance="secondary"
         disabled={isSubmitting}

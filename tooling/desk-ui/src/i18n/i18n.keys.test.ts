@@ -130,7 +130,7 @@ describe("desk translations", () => {
       "desk.plan.action.": ["create", "modify", "delete"],
       "desk.build.result.": ["pass", "fail", "not-run"],
       "desk.check.kind.": ["loop", "ship"],
-      "desk.prefs.theme.": THEMES,
+      "desk.prefs.appearance.": THEMES,
       "desk.prefs.language.": ["en", "de", "sr"],
       "desk.undo.pending.": UNDOABLE_ACTIONS,
       "desk.palette.section.": ["here", "recent", "turn", "goto", "issues"],

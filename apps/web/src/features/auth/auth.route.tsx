@@ -90,7 +90,7 @@ export function AuthRoute() {
   return (
     <AuthLayout
       footer={
-        <nav aria-label={t("legal.footerLabel")} className="flex gap-[var(--ds-space-200)]">
+        <nav aria-label={t("legal.footerLabel")} className="flex gap-ds-200">
           <Button appearance="link" asChild spacing="compact">
             <Link to="/terms">{t("legal.terms.title")}</Link>
           </Button>
@@ -102,13 +102,13 @@ export function AuthRoute() {
       subtitle={t(MODE_COPY_KEYS[mode].subtitle)}
       title={t(MODE_COPY_KEYS[mode].title)}
     >
-      <div className="mb-[var(--ds-space-300)]">
+      <div className="mb-ds-300">
         <ThemeSelect />
       </div>
       {isPrimaryMode ? (
         <nav
           aria-label={t("auth.modeSwitch")}
-          className={cn(tabsListClassName, "mb-[var(--ds-space-150)] flex w-full")}
+          className={cn(tabsListClassName, "mb-ds-150 flex w-full")}
         >
           {(["login", "signup"] as const).map((value) => (
             <Link
@@ -125,7 +125,7 @@ export function AuthRoute() {
       ) : null}
 
       {notice ? (
-        <FieldDescription className="mb-[var(--ds-space-150)]" role="status">
+        <FieldDescription className="mb-ds-150" role="status">
           {notice}
         </FieldDescription>
       ) : null}
@@ -140,11 +140,11 @@ export function AuthRoute() {
             }}
           />
           {isPasskeySupported() ? (
-            <div className="mt-[var(--ds-space-150)]">
+            <div className="mt-ds-150">
               <PasskeySignInButton onDone={goToReturnPath} />
             </div>
           ) : null}
-          <div className="mt-[var(--ds-space-150)] grid gap-[var(--ds-space-050)]">
+          <div className="mt-ds-150 grid gap-ds-050">
             <Button appearance="link" type="button" onClick={() => showMode("magic-link")}>
               {t("auth.login.useMagicLink")}
             </Button>
@@ -177,7 +177,7 @@ export function AuthRoute() {
       {isPrimaryMode ? null : (
         <Button
           appearance="subtle"
-          className="mt-[var(--ds-space-150)] w-full"
+          className="mt-ds-150 w-full"
           type="button"
           onClick={() => showMode("login")}
         >

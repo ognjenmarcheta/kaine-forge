@@ -41,7 +41,7 @@ for (const theme of ["light", "dark"]) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await signIn(page);
     await page.evaluate(
-      (value) => document.documentElement.setAttribute("data-theme", value),
+      (value) => document.documentElement.setAttribute("data-color-mode", value),
       theme
     );
     for (const width of [768, 1440]) {
@@ -54,7 +54,9 @@ for (const theme of ["light", "dark"]) {
       const languageBefore = await preferences
         .getByRole("button", { name: /^Language\b/ })
         .boundingBox();
-      const themeBefore = await preferences.getByRole("button", { name: /^Theme\b/ }).boundingBox();
+      const themeBefore = await preferences
+        .getByRole("button", { name: /^Appearance\b/ })
+        .boundingBox();
       await page.locator('[data-slot="sidebar-trigger"]').evaluate((element) => {
         if (element instanceof HTMLElement) element.click();
       });
@@ -73,7 +75,7 @@ for (const theme of ["light", "dark"]) {
         .evaluate((element) => Number(getComputedStyle(element).opacity));
       expect(labelOpacity).toBeGreaterThan(0);
       expect(labelOpacity).toBeLessThan(1);
-      for (const label of ["Language", "Theme"]) {
+      for (const label of ["Language", "Appearance"]) {
         const box = await rail
           .getByRole("button", { name: new RegExp(`^${label}\\b`) })
           .boundingBox();
@@ -181,7 +183,7 @@ test("menus and tooltips animate entry and exit, then follow reduced motion", as
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await signIn(page);
   await page.locator('[data-slot="sidebar-trigger"]').click();
-  const theme = page.getByRole("button", { name: /^Theme\b/ });
+  const theme = page.getByRole("button", { name: /^Appearance\b/ });
   await theme.hover();
   const tooltip = page.locator('[data-slot="tooltip-content"]');
   expect((await midpoint(tooltip)).opacity).toBeLessThan(1);
@@ -220,7 +222,7 @@ test.describe("motion review captures", () => {
       });
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await signIn(page);
-      await page.getByRole("button", { name: /^Theme\b/ }).click();
+      await page.getByRole("button", { name: /^Appearance\b/ }).click();
       await page
         .getByRole("menuitemradio", { name: theme === "light" ? "Light" : "Dark", exact: true })
         .click();

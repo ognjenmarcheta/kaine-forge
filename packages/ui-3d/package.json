@@ -1,0 +1,55 @@
+{
+  "name": "@repo/ui-3d",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./scene": {
+      "types": "./dist/scene.d.ts",
+      "default": "./dist/scene.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "sideEffects": [
+    "./src/styles.css"
+  ],
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
+  "scripts": {
+    "dev": "echo \"@repo/ui-3d has no dev runtime\"",
+    "build": "tsc -b tsconfig.build.json",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@repo/ui": "workspace:*",
+    "react": "catalog:",
+    "three": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@types/three": "catalog:",
+    "jsdom": "catalog:",
+    "react-dom": "catalog:",
+    "vitest": "catalog:"
+  }
+}

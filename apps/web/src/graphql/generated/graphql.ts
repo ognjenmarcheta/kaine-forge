@@ -22,6 +22,7 @@ export type AuditAction =
   | "organization_export_downloaded"
   | "organization_exported"
   | "organization_renamed"
+  | "organization_theme_changed"
   | "ownership_transferred"
   | "passkey_added"
   | "passkey_removed"
@@ -437,6 +438,16 @@ export type UpdateNotificationPreferenceMutation = {
 export type OrganizationPermissionsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type OrganizationPermissionsQuery = { organizationPermissions: Array<string> };
+
+export type OrganizationThemeQueryVariables = Exact<{ [key: string]: never }>;
+
+export type OrganizationThemeQuery = { organizationTheme: string };
+
+export type SetOrganizationThemeMutationVariables = Exact<{
+  theme?: string | null | undefined;
+}>;
+
+export type SetOrganizationThemeMutation = { setOrganizationTheme: string };
 
 export type GetPublicAssetsQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -2534,6 +2545,53 @@ export const OrganizationPermissionsDocument = {
     }
   ]
 } as unknown as DocumentNode<OrganizationPermissionsQuery, OrganizationPermissionsQueryVariables>;
+export const OrganizationThemeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "OrganizationTheme" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "organizationTheme" } }]
+      }
+    }
+  ]
+} as unknown as DocumentNode<OrganizationThemeQuery, OrganizationThemeQueryVariables>;
+export const SetOrganizationThemeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "SetOrganizationTheme" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "theme" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "setOrganizationTheme" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "theme" },
+                value: { kind: "Variable", name: { kind: "Name", value: "theme" } }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<SetOrganizationThemeMutation, SetOrganizationThemeMutationVariables>;
 export const GetPublicAssetsDocument = {
   kind: "Document",
   definitions: [

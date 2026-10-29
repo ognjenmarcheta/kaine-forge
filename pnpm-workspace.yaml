@@ -6,6 +6,7 @@ packages:
 # Shared third-party versions. Prefer `catalog:` in package.json over duplicated ranges.
 # Mobile React Native pins live in the named `mobile` catalog (Expo SDK freezes).
 catalog:
+  lucide-react: "^0.577.0"
   # Runtime libraries shared across workspaces
   better-auth: "^1.7.12"
   "@better-auth/expo": "1.7.12"
@@ -41,6 +42,10 @@ catalog:
   jszip: "^3.10.1"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
   "@xyflow/react": "^12.12.0"
+  # 3D viewer (packages/ui-3d) and the scenes that use it. Exact pins; upgrade three and
+  # @types/three together, since the types track three's release number.
+  three: "0.186.1"
+  "@types/three": "0.186.0"
   "@graphql-typed-document-node/core": "^3.2.0"
   class-variance-authority: "^0.7.1"
   clsx: "^2.1.1"
@@ -92,6 +97,7 @@ catalogs:
     react-native-css-interop: "0.2.1"
     react-native-reanimated: "4.2.1"
     react-native-safe-area-context: "5.6.2"
+    react-native-svg: "15.15.3"
     react-native-worklets: "0.7.4"
     tailwindcss: "3.4.17"
 
@@ -138,6 +144,10 @@ overrides:
   # GHSA-mrhx-c7xc-m3w5 has no fixed zod 3.x. @expo/cli 55 asks for zod ^3.25.76 but
   # uses only APIs that zod 4 keeps (DevToolsPlugin schemas). Remove when @expo/cli moves to zod 4.
   "@expo/cli>zod": "^4.6.7"
+  # Same GHSA: @google/design.md 0.4.0 (the latest) asks for zod ^3.24.0, but its dist bundles
+  # its own copy; only its type declarations import "zod". @repo/theme runs its linter at build
+  # time on the repo's own DESIGN.md files. Remove when @google/design.md moves to zod 4.
+  "@google/design.md>zod": "^4.6.7"
   # GHSA-w5hq-g745-h8pq (CVE-2026-41907, fixed 11.1.1) via expo>@expo/config-plugins>xcode@3,
   # which only calls require("uuid").v4(); uuid 11 keeps CJS. Remove when Expo moves to xcode 4.
   "xcode>uuid": "^11.1.1"

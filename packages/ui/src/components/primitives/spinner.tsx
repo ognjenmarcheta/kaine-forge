@@ -3,7 +3,7 @@ import * as React from "react";
 
 import { cn } from "../../lib/cn";
 
-const spinnerVariants = cva("animate-spin text-[color:var(--ds-icon-brand)]", {
+const spinnerVariants = cva("animate-spin text-ds-icon-brand", {
   variants: {
     size: {
       sm: "h-4 w-4",

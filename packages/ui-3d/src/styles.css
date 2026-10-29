@@ -1,0 +1,6 @@
+/*
+ * The Tailwind entry for an app that uses @repo/ui-3d: the shared UI styles, plus the class
+ * names in this package. Import it in place of @repo/ui/styles/globals.css.
+ */
+@import "@repo/ui/styles/globals.css";
+@source "./";

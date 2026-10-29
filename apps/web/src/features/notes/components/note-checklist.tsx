@@ -81,15 +81,13 @@ export function NoteChecklist({ noteId, onChanged, onPendingChange, todos }: Not
   }
 
   return (
-    <div className="flex flex-col gap-[var(--ds-space-150)]">
+    <div className="flex flex-col gap-ds-150">
       <ul className="ui-work-list">
         {todos.map((todo) => {
-          const titleClassName = todo.completed
-            ? "line-through text-[color:var(--ds-text-subtle)]"
-            : "";
+          const titleClassName = todo.completed ? "line-through text-ds-text-subtle" : "";
 
           return (
-            <li key={todo.id} className="ui-work-row flex items-center gap-[var(--ds-space-100)]">
+            <li key={todo.id} className="ui-work-row flex items-center gap-ds-100">
               <Checkbox
                 aria-label={todo.title}
                 disabled={isPending}
@@ -114,10 +112,7 @@ export function NoteChecklist({ noteId, onChanged, onPendingChange, todos }: Not
           );
         })}
       </ul>
-      <form
-        className="flex items-end gap-[var(--ds-space-100)]"
-        onSubmit={(event) => void handleAdd(event)}
-      >
+      <form className="flex items-end gap-ds-100" onSubmit={(event) => void handleAdd(event)}>
         <Field className="min-w-0 flex-1">
           <FieldLabel htmlFor={inputId}>{t("notes.checklistTitleLabel")}</FieldLabel>
           <Input

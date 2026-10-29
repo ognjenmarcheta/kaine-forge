@@ -4,13 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const css = readFileSync(resolve(here, "globals.css"), "utf8");
+const css = readFileSync(resolve(here, "tokens.generated.css"), "utf8");
 const designSystemDoc = readFileSync(resolve(here, "../../../../DESIGN_SYSTEM.md"), "utf8");
-const tailwindPreset = readFileSync(resolve(here, "../../../config/tailwind/preset.js"), "utf8");
-
-// DESIGN_SYSTEM.md §3.1 component-tier example; no component tokens exist yet,
-// so it stays illustrative and is exempt from the contract.
-const ILLUSTRATIVE_TOKENS = new Set(["--ds-button-brand-bg-hovered"]);
+const tailwindPreset = [
+  readFileSync(resolve(here, "../../../config/tailwind/preset.js"), "utf8"),
+  readFileSync(resolve(here, "../../../config/tailwind/preset.tokens.js"), "utf8")
+].join("\n");
 
 function extractTokens(source: string, pattern: RegExp): Set<string> {
   return new Set(Array.from(source.matchAll(pattern), (match) => match[1] as string));
@@ -43,9 +42,7 @@ function isCovered(token: string): boolean {
 
 describe("design token contract", () => {
   it("defines every token or token prefix documented in DESIGN_SYSTEM.md", () => {
-    const missing = [...documentedTokens].filter(
-      (token) => !ILLUSTRATIVE_TOKENS.has(token) && !isCovered(token)
-    );
+    const missing = [...documentedTokens].filter((token) => !isCovered(token));
 
     expect(missing).toEqual([]);
   });
@@ -54,12 +51,5 @@ describe("design token contract", () => {
     const missing = [...presetReferencedTokens].filter((token) => !definedTokens.has(token));
 
     expect(missing).toEqual([]);
-  });
-
-  it("keeps the illustrative-token allowlist minimal and honest", () => {
-    for (const token of ILLUSTRATIVE_TOKENS) {
-      expect(documentedTokens.has(token)).toBe(true);
-      expect(isCovered(token)).toBe(false);
-    }
   });
 });

@@ -114,6 +114,7 @@ function FlowBadge({ summary }: { readonly summary: ReadableSummary }) {
     <Tooltip>
       <TooltipTrigger asChild>
         {/* Focusable, so the steps reach a keyboard too. */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a tooltip trigger, not a control */}
         <span className="desk-imeta__item desk-imeta__flow" tabIndex={0}>
           <span className="desk-sr-only">{t("desk.issue.flow.label")} </span>
           <Badge appearance="default">

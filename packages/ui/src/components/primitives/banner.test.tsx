@@ -4,10 +4,16 @@ import { describe, expect, it } from "vitest";
 import { Banner } from "./banner";
 
 describe("Banner", () => {
-  it("renders with role alert and appearance variant", () => {
-    const markup = renderToStaticMarkup(<Banner appearance="error">System down</Banner>);
-    expect(markup).toContain('role="alert"');
-    expect(markup).toContain("bg-[var(--ds-background-danger-bold)]");
+  it.each([
+    ["by default", "status", {}],
+    ["when urgent", "alert", { urgent: true }]
+  ] as const)("%s is a %s live region", (_case, role, props) => {
+    const markup = renderToStaticMarkup(
+      <Banner appearance="error" {...props}>
+        System down
+      </Banner>
+    );
+    expect(markup).toContain(`role="${role}"`);
   });
 
   it("renders dismiss button with aria-label when onDismiss is provided", () => {

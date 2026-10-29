@@ -1,5 +1,6 @@
 import type { Permission } from "@repo/auth/permissions";
 import { createActiveOrganizationQueryKey, queryKeys } from "@repo/query";
+import { themes } from "@repo/theme";
 import { QueryError, SettingsSection } from "@repo/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -10,6 +11,7 @@ import { OrganizationInviteForm } from "./components/organization-invite-form";
 import { OrganizationMemberList } from "./components/organization-member-list";
 import { OrganizationRoles } from "./components/organization-roles";
 import { OrganizationSettings } from "./components/organization-settings";
+import { OrganizationThemeSettings } from "./components/organization-theme";
 import { useCustomRoles, useOrganizationSettingsAccess } from "./organizations.hook";
 import { LoadingRows } from "../../components/loading-rows";
 import { useAuth } from "../../hooks/use-auth";
@@ -45,6 +47,9 @@ export function OrganizationGeneralTab() {
     <>
       {can("logo:update") ? (
         <PublicAssetUpload kind="organization_logo" ownerName={activeOrganization?.name ?? ""} />
+      ) : null}
+      {activeOrganization && can("organization:update") && themes.length > 1 ? (
+        <OrganizationThemeSettings organizationId={activeOrganization.id} />
       ) : null}
       {activeOrganization && permissions ? (
         <OrganizationSettings
@@ -98,9 +103,7 @@ export function OrganizationMembersTab() {
           />
         ) : null}
         {membersQuery.status === "success" && members.length === 0 ? (
-          <p className="text-body text-[color:var(--ds-text-subtle)]">
-            {t("organizations.members.empty")}
-          </p>
+          <p className="text-body text-ds-text-subtle">{t("organizations.members.empty")}</p>
         ) : null}
         {members.length > 0 ? (
           <OrganizationMemberList

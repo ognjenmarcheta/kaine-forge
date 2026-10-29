@@ -85,7 +85,7 @@ export function FormModal({
         <fieldset
           disabled={isSubmitting}
           aria-busy={isSubmitting}
-          className="m-0 min-w-0 border-0 p-0 grid gap-[var(--ds-space-200)]"
+          className="m-0 min-w-0 border-0 p-0 grid gap-ds-200"
         >
           {children}
         </fieldset>

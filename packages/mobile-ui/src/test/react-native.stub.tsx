@@ -10,6 +10,7 @@ import { forwardRef, type ReactNode } from "react";
 interface StubBaseProps {
   accessibilityLabel?: string;
   accessibilityRole?: string;
+  accessibilityValue?: { min?: number; max?: number; now?: number };
   accessibilityState?: { checked?: boolean; disabled?: boolean };
   children?: ReactNode;
   className?: string;
@@ -67,9 +68,24 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableStubProps>(
 );
 Pressable.displayName = "Pressable";
 
-export function View({ children, className, testID }: StubBaseProps) {
+export function View({
+  accessibilityLabel,
+  accessibilityRole,
+  accessibilityValue,
+  children,
+  className,
+  testID
+}: StubBaseProps) {
   return (
-    <div className={className} data-testid={testID}>
+    <div
+      aria-label={accessibilityLabel}
+      aria-valuemax={accessibilityValue?.max}
+      aria-valuemin={accessibilityValue?.min}
+      aria-valuenow={accessibilityValue?.now}
+      className={className}
+      data-testid={testID}
+      role={accessibilityRole === "image" ? "img" : accessibilityRole}
+    >
       {children}
     </div>
   );

@@ -9,16 +9,57 @@ const bannerVariants = cva(
   {
     variants: {
       appearance: {
-        information:
-          "bg-[var(--ds-background-information-bold)] text-[color:var(--ds-text-inverse)]",
-        warning:
-          "bg-[var(--ds-background-warning-bold)] text-[color:var(--ds-text-warning-inverse)]",
-        error: "bg-[var(--ds-background-danger-bold)] text-[color:var(--ds-text-inverse)]",
-        announcement: "bg-[var(--ds-background-discovery-bold)] text-[color:var(--ds-text-inverse)]"
+        information: "",
+        warning: "",
+        error: "",
+        announcement: ""
+      },
+      emphasis: {
+        bold: "",
+        subtle: ""
       }
     },
+    compoundVariants: [
+      {
+        appearance: "information",
+        emphasis: "bold",
+        className: "bg-ds-bg-information-bold text-ds-text-inverse"
+      },
+      {
+        appearance: "warning",
+        emphasis: "bold",
+        className: "bg-ds-bg-warning-bold text-ds-text-warning-inverse"
+      },
+      {
+        appearance: "error",
+        emphasis: "bold",
+        className: "bg-ds-bg-danger-bold text-ds-text-inverse"
+      },
+      {
+        appearance: "announcement",
+        emphasis: "bold",
+        className: "bg-ds-bg-discovery-bold text-ds-text-inverse"
+      },
+      {
+        appearance: "information",
+        emphasis: "subtle",
+        className: "bg-ds-bg-information text-ds-text-information"
+      },
+      {
+        appearance: "warning",
+        emphasis: "subtle",
+        className: "bg-ds-bg-warning text-ds-text-warning"
+      },
+      { appearance: "error", emphasis: "subtle", className: "bg-ds-bg-danger text-ds-text-danger" },
+      {
+        appearance: "announcement",
+        emphasis: "subtle",
+        className: "bg-ds-bg-discovery text-ds-text-discovery"
+      }
+    ],
     defaultVariants: {
-      appearance: "information"
+      appearance: "information",
+      emphasis: "bold"
     }
   }
 );
@@ -28,14 +69,32 @@ interface BannerProps
   dismissLabel?: string;
   icon?: React.ReactNode;
   onDismiss?: () => void;
+  /**
+   * Interrupts the screen reader (`role="alert"`), for a problem that needs attention now.
+   * Without it the banner is a polite `role="status"`, so a note shown on load is not announced.
+   */
+  urgent?: boolean;
 }
 
 const Banner = React.forwardRef<HTMLDivElement, BannerProps>(
-  ({ className, appearance, dismissLabel, icon, onDismiss, children, ...props }, ref) => (
+  (
+    {
+      className,
+      appearance,
+      dismissLabel,
+      emphasis,
+      icon,
+      onDismiss,
+      urgent = false,
+      children,
+      ...props
+    },
+    ref
+  ) => (
     <div
       ref={ref}
-      role="alert"
-      className={cn(bannerVariants({ appearance }), className)}
+      role={urgent ? "alert" : "status"}
+      className={cn(bannerVariants({ appearance, emphasis }), className)}
       {...props}
     >
       <div className="flex items-center gap-2">
@@ -47,7 +106,7 @@ const Banner = React.forwardRef<HTMLDivElement, BannerProps>(
         <button
           type="button"
           onClick={onDismiss}
-          className="shrink-0 rounded-[var(--ds-radius-100)] p-1 hover:bg-[var(--ds-background-neutral-subtle-hovered)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+          className="shrink-0 rounded-md p-1 hover:bg-ds-bg-neutral-subtle-hovered focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
           aria-label={dismissLabel}
         >
           <X className="h-4 w-4" />
