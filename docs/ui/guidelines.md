@@ -59,9 +59,9 @@ Reason: viewport-scaled text breaks zoom and reflow (WCAG 2.2 SC 1.4.4).
 
 ## SPACE
 
-**SPACE-1. Use the spacing steps.** Use `p-ds-*`, `gap-ds-*`, and `m-ds-*`.
-Reason: one scale keeps rhythm across screens and themes.
-Do: `gap-ds-150`. Don't: `gap-[13px]`.
+**SPACE-1. Use the spacing steps.** Use `p-ds-*`, `gap-ds-*`, and `m-ds-*`. Exception: a UI lab screen may set a length measured from its reference as an arbitrary value when no step is that length, and its notes list each one under "Measured lengths".
+Reason: one scale keeps rhythm across screens and themes. A lab screen proves a 1:1 match and never ships.
+Do: `gap-ds-150`. Don't: `gap-[13px]` in a product screen.
 
 **SPACE-2. Group by distance.** Items in a group sit closer (4–8px) than the groups (16–24px).
 Reason: people read proximity as relationship before they read labels.

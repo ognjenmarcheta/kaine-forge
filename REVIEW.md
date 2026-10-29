@@ -57,7 +57,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 
 ## UI & i18n
 
-- [ ] Styling is token-only (`--ds-*` via the theme utilities such as `bg-ds-surface-raised`, `p-ds-200`, `text-body`); no raw colors, default Tailwind palette or size classes, or arbitrary `[var(--ds-*)]` values (`DESIGN_SYSTEM.md` §9).
+- [ ] Styling is token-only (`--ds-*` via the theme utilities such as `bg-ds-surface-raised`, `p-ds-200`, `text-body`); no raw colors, default Tailwind palette or size classes, or arbitrary `[var(--ds-*)]` values (`DESIGN_SYSTEM.md` §9). A screen sets lengths with the steps; only a UI lab screen may use an arbitrary length such as `w-[24.875rem]`, listed under "Measured lengths" in its notes (SPACE-1).
 - [ ] UI changes pass `pnpm ui:check` and follow `docs/ui/guidelines.md`; findings cite the rule ID (for example COLOR-2, A11Y-3). Theme changes come with `pnpm theme:build` output and pass the theme checks.
 - [ ] User-facing strings live in translation JSON and are accessed via i18n helpers (`@repo/translation`).
 - [ ] Accessibility and component patterns match `DESIGN_SYSTEM.md` for the surface (web vs mobile).
