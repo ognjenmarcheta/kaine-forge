@@ -579,6 +579,11 @@ interface PlotBarsBase<Datum> {
    * category, behind its first bar.
    */
   track?: PlotFill;
+  /**
+   * Grows the track by this many pixels across the bar and before its baseline, so the bar sits
+   * inside it like a row; the track's corners grow with it. @defaultValue 0
+   */
+  trackPad?: number;
   /** A stroke along the data end, so a pale bar still shows where its value is. */
   cap?: PlotStroke | PlotAccessor<Datum, PlotStroke | undefined>;
   /**
@@ -645,7 +650,18 @@ function holds(base: number, end: number, pixel: number): boolean {
  * bar grows from its baseline.
  */
 export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
-  const { cap, data, fill, group, highlight, radius = 0, round = "end", size, track } = props;
+  const {
+    cap,
+    data,
+    fill,
+    group,
+    highlight,
+    radius = 0,
+    round = "end",
+    size,
+    track,
+    trackPad = 0
+  } = props;
   const plot = useCartesian("PlotBars");
   useSeriesStops(data, props.x, props.y);
   const horizontal = props.orientation === "horizontal";
@@ -765,7 +781,18 @@ export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
         return (
           <g key={index}>
             {track === undefined || !tracked ? null : (
-              <BarFill fill={track} path={shape(left, barWidth, far, base, corner, pen)} />
+              <BarFill
+                fill={track}
+                path={shape(
+                  left - trackPad,
+                  barWidth + 2 * trackPad,
+                  far,
+                  // The pad reaches back past the baseline, away from the far edge.
+                  base + (far < base ? trackPad : -trackPad),
+                  corner + trackPad,
+                  pen
+                )}
+              />
             )}
             {flat ? null : (
               <BarFill fill={barFill} path={shape(left, barWidth, end, base, corner, pen)} />
@@ -991,6 +1018,12 @@ export interface PlotArcsProps {
   count?: number;
   /** Slices sized by these values, as a pie or a donut; it takes the place of `count`. */
   values?: readonly number[];
+  /**
+   * How far each slice reaches, as a share of the ring's radius: 1 is the full radius. Equal
+   * slices with their own reach make a polar area chart. It tweens on the motion tokens.
+   * @defaultValue 1 for every slice
+   */
+  radii?: readonly number[];
   /** In radians, clockwise from 12 o'clock. @defaultValue -π/2, the left end of a half ring */
   startAngle?: number;
   /** @defaultValue π/2, the right end of a half ring */
@@ -1047,8 +1080,8 @@ function ringBounds(start: number, end: number, innerRatio: number) {
   };
 }
 
-/** The values each slice tweens: its start and end angles, solid fill opacity, and offset. */
-const SLICE_VALUES = 4;
+/** The values each slice tweens: its start and end angles, solid fill opacity, offset, and reach. */
+const SLICE_VALUES = 5;
 
 /**
  * A ring of equal segments, such as a half-circle gauge, or of value-sized slices, such as a
@@ -1066,6 +1099,7 @@ export function PlotArcs({
   label,
   offset,
   padAngle = 0.02,
+  radii,
   startAngle = -Math.PI / 2,
   stroke,
   values
@@ -1110,13 +1144,16 @@ export function PlotArcs({
         slice.start,
         slice.end,
         sliceFill?.type === "solid" ? (sliceFill.opacity ?? 1) : 1,
-        offset?.(index, index === activeSlice) ?? 0
+        offset?.(index, index === activeSlice) ?? 0,
+        radii?.[index] ?? 1
       ];
     }),
-    // A new slice opens from the end of the ring, at the center.
+    // A new slice opens from the end of the ring, at the center, at its own reach.
     {
-      enter: (index, value) =>
-        index % SLICE_VALUES === 2 ? value : index % SLICE_VALUES === 3 ? 0 : endAngle
+      enter: (index, value) => {
+        const part = index % SLICE_VALUES;
+        return part === 2 || part === 4 ? value : part === 3 ? 0 : endAngle;
+      }
     }
   );
   const reacts = (highlight ?? plot.highlight) && activeSlice !== null;
@@ -1139,14 +1176,15 @@ export function PlotArcs({
       start,
       end,
       middle,
+      reach: radius * (frame.values[at + 4] ?? 1),
       opacity: frame.values[at + 2] ?? 1,
       // The slice moves out along its middle angle.
       shift:
         out === 0 ? undefined : `translate(${out * Math.sin(middle)} ${-out * Math.cos(middle)})`
     };
   });
-  // Labels sit halfway between the inner and the outer edge.
-  const labelRadius = (radius * (innerRatio + 1)) / 2;
+  // Labels sit halfway between the inner edge and the slice's outer edge.
+  const labelRadius = (reach: number): number => (radius * innerRatio + reach) / 2;
 
   return (
     <g transform={`translate(${centerX} ${centerY})`}>
@@ -1163,7 +1201,7 @@ export function PlotArcs({
               segment({
                 start: slice.start,
                 end: slice.end,
-                outer: active ? radius + grow : radius
+                outer: active ? slice.reach + grow : slice.reach
               }) ?? ""
             }
             stroke={edge}
@@ -1186,8 +1224,8 @@ export function PlotArcs({
                 strokeWidth={3}
                 textAnchor="middle"
                 transform={slice.shift}
-                x={labelRadius * Math.sin(slice.middle)}
-                y={-labelRadius * Math.cos(slice.middle)}
+                x={labelRadius(slice.reach) * Math.sin(slice.middle)}
+                y={-labelRadius(slice.reach) * Math.cos(slice.middle)}
               >
                 {text}
               </text>

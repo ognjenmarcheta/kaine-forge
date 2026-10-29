@@ -270,6 +270,16 @@ describe("Plot", () => {
       );
     const slices = () => Array.from(container.querySelectorAll("svg path"));
 
+    it("reaches each slice out to its own radius, as a polar area chart does", () => {
+      renderRing({ innerRatio: 0, radii: [1, 0.5, 1] });
+      // The first arc of each slice's path is its outer edge: "A<radius>,<radius>".
+      const outer = slices().map((slice) =>
+        Number(/A([\d.]+),/.exec(slice.getAttribute("d") ?? "")?.[1])
+      );
+
+      expect((outer[1] ?? 0) / (outer[0] ?? 1)).toBeCloseTo(0.5, 6);
+    });
+
     it("moves a chosen slice out along its middle angle", () => {
       renderRing({ offset: (index) => (index === 0 ? 10 : 0) });
 
@@ -473,6 +483,113 @@ describe("Plot", () => {
     expect(container.querySelector("li > span rect")?.getAttribute("fill")).toBe(
       "var(--ds-background-chart-3)"
     );
+  });
+
+  it("paints a gradient through several colors, such as a flow from yellow to teal", () => {
+    act(() =>
+      root.render(
+        <PlotLegend
+          items={[
+            {
+              key: "revenue",
+              label: "Revenue",
+              color: "chart-2",
+              mark: "square",
+              fill: {
+                type: "gradient",
+                direction: "right",
+                stops: [
+                  { offset: 0, color: "chart-3" },
+                  { offset: 0.5, color: "chart-4" },
+                  { offset: 1, color: "chart-2", opacity: 0.5 }
+                ]
+              }
+            }
+          ]}
+        />
+      )
+    );
+
+    expect(
+      Array.from(container.querySelectorAll("li > span linearGradient stop"), (stop) => [
+        stop.getAttribute("offset"),
+        stop.getAttribute("stop-color"),
+        stop.getAttribute("stop-opacity")
+      ])
+    ).toEqual([
+      ["0", "var(--ds-chart-3)", "1"],
+      ["0.5", "var(--ds-chart-4)", "1"],
+      ["1", "var(--ds-chart-2)", "0.5"]
+    ]);
+  });
+
+  it("lays a hatch over a tint, so a hatched part keeps its pale base in one fill", () => {
+    act(() =>
+      root.render(
+        <PlotLegend
+          items={[
+            {
+              key: "female",
+              label: "Female",
+              color: "chart-1",
+              mark: "square",
+              fill: {
+                type: "hatch",
+                color: "chart-1",
+                spacing: 4,
+                angle: 45,
+                base: { type: "tint", color: "chart-1" }
+              }
+            }
+          ]}
+        />
+      )
+    );
+
+    expect(
+      Array.from(container.querySelector("li > span pattern")?.children ?? [], (part) => [
+        part.tagName,
+        part.getAttribute("fill") ?? part.getAttribute("stroke")
+      ])
+    ).toEqual([
+      ["rect", "var(--ds-background-chart-1)"],
+      ["line", "var(--ds-chart-1)"]
+    ]);
+  });
+
+  it("pads a track around its bar in the sunken color, so the bar sits in a row", () => {
+    act(() =>
+      root.render(
+        <Plot
+          height={120}
+          interaction={false}
+          table={{ columns: [], rows: [] }}
+          title="Rows"
+          x={{ type: "linear", domain: [0, 10] }}
+          y={{ type: "band", domain: ["a"], paddingInner: 0 }}
+        >
+          <PlotBars
+            data={[5]}
+            fill={{ type: "solid", color: "chart-1" }}
+            orientation="horizontal"
+            size={40}
+            track={{ type: "solid", color: "sunken" }}
+            trackPad={4}
+            x={(value) => value}
+            y={() => "a"}
+          />
+        </Plot>
+      )
+    );
+    const [track, bar] = Array.from(container.querySelectorAll("svg path"));
+
+    // The 40px bar spans y 40 to 80 from x 0; its track spans y 36 to 84 from x -4 to the far
+    // edge, with its corners grown by the same 4px.
+    expect([track?.getAttribute("d"), track?.getAttribute("fill")]).toEqual([
+      "M-4,36H396A4,4 0 0 1 400,40V80A4,4 0 0 1 396,84H-4Z",
+      "var(--ds-surface-sunken)"
+    ]);
+    expect(bar?.getAttribute("d")).toBe("M0,40H200A0,0 0 0 1 200,40V80A0,0 0 0 1 200,80H0Z");
   });
 
   describe("picking points", () => {

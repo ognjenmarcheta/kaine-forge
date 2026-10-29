@@ -504,4 +504,4 @@ export function Plot({
 export { usePlot } from "./plot.context";
 export type { PlotActiveStop, PlotContextValue } from "./plot.context";
 export type { PlotScale, PlotScaleConfig, PlotValue } from "./plot.scales";
-export type { PlotColor, PlotFill } from "./plot.paint";
+export type { PlotColor, PlotFill, PlotGradientStop, PlotHatchBase } from "./plot.paint";

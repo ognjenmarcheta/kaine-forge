@@ -467,7 +467,21 @@ function Lines() {
 const areaFills: [string, PlotFill][] = [
   ["Flat", { type: "solid", color: "chart-1", opacity: 0.2 }],
   ["Gradient", { type: "gradient", color: "chart-1", from: 0.45, to: 0 }],
-  ["Hatched", { type: "hatch", color: "chart-1", spacing: 8, angle: -22, width: 1.5, opacity: 0.6 }]
+  [
+    "Hatched",
+    { type: "hatch", color: "chart-1", spacing: 8, angle: -22, width: 1.5, opacity: 0.6 }
+  ],
+  [
+    "Through colors",
+    {
+      type: "gradient",
+      direction: "right",
+      stops: [
+        { offset: 0, color: "chart-4", opacity: 0.45 },
+        { offset: 1, color: "chart-2", opacity: 0.45 }
+      ]
+    }
+  ]
 ];
 
 function Areas() {
@@ -762,7 +776,14 @@ const sources = [
 const sourceFills: Record<(typeof sources)[number]["key"], PlotFill> = {
   search: { type: "solid", color: "chart-1" },
   direct: { type: "tint", color: "chart-2" },
-  referral: { type: "hatch", color: "chart-3", spacing: 4, angle: 45, width: 1.5 }
+  referral: {
+    type: "hatch",
+    color: "chart-3",
+    spacing: 4,
+    angle: 45,
+    width: 1.5,
+    base: { type: "tint", color: "chart-3" }
+  }
 };
 const species = [
   { label: "Dogs", value: 48, color: "chart-1" },
@@ -775,7 +796,7 @@ const species = [
 function RowBars() {
   return (
     <Demo
-      description='PlotBars with orientation="horizontal": the plot picks the row under the pointer, and the tooltip sits beside the bar end (side="beside"). PlotAxis starts the names at the left edge (align="start"), breaks them at "\n", and sets the active one in the text color (highlight).'
+      description='PlotBars with orientation="horizontal": the plot picks the row under the pointer, and the tooltip sits beside the bar end (side="beside"). Each bar sits in a sunken row (a track with trackPad). PlotAxis starts the names at the left edge (align="start"), breaks them at "\n", and sets the active one in the text color (highlight).'
       title="Horizontal bars and row labels"
     >
       <Plot
@@ -801,6 +822,8 @@ function RowBars() {
           fill={{ type: "solid", color: "chart-1" }}
           orientation="horizontal"
           radius={4}
+          track={{ type: "solid", color: "sunken" }}
+          trackPad={3}
           x={(row) => row.open}
           y={(row) => row.name}
         />
@@ -829,7 +852,7 @@ function StackedBars() {
 
   return (
     <Demo
-      description="One PlotBars whose y0 reads each segment's start, so the segments stack; the active day rings its column as one. Direct is the chart color's tint (a fill of type 'tint'), with a cap in the series color for 3:1. The legend swatches take the same tint and hatch, with an edge in the series color."
+      description="One PlotBars whose y0 reads each segment's start, so the segments stack; the active day rings its column as one. Direct is the chart color's tint (a fill of type 'tint'), with a cap in the series color for 3:1. Referral is a hatch over its tint (a hatch base). The legend swatches take the same fills, with an edge in the series color."
       title="Stacked bars and legend fills"
     >
       <PlotLegend
@@ -952,6 +975,55 @@ function PieOptions() {
             index === 4 ? { color: "neutral", width: 1.5 } : { color: "surface", width: 2 }
           }
           values={cases}
+        />
+      </Plot>
+    </Demo>
+  );
+}
+
+const sourcesByWeek: Record<Week, readonly number[]> = {
+  this: [36, 22, 28, 14],
+  last: [30, 26, 20, 24]
+};
+const sourceNames = ["Search", "Social", "Paid ads", "Direct"] as const;
+const sourceSlots = ["chart-1", "chart-2", "chart-3", "chart-4"] as const;
+/** The rings' scale: a slice at the full radius is 40% of visits. */
+const POLAR_MAX = 40;
+
+/** Four equal slices that each reach out to their share of visits: a polar area chart. */
+function PolarArea() {
+  const [week, setWeek] = useState<Week>("this");
+  const shares = sourcesByWeek[week];
+
+  return (
+    <Demo
+      description="PlotArcs with radii: equal quarters, each reaching out to its share on a 40% scale, in its tint with an edge in its color. Switch the week and the reach tweens."
+      title="Polar area"
+    >
+      <WeekToggle onChange={setWeek} value={week} />
+      <Plot
+        height={200}
+        hideTitle
+        margin={{ top: 12, right: 12, bottom: 12, left: 12 }}
+        table={{
+          columns: ["Share of visits"],
+          rows: sourceNames.map((name, index) => ({
+            header: name,
+            cells: [`${shares[index] ?? 0}%`]
+          }))
+        }}
+        title={`Visits by source, ${week === "this" ? "this" : "last"} week`}
+      >
+        <PlotArcs
+          count={sourceNames.length}
+          endAngle={2 * Math.PI}
+          fill={(index) => ({ type: "tint", color: sourceSlots[index] ?? "chart-1" })}
+          innerRatio={0}
+          label={(index) => `${shares[index] ?? 0}%`}
+          padAngle={0}
+          radii={shares.map((value) => value / POLAR_MAX)}
+          startAngle={0}
+          stroke={(index) => ({ color: sourceSlots[index] ?? "chart-1", width: 1.25 })}
         />
       </Plot>
     </Demo>
@@ -1350,6 +1422,7 @@ export function ChartsPage({ catalog }: { catalog: LabCatalog }) {
             <StackedBars />
             <EdgeLine />
             <PieOptions />
+            <PolarArea />
             <ShareBar />
             <PlainPin />
             <div className="lg:col-span-2">

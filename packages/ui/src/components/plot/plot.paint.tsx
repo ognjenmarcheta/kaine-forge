@@ -4,10 +4,11 @@ import { chartTint, seriesColor, type ChartColor, type ChartSlot } from "../comp
 
 /**
  * The color of a mark: a chart color (`chart-1` to `chart-6`, a role, or `"neutral"`), the
- * quiet `"grid"` color, the text `"ink"`, or the card `"surface"` for the inside of a hollow
- * marker. Every one is a theme token, so a mark follows the theme and the color mode.
+ * quiet `"grid"` color, the text `"ink"`, the card `"surface"` for the inside of a hollow
+ * marker, or the `"sunken"` well, such as a track, where every chart color keeps 3:1. Every one
+ * is a theme token, so a mark follows the theme and the color mode.
  */
-export type PlotColor = ChartColor | "grid" | "ink" | "surface";
+export type PlotColor = ChartColor | "grid" | "ink" | "surface" | "sunken";
 
 /** The SVG paint of a plot color. */
 export function plotColor(color: PlotColor): string {
@@ -18,10 +19,25 @@ export function plotColor(color: PlotColor): string {
       return "var(--ds-text)";
     case "surface":
       return "var(--ds-surface-raised)";
+    case "sunken":
+      return "var(--ds-surface-sunken)";
     default:
       return seriesColor(0, color).color;
   }
 }
+
+/** One color of a gradient through several colors. */
+export interface PlotGradientStop {
+  /** Where the color sits along the gradient, from 0 at its start to 1 at its end. */
+  offset: number;
+  color: PlotColor;
+  /** @defaultValue 1 */
+  opacity?: number;
+}
+
+/** A plain fill under a hatch's lines: a solid color or a chart color's tint. */
+export type PlotHatchBase =
+  { type: "solid"; color: PlotColor; opacity?: number } | { type: "tint"; color: ChartSlot };
 
 /** How a shape is filled. */
 export type PlotFill =
@@ -39,6 +55,16 @@ export type PlotFill =
       from: number;
       /** The opacity at its end. */
       to: number;
+      /** @defaultValue "down" */
+      direction?: "down" | "up" | "right" | "left";
+    }
+  | {
+      /**
+       * A gradient through several colors across each shape, such as a flow that runs from
+       * yellow through green to teal.
+       */
+      type: "gradient";
+      stops: readonly PlotGradientStop[];
       /** @defaultValue "down" */
       direction?: "down" | "up" | "right" | "left";
     }
@@ -61,6 +87,8 @@ export type PlotFill =
       opacity?: number;
       /** Moves the lines sideways by this many pixels, to line them up with a reference. */
       offset?: number;
+      /** A fill under the lines, such as a chart color's tint for a hatched part on a pale base. */
+      base?: PlotHatchBase;
     };
 
 const GRADIENT_ENDS = {
@@ -81,13 +109,25 @@ export function paintFill(
     case "tint":
       return { definition: null, fill: chartTint(fill.color), fillOpacity: 1 };
     case "gradient": {
-      const color = plotColor(fill.color);
+      const stops =
+        "stops" in fill
+          ? fill.stops
+          : [
+              { offset: 0, color: fill.color, opacity: fill.from },
+              { offset: 1, color: fill.color, opacity: fill.to }
+            ];
       return {
         definition: (
-          // Bounding-box units: each shape runs the whole fade from its own start to its end.
+          // Bounding-box units: each shape runs the whole gradient from its own start to its end.
           <linearGradient id={id} {...GRADIENT_ENDS[fill.direction ?? "down"]}>
-            <stop offset="0" stopColor={color} stopOpacity={fill.from} />
-            <stop offset="1" stopColor={color} stopOpacity={fill.to} />
+            {stops.map((stop, index) => (
+              <stop
+                key={index}
+                offset={String(stop.offset)}
+                stopColor={plotColor(stop.color)}
+                stopOpacity={stop.opacity ?? 1}
+              />
+            ))}
           </linearGradient>
         ),
         fill: `url(#${id})`,
@@ -106,6 +146,18 @@ export function paintFill(
             patternUnits="userSpaceOnUse"
             width={size}
           >
+            {fill.base === undefined ? null : (
+              <rect
+                fill={
+                  fill.base.type === "tint"
+                    ? chartTint(fill.base.color)
+                    : plotColor(fill.base.color)
+                }
+                fillOpacity={fill.base.type === "solid" ? (fill.base.opacity ?? 1) : 1}
+                height={size}
+                width={size}
+              />
+            )}
             <line
               stroke={plotColor(fill.color)}
               strokeOpacity={fill.opacity ?? 1}
