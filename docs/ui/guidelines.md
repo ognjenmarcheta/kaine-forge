@@ -96,6 +96,10 @@ Do: `bg-ds-surface-raised`. Don't: `bg-white` or `bg-[#fff]`.
 Reason: the chart colors and the role borders reach 3:1 in every theme, and a meaning-based color keeps its series recognizable when other series come and go.
 Do: `{ key: "lastYear", label: t("…"), color: "neutral" }`. Don't: `className="text-[#22c55e]"` on a chart.
 
+**COLOR-7. Tint a category with its chart tint.** A tile, tag, avatar, or labeled bar of one category uses `bg-ds-bg-chart-N`, with `text-ds-text`, `text-ds-text-subtle`, or `text-ds-text-chart-N` on it. An icon or a mark on the tint takes `text-chart-N` too, not `chart-N`. Use the same N for the category's series, tint, and text.
+Reason: the theme check measures each of those pairs in every theme and mode, and not `chart-N` on its tint, so a theme can set a mid-tone pastel. A chart color at an opacity is unmeasured, and it turns gray where a light theme darkens the chart color to reach 3:1.
+Do: `<span className="bg-ds-bg-chart-2 text-ds-text-chart-2">Design</span>`. Don't: `bg-ds-chart-2/15`.
+
 ## MOTION
 
 **MOTION-1. Motion explains a change.** Animate an element that enters, leaves, or changes state. Do not decorate.

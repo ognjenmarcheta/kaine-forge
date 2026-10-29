@@ -20,6 +20,14 @@ export type ChartColor =
   | "discovery"
   | "neutral";
 
+/** One of the theme's six categorical slots. */
+export type ChartSlot = Extract<ChartColor, `chart-${number}`>;
+
+export const isChartSlot = (color: ChartColor): color is ChartSlot => color.startsWith("chart-");
+
+/** The pale tint of a slot, which carries ink, secondary text, and the slot's text color. */
+export const chartTint = (slot: ChartSlot): string => `var(--ds-background-${slot})`;
+
 /** A data column that a chart draws, with its translated name. */
 export interface ChartSeries {
   key: string;

@@ -430,6 +430,28 @@ describe("Plot", () => {
     expect(swatch?.querySelector("rect")?.getAttribute("fill")).toMatch(/^url\(#.+\)$/);
   });
 
+  it("paints a tint fill in its slot's tint, which carries ink", () => {
+    act(() =>
+      root.render(
+        <PlotLegend
+          items={[
+            {
+              key: "review",
+              label: "Review",
+              color: "chart-3",
+              mark: "square",
+              fill: { type: "tint", color: "chart-3" }
+            }
+          ]}
+        />
+      )
+    );
+
+    expect(container.querySelector("li > span rect")?.getAttribute("fill")).toBe(
+      "var(--ds-background-chart-3)"
+    );
+  });
+
   describe("picking points", () => {
     const visitsTable = {
       columns: ["Visits"],

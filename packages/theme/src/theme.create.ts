@@ -1,7 +1,8 @@
-import { createColorModes, type PaletteInput } from "./theme.palette";
+import { createCategoryColors, createColorModes, type PaletteInput } from "./theme.palette";
 import { typeStepNames } from "./theme.roles";
 import { defaultComponents, defaultScale, defaultType } from "./theme.scale";
 import type {
+  ColorMode,
   NativeFonts,
   ThemeComponents,
   ThemeDefinition,
@@ -83,6 +84,21 @@ function buildType(
 }
 
 /**
+ * A derived mode with the theme's own values on top. The chart tints and text colors follow the
+ * final chart colors, so a theme that sets its own chart colors keeps them paired. A tint or a
+ * text color that the theme sets wins, and a text color is derived against a tint it sets.
+ */
+function finishMode(
+  mode: ColorMode,
+  derived: ThemeMode,
+  overrides: Partial<ThemeMode> = {}
+): ThemeMode {
+  const merged = { ...derived, ...overrides };
+
+  return { ...merged, ...createCategoryColors(mode, merged, overrides) };
+}
+
+/**
  * Builds a theme from a brand color and a few axes, starting from the template defaults.
  * The colors come from `createColorModes`, so every contrast pair passes by construction.
  */
@@ -111,8 +127,8 @@ export function createTheme<const Name extends string>(
     },
     nativeFonts: { sans: "system", heading: "system", mono: "system-mono", ...input.nativeFonts },
     modes: {
-      light: { ...colors.light, ...input.modes?.light },
-      dark: { ...colors.dark, ...input.modes?.dark }
+      light: finishMode("light", colors.light, input.modes?.light),
+      dark: finishMode("dark", colors.dark, input.modes?.dark)
     }
   };
 }

@@ -1,24 +1,11 @@
 // @vitest-environment jsdom
-import {
-  colorRoles,
-  contrastPairs,
-  contrastRatio,
-  defaultTheme,
-  resolveColor,
-  themes,
-  withAlpha,
-  type ColorRole
-} from "@repo/theme";
+import { contrastPairs, defaultTheme } from "@repo/theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { Avatar, AvatarFallback, AvatarGroup } from "./avatar";
 
 const classOf = (markup: string): string => /class="([^"]*)"/.exec(markup)?.[1] ?? "";
-
-const roleNames: ReadonlySet<string> = new Set(colorRoles);
-const isColorRole = (name: string | undefined): name is ColorRole =>
-  name !== undefined && roleNames.has(name);
 
 /** The pixel width a `size-[calc(var(--ds-space-a)+var(--ds-space-b))]` class resolves to. */
 function calcPixels(classes: string): number | undefined {
@@ -57,48 +44,21 @@ describe("AvatarFallback", () => {
     "success",
     "warning",
     "danger",
-    "discovery"
+    "discovery",
+    "chart-1",
+    "chart-6"
   ] as const)(
     "draws %s initials in a fill and text pair that the theme check measures (COLOR-1)",
     (tone) => {
       const markup = renderToStaticMarkup(<AvatarFallback tone={tone}>AB</AvatarFallback>);
       const classes = /class="([^"]*)"/.exec(markup)?.[1] ?? "";
       // Utility names map to role names: bg-ds-bg-success is background-success.
-      const background = /(?:^| )bg-ds-bg-([a-z-]+)/.exec(classes)?.[1];
-      const foreground = /(?:^| )text-ds-(text-[a-z-]+)/.exec(classes)?.[1];
+      const background = /(?:^| )bg-ds-bg-([a-z0-9-]+)/.exec(classes)?.[1];
+      const foreground = /(?:^| )text-ds-(text-[a-z0-9-]+)/.exec(classes)?.[1];
 
       expect(contrastPairs).toContainEqual(
         expect.objectContaining({ background: `background-${background}`, foreground })
       );
-    }
-  );
-
-  it.each(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5", "chart-6"] as const)(
-    "keeps %s initials at 4.5:1 on every surface, theme, and mode (COLOR-1)",
-    (tone) => {
-      const classes = classOf(
-        renderToStaticMarkup(<AvatarFallback tone={tone}>AB</AvatarFallback>)
-      );
-      const [, fill, percent] = /(?:^| )bg-ds-(chart-\d)\/(\d+)/.exec(classes) ?? [];
-      const ink = /(?:^| )text-ds-(text[a-z-]*)/.exec(classes)?.[1];
-      if (!isColorRole(fill) || !isColorRole(ink))
-        throw new Error(`Unexpected classes: ${classes}`);
-      const surfaces = ["surface", "surface-raised", "surface-sunken", "surface-overlay"] as const;
-      const lowest = Math.min(
-        ...themes.flatMap((theme) =>
-          (["light", "dark"] as const).flatMap((mode) =>
-            surfaces.map((surface) =>
-              contrastRatio(
-                resolveColor(theme, mode, ink),
-                withAlpha(resolveColor(theme, mode, fill), Number(percent) / 100),
-                resolveColor(theme, mode, surface)
-              )
-            )
-          )
-        )
-      );
-
-      expect(lowest).toBeGreaterThanOrEqual(4.5);
     }
   );
 });

@@ -375,13 +375,16 @@ describe("RadialProgress", () => {
     expect(container.querySelector("figure div[style]")?.textContent).toBe("");
   });
 
-  it("fills the hole with a pale disc of its color", () => {
-    act(() => root.render(<RadialProgress fill="chart-2" title="Storage" value={18} max={24} />));
+  it.each([
+    ["chart-2", "var(--ds-background-chart-2)", "1"],
+    ["success", "var(--ds-border-success)", "0.1"]
+  ] as const)("fills the hole with a pale disc of %s", (fill, color, opacity) => {
+    act(() => root.render(<RadialProgress fill={fill} title="Storage" value={18} max={24} />));
 
     const disc = container.querySelector("svg circle");
     expect([disc?.getAttribute("fill"), disc?.getAttribute("fill-opacity")]).toEqual([
-      "var(--ds-chart-2)",
-      "0.1"
+      color,
+      opacity
     ]);
   });
 

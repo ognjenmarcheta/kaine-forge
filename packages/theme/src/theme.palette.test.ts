@@ -54,6 +54,23 @@ describe("createTheme", () => {
     expect(theme.modes.light["text-brand-inverse"]).toBe(theme.modes.light.text);
   });
 
+  it("pairs each chart tint with the theme's own chart color, and a tint the theme sets wins", () => {
+    const green = "#2f8f4e";
+    const theme = createTheme({
+      name: "seed",
+      label: "Seed",
+      description: "",
+      color: { brand: "#7c3aed" },
+      // A reference's pastel, darker than the derived tint: its text color must still pass on it.
+      modes: { light: { "chart-2": green, "background-chart-1": "#daddf4" } }
+    });
+    const tint = theme.modes.light["background-chart-2"];
+
+    expect(Math.abs(toOklch(tint).h - toOklch(green).h)).toBeLessThan(10);
+    expect(theme.modes.light["background-chart-1"]).toBe("#daddf4");
+    expect(findContrastFailures(theme)).toEqual([]);
+  });
+
   it("sets the letter spacing of every type step, and a step in type wins", () => {
     const theme = createTheme({
       name: "seed",

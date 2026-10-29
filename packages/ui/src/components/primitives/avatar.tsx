@@ -61,9 +61,8 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
 );
 AvatarImage.displayName = "AvatarImage";
 
-// Each role tone is a fill and text pair that the theme check measures in every theme and mode.
-// A chart tone is ink on a light tint of a chart color, which keeps more than 10:1 on every
-// surface; avatar.test.tsx measures it.
+// Each tone is a fill and text pair that the theme check measures in every theme and mode. A
+// chart tone is the chart color's tint with its text color.
 const fallbackTones = {
   neutral: "bg-ds-bg-neutral-bold text-ds-text-inverse",
   brand: "bg-ds-bg-brand-bold text-ds-text-brand-inverse",
@@ -72,12 +71,12 @@ const fallbackTones = {
   warning: "bg-ds-bg-warning text-ds-text-warning",
   danger: "bg-ds-bg-danger text-ds-text-danger",
   discovery: "bg-ds-bg-discovery text-ds-text-discovery",
-  "chart-1": "bg-ds-chart-1/20 text-ds-text",
-  "chart-2": "bg-ds-chart-2/20 text-ds-text",
-  "chart-3": "bg-ds-chart-3/20 text-ds-text",
-  "chart-4": "bg-ds-chart-4/20 text-ds-text",
-  "chart-5": "bg-ds-chart-5/20 text-ds-text",
-  "chart-6": "bg-ds-chart-6/20 text-ds-text"
+  "chart-1": "bg-ds-bg-chart-1 text-ds-text-chart-1",
+  "chart-2": "bg-ds-bg-chart-2 text-ds-text-chart-2",
+  "chart-3": "bg-ds-bg-chart-3 text-ds-text-chart-3",
+  "chart-4": "bg-ds-bg-chart-4 text-ds-text-chart-4",
+  "chart-5": "bg-ds-bg-chart-5 text-ds-text-chart-5",
+  "chart-6": "bg-ds-bg-chart-6 text-ds-text-chart-6"
 } as const;
 
 const avatarFallbackVariants = cva(

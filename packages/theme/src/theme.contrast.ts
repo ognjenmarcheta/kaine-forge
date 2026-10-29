@@ -34,6 +34,8 @@ const pair = (foreground: ColorToken, background: ColorRole, minimum: number): C
   minimum
 });
 
+const categories = [1, 2, 3, 4, 5, 6] as const;
+
 /** The token pairs that components put together. Every theme must pass all of them in both modes. */
 export const contrastPairs: readonly ContrastPair[] = [
   pair("text", "surface", TEXT_CONTRAST),
@@ -139,7 +141,18 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("chart-3", "surface-sunken", GRAPHIC_CONTRAST),
   pair("chart-4", "surface-sunken", GRAPHIC_CONTRAST),
   pair("chart-5", "surface-sunken", GRAPHIC_CONTRAST),
-  pair("chart-6", "surface-sunken", GRAPHIC_CONTRAST)
+  pair("chart-6", "surface-sunken", GRAPHIC_CONTRAST),
+  // A chart color's tint carries ink, secondary text, and its text color, which also draws an
+  // icon or a mark on the tint. The chart color is not measured there, so a theme can set a
+  // mid-tone pastel. The text color also reads on every surface, for a tag or a label.
+  ...categories.flatMap((n) => [
+    pair("text", `background-chart-${n}`, TEXT_CONTRAST),
+    pair("text-subtle", `background-chart-${n}`, TEXT_CONTRAST),
+    pair(`text-chart-${n}`, `background-chart-${n}`, TEXT_CONTRAST),
+    ...(["surface", "surface-raised", "surface-sunken"] as const).map((background) =>
+      pair(`text-chart-${n}`, background, TEXT_CONTRAST)
+    )
+  ])
 ];
 
 const chartRoles = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5", "chart-6"] as const;

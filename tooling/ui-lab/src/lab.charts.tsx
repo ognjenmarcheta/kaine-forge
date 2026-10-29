@@ -761,7 +761,7 @@ const sources = [
 ] as const;
 const sourceFills: Record<(typeof sources)[number]["key"], PlotFill> = {
   search: { type: "solid", color: "chart-1" },
-  direct: { type: "solid", color: "chart-2", opacity: 0.35 },
+  direct: { type: "tint", color: "chart-2" },
   referral: { type: "hatch", color: "chart-3", spacing: 4, angle: 45, width: 1.5 }
 };
 const species = [
@@ -829,7 +829,7 @@ function StackedBars() {
 
   return (
     <Demo
-      description="One PlotBars whose y0 reads each segment's start, so the segments stack; the active day rings its column as one. The legend swatches take the same tint and hatch, with an edge in the series color."
+      description="One PlotBars whose y0 reads each segment's start, so the segments stack; the active day rings its column as one. Direct is the chart color's tint (a fill of type 'tint'), with a cap in the series color for 3:1. The legend swatches take the same tint and hatch, with an edge in the series color."
       title="Stacked bars and legend fills"
     >
       <PlotLegend

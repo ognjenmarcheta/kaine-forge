@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { seriesColor, type ChartColor } from "../composed/chart.series";
+import { chartTint, seriesColor, type ChartColor, type ChartSlot } from "../composed/chart.series";
 
 /**
  * The color of a mark: a chart color (`chart-1` to `chart-6`, a role, or `"neutral"`), the
@@ -43,6 +43,11 @@ export type PlotFill =
       direction?: "down" | "up" | "right" | "left";
     }
   | {
+      /** A slot's pale tint, which carries ink and the slot's text color, such as a labeled bar. */
+      type: "tint";
+      color: ChartSlot;
+    }
+  | {
       /** Parallel lines, such as a range band. */
       type: "hatch";
       color: PlotColor;
@@ -73,6 +78,8 @@ export function paintFill(
   switch (fill.type) {
     case "solid":
       return { definition: null, fill: plotColor(fill.color), fillOpacity: fill.opacity ?? 1 };
+    case "tint":
+      return { definition: null, fill: chartTint(fill.color), fillOpacity: 1 };
     case "gradient": {
       const color = plotColor(fill.color);
       return {

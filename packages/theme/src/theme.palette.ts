@@ -145,6 +145,78 @@ export function createChartColors(
   };
 }
 
+type Category = 1 | 2 | 3 | 4 | 5 | 6;
+
+/** The roles `createCategoryColors` derives: the tint and the text color of each chart color. */
+type CategoryRole = `background-chart-${Category}` | `text-chart-${Category}`;
+
+type CategoryInput = Pick<
+  ThemeMode,
+  `chart-${Category}` | "text" | "text-subtle" | "surface" | "surface-raised" | "surface-sunken"
+>;
+
+/**
+ * The pale tint and the text color of each chart color in one mode, for tiles, tags, and
+ * avatars. A tint takes its chart color's hue at a fixed lightness, so a light-mode chart color
+ * that darkened to reach 3:1 still gives a clean pastel. The tint moves until ink and secondary
+ * text read on it. The text color is the chart color moved until it reads on its tint and on
+ * every surface (WCAG 2.2 SC 1.4.3), so it also draws an icon or a mark on the tint. A tint or a text color in `fixed`
+ * is kept, and the text color is derived against a fixed tint.
+ */
+export function createCategoryColors(
+  mode: ColorMode,
+  colors: CategoryInput,
+  fixed: Partial<Pick<ThemeMode, CategoryRole>> = {}
+): Pick<ThemeMode, CategoryRole> {
+  const surfaces = [colors.surface, colors["surface-raised"], colors["surface-sunken"]];
+  // Light tints sit below the white surfaces; dark tints sit above the lightest card.
+  const lightness =
+    mode === "light" ? 0.93 : Math.max(...surfaces.map((surface) => toOklch(surface).l)) + 0.06;
+  const category = (n: Category): { tint: string; text: string } => {
+    const chart = colors[`chart-${n}`];
+    const { h, c } = toOklch(chart);
+    const tint =
+      fixed[`background-chart-${n}`] ??
+      passingOn(
+        tone(h, Math.min(c, mode === "light" ? 0.05 : 0.06), lightness),
+        [colors.text, colors["text-subtle"]],
+        TEXT_CONTRAST
+      );
+    const text = fixed[`text-chart-${n}`] ?? passingOn(chart, [tint, ...surfaces], TEXT_CONTRAST);
+
+    return { tint, text };
+  };
+  const [one, two, three, four, five, six] = [
+    category(1),
+    category(2),
+    category(3),
+    category(4),
+    category(5),
+    category(6)
+  ] as const;
+
+  return {
+    "background-chart-1": one.tint,
+    "background-chart-2": two.tint,
+    "background-chart-3": three.tint,
+    "background-chart-4": four.tint,
+    "background-chart-5": five.tint,
+    "background-chart-6": six.tint,
+    "text-chart-1": one.text,
+    "text-chart-2": two.text,
+    "text-chart-3": three.text,
+    "text-chart-4": four.text,
+    "text-chart-5": five.text,
+    "text-chart-6": six.text
+  };
+}
+
+/** A mode's colors with the tint and the text color of each chart color. */
+const withCategoryColors = (mode: ColorMode, colors: Omit<ThemeMode, CategoryRole>): ThemeMode => ({
+  ...colors,
+  ...createCategoryColors(mode, colors)
+});
+
 /**
  * Derives every color role in both modes from a brand color and a neutral tint. Each role is
  * placed on a lightness target and then moved, if needed, until its contrast pairs pass, so a
@@ -198,7 +270,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
     const textSubtle = gray(0.44);
     const textSubtlest = ensureContrast(gray(0.54), sunkenBold, TEXT_CONTRAST);
 
-    return {
+    return withCategoryColors("light", {
       text: ink,
       "text-subtle": textSubtle,
       "text-subtlest": textSubtlest,
@@ -278,7 +350,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
         grid
       ),
       ...shadows("light", ink, { color: brandFill.fill, strength: glowStrength })
-    };
+    });
   };
 
   const dark = (): ThemeMode => {
@@ -340,7 +412,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
     const textSubtle = ensureContrast(gray(0.78 + lift), overlay, TEXT_CONTRAST);
     const textSubtlest = ensureContrast(gray(0.66 + lift), overlay, TEXT_CONTRAST);
 
-    return {
+    return withCategoryColors("dark", {
       text,
       "text-subtle": textSubtle,
       "text-subtlest": textSubtlest,
@@ -417,7 +489,7 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
         border
       ),
       ...shadows("dark", text, { color: fill.fill, strength: glowStrength })
-    };
+    });
   };
 
   return { light: light(), dark: dark() };

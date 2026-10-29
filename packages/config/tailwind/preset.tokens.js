@@ -16,7 +16,13 @@ export const colors = {
     information: "var(--ds-text-information)",
     discovery: "var(--ds-text-discovery)",
     selected: "var(--ds-text-selected)",
-    "surface-inverse": "var(--ds-text-surface-inverse)"
+    "surface-inverse": "var(--ds-text-surface-inverse)",
+    "chart-1": "var(--ds-text-chart-1)",
+    "chart-2": "var(--ds-text-chart-2)",
+    "chart-3": "var(--ds-text-chart-3)",
+    "chart-4": "var(--ds-text-chart-4)",
+    "chart-5": "var(--ds-text-chart-5)",
+    "chart-6": "var(--ds-text-chart-6)"
   },
   "ds-link": {
     DEFAULT: "var(--ds-link)",
@@ -55,7 +61,13 @@ export const colors = {
     discovery: "var(--ds-background-discovery)",
     "discovery-bold": "var(--ds-background-discovery-bold)",
     selected: "var(--ds-background-selected)",
-    "selected-bold": "var(--ds-background-selected-bold)"
+    "selected-bold": "var(--ds-background-selected-bold)",
+    "chart-1": "var(--ds-background-chart-1)",
+    "chart-2": "var(--ds-background-chart-2)",
+    "chart-3": "var(--ds-background-chart-3)",
+    "chart-4": "var(--ds-background-chart-4)",
+    "chart-5": "var(--ds-background-chart-5)",
+    "chart-6": "var(--ds-background-chart-6)"
   },
   "ds-surface": {
     DEFAULT: "var(--ds-surface)",

@@ -75,7 +75,20 @@ export const colorRoles = [
   "chart-4",
   "chart-5",
   "chart-6",
-  "chart-grid"
+  "chart-grid",
+  // The pale tint and the text color of each chart color, for tiles, tags, and avatars.
+  "background-chart-1",
+  "background-chart-2",
+  "background-chart-3",
+  "background-chart-4",
+  "background-chart-5",
+  "background-chart-6",
+  "text-chart-1",
+  "text-chart-2",
+  "text-chart-3",
+  "text-chart-4",
+  "text-chart-5",
+  "text-chart-6"
 ] as const;
 
 export const shadowRoles = [

@@ -43,6 +43,7 @@ export const harborTheme = createTheme({
 - A brand color that passes with white text, or with ink text, stays exactly as given for primary buttons.
 - Status colors keep their usual hues (green, amber, red, blue, purple) and get light and dark variants.
 - The six chart colors start from the brand hue and keep the other hues apart.
+- Each chart color gets a pale tint, `background-chart-N`, in its own hue, and a text color, `text-chart-N`, that reads on the tint and on every surface. The tints follow the final chart colors, so a theme that sets its own chart colors keeps its tints in step. To match a reference's pastels, set the tints as overrides: `modes: { light: { "background-chart-2": "#e5f1fd" } }`. A tint you set can be a mid-tone pastel, as long as ink and secondary text keep 4.5:1 on it; the text color is then derived against your tint.
 - In dark mode a shadow barely shows, so lightness carries depth: sunken areas sit one step lighter than the page, and cards stand at least 1.1:1 above both. Hovered cards, overlays, and borders move up with the cards.
 - In dark mode a brand fill must also show a progress bar on its track on a card. A deep brand gets a little lighter and keeps white text. A near-black brand (ink) gets a light fill with ink text, so primary buttons stay visible.
 
@@ -106,11 +107,11 @@ harbor light: text-subtle on surface is 2.52:1, needs 4.5:1; the nearest passing
 
 Fix the input or add an override, then build again. `pnpm theme:check` runs the same checks without writing, and `pnpm --filter @repo/theme test` runs them in CI. The checks cover:
 
-- 160 color pairs, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas. The fills of progress bars and gauges are checked on their tracks on each surface, and secondary text, checkboxes, and brand marks on a selected row.
+- 196 color pairs, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas. Each chart tint is checked with ink, secondary text, and its text color on it. The fills of progress bars and gauges are checked on their tracks on each surface, and secondary text, checkboxes, and brand marks on a selected row.
 - In dark mode, cards at 1.1:1 against the page and a sunken canvas (`SURFACE_STEP`). It is not a WCAG ratio; it keeps cards from vanishing.
 - Control heights of at least 24px, in px or rem (WCAG 2.2 SC 2.5.8).
 
-The UI lab's themes pass the first 115 pairs (`contrastPairs`); a theme you register passes all of them (`shippedThemePairs`).
+The UI lab's themes pass the first 151 pairs (`contrastPairs`); a theme you register passes all of them (`shippedThemePairs`).
 
 - The `DESIGN.md` of each theme, with the pinned `@google/design.md` linter.
 

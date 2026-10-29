@@ -2,7 +2,9 @@ import * as React from "react";
 
 import {
   chartCellText,
+  chartTint,
   formatChartValue,
+  isChartSlot,
   seriesColor,
   type ChartAnnotation,
   type ChartAreaFill,
@@ -11,6 +13,7 @@ import {
   type ChartPaint,
   type ChartReferenceLine,
   type ChartSeries,
+  type ChartSlot,
   type ChartValueFormatter,
   type ChartYDomain,
   type LineSeries
@@ -164,7 +167,10 @@ interface RadialProgressProps extends ChartBaseProps {
   size?: "xs" | "sm" | "md" | "lg" | number;
   /** The ring color. @defaultValue "chart-1" */
   color?: ChartColor;
-  /** A pale disc of this color inside the ring, such as the ring's own color. */
+  /**
+   * A pale disc of this color inside the ring, such as the ring's own color. A chart slot draws
+   * its tint, which carries the value in ink.
+   */
   fill?: ChartColor;
   /** The inner radius as a share of the outer one; lower is a thicker ring. @defaultValue 0.84 */
   innerRatio?: number;
@@ -825,8 +831,8 @@ function RadialProgress({
           <circle
             cx={RING.center}
             cy={RING.center}
-            fill={seriesColor(0, fill).color}
-            fillOpacity={0.1}
+            fill={isChartSlot(fill) ? chartTint(fill) : seriesColor(0, fill).color}
+            fillOpacity={isChartSlot(fill) ? 1 : 0.1}
             r={Math.max(inner - band / 2, 0)}
           />
         )}
@@ -894,6 +900,7 @@ export type {
   ChartPaint,
   ChartReferenceLine,
   ChartSeries,
+  ChartSlot,
   ChartValueFormatter,
   ChartYDomain,
   DonutChartProps,

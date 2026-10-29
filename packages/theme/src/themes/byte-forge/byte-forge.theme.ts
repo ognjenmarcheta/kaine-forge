@@ -108,7 +108,19 @@ export const byteForgeTheme = defineTheme({
       "chart-4": "#8e6ac7",
       "chart-5": "#a77600",
       "chart-6": "#bc598c",
-      "chart-grid": "#e3e6eb"
+      "chart-grid": "#e3e6eb",
+      "background-chart-1": "#ffe0d8",
+      "background-chart-2": "#d9eaff",
+      "background-chart-3": "#c6f3e6",
+      "background-chart-4": "#ece3ff",
+      "background-chart-5": "#fae5c3",
+      "background-chart-6": "#ffddec",
+      "text-chart-1": "#c13100",
+      "text-chart-2": "#2769b7",
+      "text-chart-3": "#007662",
+      "text-chart-4": "#7955b0",
+      "text-chart-5": "#896000",
+      "text-chart-6": "#a54477"
     },
     dark: {
       text: "#f2f3f5",
@@ -191,7 +203,19 @@ export const byteForgeTheme = defineTheme({
       "chart-4": "#b28fef",
       "chart-5": "#d29922",
       "chart-6": "#e57db1",
-      "chart-grid": "#2d323a"
+      "chart-grid": "#2d323a",
+      "background-chart-1": "#492419",
+      "background-chart-2": "#19304d",
+      "background-chart-3": "#00392e",
+      "background-chart-4": "#342849",
+      "background-chart-5": "#3f2b04",
+      "background-chart-6": "#462234",
+      "text-chart-1": "#ff6a3d",
+      "text-chart-2": "#65a7fa",
+      "text-chart-3": "#00c0a0",
+      "text-chart-4": "#b28fef",
+      "text-chart-5": "#d29922",
+      "text-chart-6": "#e57db1"
     }
   }
 });
