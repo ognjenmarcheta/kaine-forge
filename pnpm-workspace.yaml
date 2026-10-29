@@ -144,6 +144,10 @@ overrides:
   # GHSA-mrhx-c7xc-m3w5 has no fixed zod 3.x. @expo/cli 55 asks for zod ^3.25.76 but
   # uses only APIs that zod 4 keeps (DevToolsPlugin schemas). Remove when @expo/cli moves to zod 4.
   "@expo/cli>zod": "^4.6.7"
+  # Same GHSA: @google/design.md 0.4.0 (the latest) asks for zod ^3.24.0, but its dist bundles
+  # its own copy; only its type declarations import "zod". @repo/theme runs its linter at build
+  # time on the repo's own DESIGN.md files. Remove when @google/design.md moves to zod 4.
+  "@google/design.md>zod": "^4.6.7"
   # GHSA-w5hq-g745-h8pq (CVE-2026-41907, fixed 11.1.1) via expo>@expo/config-plugins>xcode@3,
   # which only calls require("uuid").v4(); uuid 11 keeps CJS. Remove when Expo moves to xcode 4.
   "xcode>uuid": "^11.1.1"
