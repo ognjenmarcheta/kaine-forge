@@ -9,6 +9,7 @@ import {
   PlotBars,
   PlotCrosshair,
   PlotDots,
+  PlotFrame,
   PlotGrid,
   PlotHighlight,
   PlotLegend,
@@ -400,13 +401,13 @@ function GridAndAxes() {
 function Stems() {
   return (
     <Demo
-      description="One vertical stem per value, dense enough to read as a texture, over a grid line."
+      description='One vertical stem per value, dense enough to read as a texture, over a grid line. With highlight, the active stem turns to the text color. PlotAxis side="top" sets the hours above the stems, with short ticks.'
       title="PlotStems"
     >
       <Plot
-        height={180}
+        height={196}
         hideTitle
-        margin={{ top: 12, right: 4, bottom: 8, left: 4 }}
+        margin={{ top: 28, right: 4, bottom: 8, left: 4 }}
         table={{
           columns: ["Requests"],
           rows: requests.map((count, slot) => ({
@@ -419,7 +420,102 @@ function Stems() {
         y={{ type: "linear", domain: [0, 160] }}
       >
         <PlotGrid axis="y" values={[0, 80, 160]} />
-        <PlotStems color="chart-2" data={requests} width={3} x={(_, slot) => slot} y={asValue} />
+        <PlotStems
+          color="chart-2"
+          data={requests}
+          highlight
+          width={3}
+          x={(_, slot) => slot}
+          y={asValue}
+        />
+        <PlotAxis
+          align="edges"
+          axis="x"
+          format={(slot) => `${String(Number(slot) / 3).padStart(2, "0")}:00`}
+          offset={10}
+          side="top"
+          ticks={{ gap: 2, size: 4 }}
+          values={[0, 18, 36, 54, 69]}
+        />
+      </Plot>
+    </Demo>
+  );
+}
+
+const cashIn = [62, 48, 75, 54, 81, 40, 66];
+const cashOut = [41, 57, 38, 60, 44, 52, 35];
+const cashScale = { type: "linear", domain: [-90, 90] } as const;
+
+/** Cash in up and cash out down, set apart at the zero line, framed, with ticks and net dots. */
+function DivergingBars() {
+  return (
+    <Demo
+      description="Two PlotBars from zero with gap, so rises and falls sit apart at the zero line; tint fills with a cap. PlotDots in ink mark the net, and the legend names them with an ink swatch. PlotFrame draws the open frame, and PlotAxis ticks mark each day."
+      title="Diverging bars"
+    >
+      <PlotLegend
+        items={[
+          {
+            key: "in",
+            label: "Cash in",
+            color: "chart-1",
+            mark: "dot",
+            fill: { type: "tint", color: "chart-1" }
+          },
+          {
+            key: "out",
+            label: "Cash out",
+            color: "chart-2",
+            mark: "dot",
+            fill: { type: "tint", color: "chart-2" }
+          },
+          { key: "net", label: "Net", color: "ink", mark: "dot" }
+        ]}
+      />
+      <Plot
+        height={200}
+        hideTitle
+        margin={{ top: 8, right: 8, bottom: 32, left: 8 }}
+        table={{
+          columns: ["Cash in", "Cash out", "Net"],
+          rows: days.map((day, index) => {
+            const gain = cashIn[index] ?? 0;
+            const loss = cashOut[index] ?? 0;
+            return { header: day, cells: [String(gain), String(loss), String(gain - loss)] };
+          })
+        }}
+        title="Cash in and out per day this week"
+        x={band}
+        y={cashScale}
+      >
+        <PlotFrame sides={["left", "bottom", "right"]} />
+        <PlotGrid axis="y" values={[0]} />
+        <PlotBars
+          cap={{ color: "chart-1", width: 1.5 }}
+          data={cashIn}
+          fill={{ type: "tint", color: "chart-1" }}
+          gap={1.5}
+          radius={4}
+          x={byDay}
+          y={asValue}
+        />
+        <PlotBars
+          cap={{ color: "chart-2", width: 1.5 }}
+          data={cashOut}
+          fill={{ type: "tint", color: "chart-2" }}
+          gap={1.5}
+          radius={4}
+          x={byDay}
+          y={(value) => -value}
+        />
+        <PlotDots
+          color="ink"
+          data={cashIn}
+          r={2.5}
+          x={byDay}
+          y={(gain, index) => gain - (cashOut[index] ?? 0)}
+        />
+        <PlotAxis axis="x" format={dayLabel} offset={12} ticks={{ gap: 2, size: 5 }} />
       </Plot>
     </Demo>
   );
@@ -1420,6 +1516,7 @@ export function ChartsPage({ catalog }: { catalog: LabCatalog }) {
           <div className="grid grid-cols-1 gap-ds-200 lg:grid-cols-2">
             <RowBars />
             <StackedBars />
+            <DivergingBars />
             <EdgeLine />
             <PieOptions />
             <PolarArea />

@@ -72,6 +72,8 @@ export type PlotFill =
       /** A slot's pale tint, which carries ink and the slot's text color, such as a labeled bar. */
       type: "tint";
       color: ChartSlot;
+      /** Fades the tint, such as a band that must stay paler than the lines over it. @defaultValue 1 */
+      opacity?: number;
     }
   | {
       /** Parallel lines, such as a range band. */
@@ -107,7 +109,7 @@ export function paintFill(
     case "solid":
       return { definition: null, fill: plotColor(fill.color), fillOpacity: fill.opacity ?? 1 };
     case "tint":
-      return { definition: null, fill: chartTint(fill.color), fillOpacity: 1 };
+      return { definition: null, fill: chartTint(fill.color), fillOpacity: fill.opacity ?? 1 };
     case "gradient": {
       const stops =
         "stops" in fill

@@ -238,23 +238,92 @@ export interface PlotStemsProps<Datum> extends PlotStroke {
   y?: PlotAccessor<Datum, number>;
   /** The value of the bottom end; by default the bottom of the drawing area. */
   y0?: number;
+  /** Draws the stem at the active stop in the text color, such as a picked report. @defaultValue false */
+  highlight?: boolean;
 }
 
 /** A vertical line at each datum, such as a drop line from a point or a dense run of stems. */
-export function PlotStems<Datum>({ data, x, y, y0, ...stroke }: PlotStemsProps<Datum>) {
+export function PlotStems<Datum>({
+  data,
+  highlight = false,
+  x,
+  y,
+  y0,
+  ...stroke
+}: PlotStemsProps<Datum>) {
   const plot = useCartesian("PlotStems");
   useSeriesStops(data, x, y ?? (() => Number.NaN));
+  const activeAt = useActiveAt(highlight);
   const bottom = y0 === undefined ? plot.inner.bottom : plot.y.position(y0);
   const paint = strokeProps({ width: 1, ...stroke });
+  const activePaint = strokeProps({ width: 1, ...stroke, color: "ink" });
 
   return (
     <g>
       {data.map((datum, index) => {
         const pixel = plot.x.position(x(datum, index));
         const top = y === undefined ? plot.inner.top : plot.y.position(y(datum, index));
-        return <line key={index} {...paint} x1={pixel} x2={pixel} y1={top} y2={bottom} />;
+        return (
+          <line
+            key={index}
+            {...(activeAt(pixel, top) ? activePaint : paint)}
+            x1={pixel}
+            x2={pixel}
+            y1={top}
+            y2={bottom}
+          />
+        );
       })}
     </g>
+  );
+}
+
+type PlotSide = "top" | "right" | "bottom" | "left";
+
+export interface PlotFrameProps extends PlotStroke {
+  /** The edges of the drawing area to draw. @defaultValue all four */
+  sides?: readonly PlotSide[];
+}
+
+/** The corners of the drawing area clockwise from the top left; side `n` runs from corner `n`. */
+const FRAME_SIDES: readonly PlotSide[] = ["top", "right", "bottom", "left"];
+
+/** Hairlines along the edges of the drawing area, such as an open frame without a top. */
+export function PlotFrame({ sides = FRAME_SIDES, ...stroke }: PlotFrameProps) {
+  const { inner } = usePlot();
+  const corners = [
+    [inner.left, inner.top],
+    [inner.right, inner.top],
+    [inner.right, inner.bottom],
+    [inner.left, inner.bottom]
+  ] as const;
+  const drawn = FRAME_SIDES.map((side) => sides.includes(side));
+  // Each side moves from its corner to the next one: across for the top and bottom, down or up
+  // for the right and left.
+  const step = (side: number): string => {
+    const [px, py] = corners[(side + 1) % 4] ?? [0, 0];
+    return side % 2 === 0 ? `H${px}` : `V${py}`;
+  };
+  const path = drawn.every(Boolean)
+    ? `M${inner.left},${inner.top}H${inner.right}V${inner.bottom}H${inner.left}Z`
+    : drawn
+        .map((on, side) => (on && !drawn[(side + 3) % 4] ? side : -1))
+        .filter((start) => start >= 0)
+        .map((start) => {
+          const [px, py] = corners[start] ?? [0, 0];
+          let run = `M${px},${py}`;
+          for (let side = start; drawn[side % 4] && side < start + 4; side += 1)
+            run += step(side % 4);
+          return run;
+        })
+        .join("");
+
+  return (
+    <path
+      d={path}
+      fill="none"
+      {...strokeProps({ color: "grid", width: 1, cap: "butt", ...stroke })}
+    />
   );
 }
 
@@ -587,6 +656,11 @@ interface PlotBarsBase<Datum> {
   /** A stroke along the data end, so a pale bar still shows where its value is. */
   cap?: PlotStroke | PlotAccessor<Datum, PlotStroke | undefined>;
   /**
+   * Starts each bar this many pixels from its baseline, toward its end, so the segments of a
+   * stack, or the rises and falls of a diverging chart, sit apart. @defaultValue 0
+   */
+  gap?: number;
+  /**
    * Rings the bar at the active stop in the text color, with a gap of surface; stacked bars ring
    * the whole column or row as one. `false` opts out. @defaultValue the plot's `highlight`
    */
@@ -628,7 +702,10 @@ interface ShownBar {
   left: number;
   barWidth: number;
   end: number;
+  /** Where the bar starts: its baseline, moved toward the end by `gap`. */
   base: number;
+  /** The baseline itself, where the track starts and the bar's span for the pointer begins. */
+  origin: number;
   corner: number;
   /** False while a value has no position, such as an unknown category. */
   shown: boolean;
@@ -654,6 +731,7 @@ export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
     cap,
     data,
     fill,
+    gap = 0,
     group,
     highlight,
     radius = 0,
@@ -718,20 +796,24 @@ export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
     if (activeStop.axis === bandAxis) return Math.abs(center - activeStop.pixel) < 0.5;
     return stacked ? holds(base, end, activeStop.pixel) : Math.abs(end - activeStop.pixel) < 0.5;
   };
+  // The gap moves the start toward the end, and never past it.
+  const gapped = (origin: number, end: number): number =>
+    end < origin ? Math.max(end, origin - gap) : Math.min(end, origin + gap);
   const bars = data.map((_, index): ShownBar => {
     const at = index * BAR_VALUES;
     const left = frame.values[at] ?? Number.NaN;
     const barWidth = frame.values[at + 1] ?? width;
     const end = frame.values[at + 2] ?? Number.NaN;
-    const base = frame.values[at + 3] ?? Number.NaN;
+    const origin = frame.values[at + 3] ?? Number.NaN;
+    const base = gapped(origin, end);
     const corner = radius === "full" ? barWidth / 2 : radius;
-    const shown = Number.isFinite(left) && Number.isFinite(end) && Number.isFinite(base);
+    const shown = Number.isFinite(left) && Number.isFinite(end) && Number.isFinite(origin);
     const flat = Math.abs(end - base) < 0.01;
     const center = centers[index] ?? Number.NaN;
-    return { left, barWidth, end, base, corner, shown, flat, center };
+    return { left, barWidth, end, base, origin, corner, shown, flat, center };
   });
   const ringed = bars.flatMap((bar, index) =>
-    bar.shown && !bar.flat && isActive(bar.center, bar.base, bar.end) ? [index] : []
+    bar.shown && !bar.flat && isActive(bar.center, bar.origin, bar.end) ? [index] : []
   );
   /** The ring around one bar, or around every ringed bar of a stack as one. */
   const ringPath = (parts: readonly ShownBar[]): string | null => {
@@ -765,7 +847,7 @@ export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
       {data.map((datum, index) => {
         const bar = bars[index];
         if (bar === undefined || !bar.shown) return null;
-        const { barWidth, base, corner, end, flat, left } = bar;
+        const { barWidth, base, corner, end, flat, left, origin } = bar;
         const barFill = typeof fill === "function" ? fill(datum, index) : fill;
         const barCap = typeof cap === "function" ? cap(datum, index) : cap;
         const tracked =
@@ -788,7 +870,7 @@ export function PlotBars<Datum>(props: PlotBarsProps<Datum>) {
                   barWidth + 2 * trackPad,
                   far,
                   // The pad reaches back past the baseline, away from the far edge.
-                  base + (far < base ? trackPad : -trackPad),
+                  origin + (far < origin ? trackPad : -trackPad),
                   corner + trackPad,
                   pen
                 )}
@@ -1276,12 +1358,20 @@ export interface PlotAxisProps {
   count?: number;
   /** The distance from the drawing area to the labels, in pixels. @defaultValue 8 */
   offset?: number;
+  /** `"top"` sets x labels above the drawing area, such as week names over a run of stems. @defaultValue "bottom" */
+  side?: "bottom" | "top";
+  /**
+   * A short tick at each label, `gap` pixels off the drawing area and `size` pixels long, in the
+   * bold border color, which keeps 3:1 (COLOR-1).
+   */
+  ticks?: { size: number; gap?: number };
   /**
    * `"edges"` aligns the first x label to its start and the last to its end, so both stay
    * inside the plot. `"start"` aligns y labels to their start at the plot's left edge, so they
-   * line up in the margin, and starts each x label at its value. @defaultValue "center"
+   * line up in the margin, and starts each x label at its value. `"end"` ends each x label at its
+   * value, such as a last label at the plot's end. @defaultValue "center"
    */
-  align?: "center" | "edges" | "start";
+  align?: "center" | "edges" | "end" | "start";
   /**
    * Leaves out a label that sits closer than this many pixels to the one before it, so a narrow
    * plot stays readable. The first and the last label always stay.
@@ -1336,6 +1426,8 @@ export function PlotAxis({
   highlight = false,
   minSpacing,
   offset = 8,
+  side = "bottom",
+  ticks,
   values
 }: PlotAxisProps) {
   const { activeStop, inner, x, y } = useCartesian("PlotAxis");
@@ -1343,7 +1435,7 @@ export function PlotAxis({
   const at = spacedOut(values ?? scale.ticks(count), scale, minSpacing);
   const anchorOf = (index: number): "start" | "middle" | "end" => {
     if (align === "start") return "start";
-    if (axis === "y") return "end";
+    if (axis === "y" || align === "end") return "end";
     if (align === "edges" && index === 0) return "start";
     if (align === "edges" && index === at.length - 1) return "end";
     return "middle";
@@ -1353,9 +1445,26 @@ export function PlotAxis({
     activeStop !== null &&
     activeStop.axis === axis &&
     Math.abs(pixel - activeStop.pixel) < 0.5;
+  const top = axis === "x" && side === "top";
+  // The edge the labels sit off, and the direction away from the drawing area.
+  const edge = axis === "y" ? inner.left : top ? inner.top : inner.bottom;
+  const away = axis === "x" && !top ? 1 : -1;
+  const tickPaint = strokeProps({ color: "neutral", width: 1, cap: "butt" });
 
   return (
     <g className={cn("fill-ds-text-subtle text-body-sm", className)}>
+      {ticks === undefined
+        ? null
+        : at.map((value, index) => {
+            const pixel = scale.position(value);
+            const from = edge + away * (ticks.gap ?? 0);
+            const to = from + away * ticks.size;
+            return axis === "x" ? (
+              <line key={`tick-${index}`} {...tickPaint} x1={pixel} x2={pixel} y1={from} y2={to} />
+            ) : (
+              <line key={`tick-${index}`} {...tickPaint} x1={from} x2={to} y1={pixel} y2={pixel} />
+            );
+          })}
       {at.map((value, index) => {
         const pixel = scale.position(value);
         const left = axis === "x" ? pixel : align === "start" ? 0 : inner.left - offset;
@@ -1368,10 +1477,10 @@ export function PlotAxis({
               : isActive(pixel)
                 ? { className: LABEL_MOTION + " font-medium", fill: plotColor("ink") }
                 : { className: LABEL_MOTION })}
-            dominantBaseline={axis === "x" ? "hanging" : "middle"}
+            dominantBaseline={axis === "y" ? "middle" : top ? "alphabetic" : "hanging"}
             textAnchor={anchorOf(index)}
             x={left}
-            y={axis === "x" ? inner.bottom + offset : pixel}
+            y={axis === "x" ? edge + away * offset : pixel}
           >
             {lines.length === 1
               ? lines[0]

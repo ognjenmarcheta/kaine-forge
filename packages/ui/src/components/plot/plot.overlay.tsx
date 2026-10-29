@@ -265,7 +265,8 @@ export function PlotTooltip({ animate = true, children, className, ...anchor }: 
 export interface PlotLegendItem {
   key: string;
   label: string;
-  color: ChartColor;
+  /** A chart color, or `"ink"` for a series drawn in the text color, such as net cash dots. */
+  color: ChartColor | "ink";
   /** @defaultValue "line" */
   mark?: "line" | "square" | "dot";
   /**
@@ -285,7 +286,11 @@ function LegendSwatch({ item }: { item: PlotLegendItem }) {
     mark === "dot" && "size-ds-100 rounded-full"
   );
   if (item.fill === undefined) {
-    return <span className={cn(shape, seriesColor(0, item.color).swatch)} />;
+    return item.color === "ink" ? (
+      <span className={shape} style={{ backgroundColor: plotColor("ink") }} />
+    ) : (
+      <span className={cn(shape, seriesColor(0, item.color).swatch)} />
+    );
   }
   const paint = paintFill(item.fill, id);
   return (

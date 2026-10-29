@@ -10,7 +10,9 @@ import {
   PlotBand,
   PlotBars,
   PlotDots,
+  PlotFrame,
   PlotLine,
+  PlotStems,
   usePlotTween,
   type PlotArcsProps
 } from "./plot.marks";
@@ -592,6 +594,173 @@ describe("Plot", () => {
     expect(bar?.getAttribute("d")).toBe("M0,40H200A0,0 0 0 1 200,40V80A0,0 0 0 1 200,80H0Z");
   });
 
+  it.each<[string, number, string]>([
+    ["a rise starts above the zero line", 5, "M0,58V30A0,0 0 0 1 0,30H400A0,0 0 0 1 400,30V58Z"],
+    ["a fall starts below it", -5, "M0,62V90A0,0 0 0 0 0,90H400A0,0 0 0 0 400,90V62Z"]
+  ])("sets bars apart from their baseline by gap: %s", (_, value, path) => {
+    act(() =>
+      root.render(
+        <Plot
+          height={120}
+          interaction={false}
+          table={{ columns: [], rows: [] }}
+          title="Cash"
+          x={{ type: "band", domain: ["a"], paddingInner: 0 }}
+          y={{ type: "linear", domain: [-10, 10] }}
+        >
+          <PlotBars
+            data={[value]}
+            fill={{ type: "solid", color: "chart-1" }}
+            gap={2}
+            x={() => "a"}
+            y={(datum) => datum}
+          />
+        </Plot>
+      )
+    );
+
+    // Zero sits at 60px; the bar starts 2px from it, toward its own end.
+    expect(container.querySelector("svg path")?.getAttribute("d")).toBe(path);
+  });
+
+  it("fades a tint fill by its opacity", () => {
+    act(() =>
+      root.render(
+        <PlotLegend
+          items={[
+            {
+              key: "income",
+              label: "Income",
+              color: "chart-2",
+              mark: "square",
+              fill: { type: "tint", color: "chart-2", opacity: 0.4 }
+            }
+          ]}
+        />
+      )
+    );
+
+    expect(container.querySelector("li > span rect")?.getAttribute("fill-opacity")).toBe("0.4");
+  });
+
+  it("draws a legend swatch in the text color for a series drawn in ink", () => {
+    act(() =>
+      root.render(
+        <PlotLegend items={[{ key: "net", label: "Net cash", color: "ink", mark: "dot" }]} />
+      )
+    );
+
+    expect(container.querySelector<HTMLElement>("li > span")?.style.backgroundColor).toBe(
+      "var(--ds-text)"
+    );
+  });
+
+  it("frames the drawing area on the sides it is given", () => {
+    act(() =>
+      root.render(
+        <Plot
+          height={120}
+          interaction={false}
+          table={{ columns: [], rows: [] }}
+          title="Framed"
+          x={{ type: "linear", domain: [0, 10] }}
+          y={{ type: "linear", domain: [0, 10] }}
+        >
+          <PlotFrame sides={["left", "bottom", "right"]} />
+          <PlotFrame />
+        </Plot>
+      )
+    );
+
+    expect(
+      Array.from(container.querySelectorAll("svg path"), (path) => [
+        path.getAttribute("d"),
+        path.getAttribute("stroke")
+      ])
+    ).toEqual([
+      ["M400,0V120H0V0", "var(--ds-chart-grid)"],
+      ["M0,0H400V120H0Z", "var(--ds-chart-grid)"]
+    ]);
+  });
+
+  it.each<[string, "bottom" | "top", string[][]]>([
+    [
+      "under the drawing area",
+      "bottom",
+      [
+        ["40", "104", "110"],
+        ["200", "104", "110"]
+      ]
+    ],
+    [
+      "above it",
+      "top",
+      [
+        ["40", "16", "10"],
+        ["200", "16", "10"]
+      ]
+    ]
+  ])("puts x labels and their ticks %s", (_, side, ticks) => {
+    act(() =>
+      root.render(
+        <Plot
+          height={120}
+          interaction={false}
+          margin={{ top: 20, bottom: 20 }}
+          table={{ columns: [], rows: [] }}
+          title="Ticks"
+          x={{ type: "band", domain: days, paddingInner: 0 }}
+          y={{ type: "linear", domain: [0, 10] }}
+        >
+          <PlotAxis
+            axis="x"
+            format={String}
+            offset={12}
+            side={side}
+            ticks={{ gap: 4, size: 6 }}
+            values={["Mon", "Wed"]}
+          />
+        </Plot>
+      )
+    );
+    const label = container.querySelector("svg text");
+
+    // The drawing area runs from y 20 to 100; ticks start 4px off its edge and run 6px out.
+    expect(
+      Array.from(container.querySelectorAll("svg line"), (line) => [
+        line.getAttribute("x1"),
+        line.getAttribute("y1"),
+        line.getAttribute("y2")
+      ])
+    ).toEqual(ticks);
+    expect(container.querySelector("svg line")?.getAttribute("stroke")).toBe(
+      "var(--ds-border-bold)"
+    );
+    expect([label?.getAttribute("y"), label?.getAttribute("dominant-baseline")]).toEqual(
+      side === "top" ? ["8", "alphabetic"] : ["112", "hanging"]
+    );
+  });
+
+  it("ends each x label at its value with align end, such as a last label at the plot's end", () => {
+    act(() =>
+      root.render(
+        <Plot
+          height={120}
+          interaction={false}
+          table={{ columns: [], rows: [] }}
+          title="Now"
+          x={{ type: "linear", domain: [0, 10] }}
+          y={{ type: "linear", domain: [0, 10] }}
+        >
+          <PlotAxis align="end" axis="x" format={() => "Now"} side="top" values={[10]} />
+        </Plot>
+      )
+    );
+    const label = container.querySelector("svg text");
+
+    expect([label?.getAttribute("x"), label?.getAttribute("text-anchor")]).toEqual(["400", "end"]);
+  });
+
   describe("picking points", () => {
     const visitsTable = {
       columns: ["Visits"],
@@ -947,6 +1116,34 @@ describe("Plot", () => {
       }));
       expect(used).toEqual({ tooltip: "Wed9", rings: 1 });
       expect(other).toEqual({ tooltip: undefined, rings: 1 });
+    });
+
+    it("draws the stem at the active point in the text color when it highlights", () => {
+      act(() =>
+        root.render(
+          <Plot
+            height={120}
+            table={visitsTable}
+            title="Visits this week"
+            x={{ type: "band", domain: days, paddingInner: 0 }}
+            y={{ type: "linear", domain: [0, 25] }}
+          >
+            <PlotStems data={visits} highlight x={atDay} y={(value) => value} />
+          </Plot>
+        )
+      );
+
+      pointer("pointermove", wednesday);
+
+      expect(
+        Array.from(container.querySelectorAll("svg line"), (stem) => stem.getAttribute("stroke"))
+      ).toEqual([
+        "var(--ds-chart-1)",
+        "var(--ds-chart-1)",
+        "var(--ds-text)",
+        "var(--ds-chart-1)",
+        "var(--ds-chart-1)"
+      ]);
     });
 
     it("sets the axis label of the active point in the text color", () => {
