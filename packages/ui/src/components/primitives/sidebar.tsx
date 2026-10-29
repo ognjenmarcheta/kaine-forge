@@ -553,6 +553,9 @@ const sidebarMenuButtonVariants = cva(
         // brand color is not the selection color.
         neutral:
           "hover:bg-ds-bg-neutral-hovered hover:text-ds-text data-[active=true]:bg-ds-bg-neutral data-[active=true]:text-ds-text data-[active=true]:shadow-none data-[active=true]:hover:bg-ds-bg-neutral-hovered data-[active=true]:hover:text-ds-text",
+        // The current item is brand text and icon on the neutral fill, with no start indicator.
+        brand:
+          "hover:bg-ds-bg-neutral-hovered hover:text-ds-text data-[active=true]:bg-ds-bg-neutral data-[active=true]:text-ds-text-brand data-[active=true]:shadow-none data-[active=true]:hover:bg-ds-bg-neutral data-[active=true]:hover:text-ds-text-brand data-[active=true]:[&>svg]:text-current",
         outline:
           "bg-ds-bg shadow-[0_0_0_1px_var(--ds-border)] hover:bg-ds-bg-neutral-hovered hover:text-ds-text hover:shadow-[0_0_0_1px_var(--ds-background-neutral-hovered)]"
       },

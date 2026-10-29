@@ -107,11 +107,11 @@ harbor light: text-subtle on surface is 2.52:1, needs 4.5:1; the nearest passing
 
 Fix the input or add an override, then build again. `pnpm theme:check` runs the same checks without writing, and `pnpm --filter @repo/theme test` runs them in CI. The checks cover:
 
-- 196 color pairs, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas. Each chart tint is checked with ink, secondary text, and its text color on it. The fills of progress bars and gauges are checked on their tracks on each surface, and secondary text, checkboxes, and brand marks on a selected row.
+- 197 color pairs, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas. Each chart tint is checked with ink, secondary text, and its text color on it. The fills of progress bars and gauges are checked on their tracks on each surface, secondary text, checkboxes, and brand marks on a selected row, and brand text on the neutral fill of a current sidebar link.
 - In dark mode, cards at 1.1:1 against the page and a sunken canvas (`SURFACE_STEP`). It is not a WCAG ratio; it keeps cards from vanishing.
 - Control heights of at least 24px, in px or rem (WCAG 2.2 SC 2.5.8).
 
-The UI lab's themes pass the first 151 pairs (`contrastPairs`); a theme you register passes all of them (`shippedThemePairs`).
+The UI lab's themes pass the first 152 pairs (`contrastPairs`); a theme you register passes all of them (`shippedThemePairs`).
 
 - The `DESIGN.md` of each theme, with the pinned `@google/design.md` linter.
 

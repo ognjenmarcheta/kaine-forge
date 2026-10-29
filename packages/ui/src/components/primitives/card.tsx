@@ -27,7 +27,8 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
       className={cn(
         "grid gap-x-ds-150 gap-y-ds-050 p-card has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]",
         "has-data-[slot=card-icon]:grid-cols-[auto_minmax(0,1fr)] has-data-[slot=card-icon]:has-data-[slot=card-action]:grid-cols-[auto_minmax(0,1fr)_auto]",
-        "@max-sm/card:has-data-[slot=card-action]:grid-cols-1 @max-sm/card:has-data-[slot=card-icon]:has-data-[slot=card-action]:grid-cols-[auto_minmax(0,1fr)]",
+        // In a narrow card, an action that wraps moves under the title; `wrap={false}` stays.
+        "@max-sm/card:has-[[data-slot=card-action]:not([data-wrap=false])]:grid-cols-1 @max-sm/card:has-data-[slot=card-icon]:has-[[data-slot=card-action]:not([data-wrap=false])]:grid-cols-[auto_minmax(0,1fr)]",
         className
       )}
       {...props}
@@ -78,14 +79,22 @@ function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
 }
 
 /** One control at the end of a `CardHeader`, such as a filter menu, beside the title and description. */
-function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+function CardAction({
+  className,
+  wrap = true,
+  ...props
+}: React.ComponentProps<"div"> & {
+  /** `false` keeps the action on the title row in a narrow `@container/card`, for a short control such as a period pill. */
+  wrap?: boolean;
+}) {
   return (
     <div
       data-slot="card-action"
+      {...(wrap ? {} : { "data-wrap": "false" })}
       className={cn(
         "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
         "in-[[data-slot=card-header]:has(>[data-slot=card-icon])]:col-start-3",
-        "@max-sm/card:col-span-full @max-sm/card:row-auto @max-sm/card:justify-self-start",
+        wrap && "@max-sm/card:col-span-full @max-sm/card:row-auto @max-sm/card:justify-self-start",
         className
       )}
       {...props}

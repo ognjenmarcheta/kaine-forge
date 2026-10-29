@@ -47,6 +47,8 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("text-subtlest", "surface-sunken", TEXT_CONTRAST),
   pair("text", "surface-sunken-bold", TEXT_CONTRAST),
   pair("text", "background-neutral", TEXT_CONTRAST),
+  // A sidebar's current link in brand text on the neutral pill (`SidebarMenuButton variant="brand"`).
+  pair("text-brand", "background-neutral", TEXT_CONTRAST),
   pair("text", "background-neutral-hovered", TEXT_CONTRAST),
   pair("text", "background-neutral-pressed", TEXT_CONTRAST),
   pair("text-subtle", "surface-raised", TEXT_CONTRAST),

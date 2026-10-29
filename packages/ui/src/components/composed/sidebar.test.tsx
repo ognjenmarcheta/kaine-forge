@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { colorRoles, contrastRatio, resolveColor, themes, type ColorRole } from "@repo/theme";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -269,5 +270,64 @@ describe("sidebar menu tooltip", () => {
     });
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("sidebar menu button brand variant", () => {
+  const roleNames: ReadonlySet<string> = new Set(colorRoles);
+  /** The color role a utility sets under a variant, such as `data-[active=true]:` and `text`. */
+  function roleOf(element: Element, variant: string, utility: "bg" | "text"): ColorRole {
+    const name = (element.getAttribute("class") ?? "")
+      .split(" ")
+      .filter((entry) => entry.startsWith(`${variant}${utility}-ds-`))
+      .map((entry) => entry.slice(`${variant}${utility}-ds-`.length).replace(/^bg-/, "background-"))
+      .filter((entry) => roleNames.has(entry))
+      .at(-1);
+    if (name === undefined || !roleNames.has(name)) throw new Error(`No ${variant}${utility} role`);
+    // SAFETY: `roleNames` holds exactly the `colorRoles` names, so the check above narrows it.
+    return name as ColorRole;
+  }
+
+  it("draws the current link in brand text on a neutral pill at 4.5:1, at rest and on hover", () => {
+    const container = mount(
+      <SidebarProvider>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive variant="brand">
+              <a href="/home">Home</a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarProvider>
+    );
+    const link = container.querySelector("a");
+    if (link === null) throw new Error("No link");
+    const pairs: Array<[ColorRole, ColorRole]> = [
+      [roleOf(link, "data-[active=true]:", "text"), roleOf(link, "data-[active=true]:", "bg")],
+      [
+        roleOf(link, "data-[active=true]:hover:", "text"),
+        roleOf(link, "data-[active=true]:hover:", "bg")
+      ]
+    ];
+    const lowest = Math.min(
+      ...pairs.flatMap(([ink, fill]) =>
+        themes.flatMap((theme) =>
+          (["light", "dark"] as const).map((mode) =>
+            contrastRatio(
+              resolveColor(theme, mode, ink),
+              resolveColor(theme, mode, fill),
+              resolveColor(theme, mode, "surface")
+            )
+          )
+        )
+      )
+    );
+
+    expect(pairs.map(([ink, fill]) => `${ink} on ${fill}`)).toEqual([
+      "text-brand on background-neutral",
+      "text-brand on background-neutral"
+    ]);
+    expect(lowest).toBeGreaterThanOrEqual(4.5);
+    expect(link.getAttribute("class")).toContain("data-[active=true]:shadow-none");
   });
 });
