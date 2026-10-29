@@ -49,6 +49,7 @@ import { Inbox, Plus } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
 import { LabNav } from "./lab.nav";
+import { OptionsSpecimen } from "./lab.options";
 import type { LabCatalog } from "./lab.registry";
 
 type Mode = "light" | "dark";
@@ -327,8 +328,17 @@ function ThemePicker({
   );
 }
 
-/** The gallery: one theme, or two side by side, in light or dark, plus the recreated screens. */
-export function LabGallery({ catalog }: { catalog: LabCatalog }) {
+/**
+ * The gallery of components, or of their options on the options page: one theme, or two side by
+ * side, in light or dark, plus the recreated screens.
+ */
+export function LabGallery({
+  catalog,
+  page = "components"
+}: {
+  catalog: LabCatalog;
+  page?: "components" | "options";
+}) {
   const { failures, screens, themes: labThemes } = catalog;
   const [first, setFirst] = useState(labThemes[0]?.name ?? "");
   const [second, setSecond] = useState("none");
@@ -340,7 +350,7 @@ export function LabGallery({ catalog }: { catalog: LabCatalog }) {
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-ds-150 border-b border-ds-border bg-ds-surface px-ds-300 py-ds-150">
         <h1 className="m-0 text-heading-sm">Kaine UI Lab</h1>
         <div className="mr-auto">
-          <LabNav current="components" />
+          <LabNav current={page} />
         </div>
         {/* The .ui-select__trigger rule fills its container, so the containers set the width. */}
         <div className="w-56">
@@ -384,7 +394,7 @@ export function LabGallery({ catalog }: { catalog: LabCatalog }) {
               data-color-mode={mode}
               data-theme={theme}
             >
-              <Specimen />
+              {page === "options" ? <OptionsSpecimen /> : <Specimen />}
             </div>
           ))}
         </div>

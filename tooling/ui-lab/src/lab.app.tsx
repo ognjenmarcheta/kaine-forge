@@ -51,6 +51,7 @@ export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const failure = catalog.failures.find((entry) => entry.id === id);
 
   if (view === "charts") return <ChartsPage catalog={catalog} />;
+  if (view === "options") return <LabGallery catalog={catalog} page="options" />;
   if (view === "screens" && !id) return <ScreensIndex catalog={catalog} />;
   if (screen && view === "screens") return <ScreenView mode={mode} screen={screen} />;
   if (screen && view === "compare") {
