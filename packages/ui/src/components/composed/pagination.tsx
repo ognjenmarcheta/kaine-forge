@@ -74,10 +74,37 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
     ref
   ) => {
     const pages = getPageNumbers(currentPage, totalPages, siblingCount);
+    const navRef = React.useRef<HTMLElement | null>(null);
+    const setRefs = (element: HTMLElement | null) => {
+      navRef.current = element;
+      if (typeof ref === "function") ref(element);
+      else if (ref) ref.current = element;
+    };
+
+    // First, Previous, Next, and Last disable themselves at the edge. When the focused one does,
+    // focus moves to the current page instead of dropping to the page body.
+    React.useLayoutEffect(() => {
+      const nav = navRef.current;
+      const active = document.activeElement;
+      const dropped =
+        active === document.body ||
+        (active instanceof HTMLButtonElement && active.disabled && nav?.contains(active) === true);
+      if (nav && dropped && nav.dataset["edgeFocus"] === "true") {
+        nav.querySelector<HTMLButtonElement>('[aria-current="page"]')?.focus();
+      }
+      if (nav) delete nav.dataset["edgeFocus"];
+    }, [currentPage]);
+    // Marks that the focus of an edge button may need a new home after the page changes.
+    const goToEdge = (page: number) => {
+      if (navRef.current && (page <= 1 || page >= totalPages)) {
+        navRef.current.dataset["edgeFocus"] = "true";
+      }
+      onPageChange(page);
+    };
 
     return (
       <nav
-        ref={ref}
+        ref={setRefs}
         role="navigation"
         aria-label={ariaLabel}
         className={cn("flex items-center gap-1", className)}
@@ -86,7 +113,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
         {/* eslint-disable no-restricted-syntax */}
         <button
           type="button"
-          onClick={() => onPageChange(1)}
+          onClick={() => goToEdge(1)}
           disabled={currentPage <= 1}
           className={cn(
             paginationButtonClass,
@@ -98,7 +125,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
         </button>
         <button
           type="button"
-          onClick={() => onPageChange(currentPage - 1)}
+          onClick={() => goToEdge(currentPage - 1)}
           disabled={currentPage <= 1}
           className={cn(
             paginationButtonClass,
@@ -137,7 +164,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
 
         <button
           type="button"
-          onClick={() => onPageChange(currentPage + 1)}
+          onClick={() => goToEdge(currentPage + 1)}
           disabled={currentPage >= totalPages}
           className={cn(
             paginationButtonClass,
@@ -149,7 +176,7 @@ const Pagination = React.forwardRef<HTMLElement, PaginationProps>(
         </button>
         <button
           type="button"
-          onClick={() => onPageChange(totalPages)}
+          onClick={() => goToEdge(totalPages)}
           disabled={currentPage >= totalPages}
           className={cn(
             paginationButtonClass,
