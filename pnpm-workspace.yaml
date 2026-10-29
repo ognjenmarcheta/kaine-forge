@@ -115,14 +115,9 @@ minimumReleaseAge: 4320 # minutes
 # Accepted temporary risk: node-forge 1.4.0 has no fixed release for this GHSA.
 # Expo CLI certificate tooling calls the affected RSA verification code.
 # Remove when an SDK-compatible fix ships or the dependency is removed (#457).
-# Accepted temporary risk: braces <=3.0.3 has no fixed release for this GHSA.
-# It is in the production graph (and API image) via @repo/auth > @better-auth/expo
-# > expo peers > metro > micromatch, but only Metro / Expo CLI and dev tooling
-# call micromatch, with developer-authored patterns. Remove when a fix ships (#469).
 auditConfig:
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv
-    - GHSA-vfj7-8cjw-p6xm
 
 # Force fixed versions for packages that Trivy flags as CRITICAL in the API image
 # (optional better-auth peers + transitive CLI deps otherwise pin older releases).
@@ -139,6 +134,7 @@ overrides:
   launch-editor: "^2.14.2" # GHSA-587h-7wmj-h5pm via @changesets/cli (3.0.3 is the latest release)
   # solid-js 1.9.17 moves to seroval ~1.6.8 (GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp) via better-auth.
   solid-js: "^1.9.17"
+  "solid-js>seroval": "~1.6.11" # GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj (inside its ~1.6.8)
   source-map-js: "^1.2.2" # GHSA-68fv-2mgg-jv7q via @vitest/coverage-v8>magicast
   compression: "^1.8.2" # GHSA-vc2v-76pw-4v95 via expo>@expo/cli
   # GHSA-mrhx-c7xc-m3w5 has no fixed zod 3.x. @expo/cli 55 asks for zod ^3.25.76 but
@@ -167,6 +163,10 @@ overrides:
   "brace-expansion@5": "^5.0.11" # GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p via minimatch
   browserslist: "^4.28.7" # GHSA-73wf-gq98-2v4g, GHSA-c83g-rgw3-j3cx via @graphql-inspector/cli>@babel/core
   "fast-uri@3": "^3.1.6" # GHSA-f65p-4m7j-42xc and four more via @commitlint/cli>…>ajv
+  # GHSA-qr28-fpjm-wq7f, GHSA-vcc3-ghjq-m6fr via expo-router and @react-navigation/core>query-string@7.
+  # 0.3+ is ESM-only, so query-string@7.1.3 is patched below to read its default export.
+  # Remove both when expo-router drops query-string@7 (expo-router 58, Expo SDK 58).
+  decode-uri-component: "^0.5.1"
   flatted: "^3.4.2" # GHSA-25h7-pfq9-p65f, GHSA-rf6f-7fwh-wjgh via @vitest/ui
   "js-yaml@3": "^3.15.1" # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj via @changesets/cli>@manypkg/get-packages
   "js-yaml@4": "^4.3.2" # same advisories + GHSA-2883-xcg3-v3hh via @commitlint/load>cosmiconfig and @changesets/parse
@@ -186,4 +186,6 @@ overrides:
 patchedDependencies:
   # Remove with the override when upstream Metro supports image-size >=2.0.3.
   metro@0.83.7: patches/metro@0.83.7.patch
+  # Remove with the decode-uri-component override (it is ESM-only from 0.3).
+  query-string@7.1.3: patches/query-string@7.1.3.patch
   react-native-drawer-layout@4.2.9: patches/react-native-drawer-layout@4.2.9.patch
