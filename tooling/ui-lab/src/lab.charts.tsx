@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
   usePlot,
+  usePlotRing,
   usePlotTween,
   type PlotFill,
   type PlotTable
@@ -85,6 +86,17 @@ const weekTable: PlotTable = {
 const byDay = (_: unknown, index: number): string => days[index] ?? "";
 const asValue = (value: number): number => value;
 const dayLabel = (value: string | number | Date): string => String(value);
+const dayNames: Record<string, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday"
+};
+const fullDayLabel = (value: string | number | Date): string =>
+  dayNames[String(value)] ?? String(value);
 const countLabel = (value: string | number | Date): string => String(value);
 
 function Demo({
@@ -654,7 +666,7 @@ function Bars() {
 
   return (
     <Demo
-      description="Rounded data ends, a quiet track, gradient fills, and a selected bar. Arrow keys or the pointer move the selection."
+      description="Rounded data ends, a quiet track, gradient fills, and a selected bar. Arrow keys or the pointer move the selection. PlotAxis shortFormat writes the full day names and shortens every one to three letters when one does not fit: make the window narrow."
       title="PlotBars"
     >
       <Plot
@@ -685,7 +697,7 @@ function Bars() {
           x={byDay}
           y={asValue}
         />
-        <PlotAxis axis="x" format={dayLabel} />
+        <PlotAxis axis="x" format={fullDayLabel} shortFormat={dayLabel} />
       </Plot>
     </Demo>
   );
@@ -731,6 +743,23 @@ function Markers() {
   );
 }
 
+/** A knob at a share of a half ring, halfway between its edges, placed with usePlotRing. */
+function RingKnob({ innerRatio, share }: { innerRatio: number; share: number }) {
+  const { angleAt, innerRadius, pointAt, radius } = usePlotRing({ innerRatio });
+  const [cx, cy] = pointAt(angleAt(share), (innerRadius + radius) / 2);
+
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      fill={plotColor("surface")}
+      r={5}
+      stroke={plotColor("ink")}
+      strokeWidth={2}
+    />
+  );
+}
+
 function Arcs() {
   const share = 0.65;
   const halfRing = 20;
@@ -738,7 +767,7 @@ function Arcs() {
 
   return (
     <Demo
-      description="Segmented rings from d3.arc: a half-ring gauge with round-cornered segments and a full ring that fills by segment."
+      description="Segmented rings from d3.arc: a half-ring gauge with round-cornered segments and a full ring that fills by segment. usePlotRing puts a custom knob on the gauge where its value ends."
       title="PlotArcs"
     >
       <div className="grid grid-cols-1 items-end gap-ds-200 sm:grid-cols-2">
@@ -763,6 +792,7 @@ function Arcs() {
             }
             innerRatio={0.7}
           />
+          <RingKnob innerRatio={0.7} share={share} />
         </Plot>
         <Plot
           height={130}

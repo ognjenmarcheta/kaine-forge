@@ -13,6 +13,7 @@ import {
   PlotFrame,
   PlotLine,
   PlotStems,
+  usePlotRing,
   usePlotTween,
   type PlotArcsProps
 } from "./plot.marks";
@@ -310,6 +311,59 @@ describe("Plot", () => {
       expect(
         Array.from(container.querySelectorAll("svg text"), (label) => label.textContent)
       ).toEqual(["50%", "50%"]);
+    });
+
+    /** A dot at the start of the ring, and one halfway along it, placed with `usePlotRing`. */
+    function RingDots(ring: { startAngle?: number; endAngle?: number }) {
+      const { angleAt, pointAt } = usePlotRing(ring);
+      return (
+        <>
+          {[0, 0.5].map((share) => {
+            const [cx, cy] = pointAt(angleAt(share));
+            return <circle key={share} cx={cx} cy={cy} r={2} />;
+          })}
+        </>
+      );
+    }
+
+    it.each<[string, { startAngle?: number; endAngle?: number }, string, string[][]]>([
+      // The half ring fills the 400 × 120 plot: radius 120 around (200, 120).
+      [
+        "the default half ring",
+        {},
+        "translate(200 120)",
+        [
+          ["80", "120"],
+          ["200", "0"]
+        ]
+      ],
+      // The full ring fits the plot's height: radius 60 around (200, 60).
+      [
+        "a full ring from 12 o'clock",
+        { startAngle: 0, endAngle: 2 * Math.PI },
+        "translate(200 60)",
+        [
+          ["200", "0"],
+          ["200", "120"]
+        ]
+      ]
+    ])("places a custom mark on %s that PlotArcs draws", (_, ring, center, dots) => {
+      act(() =>
+        root.render(
+          <Plot height={120} interaction={false} table={{ columns: [], rows: [] }} title="Ring">
+            <PlotArcs count={4} fill={() => ({ type: "solid", color: "chart-1" })} {...ring} />
+            <RingDots {...ring} />
+          </Plot>
+        )
+      );
+
+      expect(container.querySelector("svg g")?.getAttribute("transform")).toBe(center);
+      expect(
+        Array.from(container.querySelectorAll("svg circle"), (dot) => [
+          String(Math.round(Number(dot.getAttribute("cx")))),
+          String(Math.round(Number(dot.getAttribute("cy"))))
+        ])
+      ).toEqual(dots);
     });
   });
 
@@ -759,6 +813,51 @@ describe("Plot", () => {
     const label = container.querySelector("svg text");
 
     expect([label?.getAttribute("x"), label?.getAttribute("text-anchor")]).toEqual(["400", "end"]);
+  });
+
+  describe("PlotAxis shortFormat", () => {
+    // jsdom lays out no text, so here each character of a label is 10px wide.
+    beforeEach(() => {
+      Object.defineProperty(SVGElement.prototype, "getComputedTextLength", {
+        configurable: true,
+        value(this: SVGElement) {
+          return (this.textContent ?? "").length * 10;
+        }
+      });
+    });
+    afterEach(() => {
+      Reflect.deleteProperty(SVGElement.prototype, "getComputedTextLength");
+    });
+
+    const renderDays = (domain: string[]) =>
+      act(() =>
+        root.render(
+          <Plot
+            height={120}
+            interaction={false}
+            table={{ columns: [], rows: [] }}
+            title="Days"
+            x={{ type: "band", domain, paddingInner: 0 }}
+            y={{ type: "linear", domain: [0, 1] }}
+          >
+            <PlotAxis axis="x" format={String} shortFormat={(value) => String(value).slice(0, 3)} />
+          </Plot>
+        )
+      );
+    const labels = () =>
+      Array.from(container.querySelectorAll("svg text"), (label) => label.textContent);
+
+    it("shortens every x label when one is wider than its room, and goes back when they fit", () => {
+      // Five days on 400px leave 80px each; "Wednesday" is 90px wide.
+      renderDays(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+
+      expect(labels()).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+
+      // Three days leave 133px each, so the full names fit.
+      renderDays(["Monday", "Wednesday", "Friday"]);
+
+      expect(labels()).toEqual(["Monday", "Wednesday", "Friday"]);
+    });
   });
 
   describe("picking points", () => {

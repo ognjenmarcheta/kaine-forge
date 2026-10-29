@@ -1162,6 +1162,62 @@ function ringBounds(start: number, end: number, innerRatio: number) {
   };
 }
 
+/** The angles and the hole of a ring, as `PlotArcs` takes them, with its defaults. */
+export interface PlotRingOptions {
+  /** @defaultValue -π/2 */
+  startAngle?: number;
+  /** @defaultValue π/2 */
+  endAngle?: number;
+  /** @defaultValue 0.6 */
+  innerRatio?: number;
+}
+
+/** Where a ring sits in the plot, in pixels from its top left corner. */
+export interface PlotRingGeometry {
+  cx: number;
+  cy: number;
+  /** The outer radius. */
+  radius: number;
+  innerRadius: number;
+  /**
+   * The angle a share of the way along the ring, such as `(index + 0.5) / count` for the middle
+   * of a segment.
+   */
+  angleAt: (share: number) => number;
+  /** The point at an angle, `distance` pixels from the center. @defaultValue the outer radius */
+  pointAt: (angle: number, distance?: number) => [number, number];
+}
+
+/**
+ * The ring that `PlotArcs` with the same shape draws, so a custom mark can sit on it, such as a
+ * knob at the end of a gauge's value.
+ */
+export function usePlotRing({
+  endAngle = Math.PI / 2,
+  innerRatio = 0.6,
+  startAngle = -Math.PI / 2
+}: PlotRingOptions = {}): PlotRingGeometry {
+  const { inner } = usePlot();
+  const bounds = ringBounds(startAngle, endAngle, innerRatio);
+  const radius = Math.min(
+    inner.width / (bounds.right - bounds.left),
+    inner.height / (bounds.bottom - bounds.top)
+  );
+  const cx = inner.left + (inner.width - (bounds.right + bounds.left) * radius) / 2;
+  const cy = inner.top + (inner.height - (bounds.bottom + bounds.top) * radius) / 2;
+  return {
+    cx,
+    cy,
+    radius,
+    innerRadius: radius * innerRatio,
+    angleAt: (share) => startAngle + share * (endAngle - startAngle),
+    pointAt: (angle, distance = radius) => [
+      cx + distance * Math.sin(angle),
+      cy - distance * Math.cos(angle)
+    ]
+  };
+}
+
 /** The values each slice tweens: its start and end angles, solid fill opacity, offset, and reach. */
 const SLICE_VALUES = 5;
 
@@ -1170,6 +1226,7 @@ const SLICE_VALUES = 5;
  * donut or a pie, drawn with `d3.arc`. It takes the largest radius that fits the drawing area
  * and centers itself there; the plot needs no scales. With one table row per slice, the plot
  * picks slices by angle and radius, and the keys step through them. Slices tween to new values.
+ * A custom mark finds the same ring with `usePlotRing`.
  */
 export function PlotArcs({
   cornerRadius = 0,
@@ -1187,15 +1244,8 @@ export function PlotArcs({
   values
 }: PlotArcsProps) {
   const plot = usePlot();
-  const { inner } = plot;
   const registry = usePlotRegistry();
-  const bounds = ringBounds(startAngle, endAngle, innerRatio);
-  const radius = Math.min(
-    inner.width / (bounds.right - bounds.left),
-    inner.height / (bounds.bottom - bounds.top)
-  );
-  const centerX = inner.left + (inner.width - (bounds.right + bounds.left) * radius) / 2;
-  const centerY = inner.top + (inner.height - (bounds.bottom + bounds.top) * radius) / 2;
+  const { cx: centerX, cy: centerY, radius } = usePlotRing({ endAngle, innerRatio, startAngle });
   const weights = values ?? Array.from({ length: Math.max(count ?? 0, 0) }, () => 1);
   const slices = sliceAngles(weights, startAngle, endAngle);
   const fills = slices.map((_, index) => fill(index));
@@ -1378,6 +1428,12 @@ export interface PlotAxisProps {
    */
   minSpacing?: number;
   /**
+   * A shorter x label, such as the first three letters of a name. When one full label does not
+   * fit its room, so it would touch a neighbor or leave the plot, every label takes this form;
+   * when the room grows, the full labels come back. Keep the full text in the table.
+   */
+  shortFormat?: (value: PlotValue) => string;
+  /**
    * Sets the label at the active stop in the text color and a medium weight, such as the active
    * day under a trend. @defaultValue false
    */
@@ -1413,6 +1469,26 @@ function spacedOut(
 
 /** The step from one line of a label to the next. */
 const LABEL_LINE = 1.2;
+/** The space that x labels keep between them, in pixels. */
+const LABEL_GAP = 4;
+
+/** Whether drawn x labels keep `LABEL_GAP` apart and stay inside a plot `width` pixels wide. */
+function labelsFit(labels: readonly SVGTextElement[], width: number): boolean {
+  let end = -LABEL_GAP;
+  for (const label of labels) {
+    // A browser measures text; a test DOM without layout reports nothing to shorten.
+    if (typeof label.getComputedTextLength !== "function") return true;
+    const tspans = label.querySelectorAll("tspan");
+    const lines: SVGTextContentElement[] = tspans.length === 0 ? [label] : Array.from(tspans);
+    const size = Math.max(...lines.map((line) => line.getComputedTextLength()));
+    const at = Number(label.getAttribute("x"));
+    const anchor = label.getAttribute("text-anchor");
+    const start = anchor === "start" ? at : anchor === "end" ? at - size : at - size / 2;
+    if (start < end + LABEL_GAP || start + size > width) return false;
+    end = start + size;
+  }
+  return true;
+}
 /** An emphasized label fades to and from the text color. */
 const LABEL_MOTION = "transition-colors duration-control ease-standard";
 
@@ -1426,13 +1502,41 @@ export function PlotAxis({
   highlight = false,
   minSpacing,
   offset = 8,
+  shortFormat,
   side = "bottom",
   ticks,
   values
 }: PlotAxisProps) {
-  const { activeStop, inner, x, y } = useCartesian("PlotAxis");
+  const { activeStop, inner, width, x, y } = useCartesian("PlotAxis");
   const scale = axis === "x" ? x : y;
   const at = spacedOut(values ?? scale.ticks(count), scale, minSpacing);
+  const full = at.map((value) => format(value));
+  // The short labels hold for the layout where the full ones did not fit; a new layout, such as
+  // a wider plot, draws the full labels again so they are measured again.
+  const layout = [width, ...at.map((value) => scale.position(value)), ...full].join("|");
+  const [shortIn, setShortIn] = React.useState<string | null>(null);
+  const shortens = axis === "x" && shortFormat !== undefined;
+  const short = shortens && shortIn === layout;
+  const shown = short && shortFormat !== undefined ? at.map((value) => shortFormat(value)) : full;
+  const labelGroup = React.useRef<SVGGElement>(null);
+  React.useLayoutEffect(() => {
+    if (!shortens || short) return undefined;
+    const measure = () => {
+      if (!labelsFit(Array.from(labelGroup.current?.querySelectorAll("text") ?? []), width)) {
+        setShortIn(layout);
+      }
+    };
+    measure();
+    // A label measured in a fallback font is measured again once the web fonts load.
+    let current = true;
+    const fonts: FontFaceSet | undefined = document.fonts;
+    void fonts?.ready.then(() => {
+      if (current) measure();
+    });
+    return () => {
+      current = false;
+    };
+  }, [layout, short, shortens, width]);
   const anchorOf = (index: number): "start" | "middle" | "end" => {
     if (align === "start") return "start";
     if (axis === "y" || align === "end") return "end";
@@ -1452,7 +1556,7 @@ export function PlotAxis({
   const tickPaint = strokeProps({ color: "neutral", width: 1, cap: "butt" });
 
   return (
-    <g className={cn("fill-ds-text-subtle text-body-sm", className)}>
+    <g ref={labelGroup} className={cn("fill-ds-text-subtle text-body-sm", className)}>
       {ticks === undefined
         ? null
         : at.map((value, index) => {
@@ -1468,7 +1572,7 @@ export function PlotAxis({
       {at.map((value, index) => {
         const pixel = scale.position(value);
         const left = axis === "x" ? pixel : align === "start" ? 0 : inner.left - offset;
-        const lines = format(value).split("\n");
+        const lines = (shown[index] ?? "").split("\n");
         return (
           <text
             key={index}
