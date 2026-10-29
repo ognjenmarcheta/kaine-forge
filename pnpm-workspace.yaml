@@ -134,7 +134,9 @@ overrides:
   launch-editor: "^2.14.2" # GHSA-587h-7wmj-h5pm via @changesets/cli (3.0.3 is the latest release)
   # solid-js 1.9.17 moves to seroval ~1.6.8 (GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp) via better-auth.
   solid-js: "^1.9.17"
-  "solid-js>seroval": "~1.6.11" # GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj (inside its ~1.6.8)
+  # GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj, GHSA-3pfx-gxff-vg76 (fixed 1.7.2). Above solid-js's
+  # ~1.6.8: no solid-js 1.9 accepts 1.7 yet, and nothing here runs Solid (a better-auth peer).
+  "solid-js>seroval": "^1.7.2"
   source-map-js: "^1.2.2" # GHSA-68fv-2mgg-jv7q via @vitest/coverage-v8>magicast
   compression: "^1.8.2" # GHSA-vc2v-76pw-4v95 via expo>@expo/cli
   # GHSA-mrhx-c7xc-m3w5 has no fixed zod 3.x. @expo/cli 55 asks for zod ^3.25.76 but

@@ -204,7 +204,7 @@ overrides:
   shell-quote: ^1.11.0
   launch-editor: ^2.14.2
   solid-js: ^1.9.17
-  solid-js>seroval: ~1.6.11
+  solid-js>seroval: ^1.7.2
   source-map-js: ^1.2.2
   compression: ^1.8.2
   '@expo/cli>zod': ^4.6.7
@@ -10033,9 +10033,9 @@ packages:
     peerDependencies:
       seroval: ^1.0
 
-  seroval@1.6.12:
-    resolution: {integrity: sha512-CqbIVfk/7GL3ITwZI55lcPbpQbjHZ2DD5cUj4iH7E9YsCfHNJV1mx7yNp86Z84w5IpmkZZS/2s5vPOWmVWSdQg==}
-    engines: {node: '>=10'}
+  seroval@1.7.2:
+    resolution: {integrity: sha512-NPOYrDVbvtuTo5m9InqKE7O6wBASON46OabjyqLUGPvoXNDYp0pReuFYkqOQwGsoj1OpZVj6mIdnRRgt5O1/gQ==}
+    engines: {node: '>=20'}
 
   serve-static@1.16.3:
     resolution: {integrity: sha512-x0RTqQel6g5SY7Lg6ZreMmsOzncHFU7nhnRWkKgWuMTu5NN0DR5oruckMqRvacAN9d5w6ARnRBXl9xhDCgfMeA==}
@@ -22074,11 +22074,11 @@ snapshots:
 
   serialize-error@2.1.0: {}
 
-  seroval-plugins@1.6.9(seroval@1.6.12):
+  seroval-plugins@1.6.9(seroval@1.7.2):
     dependencies:
-      seroval: 1.6.12
+      seroval: 1.7.2
 
-  seroval@1.6.12: {}
+  seroval@1.7.2: {}
 
   serve-static@1.16.3:
     dependencies:
@@ -22242,8 +22242,8 @@ snapshots:
   solid-js@1.9.17:
     dependencies:
       csstype: 3.2.3
-      seroval: 1.6.12
-      seroval-plugins: 1.6.9(seroval@1.6.12)
+      seroval: 1.7.2
+      seroval-plugins: 1.6.9(seroval@1.7.2)
 
   solid-presence@0.2.0(solid-js@1.9.17):
     dependencies:
