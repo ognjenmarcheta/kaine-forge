@@ -46,7 +46,7 @@ const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-50 min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-x-hidden overflow-y-auto rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
+      "z-[1002] min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-x-hidden overflow-y-auto rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
       className
     )}
     {...props}
@@ -54,6 +54,8 @@ const DropdownMenuSubContent = React.forwardRef<
 ));
 DropdownMenuSubContent.displayName = "DropdownMenuSubContent";
 
+// Layers: dialogs at 1000 (overlay) and 1001 (content); menus, Select lists, and hover cards at
+// 1002, so one opened inside a dialog shows and takes clicks; tooltips at 1003.
 const DropdownMenuContent = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
@@ -63,7 +65,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-x-hidden overflow-y-auto rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
+        "z-[1002] min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-x-hidden overflow-y-auto rounded-overlay border border-ds-border bg-ds-surface-overlay p-1 text-ds-text shadow-overlay ui-motion-menu ",
         className
       )}
       {...props}
