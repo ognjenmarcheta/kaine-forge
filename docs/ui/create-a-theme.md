@@ -43,21 +43,27 @@ export const harborTheme = createTheme({
 - A brand color that passes with white text, or with ink text, stays exactly as given for primary buttons.
 - Status colors keep their usual hues (green, amber, red, blue, purple) and get light and dark variants.
 - The six chart colors start from the brand hue and keep the other hues apart.
-- In dark mode, cards sit one step lighter than the page and sunken areas one step darker. A near-black brand (ink) gets a light fill in dark mode, so primary buttons stay visible.
+- In dark mode a shadow barely shows, so lightness carries depth: sunken areas sit one step lighter than the page, and cards stand at least 1.1:1 above both. Hovered cards, overlays, and borders move up with the cards.
+- In dark mode a brand fill must also show a progress bar on its track on a card. A deep brand gets a little lighter and keeps white text. A near-black brand (ink) gets a light fill with ink text, so primary buttons stay visible.
 
-Two inputs change the derivation without exact values:
+These inputs change the derivation without exact values:
 
 ```ts
 createTheme({
   // …
   // The dark page, in OKLCH lightness: about 0.1 is near black, 0.3 is charcoal. Default 0.165.
-  color: { brand: "#1f4e8c", darkSurface: 0.22 },
+  // The brand glow (shadow-glow): 1 by default, 0 turns it off, 2 doubles it.
+  color: { brand: "#1f4e8c", darkSurface: 0.22, glow: 0.5 },
+  // Letter spacing of every type step, for example to narrow a wide font. Default 0.
+  letterSpacing: "-0.01em",
   // Change single steps of the type scale. Steps you leave out keep the template values.
-  type: { display: { size: "3.5rem", lineHeight: "3.75rem" }, "heading-xlarge": { weight: 700 } }
+  type: { display: { size: "3.5rem", letterSpacing: "-0.02em" }, "heading-xlarge": { weight: 700 } }
 });
 ```
 
-The keys are the step names in `typeStepNames` (`packages/theme/src/theme.roles.ts`), such as `display`, `heading-xlarge`, `body-large`, and `body-small`. The utilities use short names: the `heading-xlarge` step is `text-heading-xl`. Use `display` (`text-display`) for one large figure or hero title on a screen, not for section headings.
+The glow takes the brand fill. Light mode casts it below the element (`0px 4px 16px` at 32%); dark mode spreads it evenly and stronger (`0px 0px 24px` at 48%), because a glow on a dark page reads as light. `shadow-glow` puts it on one brand element, such as the current navigation pill.
+
+The keys are the step names in `typeStepNames` (`packages/theme/src/theme.roles.ts`), such as `display`, `heading-xlarge`, `body-large`, and `body-small`. Every step has a utility. The utilities use short names: the `heading-xlarge` step is `text-heading-xl`, `code-small` is `text-code-sm`, and the 13px `body-compact` step is `text-body-compact`. Each utility also sets the step's letter spacing, and `tracking-*` still overrides it. Use `display` (`text-display`) for one large figure or hero title on a screen, not for section headings.
 
 To set an exact value, override it. An override wins over everything derived:
 
@@ -100,8 +106,12 @@ harbor light: text-subtle on surface is 2.52:1, needs 4.5:1; the nearest passing
 
 Fix the input or add an override, then build again. `pnpm theme:check` runs the same checks without writing, and `pnpm --filter @repo/theme test` runs them in CI. The checks cover:
 
-- 115 contrast pairs in both modes, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas.
-- Control heights of at least 24px (WCAG 2.2 SC 2.5.8).
+- 160 color pairs, at 4.5:1 for text and 3:1 for UI graphics, role borders, and chart colors (WCAG 2.2 SC 1.4.3, 1.4.11). Text and charts are checked on the page, on cards, and on sunken areas. The fills of progress bars and gauges are checked on their tracks on each surface, and secondary text, checkboxes, and brand marks on a selected row.
+- In dark mode, cards at 1.1:1 against the page and a sunken canvas (`SURFACE_STEP`). It is not a WCAG ratio; it keeps cards from vanishing.
+- Control heights of at least 24px, in px or rem (WCAG 2.2 SC 2.5.8).
+
+The UI lab's themes pass the first 115 pairs (`contrastPairs`); a theme you register passes all of them (`shippedThemePairs`).
+
 - The `DESIGN.md` of each theme, with the pinned `@google/design.md` linter.
 
 ## 6. Load its fonts

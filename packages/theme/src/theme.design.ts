@@ -90,13 +90,18 @@ export function emitDesignFrontMatter(theme: ThemeDefinition): string {
   const component = (name: string): string => resolveValue(theme, `var(--ds-${name})`);
   const typography = typeSteps
     .map((step) => {
-      const { lineHeight: height, size, weight } = theme.type[step];
+      const { lineHeight: height, size, weight, letterSpacing } = theme.type[step];
+      const spacing: [string, string][] =
+        letterSpacing === undefined || Number.parseFloat(letterSpacing) === 0
+          ? []
+          : [["letterSpacing", letterSpacing]];
       return `  ${step}:\n${yamlMap(
         [
           ["fontFamily", family(step)],
           ["fontSize", size],
           ["fontWeight", weight],
-          ["lineHeight", lineHeight(height)]
+          ["lineHeight", lineHeight(height)],
+          ...spacing
         ],
         "    "
       )}`;

@@ -9,7 +9,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       radius: ["badge", "button", "card", "dialog", "field", "overlay"],
-      shadow: ["card", "floating", "floating-bold", "overlay", "raised"],
+      shadow: ["card", "floating", "floating-bold", "glow", "overlay", "raised"],
       spacing: [(value: string) => value.startsWith("ds-") || value === "card"]
     },
     classGroups: {

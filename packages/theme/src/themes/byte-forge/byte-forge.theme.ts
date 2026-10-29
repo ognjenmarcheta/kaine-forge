@@ -100,10 +100,11 @@ export const byteForgeTheme = defineTheme({
       "shadow-overlay": "0px 1px 2px #1214190a, 0px 12px 32px #12141914",
       "shadow-floating": "0px 2px 4px #1214190a, 0px 32px 64px #1214191f",
       "shadow-floating-bold": "0px 2px 4px #1214190a, 0px 32px 64px #12141929",
+      "shadow-glow": "0px 4px 16px #d4421a52",
       blanket: "#1214197a",
       "chart-1": "#d4421a",
       "chart-2": "#4081d2",
-      "chart-3": "#00967c",
+      "chart-3": "#00947b",
       "chart-4": "#8e6ac7",
       "chart-5": "#a77600",
       "chart-6": "#bc598c",
@@ -162,12 +163,13 @@ export const byteForgeTheme = defineTheme({
       "surface-sunken": "#14171d",
       "surface-sunken-bold": "#1c2027",
       "surface-inverse": "#22262e",
-      "surface-raised": "#14171d",
-      "surface-raised-hovered": "#1c2027",
-      "surface-raised-pressed": "#22262e",
-      "surface-overlay": "#1c2027",
-      border: "#23272f",
-      "border-strong": "#333943",
+      // Cards stand 1.1:1 above the sunken canvas; the steps above them move up as much.
+      "surface-raised": "#1d2128",
+      "surface-raised-hovered": "#262a32",
+      "surface-raised-pressed": "#2c3139",
+      "surface-overlay": "#262a32",
+      border: "#2d323a",
+      "border-strong": "#3e444e",
       "border-bold": "#6b7380",
       "border-focused": "#ff6a3d",
       "border-selected": "#ff6a3d",
@@ -181,6 +183,7 @@ export const byteForgeTheme = defineTheme({
       "shadow-overlay": "0px 1px 2px #00000080, 0px 12px 32px #00000073",
       "shadow-floating": "0px 2px 4px #00000080, 0px 32px 64px #00000099",
       "shadow-floating-bold": "0px 2px 4px #00000080, 0px 32px 64px #00000099",
+      "shadow-glow": "0px 0px 24px #d4421a7a",
       blanket: "#00000099",
       "chart-1": "#ff6a3d",
       "chart-2": "#65a7fa",
@@ -188,7 +191,7 @@ export const byteForgeTheme = defineTheme({
       "chart-4": "#b28fef",
       "chart-5": "#d29922",
       "chart-6": "#e57db1",
-      "chart-grid": "#23272f"
+      "chart-grid": "#2d323a"
     }
   }
 });

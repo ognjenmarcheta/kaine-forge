@@ -149,14 +149,16 @@ Typography tokens define hierarchy and rhythm.
 | `--ds-font-body-small`     | supporting text     |
 | `--ds-font-body-xsmall`    | metadata            |
 
-Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em), the one tokenized letter-spacing exception.
+Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em). Every step has a `text-*` utility, so a dense table or nav that needs 13px text uses `text-body-compact`, not a changed `body` step.
+
+Each step also has a letter-spacing token, `--ds-letter-spacing-<step>`, which its `text-*` utility sets and `tracking-*` still overrides. It is 0 unless the theme sets it: `letterSpacing` in `createTheme` for every step, or `letterSpacing` on one step in `type`, for example to narrow a wide font.
 
 The theme sets the families: `--ds-font-family-sans`, `--ds-font-family-heading`, and `--ds-font-family-mono`. Web fonts are self-hosted from `@repo/ui`, so desktop works offline; mobile registers its fonts with `expo-font` and takes them from the theme's native fonts. The default theme, Byte Forge, uses Geist and Geist Mono.
 
 Rules:
 
 - Do not scale font size with viewport width.
-- Letter spacing should be `0` unless a component has a documented tokenized exception.
+- Letter spacing comes from the type step's token, or a documented tokenized exception.
 - Keep heading order semantic and sequential.
 - User-facing text must come from translation keys in app code.
 
@@ -232,8 +234,11 @@ Surface and shadow levels must match.
 | overlay  | `--ds-surface-overlay` | `--ds-shadow-overlay`  | dropdowns/popovers          |
 | floating | `--ds-surface-overlay` | `--ds-shadow-floating` | dialogs/modals              |
 | sunken   | `--ds-surface-sunken`  | none                   | recessed wells              |
+| glow     | the brand fill         | `--ds-shadow-glow`     | one brand element at a time |
 
 Do not pair `surface-raised` with `shadow-overlay` or default surface with raised shadow unless a documented component token says so.
+
+In dark mode a shadow barely shows, so lightness carries the levels: a card stands at least 1.1:1 above the page and a sunken canvas, and the theme check measures it. `--ds-shadow-glow` is a soft glow in the brand fill color, such as under the current navigation pill. Light mode casts it below the element; dark mode spreads it evenly, a little stronger. A theme tunes it or turns it off with `glow`.
 
 ### Motion contract
 
@@ -285,8 +290,8 @@ Themes live in `@repo/theme` (`packages/theme/src/themes/<name>/<name>.theme.ts`
 | `border-ds-border`, `ring-ds-border-focused`           | border colors                                                            |
 | `p-ds-200`, `gap-ds-100`, `h-ds-control-medium`        | `--ds-space-*` and `--ds-control-*`                                      |
 | `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl` | `--ds-radius-050`, `-100`, `-200`, `-300`                                |
-| `shadow-raised`, `shadow-overlay`, `shadow-floating`   | `--ds-shadow-*`                                                          |
-| `text-display`, `text-heading-sm`, `text-body`         | the whole `--ds-font-*` step; `font-*` and `leading-*` still override it |
+| `shadow-raised`, `shadow-overlay`, `shadow-glow`       | `--ds-shadow-*`                                                          |
+| `text-display`, `text-heading-sm`, `text-body-compact` | the whole `--ds-font-*` step and its `--ds-letter-spacing-*` (section 5) |
 | `rounded-card`, `shadow-card`, `p-card`, `font-button` | the component tokens (section 6.1)                                       |
 | `duration-control`, `ease-standard`                    | `--ds-motion-*` durations and easing                                     |
 

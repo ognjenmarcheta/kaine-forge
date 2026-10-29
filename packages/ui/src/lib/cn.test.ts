@@ -10,6 +10,7 @@ describe("cn", () => {
     ["rounded-badge", "rounded-dialog", "rounded-dialog"],
     ["shadow-raised", "shadow-none", "shadow-none"],
     ["shadow-none", "shadow-card", "shadow-card"],
+    ["shadow-card", "shadow-glow", "shadow-glow"],
     ["p-card", "p-0", "p-0"],
     ["p-ds-200", "p-card", "p-card"]
   ])("keeps only the later class of %s then %s", (earlier, later, expected) => {

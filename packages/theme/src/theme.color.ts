@@ -39,6 +39,17 @@ function composite(color: Rgba, background: Rgba): Rgba {
   };
 }
 
+/** The opaque #rrggbb that a translucent color shows over an opaque backdrop. */
+export function flatten(color: string, backdrop: string): string {
+  const { r, g, b } = composite(parseHex(color), parseHex(backdrop));
+  const hex = (channel: number): string =>
+    Math.round(channel * 255)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+}
+
 function relativeLuminance({ r, g, b }: Rgba): number {
   const linear = (channel: number): number =>
     channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
@@ -151,16 +162,23 @@ export function shiftLightness(hex: string, delta: number): string {
 /**
  * The nearest color to `color` that reaches `minimum` against `background`: it moves the
  * OKLCH lightness away from the background and keeps the hue. A passing color comes back as is.
+ * A translucent background is measured over `backdrop`; without one, its alpha is dropped.
  */
-export function ensureContrast(color: string, background: string, minimum: number): string {
-  const backdrop = background.slice(0, 7);
+export function ensureContrast(
+  color: string,
+  background: string,
+  minimum: number,
+  backdrop?: string
+): string {
+  const fill = backdrop === undefined ? background.slice(0, 7) : background;
+  const base = backdrop ?? fill;
   const start = toOklch(color);
-  const direction = start.l >= toOklch(backdrop).l ? 1 : -1;
+  const direction = start.l >= toOklch(flatten(fill, base)).l ? 1 : -1;
   let candidate = color.slice(0, 7);
 
   for (let step = 0; step <= 200; step += 1) {
     candidate = fromOklch({ ...start, l: start.l + direction * step * 0.005 });
-    if (contrastRatio(candidate, backdrop, backdrop) >= minimum) {
+    if (contrastRatio(candidate, fill, base) >= minimum) {
       return candidate;
     }
   }

@@ -82,6 +82,8 @@ describe("theme utilities", () => {
     ["shadow-raised", "--tw-shadow: var(--ds-shadow-raised)"],
     ["text-heading-sm", "font: var(--ds-font-heading-small)"],
     ["text-body", "font: var(--ds-font-body)"],
+    ["text-body", "letter-spacing: var(--ds-letter-spacing-body)"],
+    ["text-body-compact", "font: var(--ds-font-body-compact)"],
     ["font-semibold", "font-weight: var(--ds-font-weight-semibold)"],
     ["rounded-card", "border-radius: var(--ds-card-radius)"],
     ["border-ds-field-border", "border-color: var(--ds-field-border)"]

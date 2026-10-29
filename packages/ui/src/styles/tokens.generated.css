@@ -23,6 +23,7 @@
   --shadow-overlay: var(--ds-shadow-overlay);
   --shadow-floating: var(--ds-shadow-floating);
   --shadow-floating-bold: var(--ds-shadow-floating-bold);
+  --shadow-glow: var(--ds-shadow-glow);
   --color-ds-text: var(--ds-text);
   --color-ds-text-subtle: var(--ds-text-subtle);
   --color-ds-text-subtlest: var(--ds-text-subtlest);
@@ -131,64 +132,117 @@
 }
 
 /*
- * Each type utility sets the whole font from its token. font-family comes first only so
- * that Tailwind sorts these utilities before font-* and leading-* utilities, which then
- * still override the weight and the line height.
+ * Each type utility sets the whole font and the letter spacing from its tokens. font-family
+ * comes first only so that Tailwind sorts these utilities before font-*, leading-*, and
+ * tracking-* utilities, which then still override the weight, line height, and spacing.
  */
 
 @utility text-display {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-display);
+  letter-spacing: var(--ds-letter-spacing-display);
 }
 
 @utility text-heading-xl {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-heading-xlarge);
+  letter-spacing: var(--ds-letter-spacing-heading-xlarge);
 }
 
 @utility text-heading-lg {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-heading-large);
+  letter-spacing: var(--ds-letter-spacing-heading-large);
 }
 
 @utility text-heading-md {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-heading-medium);
+  letter-spacing: var(--ds-letter-spacing-heading-medium);
 }
 
 @utility text-heading-sm {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-heading-small);
+  letter-spacing: var(--ds-letter-spacing-heading-small);
 }
 
 @utility text-heading-xs {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-heading-xsmall);
+  letter-spacing: var(--ds-letter-spacing-heading-xsmall);
 }
 
 @utility text-heading-xxs {
   font-family: var(--ds-font-family-heading);
   font: var(--ds-font-heading-xxsmall);
+  letter-spacing: var(--ds-letter-spacing-heading-xxsmall);
 }
 
 @utility text-body-lg {
   font-family: var(--ds-font-family-sans);
   font: var(--ds-font-body-large);
+  letter-spacing: var(--ds-letter-spacing-body-large);
 }
 
 @utility text-body {
   font-family: var(--ds-font-family-sans);
   font: var(--ds-font-body);
+  letter-spacing: var(--ds-letter-spacing-body);
 }
 
 @utility text-body-sm {
   font-family: var(--ds-font-family-sans);
   font: var(--ds-font-body-small);
+  letter-spacing: var(--ds-letter-spacing-body-small);
 }
 
 @utility text-body-xs {
   font-family: var(--ds-font-family-sans);
   font: var(--ds-font-body-xsmall);
+  letter-spacing: var(--ds-letter-spacing-body-xsmall);
+}
+
+@utility text-heading-page {
+  font-family: var(--ds-font-family-heading);
+  font: var(--ds-font-heading-page);
+  letter-spacing: var(--ds-letter-spacing-heading-page);
+}
+
+@utility text-heading-card {
+  font-family: var(--ds-font-family-heading);
+  font: var(--ds-font-heading-card);
+  letter-spacing: var(--ds-letter-spacing-heading-card);
+}
+
+@utility text-heading-row {
+  font-family: var(--ds-font-family-heading);
+  font: var(--ds-font-heading-row);
+  letter-spacing: var(--ds-letter-spacing-heading-row);
+}
+
+@utility text-body-comfortable {
+  font-family: var(--ds-font-family-sans);
+  font: var(--ds-font-body-comfortable);
+  letter-spacing: var(--ds-letter-spacing-body-comfortable);
+}
+
+@utility text-body-snug {
+  font-family: var(--ds-font-family-sans);
+  font: var(--ds-font-body-snug);
+  letter-spacing: var(--ds-letter-spacing-body-snug);
+}
+
+@utility text-body-compact {
+  font-family: var(--ds-font-family-sans);
+  font: var(--ds-font-body-compact);
+  letter-spacing: var(--ds-letter-spacing-body-compact);
+}
+
+@utility text-code-sm {
+  font-family: var(--ds-font-family-mono);
+  font: var(--ds-font-code-small);
+  letter-spacing: var(--ds-letter-spacing-code-small);
 }
 
 @utility duration-control {
@@ -275,6 +329,24 @@
   --ds-font-body-snug: 400 0.84375rem/1.55 var(--ds-font-family-sans);
   --ds-font-body-compact: 400 0.8125rem/1.55 var(--ds-font-family-sans);
   --ds-font-code-small: 400 0.78125rem/1.6 var(--ds-font-family-mono);
+  --ds-letter-spacing-display: 0;
+  --ds-letter-spacing-heading-xlarge: 0;
+  --ds-letter-spacing-heading-large: 0;
+  --ds-letter-spacing-heading-medium: 0;
+  --ds-letter-spacing-heading-small: 0;
+  --ds-letter-spacing-heading-xsmall: 0;
+  --ds-letter-spacing-heading-xxsmall: 0;
+  --ds-letter-spacing-body-large: 0;
+  --ds-letter-spacing-body: 0;
+  --ds-letter-spacing-body-small: 0;
+  --ds-letter-spacing-body-xsmall: 0;
+  --ds-letter-spacing-heading-page: 0;
+  --ds-letter-spacing-heading-card: 0;
+  --ds-letter-spacing-heading-row: 0;
+  --ds-letter-spacing-body-comfortable: 0;
+  --ds-letter-spacing-body-snug: 0;
+  --ds-letter-spacing-body-compact: 0;
+  --ds-letter-spacing-code-small: 0;
   --ds-button-radius: var(--ds-radius-pill);
   --ds-button-font-weight: var(--ds-font-weight-semibold);
   --ds-field-radius: var(--ds-radius-100);
@@ -355,7 +427,7 @@
   --ds-blanket: #1214197a;
   --ds-chart-1: #d4421a;
   --ds-chart-2: #4081d2;
-  --ds-chart-3: #00967c;
+  --ds-chart-3: #00947b;
   --ds-chart-4: #8e6ac7;
   --ds-chart-5: #a77600;
   --ds-chart-6: #bc598c;
@@ -364,6 +436,7 @@
   --ds-shadow-overlay: 0px 1px 2px #1214190a, 0px 12px 32px #12141914;
   --ds-shadow-floating: 0px 2px 4px #1214190a, 0px 32px 64px #1214191f;
   --ds-shadow-floating-bold: 0px 2px 4px #1214190a, 0px 32px 64px #12141929;
+  --ds-shadow-glow: 0px 4px 16px #d4421a52;
 }
 
 [data-color-mode="dark"] {
@@ -420,12 +493,12 @@
   --ds-surface-sunken: #14171d;
   --ds-surface-sunken-bold: #1c2027;
   --ds-surface-inverse: #22262e;
-  --ds-surface-raised: #14171d;
-  --ds-surface-raised-hovered: #1c2027;
-  --ds-surface-raised-pressed: #22262e;
-  --ds-surface-overlay: #1c2027;
-  --ds-border: #23272f;
-  --ds-border-strong: #333943;
+  --ds-surface-raised: #1d2128;
+  --ds-surface-raised-hovered: #262a32;
+  --ds-surface-raised-pressed: #2c3139;
+  --ds-surface-overlay: #262a32;
+  --ds-border: #2d323a;
+  --ds-border-strong: #3e444e;
   --ds-border-bold: #6b7380;
   --ds-border-focused: #ff6a3d;
   --ds-border-selected: #ff6a3d;
@@ -442,11 +515,12 @@
   --ds-chart-4: #b28fef;
   --ds-chart-5: #d29922;
   --ds-chart-6: #e57db1;
-  --ds-chart-grid: #23272f;
+  --ds-chart-grid: #2d323a;
   --ds-shadow-raised: 0px 1px 2px #00000080, 0px 0px 1px #f2f3f514;
   --ds-shadow-overlay: 0px 1px 2px #00000080, 0px 12px 32px #00000073;
   --ds-shadow-floating: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
   --ds-shadow-floating-bold: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
+  --ds-shadow-glow: 0px 0px 24px #d4421a7a;
 }
 
 [data-theme="moss"] {
@@ -519,6 +593,24 @@
   --ds-font-body-snug: 400 0.84375rem/1.55 var(--ds-font-family-sans);
   --ds-font-body-compact: 400 0.8125rem/1.55 var(--ds-font-family-sans);
   --ds-font-code-small: 400 0.78125rem/1.6 var(--ds-font-family-mono);
+  --ds-letter-spacing-display: 0;
+  --ds-letter-spacing-heading-xlarge: 0;
+  --ds-letter-spacing-heading-large: 0;
+  --ds-letter-spacing-heading-medium: 0;
+  --ds-letter-spacing-heading-small: 0;
+  --ds-letter-spacing-heading-xsmall: 0;
+  --ds-letter-spacing-heading-xxsmall: 0;
+  --ds-letter-spacing-body-large: 0;
+  --ds-letter-spacing-body: 0;
+  --ds-letter-spacing-body-small: 0;
+  --ds-letter-spacing-body-xsmall: 0;
+  --ds-letter-spacing-heading-page: 0;
+  --ds-letter-spacing-heading-card: 0;
+  --ds-letter-spacing-heading-row: 0;
+  --ds-letter-spacing-body-comfortable: 0;
+  --ds-letter-spacing-body-snug: 0;
+  --ds-letter-spacing-body-compact: 0;
+  --ds-letter-spacing-code-small: 0;
   --ds-button-radius: 6px;
   --ds-button-font-weight: var(--ds-font-weight-semibold);
   --ds-field-radius: 4px;
@@ -597,24 +689,25 @@
   --ds-border-information: #2063b0;
   --ds-border-discovery: #6a4fa9;
   --ds-blanket: #19130c7a;
-  --ds-chart-1: #009866;
-  --ds-chart-2: #4081d2;
+  --ds-chart-1: #008f60;
+  --ds-chart-2: #3e7fd0;
   --ds-chart-3: #8e6ac7;
-  --ds-chart-4: #a77600;
+  --ds-chart-4: #a57500;
   --ds-chart-5: #bc598c;
-  --ds-chart-6: #0090a2;
+  --ds-chart-6: #008b9d;
   --ds-chart-grid: #ece5de;
   --ds-shadow-raised: 0px 1px 2px #19130c0f, 0px 0px 1px #19130c1f;
   --ds-shadow-overlay: 0px 1px 2px #19130c0a, 0px 12px 32px #19130c14;
   --ds-shadow-floating: 0px 2px 4px #19130c0a, 0px 32px 64px #19130c1f;
   --ds-shadow-floating-bold: 0px 2px 4px #19130c0a, 0px 32px 64px #19130c29;
+  --ds-shadow-glow: 0px 4px 16px #2f6b4f52;
 }
 
 [data-theme="moss"][data-color-mode="dark"] {
   color-scheme: dark;
   --ds-text: #f7f3ee;
-  --ds-text-subtle: #bcb6af;
-  --ds-text-subtlest: #97918a;
+  --ds-text-subtle: #c3bdb6;
+  --ds-text-subtlest: #9e9891;
   --ds-text-inverse: #19130c;
   --ds-text-disabled: #76706a;
   --ds-text-brand: #78b495;
@@ -629,8 +722,8 @@
   --ds-text-surface-inverse: #f7f3ee;
   --ds-link: #78b495;
   --ds-link-pressed: #91ceae;
-  --ds-icon: #bcb6af;
-  --ds-icon-subtle: #97918a;
+  --ds-icon: #c3bdb6;
+  --ds-icon-subtle: #9e9891;
   --ds-icon-brand: #6ba889;
   --ds-icon-danger: #fb988d;
   --ds-background-default: #120d09;
@@ -640,10 +733,10 @@
   --ds-background-neutral: #f7f3ee0f;
   --ds-background-neutral-hovered: #f7f3ee1a;
   --ds-background-neutral-pressed: #f7f3ee29;
-  --ds-background-neutral-bold: #bcb6af;
-  --ds-background-brand-bold: #2f6b4f;
-  --ds-background-brand-bold-hovered: #236044;
-  --ds-background-brand-bold-pressed: #15543a;
+  --ds-background-neutral-bold: #c3bdb6;
+  --ds-background-brand-bold: #448063;
+  --ds-background-brand-bold-hovered: #387458;
+  --ds-background-brand-bold-pressed: #2c684d;
   --ds-background-success: #102515;
   --ds-background-success-bold: #76c788;
   --ds-background-danger: #301715;
@@ -659,17 +752,17 @@
   --ds-background-discovery: #211b30;
   --ds-background-discovery-bold: #b7a1f5;
   --ds-background-selected: #072b1c;
-  --ds-background-selected-bold: #2f6b4f;
+  --ds-background-selected-bold: #448063;
   --ds-surface: #120d09;
   --ds-surface-sunken: #1a1510;
   --ds-surface-sunken-bold: #221d18;
   --ds-surface-inverse: #2a2520;
-  --ds-surface-raised: #1e1a15;
-  --ds-surface-raised-hovered: #25211b;
-  --ds-surface-raised-pressed: #2a2520;
-  --ds-surface-overlay: #221d18;
-  --ds-border: #2a2520;
-  --ds-border-strong: #39342f;
+  --ds-surface-raised: #231f1a;
+  --ds-surface-raised-hovered: #2b2621;
+  --ds-surface-raised-pressed: #302b25;
+  --ds-surface-overlay: #27221d;
+  --ds-border: #302b25;
+  --ds-border-strong: #3f3a34;
   --ds-border-bold: #76706a;
   --ds-border-focused: #6ba889;
   --ds-border-selected: #6ba889;
@@ -686,9 +779,10 @@
   --ds-chart-4: #d29922;
   --ds-chart-5: #e57db1;
   --ds-chart-6: #00b9cf;
-  --ds-chart-grid: #2a2520;
+  --ds-chart-grid: #302b25;
   --ds-shadow-raised: 0px 1px 2px #00000080, 0px 0px 1px #f7f3ee14;
   --ds-shadow-overlay: 0px 1px 2px #00000080, 0px 12px 32px #00000073;
   --ds-shadow-floating: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
   --ds-shadow-floating-bold: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
+  --ds-shadow-glow: 0px 0px 24px #4480637a;
 }

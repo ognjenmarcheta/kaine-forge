@@ -82,7 +82,8 @@ export const shadowRoles = [
   "shadow-raised",
   "shadow-overlay",
   "shadow-floating",
-  "shadow-floating-bold"
+  "shadow-floating-bold",
+  "shadow-glow"
 ] as const;
 
 export const scaleTokenNames = [

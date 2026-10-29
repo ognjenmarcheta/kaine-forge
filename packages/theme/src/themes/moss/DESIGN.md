@@ -195,18 +195,18 @@ The brand is `#2F6B4F`. White text passes on it, so primary fills use it as is. 
 
 | Token                   | Use                                    | Light     | Dark      |
 | ----------------------- | -------------------------------------- | --------- | --------- |
-| `background-brand-bold` | primary actions and selected fills     | `#2f6b4f` | `#2f6b4f` |
+| `background-brand-bold` | primary actions and selected fills     | `#2f6b4f` | `#448063` |
 | `text-brand-inverse`    | text and icons on primary fills        | `#ffffff` | `#ffffff` |
 | `text-brand`            | brand text and links                   | `#2f6b4f` | `#78b495` |
 | `border-focused`        | focus rings                            | `#2f6b4f` | `#6ba889` |
 | `surface`               | the page                               | `#ffffff` | `#120d09` |
 | `surface-sunken`        | wells and the sidebar                  | `#fcf6ee` | `#1a1510` |
-| `surface-raised`        | cards                                  | `#ffffff` | `#1e1a15` |
-| `surface-overlay`       | menus, popovers, and dialogs           | `#ffffff` | `#221d18` |
+| `surface-raised`        | cards                                  | `#ffffff` | `#231f1a` |
+| `surface-overlay`       | menus, popovers, and dialogs           | `#ffffff` | `#27221d` |
 | `text`                  | body text and headings                 | `#19130c` | `#f7f3ee` |
-| `text-subtle`           | secondary text                         | `#57514c` | `#bcb6af` |
-| `text-subtlest`         | metadata and placeholders              | `#706b64` | `#97918a` |
-| `border`                | dividers and card hairlines            | `#ece5de` | `#2a2520` |
+| `text-subtle`           | secondary text                         | `#57514c` | `#c3bdb6` |
+| `text-subtlest`         | metadata and placeholders              | `#706b64` | `#9e9891` |
+| `border`                | dividers and card hairlines            | `#ece5de` | `#302b25` |
 | `border-bold`           | field borders and other controls (3:1) | `#8b857f` | `#76706a` |
 | `background-selected`   | selected rows and navigation           | `#d5f8e5` | `#072b1c` |
 | `text-success`          | success messages                       | `#007835` | `#7ccd8e` |

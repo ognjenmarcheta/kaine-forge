@@ -49,7 +49,7 @@
   --ds-border-width-thick: 3px;
   --ds-chart-1: #d4421a;
   --ds-chart-2: #4081d2;
-  --ds-chart-3: #00967c;
+  --ds-chart-3: #00947b;
   --ds-chart-4: #8e6ac7;
   --ds-chart-5: #a77600;
   --ds-chart-6: #bc598c;
@@ -80,6 +80,7 @@
   --ds-radius-round: 50%;
   --ds-shadow-floating: 0px 2px 4px #1214190a, 0px 32px 64px #1214191f;
   --ds-shadow-floating-bold: 0px 2px 4px #1214190a, 0px 32px 64px #12141929;
+  --ds-shadow-glow: 0px 4px 16px #d4421a52;
   --ds-shadow-overlay: 0px 1px 2px #1214190a, 0px 12px 32px #12141914;
   --ds-shadow-raised: 0px 1px 2px #1214190f, 0px 0px 1px #1214191f;
   --ds-space-0: 0px;
@@ -150,7 +151,7 @@
   --ds-background-warning-bold-hovered: #ecc46c;
   --ds-background-warning-bold-pressed: #f2d48e;
   --ds-blanket: #00000099;
-  --ds-border: #23272f;
+  --ds-border: #2d323a;
   --ds-border-bold: #6b7380;
   --ds-border-brand: #ff6a3d;
   --ds-border-danger: #ff8a7a;
@@ -158,7 +159,7 @@
   --ds-border-focused: #ff6a3d;
   --ds-border-information: #7fb0f5;
   --ds-border-selected: #ff6a3d;
-  --ds-border-strong: #333943;
+  --ds-border-strong: #3e444e;
   --ds-border-success: #5fc791;
   --ds-border-warning: #e6b44a;
   --ds-chart-1: #ff6a3d;
@@ -167,7 +168,7 @@
   --ds-chart-4: #b28fef;
   --ds-chart-5: #d29922;
   --ds-chart-6: #e57db1;
-  --ds-chart-grid: #23272f;
+  --ds-chart-grid: #2d323a;
   --ds-icon: #aab1bd;
   --ds-icon-brand: #ff6a3d;
   --ds-icon-danger: #ff8a7a;
@@ -176,14 +177,15 @@
   --ds-link-pressed: #ffa182;
   --ds-shadow-floating: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
   --ds-shadow-floating-bold: 0px 2px 4px #00000080, 0px 32px 64px #00000099;
+  --ds-shadow-glow: 0px 0px 24px #d4421a7a;
   --ds-shadow-overlay: 0px 1px 2px #00000080, 0px 12px 32px #00000073;
   --ds-shadow-raised: 0px 1px 2px #00000080, 0px 0px 1px #f2f3f514;
   --ds-surface: #0c0e12;
   --ds-surface-inverse: #22262e;
-  --ds-surface-overlay: #1c2027;
-  --ds-surface-raised: #14171d;
-  --ds-surface-raised-hovered: #1c2027;
-  --ds-surface-raised-pressed: #22262e;
+  --ds-surface-overlay: #262a32;
+  --ds-surface-raised: #1d2128;
+  --ds-surface-raised-hovered: #262a32;
+  --ds-surface-raised-pressed: #2c3139;
   --ds-surface-sunken: #14171d;
   --ds-surface-sunken-bold: #1c2027;
   --ds-text: #f2f3f5;

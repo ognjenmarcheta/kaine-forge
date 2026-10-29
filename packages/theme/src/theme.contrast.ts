@@ -8,6 +8,12 @@ export const TEXT_CONTRAST = 4.5;
 export const GRAPHIC_CONTRAST = 3;
 /** WCAG 2.2 SC 2.5.8: the smallest pointer target, in CSS pixels. */
 export const MIN_TARGET_SIZE = 24;
+/**
+ * A dark card against the page and a sunken canvas. It is not a WCAG ratio: a dark shadow barely
+ * shows on a dark page, so the lightness step carries the card's elevation. Light mode, where
+ * the shadow or the border does that, measures about 1.08:1 from a card to the sunken canvas.
+ */
+export const SURFACE_STEP = 1.1;
 
 /** A color role, or a component token whose value is a color. */
 export type ColorToken = ColorRole | Extract<ComponentTokenName, "field-border">;
@@ -16,6 +22,10 @@ export interface ContrastPair {
   readonly foreground: ColorToken;
   readonly background: ColorRole;
   readonly minimum: number;
+  /** The surface under a translucent background, such as a track on a card. Default `surface`. */
+  readonly backdrop?: ColorRole;
+  /** The one color mode the pair applies to. Without it, the pair applies to both. */
+  readonly onlyIn?: ColorMode;
 }
 
 const pair = (foreground: ColorToken, background: ColorRole, minimum: number): ContrastPair => ({
@@ -132,6 +142,55 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("chart-6", "surface-sunken", GRAPHIC_CONTRAST)
 ];
 
+const chartRoles = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5", "chart-6"] as const;
+
+/** A fill on a translucent track, measured with the track on the page, a card, and a well. */
+const onTrack = (fill: ColorRole, track: ColorRole): ContrastPair[] =>
+  (["surface", "surface-raised", "surface-sunken"] as const).map((backdrop) => ({
+    ...pair(fill, track, GRAPHIC_CONTRAST),
+    backdrop
+  }));
+
+/**
+ * Every pair a theme must pass to ship: `contrastPairs`, plus the tracks and tints that the
+ * components draw and the step from a dark card to the surfaces under it. Lab themes never ship,
+ * so the lab measures them against `contrastPairs` only.
+ */
+export const shippedThemePairs: readonly ContrastPair[] = [
+  ...contrastPairs,
+  // Progress bars draw chart fills on the neutral track, on the page, a card, or a sunken area.
+  // Gauges draw them on chart-grid.
+  ...chartRoles.flatMap((fill) => [
+    ...onTrack(fill, "background-neutral"),
+    pair(fill, "chart-grid", GRAPHIC_CONTRAST)
+  ]),
+  // Progress bars also draw the status fills on the neutral track. Warning draws in its border
+  // color there: the warning fill is a light amber that carries ink text on badges and banners.
+  ...(
+    [
+      "background-success-bold",
+      "background-danger-bold",
+      "border-warning",
+      "background-information-bold"
+    ] as const
+  ).flatMap((fill) => onTrack(fill, "background-neutral")),
+  // And the brand fill, which dark mode derives. Light mode keeps the brand as given for primary
+  // buttons, so a light brand there can sit under 3:1 on the track.
+  ...onTrack("background-brand-bold", "background-neutral").map((entry): ContrastPair => ({
+    ...entry,
+    onlyIn: "dark"
+  })),
+  // A selected row keeps its secondary text, checkboxes, and current brand icon.
+  pair("text-subtle", "background-selected", TEXT_CONTRAST),
+  pair("border-bold", "background-selected", GRAPHIC_CONTRAST),
+  pair("border-brand", "background-selected", GRAPHIC_CONTRAST),
+  pair("icon-brand", "background-selected", GRAPHIC_CONTRAST),
+  ...(["surface", "surface-sunken"] as const).map((background): ContrastPair => ({
+    ...pair("surface-raised", background, SURFACE_STEP),
+    onlyIn: "dark"
+  }))
+];
+
 const colorRoleNames: ReadonlySet<string> = new Set(colorRoles);
 
 function isColorRole(token: string): token is ColorRole {
@@ -160,28 +219,45 @@ export interface ContrastResult extends ContrastPair {
   readonly ratio: number;
 }
 
-/** Measures every pair in both modes. Translucent fills are measured over `surface`. */
-export function measureContrast(theme: ThemeDefinition): ContrastResult[] {
+/**
+ * Measures each pair in its modes. A translucent background is measured over its backdrop,
+ * `surface` unless the pair names another.
+ */
+export function measureContrast(
+  theme: ThemeDefinition,
+  pairs: readonly ContrastPair[] = contrastPairs
+): ContrastResult[] {
   return (["light", "dark"] as const).flatMap((mode) => {
     const color = (token: ColorToken): string => resolveColor(theme, mode, token);
 
-    return contrastPairs.map((entry) => ({
-      ...entry,
-      mode,
-      ratio: contrastRatio(color(entry.foreground), color(entry.background), color("surface"))
-    }));
+    return pairs
+      .filter((entry) => entry.onlyIn === undefined || entry.onlyIn === mode)
+      .map((entry) => ({
+        ...entry,
+        mode,
+        ratio: contrastRatio(
+          color(entry.foreground),
+          color(entry.background),
+          color(entry.backdrop ?? "surface")
+        )
+      }));
   });
 }
 
-export function findContrastFailures(theme: ThemeDefinition): ContrastResult[] {
-  return measureContrast(theme).filter((result) => result.ratio < result.minimum);
+export function findContrastFailures(
+  theme: ThemeDefinition,
+  pairs: readonly ContrastPair[] = contrastPairs
+): ContrastResult[] {
+  return measureContrast(theme, pairs).filter((result) => result.ratio < result.minimum);
 }
+
+/** A length in CSS pixels: px as written, rem at the 16px root size. */
+const cssPixels = (value: string): number =>
+  Number.parseFloat(value) * (value.trim().endsWith("rem") ? 16 : 1);
 
 /** Control heights below the WCAG 2.2 minimum target size. */
 export function findTargetSizeFailures(theme: ThemeDefinition): string[] {
   return Object.entries(theme.scale)
-    .filter(
-      ([name, value]) => name.startsWith("control-") && Number.parseFloat(value) < MIN_TARGET_SIZE
-    )
+    .filter(([name, value]) => name.startsWith("control-") && cssPixels(value) < MIN_TARGET_SIZE)
     .map(([name, value]) => `${name} is ${value}, needs at least ${MIN_TARGET_SIZE}px`);
 }

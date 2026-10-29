@@ -4,8 +4,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format, resolveConfig } from "prettier";
 
-import { ensureContrast } from "./theme.color";
-import { findContrastFailures, findTargetSizeFailures, resolveColor } from "./theme.contrast";
+import { ensureContrast, flatten } from "./theme.color";
+import {
+  type ColorToken,
+  findContrastFailures,
+  findTargetSizeFailures,
+  resolveColor,
+  shippedThemePairs
+} from "./theme.contrast";
 import { rootDesignCopy, withDesignTokens } from "./theme.design";
 import { emitMobileCss, emitNativeTokens, emitPresetTokens, emitWebTokens } from "./theme.emit";
 import { defaultTheme, themes } from "./themes.config";
@@ -87,14 +93,16 @@ export async function buildThemeFiles(): Promise<GeneratedFile[]> {
 /** One line per contrast or target-size failure across every registered theme. */
 export function describeThemeFailures(): string[] {
   return themes.flatMap((theme) => [
-    ...findContrastFailures(theme).map((failure) => {
-      const foreground = resolveColor(theme, failure.mode, failure.foreground);
-      const background = resolveColor(theme, failure.mode, failure.background);
-      const nearest = ensureContrast(foreground, background, failure.minimum);
+    ...findContrastFailures(theme, shippedThemePairs).map((failure) => {
+      const color = (token: ColorToken): string => resolveColor(theme, failure.mode, token);
+      const backdrop = failure.backdrop ?? "surface";
+      const background = flatten(color(failure.background), color(backdrop));
+      const nearest = ensureContrast(color(failure.foreground), background, failure.minimum);
+      const over = failure.backdrop === undefined ? "" : ` over ${failure.backdrop}`;
 
       return (
-        `${theme.name} ${failure.mode}: ${failure.foreground} on ${failure.background} is ` +
-        `${failure.ratio.toFixed(2)}:1, needs ${failure.minimum}:1; the nearest passing ` +
+        `${theme.name} ${failure.mode}: ${failure.foreground} on ${failure.background}${over} ` +
+        `is ${failure.ratio.toFixed(2)}:1, needs ${failure.minimum}:1; the nearest passing ` +
         `${failure.foreground} is ${nearest}`
       );
     }),

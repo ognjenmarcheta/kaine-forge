@@ -25,6 +25,8 @@ export interface TypeStep {
   readonly size: string;
   readonly lineHeight: string;
   readonly family: "sans" | "heading" | "mono";
+  /** A length, such as -0.01em to narrow a wide font. 0 when left out. */
+  readonly letterSpacing?: string;
 }
 
 export type ThemeType = Readonly<Record<TypeStepName, TypeStep>>;

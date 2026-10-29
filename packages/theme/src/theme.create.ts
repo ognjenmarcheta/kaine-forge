@@ -27,7 +27,9 @@ export interface CreateThemeInput<Name extends string> {
   /** Mobile fonts. Without them mobile uses the platform fonts. */
   readonly nativeFonts?: Partial<NativeFonts>;
   readonly headingWeight?: number;
-  /** Per-step changes to the type scale, such as a larger display or heading size. */
+  /** Letter spacing of every type step, such as -0.01em to narrow a wide font. */
+  readonly letterSpacing?: string;
+  /** Per-step changes to the type scale, such as a larger display or a tighter heading. */
   readonly type?: Partial<Record<TypeStepName, Partial<TypeStep>>>;
   readonly density?: Density;
   readonly depth?: Depth;
@@ -61,9 +63,10 @@ const densityPadding: Record<Density, string> = {
 
 function buildType(
   weight: number | undefined,
+  letterSpacing: string | undefined,
   overrides: CreateThemeInput<string>["type"]
 ): ThemeType {
-  if (weight === undefined && overrides === undefined) {
+  if (weight === undefined && letterSpacing === undefined && overrides === undefined) {
     return defaultType;
   }
 
@@ -71,7 +74,8 @@ function buildType(
   for (const name of typeStepNames) {
     const step = defaultType[name];
     const weighted = weight !== undefined && step.family === "heading" ? { ...step, weight } : step;
-    steps[name] = { ...weighted, ...overrides?.[name] };
+    const spaced = letterSpacing === undefined ? weighted : { ...weighted, letterSpacing };
+    steps[name] = { ...spaced, ...overrides?.[name] };
   }
 
   // SAFETY: the loop above assigns every name in typeStepNames, the full key set of ThemeType.
@@ -98,7 +102,7 @@ export function createTheme<const Name extends string>(
     label: input.label,
     description: input.description,
     scale: { ...defaultScale, ...densityScale[density], ...fonts, ...input.scale },
-    type: buildType(input.headingWeight, input.type),
+    type: buildType(input.headingWeight, input.letterSpacing, input.type),
     components: {
       ...defaultComponents,
       "card-padding": densityPadding[density],

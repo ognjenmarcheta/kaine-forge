@@ -120,7 +120,8 @@ export const boxShadow = {
   raised: "var(--ds-shadow-raised)",
   overlay: "var(--ds-shadow-overlay)",
   floating: "var(--ds-shadow-floating)",
-  "floating-bold": "var(--ds-shadow-floating-bold)"
+  "floating-bold": "var(--ds-shadow-floating-bold)",
+  glow: "var(--ds-shadow-glow)"
 };
 
 export const fontSize = {
@@ -198,6 +199,55 @@ export const fontSize = {
     "0.6875rem",
     {
       lineHeight: "1rem",
+      fontWeight: "400"
+    }
+  ],
+  "heading-page": [
+    "1.625rem",
+    {
+      lineHeight: "1.2",
+      fontWeight: "500"
+    }
+  ],
+  "heading-card": [
+    "1.1875rem",
+    {
+      lineHeight: "1.3",
+      fontWeight: "500"
+    }
+  ],
+  "heading-row": [
+    "0.96875rem",
+    {
+      lineHeight: "1.55",
+      fontWeight: "500"
+    }
+  ],
+  "body-comfortable": [
+    "0.9375rem",
+    {
+      lineHeight: "1.55",
+      fontWeight: "400"
+    }
+  ],
+  "body-snug": [
+    "0.84375rem",
+    {
+      lineHeight: "1.55",
+      fontWeight: "400"
+    }
+  ],
+  "body-compact": [
+    "0.8125rem",
+    {
+      lineHeight: "1.55",
+      fontWeight: "400"
+    }
+  ],
+  "code-sm": [
+    "0.78125rem",
+    {
+      lineHeight: "1.6",
       fontWeight: "400"
     }
   ]

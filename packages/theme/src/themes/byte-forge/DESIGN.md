@@ -203,12 +203,12 @@ Neutrals are cool grays with a faint blue tint. Status colors are green (success
 | `border-focused`        | focus rings                            | `#c23a14` | `#ff6a3d` |
 | `surface`               | the page                               | `#ffffff` | `#0c0e12` |
 | `surface-sunken`        | wells and the sidebar                  | `#f5f6f8` | `#14171d` |
-| `surface-raised`        | cards                                  | `#ffffff` | `#14171d` |
-| `surface-overlay`       | menus, popovers, and dialogs           | `#ffffff` | `#1c2027` |
+| `surface-raised`        | cards                                  | `#ffffff` | `#1d2128` |
+| `surface-overlay`       | menus, popovers, and dialogs           | `#ffffff` | `#262a32` |
 | `text`                  | body text and headings                 | `#121419` | `#f2f3f5` |
 | `text-subtle`           | secondary text                         | `#4a505c` | `#aab1bd` |
 | `text-subtlest`         | metadata and placeholders              | `#646b78` | `#868d99` |
-| `border`                | dividers and card hairlines            | `#e3e6eb` | `#23272f` |
+| `border`                | dividers and card hairlines            | `#e3e6eb` | `#2d323a` |
 | `border-bold`           | field borders and other controls (3:1) | `#7d8491` | `#6b7380` |
 | `background-selected`   | selected rows and navigation           | `#fde6de` | `#2e140c` |
 | `text-success`          | success messages                       | `#1d7a4a` | `#5fc791` |
@@ -228,7 +228,7 @@ Spacing follows an 8px scale with 2px and 4px half-steps. Web and desktop use a 
 
 ## Elevation & Depth
 
-Cards sit on `surface-raised` with a hairline border and a soft raised shadow. Menus and popovers use the overlay shadow, and dialogs use the floating shadow over a dimmed blanket. In dark mode, raised surfaces are lighter than the page, so depth still reads without strong shadows.
+Cards sit on `surface-raised` with a hairline border and a soft raised shadow. Menus and popovers use the overlay shadow, and dialogs use the floating shadow over a dimmed blanket. In dark mode a shadow barely shows, so cards stand a clear step lighter than both the page and the sunken sidebar, and menus one step lighter again. `shadow-glow` is a soft red-orange glow for one brand element at a time, such as the current navigation pill; it is never a decoration on cards.
 
 ## Shapes
 
