@@ -14,9 +14,6 @@ import {
   Line,
   Pie,
   PieChart,
-  PolarAngleAxis,
-  RadialBar,
-  RadialBarChart,
   Rectangle,
   ReferenceDot,
   ReferenceLine,
@@ -619,39 +616,6 @@ export function DonutPlot({
         )}
       />
     </PieChart>
-  );
-}
-
-export function RadialPlot({
-  color,
-  max,
-  value
-}: {
-  color: ChartColor | undefined;
-  max: number;
-  value: number;
-}) {
-  return (
-    <RadialBarChart
-      data={[{ value: Math.min(Math.max(value, 0), max) }]}
-      responsive
-      width="100%"
-      height="100%"
-      accessibilityLayer={false}
-      innerRadius="80%"
-      outerRadius="100%"
-      startAngle={90}
-      endAngle={-270}
-    >
-      <PolarAngleAxis type="number" domain={[0, max]} tick={false} axisLine={false} />
-      <RadialBar
-        dataKey="value"
-        fill={seriesColor(0, color).color}
-        background={{ fill: GRID_COLOR }}
-        cornerRadius="50%"
-        {...MARK_MOTION}
-      />
-    </RadialBarChart>
   );
 }
 

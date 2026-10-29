@@ -155,6 +155,63 @@ describe("Gauge", () => {
     expect(slider()?.getAttribute("aria-valuetext")).toBe("Over 50%: 12 projects");
   });
 
+  it.each<[string, { innerRatio?: number; segmentCaps?: "round" | "butt" }, number, string]>([
+    ["the default ring", {}, 74, "round"],
+    ["a thinner ring with square ends", { innerRatio: 0.85, segmentCaps: "butt" }, 81.6, "butt"]
+  ])("draws %s from its inner radius", (_, geometry, innerRadius, caps) => {
+    act(() => root.render(<Gauge title="Sales growth" value={50} {...geometry} />));
+
+    const segment = container.querySelector("svg line");
+    const x = Number(segment?.getAttribute("x1")) - 100;
+    const y = Number(segment?.getAttribute("y1")) - 100;
+    expect(Math.hypot(x, y)).toBeCloseTo(innerRadius);
+    expect(segment?.getAttribute("stroke-linecap")).toBe(caps);
+  });
+
+  it.each<[boolean | undefined, number]>([
+    [undefined, 3],
+    [false, 0]
+  ])("shows the legend of parts unless it is false (legend: %s)", (legend, entries) => {
+    act(() =>
+      root.render(
+        <Gauge
+          parts={bands}
+          title="Project completion"
+          {...(legend === undefined ? {} : { legend })}
+        />
+      )
+    );
+
+    expect(container.querySelectorAll("li")).toHaveLength(entries);
+    expect(container.querySelectorAll("table tr")).toHaveLength(3);
+  });
+
+  it("draws your center in place of the value and label, which still fill the table", () => {
+    act(() =>
+      root.render(
+        <Gauge
+          center={
+            <span>
+              <strong>22/32</strong> Treatments completed
+            </span>
+          }
+          centerLabel="22/32 Treatments completed"
+          max={32}
+          title="Today's treatments"
+          value={22}
+        />
+      )
+    );
+
+    expect(container.querySelector('[data-slot="gauge-center"]')?.textContent).toBe(
+      "22/32 Treatments completed"
+    );
+    expect(Array.from(container.querySelectorAll("table td"), (cell) => cell.textContent)).toEqual([
+      "69%",
+      "22/32 Treatments completed"
+    ]);
+  });
+
   it("fills to a new value over time", () => {
     vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
     vi.stubGlobal("matchMedia", () => ({

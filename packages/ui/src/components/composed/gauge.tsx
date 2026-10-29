@@ -54,8 +54,24 @@ interface GaugeBaseProps {
   centerValue?: string;
   /** Supporting text under the center value, such as "Project completion". */
   centerLabel?: string;
+  /**
+   * Your own center in place of `centerValue` over `centerLabel`, such as the label above the
+   * value or a value in two colors. `centerValue` and `centerLabel` still give the data table,
+   * the tooltip, and the slider text.
+   */
+  center?: React.ReactNode;
   /** Formats `value`, or the value of each part in the legend and the data table. */
   valueFormatter?: ChartValueFormatter;
+  /**
+   * Shows the names and values of `parts` under the ring. Without it, name the parts elsewhere,
+   * such as in `center` or a `PlotLegend` (COLOR-2); the tooltip and the table still name them.
+   * @defaultValue true
+   */
+  legend?: boolean;
+  /** The inner radius as a share of the outer one; nearer 1 is a thinner ring. @defaultValue 0.77 */
+  innerRatio?: number;
+  /** The ends of each segment: `"butt"` cuts them square. @defaultValue "round" */
+  segmentCaps?: "round" | "butt";
   /**
    * Fills to a new value with the motion tokens; under reduced motion it snaps.
    * @defaultValue true
@@ -86,7 +102,6 @@ const [VIEW_LEFT, VIEW_TOP, VIEW_WIDTH, VIEW_HEIGHT] = [-4, -4, 208, 106] as con
 const VIEW_BOX = `${VIEW_LEFT} ${VIEW_TOP} ${VIEW_WIDTH} ${VIEW_HEIGHT}`;
 const CENTER = { x: 100, y: 100 };
 const RADIUS = { inner: 74, outer: 96 };
-const MID_RADIUS = (RADIUS.inner + RADIUS.outer) / 2;
 /** The quiet track of the empty part, as the `RadialProgress` ring. */
 const TRACK_COLOR = "var(--ds-chart-grid)";
 /** A segment takes this share of its arc, and never more than 10 units, so few stay slim. */
@@ -100,15 +115,32 @@ const RING_REACH = 6;
 /** How far a hovered part grows past the ring, in view box units. */
 const ACTIVE_GROWTH = 4;
 
+/** The radii of the ring in view box units; `mid` is where a solid gauge strokes its arcs. */
+interface RingRadii {
+  inner: number;
+  outer: number;
+  mid: number;
+}
+
+function ringRadii(innerRatio: number | undefined): RingRadii {
+  const inner =
+    innerRatio === undefined ? RADIUS.inner : RADIUS.outer * Math.min(Math.max(innerRatio, 0), 1);
+  return { inner, outer: RADIUS.outer, mid: (inner + RADIUS.outer) / 2 };
+}
+
 /**
  * The part under a point in view box units: the position of the part whose arc holds the point,
  * or -1 for the track, the hole, and the space around the ring.
  */
-function gaugePartAt(point: { x: number; y: number }, ends: readonly number[]): number {
+function gaugePartAt(
+  point: { x: number; y: number },
+  ends: readonly number[],
+  ring: RingRadii
+): number {
   const dx = point.x - CENTER.x;
   const dy = CENTER.y - point.y;
   const radius = Math.hypot(dx, dy);
-  if (dy < 0 || radius < RADIUS.inner - RING_REACH || radius > RADIUS.outer + RING_REACH) {
+  if (dy < 0 || radius < ring.inner - RING_REACH || radius > ring.outer + RING_REACH) {
     return -1;
   }
   // The share of the half ring from its left end, as `ringPoint` measures it.
@@ -161,7 +193,7 @@ function segmentOwners(ends: readonly number[], count: number) {
 }
 
 /** The arcs of a solid gauge: one per part, then the track, with a gap between neighbors. */
-function solidArcs(ends: readonly number[]) {
+function solidArcs(ends: readonly number[], radius: number) {
   const pieces = [...ends, 1].map((end, position) => ({
     owner: position < ends.length ? position : -1,
     from: position === 0 ? 0 : (ends[position - 1] ?? 0),
@@ -172,12 +204,12 @@ function solidArcs(ends: readonly number[]) {
     const from = piece.from === 0 ? 0 : piece.from + SOLID_GAP / 2;
     const to = piece.to === 1 ? 1 : piece.to - SOLID_GAP / 2;
     if (to <= from) return [];
-    const start = ringPoint(from, MID_RADIUS);
-    const end = ringPoint(to, MID_RADIUS);
+    const start = ringPoint(from, radius);
+    const end = ringPoint(to, radius);
     return [
       {
         owner: piece.owner,
-        path: `M ${start.x} ${start.y} A ${MID_RADIUS} ${MID_RADIUS} 0 0 1 ${end.x} ${end.y}`
+        path: `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${end.x} ${end.y}`
       }
     ];
   });
@@ -216,14 +248,19 @@ function Gauge(props: GaugeProps) {
   const {
     animate = true,
     appearance = "segmented",
+    center,
     centerLabel,
     className,
     height = 128,
     hideTitle = false,
+    innerRatio,
+    legend = true,
+    segmentCaps = "round",
     segments = 24,
     title,
     valueFormatter
   } = props;
+  const ring = ringRadii(innerRatio);
   const titleId = React.useId();
   const single = props.parts === undefined;
   // A single value is one part named by the title, so both kinds share the drawing.
@@ -265,7 +302,7 @@ function Gauge(props: GaugeProps) {
         : formatShare(props.value, max)
       : undefined);
   const count = Math.max(Math.round(segments), 1);
-  const segmentWidth = Math.min(((Math.PI * MID_RADIUS) / count) * SEGMENT_FILL, SEGMENT_MAX_WIDTH);
+  const segmentWidth = Math.min(((Math.PI * ring.mid) / count) * SEGMENT_FILL, SEGMENT_MAX_WIDTH);
 
   // The part under the pointer or the keyboard; with parts, a click or Enter pins one.
   const [pick, setPick] = React.useState<PlotPick>({ transient: null, selected: null });
@@ -283,7 +320,8 @@ function Gauge(props: GaugeProps) {
         bounds.width,
         bounds.height
       ),
-      ends
+      ends,
+      ring
     );
   };
   const onPointer = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -355,12 +393,21 @@ function Gauge(props: GaugeProps) {
       };
 
   return (
-    <figure aria-labelledby={titleId} className={cn("m-0 grid gap-ds-150", className)}>
-      <figcaption id={titleId} className={hideTitle ? "sr-only" : "text-heading-xs text-ds-text"}>
+    <figure
+      aria-labelledby={titleId}
+      className={cn("m-0 grid gap-ds-150", className)}
+      data-slot="gauge"
+    >
+      <figcaption
+        id={titleId}
+        className={hideTitle ? "sr-only" : "text-heading-xs text-ds-text"}
+        data-slot="gauge-title"
+      >
         {title}
       </figcaption>
       <div
         ref={box}
+        data-slot="gauge-ring"
         className={cn(
           "relative",
           !single &&
@@ -377,32 +424,32 @@ function Gauge(props: GaugeProps) {
           viewBox={VIEW_BOX}
         >
           {appearance === "solid"
-            ? solidArcs(ends).map((arc) => (
+            ? solidArcs(ends, ring.mid).map((arc) => (
                 <path
                   key={arc.owner}
                   d={arc.path}
                   fill="none"
                   stroke={paintOf(arc.owner)}
                   strokeWidth={
-                    RADIUS.outer -
-                    RADIUS.inner +
+                    ring.outer -
+                    ring.inner +
                     (arc.owner >= 0 && arc.owner === active ? ACTIVE_GROWTH * 2 : 0)
                   }
                 />
               ))
             : segmentOwners(ends, count).map((owner, segment) => {
                 const share = (segment + 0.5) / count;
-                const from = ringPoint(share, RADIUS.inner);
+                const from = ringPoint(share, ring.inner);
                 const to = ringPoint(
                   share,
-                  RADIUS.outer + (owner >= 0 && owner === active ? ACTIVE_GROWTH : 0)
+                  ring.outer + (owner >= 0 && owner === active ? ACTIVE_GROWTH : 0)
                 );
                 return (
                   <line
                     key={segment}
                     className="transition-colors duration-overlay ease-standard"
                     stroke={paintOf(owner)}
-                    strokeLinecap="round"
+                    strokeLinecap={segmentCaps}
                     strokeWidth={segmentWidth}
                     x1={from.x}
                     y1={from.y}
@@ -416,12 +463,21 @@ function Gauge(props: GaugeProps) {
         <div
           aria-hidden={single || undefined}
           className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center text-center"
+          data-slot="gauge-center"
         >
-          {centerValue === undefined ? null : (
-            <span className="text-heading-lg tabular-nums text-ds-text">{centerValue}</span>
-          )}
-          {centerLabel === undefined ? null : (
-            <span className="text-body-sm text-ds-text-subtle">{centerLabel}</span>
+          {center ?? (
+            <>
+              {centerValue === undefined ? null : (
+                <span className="text-heading-lg tabular-nums text-ds-text" data-slot="gauge-value">
+                  {centerValue}
+                </span>
+              )}
+              {centerLabel === undefined ? null : (
+                <span className="text-body-sm text-ds-text-subtle" data-slot="gauge-label">
+                  {centerLabel}
+                </span>
+              )}
+            </>
           )}
         </div>
         {width > 0 ? (
@@ -443,22 +499,33 @@ function Gauge(props: GaugeProps) {
           </PlotContext.Provider>
         ) : null}
       </div>
-      {single ? null : (
+      {single || !legend ? null : (
         // Visual identity only: the data table gives assistive technology the same names.
         <ul
           aria-hidden="true"
           className="m-0 flex list-none flex-wrap justify-center gap-x-ds-200 gap-y-ds-050 p-0 text-body-sm text-ds-text-subtle"
+          data-slot="gauge-legend"
         >
           {parts.map((part, position) => (
-            <li key={part.key} className="flex items-center gap-ds-075">
+            <li
+              key={part.key}
+              className="flex items-center gap-ds-075"
+              data-slot="gauge-legend-item"
+            >
               <span
                 className={cn(
                   "size-ds-100 shrink-0 rounded-sm",
                   seriesColor(position, part.color).swatch
                 )}
+                data-slot="gauge-legend-swatch"
               />
-              <span>{part.label}</span>
-              <span className="font-medium tabular-nums text-ds-text">{format(part.value)}</span>
+              <span data-slot="gauge-legend-label">{part.label}</span>
+              <span
+                className="font-medium tabular-nums text-ds-text"
+                data-slot="gauge-legend-value"
+              >
+                {format(part.value)}
+              </span>
             </li>
           ))}
         </ul>

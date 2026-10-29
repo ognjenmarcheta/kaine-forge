@@ -7,6 +7,16 @@
 
 @custom-variant dark (&:where([data-color-mode="dark"], [data-color-mode="dark"] *));
 
+/* A hatched part of a bar (`ProportionBar`, `ProgressBar`): lines 6px apart, leaning like `/`,
+   on no fill. The lines take the text color, so pair it with one: `bg-hatch text-ds-chart-3`. */
+@utility bg-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    currentColor 0 var(--ds-border-width),
+    transparent var(--ds-border-width) var(--ds-space-075)
+  );
+}
+
 :root {
   color: var(--ds-text);
   font-family: var(--ds-font-family-sans);

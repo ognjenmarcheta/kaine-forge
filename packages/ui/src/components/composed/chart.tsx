@@ -17,6 +17,21 @@ import {
 } from "./chart.series";
 import { ChartTable } from "./chart.table";
 import { cn } from "../../lib/cn";
+import {
+  PlotContext,
+  PlotRegistryContext,
+  type PlotContextValue,
+  type PlotRegistry
+} from "../plot/plot.context";
+import {
+  activeOf,
+  keyPick,
+  nextPick,
+  type PlotPick,
+  type PlotPickEvent
+} from "../plot/plot.interaction";
+import { usePrefersReducedMotion, useTween } from "../plot/plot.motion";
+import { PlotTooltip } from "../plot/plot.overlay";
 import { Skeleton } from "../primitives/skeleton";
 
 // Recharts loads on first render, outside the main bundle; each plot shares the one module.
@@ -28,9 +43,6 @@ const BarPlot = React.lazy(() =>
 );
 const DonutPlot = React.lazy(() =>
   import("./chart.recharts").then((module) => ({ default: module.DonutPlot }))
-);
-const RadialPlot = React.lazy(() =>
-  import("./chart.recharts").then((module) => ({ default: module.RadialPlot }))
 );
 const SparklinePlot = React.lazy(() =>
   import("./chart.recharts").then((module) => ({ default: module.SparklinePlot }))
@@ -144,13 +156,29 @@ interface RadialProgressProps extends ChartBaseProps {
   /** Supporting text under the value in the center. */
   label?: string;
   /**
-   * A fixed square ring that fits inline: 40, 48, 64, or 96px, such as `xs` in a stat tile.
-   * The center shows `label` at `lg` only; the data table keeps it at every size. Without it
-   * the ring fills its container at `height`.
+   * A fixed square ring that fits inline: 40, 48, 64, or 96px, such as `xs` in a stat tile, or
+   * a number for a ring that fills a box of that many pixels, such as 28 in a table row. The
+   * center shows `label` from 96px only; the data table keeps it at every size. Without it the
+   * ring fills its container at `height`.
    */
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | number;
   /** The ring color. @defaultValue "chart-1" */
   color?: ChartColor;
+  /** A pale disc of this color inside the ring, such as the ring's own color. */
+  fill?: ChartColor;
+  /** The inner radius as a share of the outer one; lower is a thicker ring. @defaultValue 0.84 */
+  innerRatio?: number;
+  /**
+   * Where the value shows: in the ring, or after it, for a small ring beside its figure in a
+   * row. @defaultValue "inside"
+   */
+  valuePosition?: "inside" | "end";
+  /**
+   * The ring answers the pointer and the keyboard as the charts do (DATA-5): hover, focus, or a
+   * tap grows the arc and shows the title and value beside the ring, and a click or Enter pins
+   * it until Escape. Without it the ring is a still picture, whose value is already in sight.
+   */
+  interaction?: boolean;
 }
 
 interface SparklineProps extends ChartBaseProps {
@@ -306,7 +334,8 @@ function ChartFrame({
     <div
       className={cn(
         "relative rounded-md text-body-sm has-focus-visible:ring-2 has-focus-visible:ring-ds-border-focused [&_svg]:outline-none",
-        legendPosition === "right" && "min-w-ds-0 flex-1"
+        // A plot of fixed width keeps it beside the legend; a fluid one takes the room left.
+        legendPosition === "right" && (width === undefined ? "min-w-ds-0 flex-1" : "shrink-0")
       )}
       style={width === undefined ? { height } : { height, width }}
     >
@@ -555,42 +584,229 @@ const RADIAL_SIZES = {
   lg: { box: 96, value: "text-heading-sm", label: "text-body-xs" }
 } as const;
 
-/** One value out of `max` as a ring; the center shows the value, a percentage by default. */
+/** The center text of a ring `box` pixels wide: that of the largest named size that fits. */
+function radialText(box: number) {
+  if (box >= RADIAL_SIZES.lg.box) return RADIAL_SIZES.lg;
+  if (box >= RADIAL_SIZES.md.box) return RADIAL_SIZES.md;
+  if (box >= RADIAL_SIZES.sm.box) return RADIAL_SIZES.sm;
+  return RADIAL_SIZES.xs;
+}
+
+/**
+ * The ring on a 100-unit square, as the chart library drew it: a band from 82% to 98% of the
+ * radius. A named or fluid ring keeps that library's 5px margin, so it draws as it always has;
+ * a ring of a pixel `size` fills its box.
+ */
+const RING = { center: 50, outer: 49, inner: 41 } as const;
+const RING_MARGIN = 5;
+const RING_TRACK = "var(--ds-chart-grid)";
+/** How much wider the arc draws while active, as a share of the band. */
+const RING_GROWTH = 0.5;
+/** How far past the ring the pointer still finds it, in pixels. */
+const RING_REACH = 6;
+
+/** The width of an element, read at once and kept current. */
+function useBoxWidth(): [number, React.RefCallback<HTMLDivElement>] {
+  const [width, setWidth] = React.useState(0);
+  const measure = React.useCallback((element: HTMLDivElement | null) => {
+    if (element === null) return undefined;
+    setWidth(element.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [width, measure];
+}
+
+/**
+ * One value out of `max` as a ring that fills clockwise from 12 o'clock; the value shows in the
+ * ring, or after it with `valuePosition="end"`, a percentage by default. Plain SVG: a new value
+ * sweeps the arc with the motion tokens and snaps under reduced motion.
+ */
 function RadialProgress({
   className,
   color,
+  fill,
   height = 160,
   hideTitle = false,
+  innerRatio,
+  interaction = false,
   label,
   max = 100,
   size,
   title,
   value,
-  valueFormatter
+  valueFormatter,
+  valuePosition = "inside"
 }: RadialProgressProps) {
   const text = valueFormatter ? valueFormatter(value) : formatShare(value, max);
-  const inline = size === undefined ? undefined : RADIAL_SIZES[size];
+  const box =
+    typeof size === "number" ? size : size === undefined ? undefined : RADIAL_SIZES[size].box;
+  const type = box === undefined ? undefined : radialText(box);
+  const margin = typeof size === "number" ? 0 : RING_MARGIN;
+  const inner =
+    innerRatio === undefined ? RING.inner : RING.outer * Math.min(Math.max(innerRatio, 0), 1);
+  const band = RING.outer - inner;
+  const middle = (RING.outer + inner) / 2;
+
+  const element = React.useRef<SVGSVGElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
+  const target = max > 0 ? Math.min(Math.max(value / max, 0), 1) : 0;
+  const share = useTween([target], { animate: !reducedMotion, element }).values[0] ?? target;
+  const circumference = 2 * Math.PI * middle;
+  // The round ends sit inside the arc's angle, as before: each end takes this angle.
+  const capAngle = Math.asin(Math.min(band / 2 / middle, 1));
+  const arcLength = Math.max(share * 2 * Math.PI - 2 * capAngle, 0) * middle;
+
+  // With `interaction`, the ring is one point that the pointer and the keyboard pick.
+  const [pick, setPick] = React.useState<PlotPick>({ transient: null, selected: null });
+  const active = interaction ? activeOf(pick) : null;
+  const dispatch = (...events: PlotPickEvent[]) =>
+    setPick((current) =>
+      events.reduce((state, event) => nextPick(state, event, { count: 1, mode: "pin" }), current)
+    );
+  const [measured, measure] = useBoxWidth();
+  const sliderElement = React.useRef<HTMLDivElement | null>(null);
+  const sliderRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      sliderElement.current = node;
+      return measure(node);
+    },
+    [measure]
+  );
+  const plotHeight = box ?? height;
+  const plotWidth = box ?? measured;
+  const scale = Math.max(Math.min(plotWidth, plotHeight) - 2 * margin, 0) / 100;
+  const ring = { x: plotWidth / 2, y: plotHeight / 2, outer: RING.outer * scale };
+  const onRing = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const dx = event.clientX - bounds.left - ring.x;
+    const dy = event.clientY - bounds.top - ring.y;
+    return Math.hypot(dx, dy) <= ring.outer + RING_REACH;
+  };
+  const onPointer = (event: React.PointerEvent<HTMLDivElement>) =>
+    dispatch(onRing(event) ? { type: "point", index: 0 } : { type: "leave" });
+  // The tooltip reads the ring as a plot of one point, beside the ring's top right.
+  const plot: PlotContextValue = {
+    width: plotWidth,
+    height: plotHeight,
+    inner: {
+      left: 0,
+      top: 0,
+      right: plotWidth,
+      bottom: plotHeight,
+      width: plotWidth,
+      height: plotHeight
+    },
+    x: undefined,
+    y: undefined,
+    id: "",
+    activeIndex: active,
+    selectedIndex: pick.selected,
+    activeStop: null,
+    highlight: true,
+    animate: !reducedMotion
+  };
+  const registry: PlotRegistry = {
+    element: sliderElement,
+    stopAxis: "ring",
+    wantsStops: null,
+    registerStops: () => undefined,
+    registerRing: () => undefined,
+    anchorOf: () => ({ x: ring.x + ring.outer + 8, y: ring.y - ring.outer })
+  };
+
+  const centerText =
+    type === undefined ? (
+      <CenterText hidden label={label} value={text} />
+    ) : (
+      <CenterText
+        hidden
+        label={type.label === undefined ? undefined : label}
+        value={text}
+        valueClassName={type.value}
+        {...(type.label === undefined ? {} : { labelClassName: type.label })}
+      />
+    );
+  const slider = interaction ? (
+    <div
+      ref={sliderRef}
+      aria-label={title}
+      aria-valuemax={1}
+      aria-valuemin={1}
+      aria-valuenow={1}
+      aria-valuetext={`${title}: ${text}`}
+      // The plot box draws the focus ring around the ring.
+      className="absolute inset-0 touch-pan-y focus-visible:outline-none"
+      role="slider"
+      tabIndex={0}
+      onBlur={() => dispatch({ type: "leave" })}
+      onClick={(event) => {
+        if (onRing(event)) dispatch({ type: "point", index: 0 }, { type: "commit" });
+      }}
+      onFocus={() => dispatch({ type: "focus" })}
+      onKeyDown={(event) => {
+        const pickEvent = keyPick(event.key, "ring");
+        // Escape with nothing to hide stays with the page, such as a dialog that closes on it.
+        if (pickEvent === null || (pickEvent.type === "dismiss" && active === null)) return;
+        event.preventDefault();
+        dispatch(pickEvent);
+      }}
+      onPointerDown={onPointer}
+      onPointerLeave={() => dispatch({ type: "leave" })}
+      onPointerMove={onPointer}
+    >
+      {plotWidth > 0 ? (
+        <PlotContext.Provider value={plot}>
+          <PlotRegistryContext.Provider value={registry}>
+            <PlotTooltip side="right">
+              {() => (
+                <>
+                  <p className="m-0 text-ds-text-subtle">{title}</p>
+                  <p className="m-0 font-medium tabular-nums">{text}</p>
+                </>
+              )}
+            </PlotTooltip>
+          </PlotRegistryContext.Provider>
+        </PlotContext.Provider>
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <ChartFrame
       className={className}
-      height={inline?.box ?? height}
+      height={plotHeight}
       hideTitle={hideTitle}
       plotHidden
       title={title}
-      {...(inline === undefined ? {} : { width: inline.box })}
+      {...(box === undefined ? {} : { width: box })}
+      {...(valuePosition === "end"
+        ? {
+            legendPosition: "right" as const,
+            legend: (
+              // The data table gives the same value to assistive technology.
+              <p
+                aria-hidden="true"
+                className="m-0 flex items-baseline gap-ds-050 tabular-nums"
+                data-slot="radial-progress-value"
+              >
+                <span className="text-body font-medium text-ds-text">{text}</span>
+                {label === undefined ? null : (
+                  <span className="text-body-sm text-ds-text-subtle">{label}</span>
+                )}
+              </p>
+            )
+          }
+        : {})}
       overlay={
-        inline === undefined ? (
-          <CenterText hidden label={label} value={text} />
-        ) : (
-          <CenterText
-            hidden
-            label={inline.label === undefined ? undefined : label}
-            value={text}
-            valueClassName={inline.value}
-            {...(inline.label === undefined ? {} : { labelClassName: inline.label })}
-          />
-        )
+        <>
+          {valuePosition === "inside" ? centerText : null}
+          {slider}
+        </>
       }
       table={
         <ChartTable
@@ -599,7 +815,45 @@ function RadialProgress({
         />
       }
     >
-      <RadialPlot color={color} max={max} value={value} />
+      <svg
+        ref={element}
+        className="block h-full w-full overflow-visible"
+        style={{ padding: margin }}
+        viewBox="0 0 100 100"
+      >
+        {fill === undefined ? null : (
+          <circle
+            cx={RING.center}
+            cy={RING.center}
+            fill={seriesColor(0, fill).color}
+            fillOpacity={0.1}
+            r={Math.max(inner - band / 2, 0)}
+          />
+        )}
+        <circle
+          cx={RING.center}
+          cy={RING.center}
+          fill="none"
+          r={middle}
+          stroke={RING_TRACK}
+          strokeWidth={band}
+        />
+        {share > 0 ? (
+          <circle
+            className="transition-[stroke-width] duration-control ease-standard"
+            cx={RING.center}
+            cy={RING.center}
+            fill="none"
+            r={middle}
+            stroke={seriesColor(0, color).color}
+            strokeDasharray={`${arcLength} ${circumference}`}
+            strokeDashoffset={-capAngle * middle}
+            strokeLinecap="round"
+            strokeWidth={band * (active === null ? 1 : 1 + RING_GROWTH)}
+            transform={`rotate(-90 ${RING.center} ${RING.center})`}
+          />
+        ) : null}
+      </svg>
     </ChartFrame>
   );
 }

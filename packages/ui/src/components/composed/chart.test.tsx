@@ -29,6 +29,7 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const users = (value: number) => `${value} users`;
@@ -304,15 +305,135 @@ describe("BarChart bar colors", () => {
   });
 });
 
-describe("RadialProgress color", () => {
+describe("RadialProgress", () => {
+  const strokesOf = (selector: string) =>
+    Array.from(container.querySelectorAll(selector), (element) => element.getAttribute("stroke"));
+  const arc = () => container.querySelectorAll("svg circle")[1];
+
   it.each<[ChartColor | undefined, string]>([
     [undefined, "var(--ds-chart-1)"],
     ["success", "var(--ds-border-success)"]
-  ])("color=%s draws the ring in %s over the track", async (color, fill) => {
-    await renderPlot(
-      <RadialProgress title="Storage" value={18} max={24} {...(color ? { color } : {})} />
+  ])("color=%s draws the ring in %s over the track", (color, stroke) => {
+    act(() =>
+      root.render(
+        <RadialProgress title="Storage" value={18} max={24} {...(color ? { color } : {})} />
+      )
     );
 
-    expect(fillsOf("svg path")).toEqual(["var(--ds-chart-grid)", fill]);
+    expect(strokesOf("svg circle")).toEqual(["var(--ds-chart-grid)", stroke]);
+  });
+
+  // The ring draws as the chart library drew it: a band from 82% to 98% of the radius, and an
+  // arc from 12 o'clock whose round ends stay inside the share it shows.
+  it.each<[string, { innerRatio?: number }, number, number, string]>([
+    ["the default band", {}, 8, 45, "204.0469 282.7433"],
+    ["a thicker band", { innerRatio: 0.6 }, 19.6, 39.2, "164.9155 246.3009"]
+  ])("draws %s around the share of max", (_, band, width, radius, dashes) => {
+    act(() => root.render(<RadialProgress title="Storage" value={18} max={24} {...band} />));
+
+    const track = container.querySelector("svg circle");
+    expect(Number(track?.getAttribute("stroke-width"))).toBeCloseTo(width);
+    expect(Number(track?.getAttribute("r"))).toBeCloseTo(radius);
+    expect(
+      arc()
+        ?.getAttribute("stroke-dasharray")
+        ?.split(" ")
+        .map((length) => Number(length).toFixed(4))
+        .join(" ")
+    ).toBe(dashes);
+  });
+
+  it.each<[string, "xs" | number, string, string]>([
+    ["a named size keeps its margin", "xs", "40px", "5px"],
+    ["a pixel size fills its box", 28, "28px", "0px"]
+  ])("%s", (_, size, box, margin) => {
+    act(() => root.render(<RadialProgress size={size} title="Storage" value={18} max={24} />));
+
+    const plot = container.querySelector<HTMLElement>("figure > div[style]");
+    expect([plot?.style.width, plot?.style.height]).toEqual([box, box]);
+    expect(container.querySelector<SVGElement>("svg")?.style.padding).toBe(margin);
+  });
+
+  it("puts the value after the ring", () => {
+    act(() =>
+      root.render(
+        <RadialProgress
+          label="used"
+          size={28}
+          title="Storage"
+          value={18}
+          max={24}
+          valuePosition="end"
+        />
+      )
+    );
+
+    expect(container.querySelector('[data-slot="radial-progress-value"]')?.textContent).toBe(
+      "75%used"
+    );
+    // The ring's box holds no text of its own.
+    expect(container.querySelector("figure div[style]")?.textContent).toBe("");
+  });
+
+  it("fills the hole with a pale disc of its color", () => {
+    act(() => root.render(<RadialProgress fill="chart-2" title="Storage" value={18} max={24} />));
+
+    const disc = container.querySelector("svg circle");
+    expect([disc?.getAttribute("fill"), disc?.getAttribute("fill-opacity")]).toEqual([
+      "var(--ds-chart-2)",
+      "0.1"
+    ]);
+  });
+
+  it.each<[boolean | undefined, number]>([
+    [undefined, 0],
+    [true, 1]
+  ])("answers the pointer and the keys only with interaction (%s)", (interaction, sliders) => {
+    act(() =>
+      root.render(
+        <RadialProgress
+          title="Storage"
+          value={18}
+          max={24}
+          {...(interaction === undefined ? {} : { interaction })}
+        />
+      )
+    );
+
+    expect(container.querySelectorAll('[role="slider"]')).toHaveLength(sliders);
+  });
+
+  // DATA-5: the pointer shows the value beside the ring and grows the arc; a click keeps it
+  // after the pointer leaves, and Escape lets it go.
+  it("grows the arc under the pointer, keeps a clicked ring, and lets Escape go", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 40, 40)
+    );
+    act(() =>
+      root.render(<RadialProgress interaction size={40} title="Storage" value={18} max={24} />)
+    );
+    const slider = () => container.querySelector<HTMLElement>('[role="slider"]');
+    const widths: Array<string | null | undefined> = [];
+
+    act(() => {
+      slider()?.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 20, clientY: 20, bubbles: true })
+      );
+    });
+    widths.push(arc()?.getAttribute("stroke-width"));
+    const tooltip = slider()?.textContent;
+    act(() => {
+      slider()?.dispatchEvent(new MouseEvent("click", { clientX: 20, clientY: 20, bubbles: true }));
+      slider()?.dispatchEvent(new MouseEvent("pointerout", { bubbles: true }));
+    });
+    widths.push(arc()?.getAttribute("stroke-width"));
+    act(() => {
+      slider()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    widths.push(arc()?.getAttribute("stroke-width"));
+
+    expect(tooltip).toBe("Storage75%");
+    expect(slider()?.getAttribute("aria-valuetext")).toBe("Storage: 75%");
+    expect(widths).toEqual(["12", "12", "8"]);
   });
 });
