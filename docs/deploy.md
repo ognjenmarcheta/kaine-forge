@@ -67,6 +67,8 @@ Every response carries a `Content-Security-Policy`. Set these space-separated or
 - `CSP_STORAGE_ORIGINS`: the S3 origins that presigned uploads and private-bucket thumbnails use, for example `https://my-bucket.s3.eu-central-1.amazonaws.com`. The default is `http://localhost:9000`, the `docker-compose.yml` storage.
 - `CSP_PUBLIC_ASSET_ORIGINS`: the origin of `S3_PUBLIC_BASE_URL`. The default is `http://localhost:9000`.
 - `CSP_API_ORIGINS`: the API's HTTP and WebSocket origins, for example `https://api.example.com wss://api.example.com`, only when the image is built with a cross-origin `VITE_API_URL`. The default is empty, because the app calls the API on its own origin.
+- `CSP_BILLING_ORIGINS`: with `BILLING_PROVIDER=paddle`, set `https://*.paddle.com` so Paddle.js loads and its overlay checkout opens. The default is empty. Stripe needs nothing, because its checkout is a redirect.
+- `BILLING_PAYMENT_ORIGINS`: the `Permissions-Policy` payment allowlist: `self`, then double-quoted origins, for example `self "https://buy.paddle.com" "https://sandbox-buy.paddle.com"`. Set it to allow wallet payments such as Apple Pay in the Paddle checkout. Keep `self`: a checkout frame gets the payment feature only when the page that embeds it has it too. The default is empty, which blocks the Payment Request API everywhere.
 
 ### Build-time `VITE_*` values
 

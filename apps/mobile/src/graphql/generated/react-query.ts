@@ -8,6 +8,10 @@ import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from "@tan
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 export type AttachmentEntityType = "general" | "todo";
 
+export type BillingPlan = "business" | "free" | "pro" | "unlimited";
+
+export type BillingProviderName = "none" | "paddle" | "stripe";
+
 export type CreateTodoInput = {
   description?: string | null | undefined;
   title: string;
@@ -29,6 +33,9 @@ export type RequestUploadInput = {
   sizeBytes: number;
 };
 
+export type SubscriptionStatus =
+  "active" | "canceled" | "expired" | "incomplete" | "past_due" | "paused" | "trialing" | "unpaid";
+
 export type UpdateTodoInput = {
   completed?: boolean | null | undefined;
   description?: string | null | undefined;
@@ -38,6 +45,19 @@ export type UpdateTodoInput = {
 export type MobileHealthQueryVariables = Exact<{ [key: string]: never }>;
 
 export type MobileHealthQuery = { health: string };
+
+export type GetMobileBillingQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetMobileBillingQuery = {
+  billing: {
+    provider: BillingProviderName;
+    plan: BillingPlan;
+    subscriptionStatus: SubscriptionStatus | null;
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: string | null;
+    limits: Array<{ key: string; max: number | null; used: number }>;
+  };
+};
 
 export type MobileOrganizationThemeQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -327,6 +347,41 @@ export const useMobileHealthQuery = <TData = MobileHealthQuery, TError = unknown
 
 useMobileHealthQuery.getKey = (variables?: MobileHealthQueryVariables) =>
   variables === undefined ? ["MobileHealth"] : ["MobileHealth", variables];
+
+export const GetMobileBillingDocument = new TypedDocumentString(`
+    query GetMobileBilling {
+  billing {
+    provider
+    plan
+    subscriptionStatus
+    cancelAtPeriodEnd
+    currentPeriodEnd
+    limits {
+      key
+      max
+      used
+    }
+  }
+}
+    `);
+
+export const useGetMobileBillingQuery = <TData = GetMobileBillingQuery, TError = unknown>(
+  variables?: GetMobileBillingQueryVariables,
+  options?: Omit<UseQueryOptions<GetMobileBillingQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetMobileBillingQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetMobileBillingQuery, TError, TData>({
+    queryKey: variables === undefined ? ["GetMobileBilling"] : ["GetMobileBilling", variables],
+    queryFn: useGraphqlFetcher<GetMobileBillingQuery, GetMobileBillingQueryVariables>(
+      GetMobileBillingDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useGetMobileBillingQuery.getKey = (variables?: GetMobileBillingQueryVariables) =>
+  variables === undefined ? ["GetMobileBilling"] : ["GetMobileBilling", variables];
 
 export const MobileOrganizationThemeDocument = new TypedDocumentString(`
     query MobileOrganizationTheme {

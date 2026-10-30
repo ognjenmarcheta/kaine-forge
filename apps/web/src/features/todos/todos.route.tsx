@@ -16,13 +16,13 @@ import {
   Textarea
 } from "@repo/ui";
 import { useEffect, useRef, useState } from "react";
-import { useBlocker, useSearchParams } from "react-router-dom";
+import { Link, useBlocker, useSearchParams } from "react-router-dom";
 
 import { TodoFormDialog } from "./components/todo-edit-dialog";
 import { TodoExamples } from "./components/todo-examples";
 import { TodoList } from "./components/todo-list";
 import { useTodoUpload } from "./todos-upload.hook";
-import { useTodos } from "./todos.hook";
+import { PLAN_LIMIT_ERROR_KEY, useTodos } from "./todos.hook";
 import type { TodoDraft } from "./todos.type";
 import { todoStatus, validTodo } from "./todos.util";
 import { ConfirmDialog } from "../../components/confirm-dialog";
@@ -322,9 +322,13 @@ function TodosWorkspace({
         {todos.errors.create ? (
           <div role="alert">
             <p>{t(todos.errors.create)}</p>
-            <Button appearance="subtle" onClick={() => void todos.refresh()}>
-              {t("todos.refresh")}
-            </Button>
+            {todos.errors.create === PLAN_LIMIT_ERROR_KEY ? (
+              <Link to="/organization/billing">{t("billing.viewPlans")}</Link>
+            ) : (
+              <Button appearance="subtle" onClick={() => void todos.refresh()}>
+                {t("todos.refresh")}
+              </Button>
+            )}
           </div>
         ) : null}
         <div className="ui-todos__filters">

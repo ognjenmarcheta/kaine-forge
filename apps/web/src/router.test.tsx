@@ -116,6 +116,7 @@ vi.mock("./features/organizations/organizations.route", async () => {
   return { OrganizationsRoute: () => <Outlet /> };
 });
 vi.mock("./features/organizations/organizations.tabs.route", () => ({
+  OrganizationBillingTab: () => null,
   OrganizationDataTab: () => null,
   OrganizationGeneralTab: () => null,
   OrganizationMembersTab: () => null,

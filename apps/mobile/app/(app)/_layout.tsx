@@ -125,6 +125,10 @@ export default function AppLayout() {
         name="todos/index"
         options={{ drawerLabel: t("navigation.todos"), title: t("navigation.todos") }}
       />
+      <Drawer.Screen
+        name="plan"
+        options={{ drawerLabel: t("navigation.billing"), title: t("navigation.billing") }}
+      />
       <Drawer.Protected guard={organizationsVisible}>
         <Drawer.Screen
           name="members"

@@ -22,6 +22,10 @@ import {
 import { useLiveTodos } from "../../hooks/use-live-list";
 import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
 import { queryRuntime } from "../../lib/query-runtime";
+import { planErrorOf } from "../billing/billing.hook";
+
+/** The error key of a Todo create refused by the Plan's todo limit. */
+export const PLAN_LIMIT_ERROR_KEY = "billing.limitReached.todos";
 
 queryRuntime.registerOrgScopedOperation("todos.web.list", useGetTodosQuery.getKey());
 const detailPrefix = useGetTodoQuery.getKey({ id: "" }).slice(0, 1);
@@ -165,8 +169,10 @@ export function useTodos(
       // A successful write stays successful if refreshing the list fails.
       void refresh().catch(() => undefined);
       return result;
-    } catch {
-      if (alive.current) setErrors((current) => ({ ...current, [key]: errorKey }));
+    } catch (error) {
+      // A refusal by the Plan is certain and names its fix; other failures may have written.
+      const shown = planErrorOf(error) === "PLAN_LIMIT_REACHED" ? PLAN_LIMIT_ERROR_KEY : errorKey;
+      if (alive.current) setErrors((current) => ({ ...current, [key]: shown }));
       return undefined;
     } finally {
       locks.current.delete(key);

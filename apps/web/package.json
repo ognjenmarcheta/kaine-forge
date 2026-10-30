@@ -17,6 +17,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@paddle/paddle-js": "catalog:",
     "@graphql-typed-document-node/core": "catalog:",
     "@marsidev/react-turnstile": "1.6.3",
     "@repo/auth": "workspace:*",

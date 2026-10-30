@@ -1,0 +1,31 @@
+query Billing {
+  billing {
+    provider
+    clientConfig {
+      clientToken
+      environment
+    }
+    plan
+    subscriptionStatus
+    cancelAtPeriodEnd
+    currentPeriodEnd
+    features
+    limits {
+      key
+      max
+      used
+    }
+  }
+}
+
+mutation StartCheckout($plan: BillingPlan!, $interval: BillingInterval!) {
+  startCheckout(plan: $plan, interval: $interval) {
+    mode
+    url
+    transactionId
+  }
+}
+
+mutation OpenBillingPortal {
+  openBillingPortal
+}
