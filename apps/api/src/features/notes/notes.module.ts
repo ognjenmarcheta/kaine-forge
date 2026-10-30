@@ -3,6 +3,7 @@ import type { Note } from "@repo/db";
 import {
   countNotesByScope,
   createNote,
+  createNoteWithId,
   deleteNote,
   getNoteById,
   listNotesByScope,
@@ -34,7 +35,11 @@ export interface Notes {
   get: (id: string) => Promise<Note | null>;
   /** How many Notes are in the scope. */
   count: () => Promise<number>;
-  /** Throws `note title is required`/`too long` before any write. */
+  /**
+   * Throws `note title is required`/`too long` before any write. With an `id`,
+   * an existing Note by the same author is returned unchanged and unpublished;
+   * any other row with it throws `note id conflict`.
+   */
   create: (input: CreateNoteInput) => Promise<Note>;
   /** Throws `note not found` when no Note with this id is in the scope. */
   update: (id: string, input: UpdateNoteInput) => Promise<Note>;
@@ -49,10 +54,26 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
     count: () => countNotesByScope(data),
     async create(input) {
       data.authorize("note:create");
-      const note = await createNote(data, {
+      const fields = {
         title: ensureNoteTitle(input.title),
         body: parseOptionalBody(input.body ?? null)
-      });
+      };
+
+      if (input.id !== undefined) {
+        const inserted = await createNoteWithId(data, { ...fields, id: input.id });
+        if (!inserted) {
+          // The same author creating the same id again is a replayed push.
+          const existing = await getNoteById(data, input.id);
+          if (existing?.userId === data.stamp("userId").userId) {
+            return existing;
+          }
+          throw new Error("note id conflict");
+        }
+        publish("note:created", inserted);
+        return inserted;
+      }
+
+      const note = await createNote(data, fields);
       publish("note:created", note);
       return note;
     },

@@ -56,7 +56,9 @@ export interface Todos {
   listByNoteIds: (noteIds: readonly string[]) => Promise<Todo[]>;
   /**
    * Throws `todo title is required`/`too long`, `note not found` for a Note
-   * outside the scope, or a PLAN_LIMIT_REACHED error past the Plan's todo limit.
+   * outside the scope, or a PLAN_LIMIT_REACHED error past the Plan's todo
+   * limit. With an `id`, an existing Todo by the same author is returned
+   * unchanged and unpublished; any other row with it throws `todo id conflict`.
    */
   create: (input: CreateTodoInput) => Promise<Todo>;
   /** Throws `todo not found` when no Todo with this id is in the scope. */
@@ -144,19 +146,39 @@ export function createTodos({ attachments, data, logger, plan, publish }: TodoMo
 
       // Counted and inserted under the limit's lock, so two parallel creates
       // cannot both take a cap's last slot.
-      const todo = await plan.withinLimit("todos", countTodos, async (tx) => {
-        const todos = await tx
+      const { todo, created } = await plan.withinLimit("todos", countTodos, async (tx) => {
+        const values = { ...tx.stamp("userId"), title, description, completed: false, noteId };
+
+        if (input.id === undefined) {
+          const todos = await tx.insert(todosTable).values(values).returning();
+          return { todo: todos[0], created: true };
+        }
+
+        const inserted = await tx
           .insert(todosTable)
-          .values({ ...tx.stamp("userId"), title, description, completed: false, noteId })
+          .values({ ...values, id: input.id })
+          .onConflictDoNothing({ target: todosTable.id })
           .returning();
-        return todos[0];
+
+        if (inserted[0]) {
+          return { todo: inserted[0], created: true };
+        }
+
+        // The same author creating the same id again is a replayed push.
+        const existing = await tx.selectFrom(todosTable, eq(todosTable.id, input.id)).limit(1);
+        if (existing[0]?.userId === values.userId) {
+          return { todo: existing[0], created: false };
+        }
+        throw new Error("todo id conflict");
       });
 
       if (!todo) {
         throw new Error("failed to create todo");
       }
 
-      publish("todo:created", todo);
+      if (created) {
+        publish("todo:created", todo);
+      }
       return todo;
     },
     async update(id, input) {

@@ -35,6 +35,7 @@ import {
 } from "./features/public-assets/public-assets.module";
 import { createAttachments, type Attachments } from "./features/storage/attachment.module";
 import { publicAssetStorage, s3ObjectStore } from "./features/storage/attachment.store";
+import { createSync, type Sync } from "./features/sync/sync.module";
 import { countTodos, createTodos, type Todos } from "./features/todos/todos.module";
 import {
   createWebhookDispatcher,
@@ -57,6 +58,7 @@ export interface ApiContext {
   data: ScopedData;
   todos: Todos;
   notes: Notes;
+  sync: Sync;
   attachments: Attachments;
   auditEvents: AuditEvents;
   /** The Active Organization's Plan: Entitlements, limits, and status. */
@@ -158,17 +160,50 @@ export async function createContextFromHeaders(
     recordAuditEvent,
     store: s3ObjectStore
   });
-  const billing = createBilling({
-    data,
-    db,
-    provider: billingProvider,
-    prices: billingPrices,
-    requireOrganizationScope,
-    recordAuditEvent,
-    webAppUrl: process.env.WEB_APP_URL,
-    usage: { todos: () => countTodos(data) }
-  });
+  // One per ScopedData: a sync push needs plan limits inside its own savepoint.
+  const billingFor = (scoped: ScopedData) =>
+    createBilling({
+      data: scoped,
+      db,
+      provider: billingProvider,
+      prices: billingPrices,
+      requireOrganizationScope,
+      recordAuditEvent,
+      webAppUrl: process.env.WEB_APP_URL,
+      usage: { todos: () => countTodos(scoped) }
+    });
+  const billing = billingFor(data);
   const todos = createTodos({ attachments, data, logger: contextLogger, plan: billing, publish });
+  const sync = createSync({
+    db,
+    data,
+    requireOrganizationScope,
+    publish,
+    createWriters: ({ data: savepointData, publish: publishAfterCommit, defer }) => {
+      const savepointAttachments = createAttachments({
+        data: savepointData,
+        logger: contextLogger,
+        recordAuditEvent,
+        store: s3ObjectStore
+      });
+      return {
+        todos: createTodos({
+          // Objects are deleted only once the push commits.
+          attachments: {
+            detach: async (todoId) => {
+              const { purge } = await savepointAttachments.detach(todoId);
+              return { purge: async () => defer(purge) };
+            }
+          },
+          data: savepointData,
+          logger: contextLogger,
+          plan: billingFor(savepointData),
+          publish: publishAfterCommit
+        }),
+        notes: createNotes({ data: savepointData, publish: publishAfterCommit })
+      };
+    }
+  });
 
   return {
     auth,
@@ -181,6 +216,7 @@ export async function createContextFromHeaders(
     data,
     todos,
     notes: createNotes({ data, publish }),
+    sync,
     attachments,
     billing,
     auditEvents: createAuditEvents({ data, db, requireOrganizationScope }),

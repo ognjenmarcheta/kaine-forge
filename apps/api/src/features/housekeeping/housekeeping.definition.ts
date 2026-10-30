@@ -7,14 +7,17 @@ export const HOUSEKEEPING_CONFIG = {
   /**
    * Retention windows in days, each overridable by its environment variable
    * (`.env.example`). Purged Attachment rows, failed and expired data exports,
-   * Audit Events, Notifications, and webhook delivery log rows.
+   * Audit Events, Notifications, webhook delivery log rows, sync Tombstones,
+   * and sync push receipts.
    */
   retentionDays: {
     purgedFiles: 30,
     dataExports: 30,
     auditEvents: 365,
     notifications: 90,
-    webhookDeliveries: 30
+    webhookDeliveries: 30,
+    syncTombstones: 90,
+    syncReceipts: 30
   },
   /**
    * How long a processed billing webhook event id stays. Providers stop

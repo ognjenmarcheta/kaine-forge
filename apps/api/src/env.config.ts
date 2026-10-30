@@ -116,6 +116,14 @@ const apiEnvSchema = z.object({
     blankAsUnset,
     z.coerce.number().int().positive().optional()
   ),
+  RETENTION_SYNC_TOMBSTONES_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
+  RETENTION_SYNC_RECEIPTS_DAYS: z.preprocess(
+    blankAsUnset,
+    z.coerce.number().int().positive().optional()
+  ),
   DATA_EXPORT_ARCHIVE_DAYS: z.preprocess(
     blankAsUnset,
     z.coerce.number().int().positive().optional()

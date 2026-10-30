@@ -1,4 +1,6 @@
 export interface CreateTodoInput {
+  /** Internal only — a client-generated id from a sync push. */
+  id?: string | undefined;
   title: string;
   description?: string | null;
   /** Internal only — never part of the GraphQL CreateTodoInput. */

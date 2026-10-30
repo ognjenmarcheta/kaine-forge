@@ -142,9 +142,11 @@ function placeholderValue(type: GraphQLInputType): string {
   const named = getNamedType(type);
 
   if (isInputObjectType(named)) {
-    const fields = Object.values(named.getFields())
-      .filter((field) => isNonNullType(field.type))
-      .map((field) => `${field.name}: ${placeholderValue(field.type)}`);
+    const all = Object.values(named.getFields());
+    // A @oneOf input takes exactly one of its fields, all of them optional.
+    const fields = (named.isOneOf ? all.slice(0, 1) : all.filter((f) => isNonNullType(f.type))).map(
+      (field) => `${field.name}: ${placeholderValue(field.type)}`
+    );
     return `{ ${fields.join(", ")} }`;
   }
 

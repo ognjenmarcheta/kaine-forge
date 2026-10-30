@@ -14,6 +14,7 @@ export * from "./organization-roles.schema";
 export * from "./organizations.schema";
 export * from "./passkeys.schema";
 export * from "./sessions.schema";
+export * from "./sync.schema";
 export * from "./todos.schema";
 export * from "./two-factors.schema";
 export * from "./users.schema";

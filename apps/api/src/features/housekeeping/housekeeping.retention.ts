@@ -4,6 +4,9 @@ import {
   dataExportsTable,
   filesTable,
   notificationsTable,
+  organizationSyncVersionsTable,
+  syncMutationReceiptsTable,
+  syncTombstonesTable,
   webhookDeliveriesTable
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
@@ -25,6 +28,10 @@ export interface RetentionWindows {
   purgedFilesMs: number;
   /** Webhook delivery log rows, by attempt time. */
   webhookDeliveriesMs: number;
+  /** Sync Tombstones, by delete time. */
+  syncTombstonesMs: number;
+  /** Sync push receipts, by push time. */
+  syncReceiptsMs: number;
 }
 
 type RetentionCounts = Record<
@@ -33,6 +40,8 @@ type RetentionCounts = Record<
   | "notifications"
   | "webhookDeliveries"
   | "billingEvents"
+  | "syncTombstones"
+  | "syncReceipts"
   | "stalledExports"
   | "exportArchives"
   | "dataExports",
@@ -131,6 +140,75 @@ function retentionPurges(now: Date, windows: RetentionWindows): Array<[RowPurgeN
             inArray(sql`(${billingEventsTable.provider}, ${billingEventsTable.eventId})`, expired)
           )
           .returning({ eventId: billingEventsTable.eventId });
+        return rows.length;
+      }
+    ],
+    [
+      "syncTombstones",
+      // A client whose cursor predates a removed Tombstone could miss that
+      // delete, so each Organization records the highest version removed and
+      // a sync pull from below it resets the client (sync.module.ts).
+      async (tx, limit) => {
+        const expired = tx
+          .select({
+            organizationId: syncTombstonesTable.organizationId,
+            entity: syncTombstonesTable.entity,
+            entityId: syncTombstonesTable.entityId
+          })
+          .from(syncTombstonesTable)
+          .where(lt(syncTombstonesTable.deletedAt, cutoff(now, windows.syncTombstonesMs)))
+          .limit(limit);
+        const rows = await tx
+          .delete(syncTombstonesTable)
+          .where(
+            inArray(
+              sql`(${syncTombstonesTable.organizationId}, ${syncTombstonesTable.entity}, ${syncTombstonesTable.entityId})`,
+              expired
+            )
+          )
+          .returning({
+            organizationId: syncTombstonesTable.organizationId,
+            syncVersion: syncTombstonesTable.syncVersion
+          });
+        const removedThrough = new Map<string, number>();
+        for (const row of rows) {
+          removedThrough.set(
+            row.organizationId,
+            Math.max(row.syncVersion, removedThrough.get(row.organizationId) ?? 0)
+          );
+        }
+        for (const [organizationId, version] of removedThrough) {
+          await tx
+            .update(organizationSyncVersionsTable)
+            .set({
+              prunedThrough: sql`greatest(${organizationSyncVersionsTable.prunedThrough}, ${version})`
+            })
+            .where(eq(organizationSyncVersionsTable.organizationId, organizationId));
+        }
+        return rows.length;
+      }
+    ],
+    [
+      "syncReceipts",
+      async (tx, limit) => {
+        const expired = tx
+          .select({
+            organizationId: syncMutationReceiptsTable.organizationId,
+            userId: syncMutationReceiptsTable.userId,
+            idempotencyKey: syncMutationReceiptsTable.idempotencyKey
+          })
+          .from(syncMutationReceiptsTable)
+          .where(lt(syncMutationReceiptsTable.createdAt, cutoff(now, windows.syncReceiptsMs)))
+          .limit(limit);
+        const rows = await tx
+          .delete(syncMutationReceiptsTable)
+          .where(
+            inArray(
+              sql`(${syncMutationReceiptsTable.organizationId}, ${syncMutationReceiptsTable.userId}, ${syncMutationReceiptsTable.idempotencyKey})`,
+              expired
+            )
+          )
+          .returning({ key: syncMutationReceiptsTable.idempotencyKey });
         return rows.length;
       }
     ],

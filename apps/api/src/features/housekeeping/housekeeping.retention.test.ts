@@ -4,13 +4,16 @@ import {
   dataExportsTable,
   filesTable,
   notificationsTable,
+  organizationSyncVersionsTable,
   organizationsTable,
+  syncMutationReceiptsTable,
+  syncTombstonesTable,
   usersTable,
   webhookDeliveriesTable,
   webhookEndpointsTable
 } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { applyRetention, type RetentionWindows } from "./housekeeping.retention";
@@ -33,7 +36,9 @@ const windows: RetentionWindows = {
   dataExportsMs: 30 * day,
   notificationsMs: 90 * day,
   purgedFilesMs: 30 * day,
-  webhookDeliveriesMs: 30 * day
+  webhookDeliveriesMs: 30 * day,
+  syncTombstonesMs: 90 * day,
+  syncReceiptsMs: 30 * day
 };
 
 beforeAll(async () => {
@@ -70,6 +75,8 @@ beforeEach(async () => {
   await database.db.delete(webhookDeliveriesTable);
   await database.db.delete(billingEventsTable);
   await database.db.delete(dataExportsTable);
+  await database.db.delete(syncTombstonesTable);
+  await database.db.delete(syncMutationReceiptsTable);
   warnings.length = 0;
 });
 
@@ -242,6 +249,8 @@ describe("applyRetention", () => {
       notifications: 1,
       webhookDeliveries: 1,
       billingEvents: 1,
+      syncTombstones: 0,
+      syncReceipts: 0,
       stalledExports: 1,
       exportArchives: 2,
       dataExports: 2
@@ -262,6 +271,81 @@ describe("applyRetention", () => {
       ]
     });
     expect(store.keys()).toEqual(["exports/users/live-archive.zip"]);
+  });
+
+  it("removes old sync Tombstones and receipts, and records the highest version removed", async () => {
+    await database.db
+      .insert(organizationSyncVersionsTable)
+      .values({ organizationId: orgId, version: 30 })
+      .onConflictDoUpdate({
+        target: organizationSyncVersionsTable.organizationId,
+        set: { version: 30, prunedThrough: 0 }
+      });
+    await database.db.insert(syncTombstonesTable).values([
+      {
+        organizationId: orgId,
+        entity: "todo",
+        entityId: crypto.randomUUID(),
+        syncVersion: 10,
+        deletedAt: at(-92 * day)
+      },
+      {
+        organizationId: orgId,
+        entity: "note",
+        entityId: crypto.randomUUID(),
+        syncVersion: 12,
+        deletedAt: at(-91 * day)
+      },
+      {
+        organizationId: orgId,
+        entity: "todo",
+        entityId: crypto.randomUUID(),
+        syncVersion: 20,
+        deletedAt: at(-89 * day)
+      }
+    ]);
+    await database.db.insert(syncMutationReceiptsTable).values([
+      {
+        organizationId: orgId,
+        userId,
+        idempotencyKey: "old",
+        result: [],
+        createdAt: at(-31 * day)
+      },
+      {
+        organizationId: orgId,
+        userId,
+        idempotencyKey: "recent",
+        result: [],
+        createdAt: at(-29 * day)
+      }
+    ]);
+
+    await expect(
+      applyRetention({
+        db: database.db,
+        store: createMemoryObjectStore(),
+        now,
+        windows,
+        batchSize: 1,
+        logger
+      })
+    ).resolves.toMatchObject({ syncTombstones: 2, syncReceipts: 1 });
+
+    const tombstones = await database.db
+      .select({ syncVersion: syncTombstonesTable.syncVersion })
+      .from(syncTombstonesTable);
+    const receipts = await database.db
+      .select({ key: syncMutationReceiptsTable.idempotencyKey })
+      .from(syncMutationReceiptsTable);
+    const [state] = await database.db
+      .select({ prunedThrough: organizationSyncVersionsTable.prunedThrough })
+      .from(organizationSyncVersionsTable)
+      .where(eq(organizationSyncVersionsTable.organizationId, orgId));
+    expect(tombstones).toEqual([{ syncVersion: 20 }]);
+    expect(receipts).toEqual([{ key: "recent" }]);
+    // Across two batches: the second batch's lower version must not lower it.
+    expect(state?.prunedThrough).toBe(12);
   });
 
   it("deletes nothing while another replica holds the housekeeping lock", async () => {
@@ -294,6 +378,8 @@ describe("applyRetention", () => {
         notifications: 0,
         webhookDeliveries: 0,
         billingEvents: 0,
+        syncTombstones: 0,
+        syncReceipts: 0,
         stalledExports: 0,
         exportArchives: 0,
         dataExports: 0

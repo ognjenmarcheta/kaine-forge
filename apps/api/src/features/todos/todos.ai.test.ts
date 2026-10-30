@@ -9,6 +9,7 @@ const todo = {
   id: "todo-1",
   noteId: null,
   organizationId: "org-1",
+  syncVersion: 0,
   title: "New Todo",
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   userId: "user-1"
