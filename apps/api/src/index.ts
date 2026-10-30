@@ -52,6 +52,11 @@ const { purgeExpiredAuthRows, startHousekeeping } =
   await import("./features/housekeeping/housekeeping.sweep");
 const { applyRetention } = await import("./features/housekeeping/housekeeping.retention");
 const { resolveHousekeepingConfig } = await import("./features/housekeeping/housekeeping.config");
+const { BILLING_CONFIG } = await import("./features/billing/billing.definition");
+const { billingProvider } = await import("./features/billing/billing.provider");
+const { createSeatSync, startSeatReconcile } = await import("./features/billing/billing.seats");
+const { cancelOrganizationSubscriptions } = await import("./features/billing/billing.cancel");
+const { setBillingHooks } = await import("@repo/auth/billing");
 const { createApiJobHandlers, queueEmail } = await import("./api.jobs");
 
 const { server, subscriptions, wsServer } = await startApiRuntime({
@@ -170,6 +175,24 @@ if (housekeeping) {
           logger
         }))
       })
+    })
+  );
+}
+
+if (billingProvider.name !== "none") {
+  setBillingHooks({
+    syncSeats: (organizationId) => {
+      // The queue logs its own enqueue failures; reconcile repairs a lost sync.
+      void jobQueue.enqueue("billing.syncSeats", { organizationId }).catch(() => undefined);
+    },
+    cancelSubscriptions: (organizationIds) =>
+      cancelOrganizationSubscriptions({ db, provider: billingProvider, logger }, organizationIds)
+  });
+  stopBackgroundWork.push(
+    startSeatReconcile({
+      intervalMs: BILLING_CONFIG.seatReconcileIntervalMs,
+      logger,
+      reconcile: createSeatSync({ db, provider: billingProvider, logger }).reconcile
     })
   );
 }

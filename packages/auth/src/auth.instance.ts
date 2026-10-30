@@ -50,6 +50,7 @@ import { z } from "zod";
 import { API_KEY_HTTP_PATHS, apiKeyPlugin } from "./auth.api-key";
 import { currentAuditRequest, recordAuditEvent } from "./auth.audit";
 import { auditPlugin } from "./auth.audit.plugin";
+import { cancelBillingSubscriptions, syncBillingSeats } from "./auth.billing";
 import {
   assertProductionAuthSecret,
   buildAccountDeletionUrl,
@@ -742,6 +743,20 @@ function refuseCustomRoleDefinition(fields: Record<string, unknown>): void {
 // Server-side rules on top of the organization plugin's own role checks: the
 // Active Organization comes from the session, a Personal Organization cannot
 // be deleted or left, and ownership moves only through the transfer endpoint.
+async function cancelBillingSubscriptionsOrRefuse(
+  organizationIds: readonly string[]
+): Promise<void> {
+  try {
+    await cancelBillingSubscriptions(organizationIds);
+  } catch {
+    // The billing hook logs the provider's error; the client gets a retryable refusal.
+    throw APIError.from("SERVICE_UNAVAILABLE", {
+      code: "BILLING_CANCEL_FAILED",
+      message: "The organization's subscription could not be canceled. Try again."
+    });
+  }
+}
+
 const organizationGuardHook = createAuthMiddleware(async (ctx) => {
   if (!ACTIVE_ORGANIZATION_PATHS.has(ctx.path)) {
     return;
@@ -1148,7 +1163,7 @@ export function createAuthInstance() {
           );
         },
         beforeDelete: async (user) => {
-          const refusal = await prepareAccountDeletion(user.id);
+          const refusal = await prepareAccountDeletion(user.id, cancelBillingSubscriptionsOrRefuse);
 
           if (refusal) {
             throw refuseAccountDeletion(refusal);
@@ -1372,6 +1387,22 @@ export function createAuthInstance() {
           beforeCreateOrganization: async ({ organization: organizationData, user }) => ({
             data: { ...organizationData, userId: user.id }
           }),
+          // A per-seat Plan bills each member. Leaving fires no hook here; the
+          // API's seat reconcile corrects that and any other missed change.
+          afterAddMember: async ({ organization }) => {
+            syncBillingSeats(organization.id);
+          },
+          afterAcceptInvitation: async ({ organization }) => {
+            syncBillingSeats(organization.id);
+          },
+          afterRemoveMember: async ({ organization }) => {
+            syncBillingSeats(organization.id);
+          },
+          // A deleted Organization must never be billed again, so the delete
+          // waits for the provider to cancel and fails when it cannot.
+          beforeDeleteOrganization: async ({ organization }) => {
+            await cancelBillingSubscriptionsOrRefuse([organization.id]);
+          },
           afterUpdateMemberRole: async ({ member, previousRole, organization: changed }) => {
             if (member.role !== previousRole) {
               notifyRoleChanged(config.webAppUrl, {
