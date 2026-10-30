@@ -1,12 +1,13 @@
 import {
   auditEventsTable,
+  billingEventsTable,
   dataExportsTable,
   filesTable,
   notificationsTable,
   webhookDeliveriesTable
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
-import { and, asc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import { HOUSEKEEPING_CONFIG } from "./housekeeping.definition";
 import { runBatchPurges, withHousekeepingLock, type BatchPurge } from "./housekeeping.sweep";
@@ -31,6 +32,7 @@ type RetentionCounts = Record<
   | "auditEvents"
   | "notifications"
   | "webhookDeliveries"
+  | "billingEvents"
   | "stalledExports"
   | "exportArchives"
   | "dataExports",
@@ -107,6 +109,28 @@ function retentionPurges(now: Date, windows: RetentionWindows): Array<[RowPurgeN
           .delete(webhookDeliveriesTable)
           .where(inArray(webhookDeliveriesTable.id, expired))
           .returning({ id: webhookDeliveriesTable.id });
+        return rows.length;
+      }
+    ],
+    [
+      "billingEvents",
+      async (tx, limit) => {
+        const expired = tx
+          .select({ provider: billingEventsTable.provider, eventId: billingEventsTable.eventId })
+          .from(billingEventsTable)
+          .where(
+            lt(
+              billingEventsTable.receivedAt,
+              cutoff(now, HOUSEKEEPING_CONFIG.billingEventRetentionMs)
+            )
+          )
+          .limit(limit);
+        const rows = await tx
+          .delete(billingEventsTable)
+          .where(
+            inArray(sql`(${billingEventsTable.provider}, ${billingEventsTable.eventId})`, expired)
+          )
+          .returning({ eventId: billingEventsTable.eventId });
         return rows.length;
       }
     ],

@@ -13,6 +13,7 @@ import { WebSocketServer } from "ws";
 
 import { createContext, createContextFromHeaders, type ApiKeyRequest } from "./context";
 import { API_KEYS_CONFIG } from "./features/api-keys/api-keys.definition";
+import { handleBillingWebhookRoute } from "./features/billing/billing.webhook.router";
 import { handleHealthRoute } from "./features/health/health.router";
 import { formatApiError } from "./middleware/error.middleware";
 import {
@@ -241,6 +242,10 @@ export function createApiServer({
       const handledHealth = await handleHealthRoute({ req, res });
 
       if (handledHealth) {
+        return;
+      }
+
+      if (await handleBillingWebhookRoute({ req, res, pathname })) {
         return;
       }
 

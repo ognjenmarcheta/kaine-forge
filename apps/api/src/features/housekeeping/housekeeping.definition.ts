@@ -16,6 +16,11 @@ export const HOUSEKEEPING_CONFIG = {
     notifications: 90,
     webhookDeliveries: 30
   },
+  /**
+   * How long a processed billing webhook event id stays. Providers stop
+   * redelivering an event after about three days; the id only dedupes.
+   */
+  billingEventRetentionMs: 30 * 24 * 60 * 60 * 1000,
   /** A data export pending or running this long lost its job; housekeeping fails it. */
   stalledExportMs: 24 * 60 * 60 * 1000,
   /** pg advisory lock key, distinct from the storage sweep and migration keys. */

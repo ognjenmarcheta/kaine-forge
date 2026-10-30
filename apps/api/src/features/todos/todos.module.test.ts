@@ -24,7 +24,7 @@ import {
 import { countTodos, createTodos, type TodoAttachments, type Todos } from "./todos.module";
 import { createScopedData, type ScopedData } from "../../context.data";
 import type { PubSubEventMap } from "../../pubsub";
-import { createBilling } from "../billing/billing.module";
+import { createTestBilling, fakeBillingProvider } from "../billing/billing.test-helpers";
 import { createAttachments } from "../storage/attachment.module";
 import { createMemoryObjectStore } from "../storage/attachment.store.memory";
 
@@ -52,7 +52,12 @@ function todosWith(attachments?: TodoAttachments): Todos {
     data,
     logger,
     // Billing off: the 61 fixture Todos are past the free limit, and no limit applies.
-    plan: createBilling({ data, provider: "none", usage: { todos: () => countTodos(data) } }),
+    plan: createTestBilling({
+      data,
+      db: database.db,
+      requireOrganizationScope: () => scope,
+      usage: { todos: () => countTodos(data) }
+    }),
     publish: (eventName, ...payload) => {
       events.push([eventName, ...payload]);
     }
@@ -76,18 +81,18 @@ async function freePlanTodos(
       userId: scope.userId
     }))
   );
-  const freeData = createScopedData({
-    db,
-    requireOrganizationScope: () => ({ ...scope, organizationId: organization.id })
-  });
+  const freeScope = { ...scope, organizationId: organization.id };
+  const freeData = createScopedData({ db, requireOrganizationScope: () => freeScope });
   const todos = createTodos({
     attachments: { detach: () => Promise.resolve({ purge: () => Promise.resolve() }) },
     data: freeData,
     logger,
     // A provider is set and the Organization has no subscription: the free Plan.
-    plan: createBilling({
+    plan: createTestBilling({
       data: freeData,
-      provider: "stripe",
+      db,
+      provider: fakeBillingProvider("stripe"),
+      requireOrganizationScope: () => freeScope,
       usage: { todos: () => countTodos(freeData) }
     }),
     publish: () => {}
