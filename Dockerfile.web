@@ -56,7 +56,7 @@ ENV CSP_STORAGE_ORIGINS=http://localhost:9000
 ENV CSP_PUBLIC_ASSET_ORIGINS=http://localhost:9000
 # CSP_BILLING_ORIGINS: Paddle.js and its checkout frames with BILLING_PROVIDER=paddle.
 ENV CSP_BILLING_ORIGINS=""
-# BILLING_PAYMENT_ORIGINS: double-quoted origins allowed wallet payments in a checkout frame.
+# BILLING_PAYMENT_ORIGINS: self plus double-quoted checkout frame origins allowed wallet payments.
 ENV BILLING_PAYMENT_ORIGINS=""
 
 EXPOSE 3000

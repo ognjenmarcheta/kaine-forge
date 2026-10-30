@@ -15,6 +15,8 @@ The catalog lives in code, in `packages/billing/src/billing.definition.ts`:
 
 The provider owns the prices. Set one price ID for each Plan and interval you sell: `BILLING_PRICE_PRO_MONTH`, `BILLING_PRICE_PRO_YEAR`, `BILLING_PRICE_BUSINESS_MONTH`, `BILLING_PRICE_BUSINESS_YEAR`. A webhook for any other price answers 500 and logs `price ... is not in the billing catalog`. Add the missing variable, and the provider's retry stores the subscription.
 
+The catalog holds **one price ID for each Plan and interval**. Do not replace a mapping while subscriptions still use the old price: their webhooks would then fail with the error above. Move those subscriptions to the new price at the provider first, or extend `resolvePriceCatalog` (`packages/billing/src/billing.prices.ts`) to accept both prices.
+
 ## Stripe
 
 1. Create the products and prices. Set the `BILLING_PRICE_*` variables to the price IDs.
@@ -34,7 +36,8 @@ stripe listen --forward-to localhost:4000/api/billing/webhooks/stripe
 2. Set `BILLING_PROVIDER=paddle`, `PADDLE_API_KEY`, `PADDLE_CLIENT_TOKEN`, `PADDLE_ENVIRONMENT` (`sandbox` or `production`), and `WEB_APP_URL`. Approve the web app's domain in Paddle.
 3. Create a notification destination at `<API_URL>/api/billing/webhooks/paddle` with the `subscription.*` and `transaction.completed` events. Set `PADDLE_WEBHOOK_SECRET` to its secret.
 4. **Turn off quantity changes** in the customer portal for the per-seat Plan.
-5. On the web image, set `CSP_BILLING_ORIGINS=https://*.paddle.com`. To allow wallet payments in the checkout, also set `BILLING_PAYMENT_ORIGINS` (see `docs/deploy.md`).
+5. In Checkout settings, set the **default payment link** to the web app's home page, in sandbox and in production. Paddle refuses to create a checkout transaction without it, and it accepts the production link only after it approves the domain.
+6. On the web image, set `CSP_BILLING_ORIGINS=https://*.paddle.com`. To allow wallet payments in the checkout, also set `BILLING_PAYMENT_ORIGINS` to `self "https://buy.paddle.com" "https://sandbox-buy.paddle.com"` (see `docs/deploy.md`).
 
 Paddle keeps one customer per email address, so an owner's Organizations share one Paddle customer, and each has its own subscription. Paddle cannot reach `localhost`: test webhooks through a tunnel, or with the webhook simulator in the Paddle dashboard.
 

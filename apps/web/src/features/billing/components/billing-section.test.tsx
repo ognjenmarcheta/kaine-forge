@@ -9,7 +9,8 @@ import { BillingSection } from "./billing-section";
 
 const api = vi.hoisted(() => ({
   billing: {} as Record<string, unknown>,
-  checkouts: [] as unknown[]
+  checkouts: [] as unknown[],
+  reads: 0
 }));
 
 const FREE = {
@@ -44,7 +45,10 @@ vi.mock("../../../lib/graphql-codegen-fetcher", () => ({
       return () => Promise.resolve({ openBillingPortal: "https://portal.example/session" });
     }
 
-    return () => Promise.resolve({ billing: api.billing });
+    return () => {
+      api.reads += 1;
+      return Promise.resolve({ billing: api.billing });
+    };
   }
 }));
 vi.mock("../../../hooks/use-translation", () => ({
@@ -68,17 +72,22 @@ afterEach(async () => {
   client.clear();
   container.remove();
   api.checkouts = [];
+  api.reads = 0;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-async function render(billing: Record<string, unknown>, canManage: boolean) {
+async function render(
+  billing: Record<string, unknown>,
+  canManage: boolean,
+  organizationId: string | null = "org-1"
+) {
   api.billing = billing;
   await act(async () =>
     root.render(
       <MemoryRouter>
         <QueryClientProvider client={client}>
-          <BillingSection canManage={canManage} organizationId="org-1" />
+          <BillingSection canManage={canManage} organizationId={organizationId} />
         </QueryClientProvider>
       </MemoryRouter>
     )
@@ -153,4 +162,11 @@ it("says billing is off when the deployment has no provider", async () => {
   await render({ ...FREE, provider: "none", plan: "unlimited" }, true);
 
   expect(container.textContent).toBe("billing.titlebilling.descriptionbilling.off");
+});
+
+it("waits for an Active Organization before it asks the API for the Plan", async () => {
+  await render(FREE, true, null);
+
+  expect(api.reads).toBe(0);
+  expect(container.textContent).not.toContain("billing.error.load");
 });

@@ -56,7 +56,12 @@ async function openPaddleCheckout(
  */
 export function useBilling(organizationId: string | null) {
   const queryKey = createActiveOrganizationQueryKey(useBillingQuery.getKey(), organizationId);
-  const billing = useBillingQuery(undefined, { queryKey, select: (data) => data.billing });
+  const billing = useBillingQuery(undefined, {
+    queryKey,
+    select: (data) => data.billing,
+    // The API needs an Active Organization; without one the request only fails.
+    enabled: organizationId !== null
+  });
   const checkout = useStartCheckoutMutation({
     onSuccess: async ({ startCheckout }) => {
       if (startCheckout.mode === "redirect" && startCheckout.url) {
