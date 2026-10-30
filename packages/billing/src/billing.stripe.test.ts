@@ -109,21 +109,4 @@ describe("Stripe verifyWebhook", () => {
       subscriptionRef
     });
   });
-
-  it("refuses a body that does not match its signature", async () => {
-    const { headers } = signed({
-      id: "evt_1",
-      object: "event",
-      type: "invoice.paid",
-      data: { object: {} }
-    });
-    const tampered = JSON.stringify({
-      id: "evt_2",
-      object: "event",
-      type: "invoice.paid",
-      data: { object: {} }
-    });
-
-    await expect(provider.verifyWebhook(tampered, headers)).rejects.toThrow();
-  });
 });

@@ -151,6 +151,7 @@ describe("plan status and gates", () => {
   it("reports the Plan, the granting subscription's status, and usage against each limit", async () => {
     expect(await billingFor(organizationIds.paid).billing.status()).toEqual({
       provider: "stripe",
+      clientConfig: null,
       plan: "pro",
       subscriptionStatus: "past_due",
       cancelAtPeriodEnd: false,

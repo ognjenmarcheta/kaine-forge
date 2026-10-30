@@ -48,7 +48,10 @@ const apiEnvSchema = z.object({
   JOBS_RUNNER_ENABLED: z.preprocess(blankAsUnset, z.enum(["true", "false"]).default("true")),
   // One payment provider per deployment; none gives every Organization the
   // unlimited Plan. createBillingProvider validates each provider's own keys.
-  BILLING_PROVIDER: z.preprocess(blankAsUnset, z.enum(["none", "stripe"]).default("none")),
+  BILLING_PROVIDER: z.preprocess(
+    blankAsUnset,
+    z.enum(["none", "stripe", "paddle"]).default("none")
+  ),
   AUTH_REQUIRE_EMAIL_VERIFICATION: z.string().optional(),
   AUTH_PASSWORD_BREACH_CHECK: z.string().optional(),
   EMAIL_PROVIDER: z.string().optional(),

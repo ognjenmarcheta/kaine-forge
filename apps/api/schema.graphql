@@ -426,6 +426,11 @@ type BillingCheckout {
   transactionId: String
 }
 
+type BillingClientConfig {
+  clientToken: String!
+  environment: String!
+}
+
 type BillingLimitUsage {
   key: String!
   max: Int
@@ -434,6 +439,7 @@ type BillingLimitUsage {
 
 type BillingStatus {
   provider: BillingProviderName!
+  clientConfig: BillingClientConfig
   plan: BillingPlan!
   subscriptionStatus: SubscriptionStatus
   cancelAtPeriodEnd: Boolean!
