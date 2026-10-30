@@ -33,7 +33,8 @@ CREATE INDEX "sync_mutation_receipts_created_at_idx" ON "sync_mutation_receipts"
 CREATE INDEX "sync_tombstones_organization_id_sync_version_idx" ON "sync_tombstones" USING btree ("organization_id","sync_version");--> statement-breakpoint
 CREATE INDEX "sync_tombstones_deleted_at_idx" ON "sync_tombstones" USING btree ("deleted_at");--> statement-breakpoint
 -- Existing rows get distinct Sync Versions per Organization, in creation
--- order, before the unique indexes and the triggers exist.
+-- order, before the triggers exist. sync.triggers.ts installs the same
+-- functions and triggers on a schema built by drizzle-kit push.
 WITH "changes" AS (
   SELECT 'todo' AS "entity", "id", "organization_id", "created_at" FROM "todos"
   UNION ALL
@@ -65,8 +66,8 @@ SELECT "organization_id", max("sync_version") FROM (
   SELECT "organization_id", "sync_version" FROM "notes"
 ) AS "rows"
 GROUP BY "organization_id";--> statement-breakpoint
-CREATE UNIQUE INDEX "notes_organization_id_sync_version_idx" ON "notes" USING btree ("organization_id","sync_version");--> statement-breakpoint
-CREATE UNIQUE INDEX "todos_organization_id_sync_version_idx" ON "todos" USING btree ("organization_id","sync_version");--> statement-breakpoint
+CREATE INDEX "notes_organization_id_sync_version_idx" ON "notes" USING btree ("organization_id","sync_version");--> statement-breakpoint
+CREATE INDEX "todos_organization_id_sync_version_idx" ON "todos" USING btree ("organization_id","sync_version");--> statement-breakpoint
 -- The next Sync Version of an Organization. The upsert's row lock holds until
 -- the writing transaction ends, so versions commit in order. NULL while the
 -- Organization itself is being deleted: its rows and counter go with it.

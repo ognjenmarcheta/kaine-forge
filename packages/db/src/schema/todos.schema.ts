@@ -5,7 +5,6 @@ import {
   pgTable,
   text,
   timestamp,
-  uniqueIndex,
   uuid,
   varchar
 } from "drizzle-orm/pg-core";
@@ -37,9 +36,6 @@ export const todosTable = pgTable(
     // Every tenant query filters by organization and orders by creation time.
     index("todos_organization_id_created_at_idx").on(table.organizationId, table.createdAt),
     // A sync pull reads an Organization's changes in Sync Version order.
-    uniqueIndex("todos_organization_id_sync_version_idx").on(
-      table.organizationId,
-      table.syncVersion
-    )
+    index("todos_organization_id_sync_version_idx").on(table.organizationId, table.syncVersion)
   ]
 );

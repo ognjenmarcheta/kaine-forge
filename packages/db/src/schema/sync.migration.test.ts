@@ -3,6 +3,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { SYNC_TRIGGERS_SQL } from "../sync.triggers";
+import { createTestDatabase, type TestDatabase } from "../testing";
+
 const migrationsFolder = path.join(import.meta.dirname, "../../drizzle");
 
 const USER_ID = "00000000-0000-4000-8000-000000000001";
@@ -165,5 +168,52 @@ describe("sync version migration", () => {
       [ORG_ID]
     );
     expect(Number(rows[0]?.rows)).toBe(0);
+  });
+});
+
+describe("sync triggers on a schema built by drizzle-kit push", () => {
+  let database: TestDatabase;
+
+  beforeAll(async () => {
+    database = await createTestDatabase();
+    // What a pushed schema lacks: push applies the tables, never a migration's
+    // functions and triggers.
+    await database.client.exec(`
+      DROP TRIGGER "todos_sync_version" ON "todos";
+      DROP TRIGGER "notes_sync_version" ON "notes";
+      DROP TRIGGER "todos_sync_tombstone" ON "todos";
+      DROP TRIGGER "notes_sync_tombstone" ON "notes";
+      DROP FUNCTION "sync_stamp_version"(), "sync_record_tombstone"(), "sync_next_version"(uuid);
+      INSERT INTO users (id, email, name) VALUES ('${USER_ID}', 'owner@example.test', 'Owner');
+      INSERT INTO organizations (id, name, slug) VALUES ('${ORG_ID}', 'Org', 'org');
+      INSERT INTO todos (title, user_id, organization_id) VALUES
+        ('Unversioned 1', '${USER_ID}', '${ORG_ID}'),
+        ('Unversioned 2', '${USER_ID}', '${ORG_ID}');
+    `);
+  }, 30_000);
+
+  afterAll(async () => {
+    await database.close();
+  });
+
+  it("installs idempotently, versions earlier rows, and versions later writes and deletes", async () => {
+    await database.client.exec(SYNC_TRIGGERS_SQL);
+    await database.client.exec(SYNC_TRIGGERS_SQL);
+    await database.client.exec(`
+      INSERT INTO notes (title, user_id, organization_id) VALUES ('Later', '${USER_ID}', '${ORG_ID}');
+      DELETE FROM todos WHERE title = 'Unversioned 1';
+    `);
+
+    const { rows } = await database.client.query<{ version: number }>(
+      `SELECT sync_version::int AS version FROM todos
+       UNION ALL SELECT sync_version::int FROM notes
+       UNION ALL SELECT sync_version::int FROM sync_tombstones
+       ORDER BY version`
+    );
+    // The first install stamps both todos as 1 and 2 in any order, and the
+    // second finds none left at 0; then the note takes 3 and the delete 4.
+    const [remaining, ...later] = rows.map((row) => row.version);
+    expect([1, 2]).toContain(remaining);
+    expect(later).toEqual([3, 4]);
   });
 });

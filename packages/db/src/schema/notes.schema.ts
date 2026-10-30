@@ -1,13 +1,4 @@
-import {
-  bigint,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-  varchar
-} from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { organizationsTable } from "./organizations.schema";
 import { usersTable } from "./users.schema";
@@ -33,9 +24,6 @@ export const notesTable = pgTable(
     // Every tenant query filters by organization and orders by creation time.
     index("notes_organization_id_created_at_idx").on(table.organizationId, table.createdAt),
     // A sync pull reads an Organization's changes in Sync Version order.
-    uniqueIndex("notes_organization_id_sync_version_idx").on(
-      table.organizationId,
-      table.syncVersion
-    )
+    index("notes_organization_id_sync_version_idx").on(table.organizationId, table.syncVersion)
   ]
 );
