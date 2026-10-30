@@ -2,6 +2,7 @@ export * from "./accounts.schema";
 export * from "./api-keys.schema";
 export * from "./assistant.schema";
 export * from "./audit-events.schema";
+export * from "./billing.schema";
 export * from "./data-exports.schema";
 export * from "./feature-flag-overrides.schema";
 export * from "./files.schema";

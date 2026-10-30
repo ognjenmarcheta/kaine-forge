@@ -46,6 +46,9 @@ const apiEnvSchema = z.object({
   // false: this process only enqueues; a worker (dist/worker.js) runs the
   // handlers. Enum, not a loose string, so a typo cannot flip it silently.
   JOBS_RUNNER_ENABLED: z.preprocess(blankAsUnset, z.enum(["true", "false"]).default("true")),
+  // One payment provider per deployment; none gives every Organization the
+  // unlimited Plan. createBillingProvider validates each provider's own keys.
+  BILLING_PROVIDER: z.preprocess(blankAsUnset, z.enum(["none"]).default("none")),
   AUTH_REQUIRE_EMAIL_VERIFICATION: z.string().optional(),
   AUTH_PASSWORD_BREACH_CHECK: z.string().optional(),
   EMAIL_PROVIDER: z.string().optional(),

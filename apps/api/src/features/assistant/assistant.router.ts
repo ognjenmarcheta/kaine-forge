@@ -105,6 +105,7 @@ export const assistantResolvers = {
   Mutation: {
     async sendMessage(_parent: unknown, args: SendMessageArgs, ctx: ResolverContext) {
       const scope = ctx.requireOrganizationScope();
+      await ctx.billing.requireFeature("assistant");
       return createAssistantAiWorkflowForContext(ctx).sendMessage(scope, args.input);
     },
     async deleteConversation(_parent: unknown, args: { id: string }, ctx: ResolverContext) {

@@ -171,6 +171,14 @@ export interface ScopedData {
   mine(table: UserOwnedTable): SQL;
   /** Throws `permission required: <permission>` unless the scope's member holds it. */
   authorize(permission: Permission): void;
+  /** Runs `work` in one transaction, through a ScopedData with the same scope. */
+  transaction<TResult>(work: (tx: ScopedData) => Promise<TResult>): Promise<TResult>;
+  /**
+   * Waits for and takes a transaction-level advisory lock on the scope's
+   * Organization and `key`, released at commit. Call it inside `transaction`:
+   * outside one, the lock ends with its own statement.
+   */
+  lockOrganization(key: string): Promise<void>;
   /**
    * One page of the table in `order`, after the `after` cursor: `first` is
    * clamped to the order's limits, and `first + 1` rows are read to set
@@ -336,6 +344,14 @@ export function createScopedData(input: {
     },
     authorize: (permission) =>
       requireOrganizationPermission(requireOrganizationScope(), permission),
+    transaction: (work) =>
+      db.transaction((tx) => work(createScopedData({ db: tx, requireOrganizationScope }))),
+    lockOrganization: async (key) => {
+      const { organizationId } = requireOrganizationScope();
+      await db.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${organizationId}), hashtext(${key}))`
+      );
+    },
     page: (table, input, order, ...conditions) =>
       selectPage(
         db,

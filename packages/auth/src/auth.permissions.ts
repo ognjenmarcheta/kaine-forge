@@ -28,7 +28,9 @@ export const PERMISSION_STATEMENTS = {
   featureFlag: ["update"],
   // The api-key plugin checks `apiKey:create` itself before it stores a key.
   apiKey: ["create", "read", "delete"],
-  webhook: ["create", "read", "update", "delete"]
+  webhook: ["create", "read", "update", "delete"],
+  // Checkout, plan changes, and the provider portal; every member reads the Plan.
+  billing: ["manage"]
 } as const;
 
 type PermissionStatements = typeof PERMISSION_STATEMENTS;
@@ -66,7 +68,8 @@ export const BUILT_IN_ROLES = {
     logo: ["update"],
     audit: ["read"],
     featureFlag: ["update"],
-    ...INTEGRATION_STATEMENTS
+    ...INTEGRATION_STATEMENTS,
+    billing: ["manage"]
   }),
   admin: accessControl.newRole({
     organization: ["update"],
@@ -106,7 +109,8 @@ export const OWNER_ONLY_PERMISSIONS = [
   "organization:export",
   "ac:create",
   "ac:update",
-  "ac:delete"
+  "ac:delete",
+  "billing:manage"
 ] as const satisfies readonly Permission[];
 
 export type OwnerOnlyPermission = (typeof OWNER_ONLY_PERMISSIONS)[number];
@@ -145,7 +149,8 @@ const API_KEY_EXCLUDED_PERMISSIONS: ReadonlySet<string> = new Set([
   "apiKey:delete",
   "webhook:create",
   "webhook:update",
-  "webhook:delete"
+  "webhook:delete",
+  "billing:manage"
 ] satisfies Permission[]);
 
 /** The Permissions an API Key may grant out of its creator's: content and reads, never access changes. */

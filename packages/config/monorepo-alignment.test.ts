@@ -550,6 +550,7 @@ describe("monorepo alignment", () => {
       "@repo/email": "packages/email",
       "@repo/db": "packages/db",
       "@repo/auth": "packages/auth",
+      "@repo/billing": "packages/billing",
       "@repo/feature-flags": "packages/feature-flags",
       "@repo/jobs": "packages/jobs",
       "@repo/storage": "packages/storage",
@@ -733,6 +734,7 @@ describe("monorepo alignment", () => {
     // Consumer-driven check: every production import must be a published export.
     const packageDirByName: Record<string, string> = {
       "@repo/auth": "packages/auth",
+      "@repo/billing": "packages/billing",
       "@repo/db": "packages/db",
       "@repo/email": "packages/email",
       "@repo/feature-flags": "packages/feature-flags",

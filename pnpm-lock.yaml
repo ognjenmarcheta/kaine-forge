@@ -329,6 +329,9 @@ importers:
       '@repo/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@repo/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -728,6 +731,15 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.6.7
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@opentelemetry/api@1.9.0)(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(@vitest/ui@4.1.12)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/billing:
     devDependencies:
       '@repo/config':
         specifier: workspace:*

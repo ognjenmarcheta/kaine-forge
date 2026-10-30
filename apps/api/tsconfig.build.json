@@ -20,6 +20,9 @@
       "path": "../../packages/auth/tsconfig.build.json"
     },
     {
+      "path": "../../packages/billing/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/db/tsconfig.build.json"
     },
     {

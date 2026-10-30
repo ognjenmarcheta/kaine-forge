@@ -2,6 +2,7 @@ import { recordAuditEvent } from "@repo/auth/audit";
 import type { AuthSession, ServerAuth } from "@repo/auth/auth.type";
 import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { createServerAuth } from "@repo/auth/server";
+import { createBillingProvider } from "@repo/billing";
 import { db } from "@repo/db";
 import type { FeatureFlags } from "@repo/feature-flags";
 import { createChildLogger, createLogger, type Logger } from "@repo/logger";
@@ -12,6 +13,7 @@ import { createScopedData, type ScopedData } from "./context.data";
 import { createApiLoaders, type ApiLoaders } from "./context.loaders";
 import { createApiKeys, type ApiKeys } from "./features/api-keys/api-keys.module";
 import { createAuditEvents, type AuditEvents } from "./features/audit/audit.module";
+import { createBilling, type Billing } from "./features/billing/billing.module";
 import { createDataExports, type DataExports } from "./features/data-export/data-export.module";
 import {
   createFeatureFlagOverrides,
@@ -33,7 +35,7 @@ import {
 } from "./features/public-assets/public-assets.module";
 import { createAttachments, type Attachments } from "./features/storage/attachment.module";
 import { publicAssetStorage, s3ObjectStore } from "./features/storage/attachment.store";
-import { createTodos, type Todos } from "./features/todos/todos.module";
+import { countTodos, createTodos, type Todos } from "./features/todos/todos.module";
 import {
   createWebhookDispatcher,
   enqueueWebhookDelivery
@@ -57,6 +59,8 @@ export interface ApiContext {
   notes: Notes;
   attachments: Attachments;
   auditEvents: AuditEvents;
+  /** The Active Organization's Plan: Entitlements, limits, and status. */
+  billing: Billing;
   apiKeys: ApiKeys;
   webhooks: WebhookEndpoints;
   dataExports: DataExports;
@@ -78,6 +82,9 @@ export interface ApiKeyRequest {
   apiKeyId: string;
   scope: AuthenticatedOrganizationScope;
 }
+
+// One provider per deployment, chosen by BILLING_PROVIDER (default none).
+const billingProvider = createBillingProvider();
 
 // Every organization event also goes to the Organization's Webhook Endpoints.
 const dispatchWebhookEvent = createWebhookDispatcher({
@@ -154,7 +161,12 @@ export async function createContextFromHeaders(
     recordAuditEvent,
     store: s3ObjectStore
   });
-  const todos = createTodos({ attachments, data, logger: contextLogger, publish });
+  const billing = createBilling({
+    data,
+    provider: billingProvider.name,
+    usage: { todos: () => countTodos(data) }
+  });
+  const todos = createTodos({ attachments, data, logger: contextLogger, plan: billing, publish });
 
   return {
     auth,
@@ -168,6 +180,7 @@ export async function createContextFromHeaders(
     todos,
     notes: createNotes({ data, publish }),
     attachments,
+    billing,
     auditEvents: createAuditEvents({ data, db, requireOrganizationScope }),
     apiKeys: createApiKeys({ auth, data, db, recordAuditEvent, requireOrganizationScope }),
     webhooks: createWebhookEndpoints({ data, recordAuditEvent, resolveHost: resolveHostWithDns }),

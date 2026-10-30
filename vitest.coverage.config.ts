@@ -21,6 +21,7 @@ export default defineConfig({
       "packages/todos",
       "packages/theme",
       "packages/translation",
+      "packages/billing",
       "packages/ui",
       "packages/ui-3d"
     ],

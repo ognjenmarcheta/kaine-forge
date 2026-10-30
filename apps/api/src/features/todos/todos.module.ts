@@ -14,6 +14,7 @@ import {
 } from "../../context.data";
 import { formatLoggableError } from "../../observability";
 import type { PubSubEventMap } from "../../pubsub";
+import type { Billing } from "../billing/billing.module";
 
 export interface TodoListArgs extends PageInput {
   search?: string | null | undefined;
@@ -33,6 +34,8 @@ export interface TodoModuleDeps {
   attachments: TodoAttachments;
   data: ScopedData;
   logger: Pick<Logger, "warn">;
+  /** The Plan's todo limit; see billing.module.ts. */
+  plan: Pick<Billing, "withinLimit">;
   publish: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
@@ -51,7 +54,10 @@ export interface Todos {
   counts: () => Promise<{ open: number; completed: number }>;
   /** Every Todo of the given Notes, newest first, unpaginated (for the batch loader). */
   listByNoteIds: (noteIds: readonly string[]) => Promise<Todo[]>;
-  /** Throws `todo title is required`/`too long`, or `note not found` for a Note outside the scope. */
+  /**
+   * Throws `todo title is required`/`too long`, `note not found` for a Note
+   * outside the scope, or a PLAN_LIMIT_REACHED error past the Plan's todo limit.
+   */
   create: (input: CreateTodoInput) => Promise<Todo>;
   /** Throws `todo not found` when no Todo with this id is in the scope. */
   update: (id: string, input: UpdateTodoInput) => Promise<Todo>;
@@ -65,7 +71,13 @@ export interface Todos {
   delete: (id: string) => Promise<boolean>;
 }
 
-export function createTodos({ attachments, data, logger, publish }: TodoModuleDeps): Todos {
+/** How many Todos the scope's Organization has, for the Plan's todo limit. */
+export async function countTodos(data: ScopedData): Promise<number> {
+  const [row] = await data.aggregate(todosTable, { total: count() });
+  return row?.total ?? 0;
+}
+
+export function createTodos({ attachments, data, logger, plan, publish }: TodoModuleDeps): Todos {
   async function get(id: string): Promise<Todo | null> {
     const todos = await data.selectFrom(todosTable, eq(todosTable.id, id)).limit(1);
     return todos[0] ?? null;
@@ -130,11 +142,15 @@ export function createTodos({ attachments, data, logger, publish }: TodoModuleDe
         }
       }
 
-      const todos = await data
-        .insert(todosTable)
-        .values({ ...data.stamp("userId"), title, description, completed: false, noteId })
-        .returning();
-      const todo = todos[0];
+      // Counted and inserted under the limit's lock, so two parallel creates
+      // cannot both take a cap's last slot.
+      const todo = await plan.withinLimit("todos", countTodos, async (tx) => {
+        const todos = await tx
+          .insert(todosTable)
+          .values({ ...tx.stamp("userId"), title, description, completed: false, noteId })
+          .returning();
+        return todos[0];
+      });
 
       if (!todo) {
         throw new Error("failed to create todo");

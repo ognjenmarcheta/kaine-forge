@@ -18,6 +18,7 @@ type Query {
   assistantMessages(conversationId: ID!, first: Int, after: String): AssistantMessageConnection!
   conversations(first: Int, after: String): AssistantConversationConnection!
   auditEvents(first: Int, after: String): AuditEventConnection!
+  billing: BillingStatus!
   featureFlags: [FeatureFlag!]!
   notifications(first: Int, after: String): NotificationConnection!
   notificationPreferences: [NotificationPreference!]!
@@ -378,6 +379,46 @@ type AuditEvent {
 type AuditEventConnection {
   items: [AuditEvent!]!
   pageInfo: PageInfo!
+}
+
+enum BillingProviderName {
+  none
+  stripe
+  paddle
+}
+
+enum BillingPlan {
+  free
+  pro
+  business
+  unlimited
+}
+
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  canceled
+  unpaid
+  paused
+  incomplete
+  expired
+}
+
+type BillingLimitUsage {
+  key: String!
+  max: Int
+  used: Int!
+}
+
+type BillingStatus {
+  provider: BillingProviderName!
+  plan: BillingPlan!
+  subscriptionStatus: SubscriptionStatus
+  cancelAtPeriodEnd: Boolean!
+  currentPeriodEnd: DateTime
+  features: [String!]!
+  limits: [BillingLimitUsage!]!
 }
 
 enum FeatureFlagKey {
