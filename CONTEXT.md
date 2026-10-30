@@ -36,6 +36,10 @@ _Avoid_: auth context, org context
 A template example of organization-scoped user-created data.
 _Avoid_: global task
 
+**Note**:
+A titled text document with an optional body, which can hold checklist **Todos**. It belongs to exactly one **Organization**.
+_Avoid_: document, page, memo
+
 **Attachment**:
 A stored file associated with organization-scoped user-created data, such as a **Todo**.
 _Avoid_: raw upload, blob
@@ -88,6 +92,22 @@ _Avoid_: license, user slot
 Confirmation that a **User** controls their email address, recorded on the user and exposed on the session. Soft by default: it does not gate login; apps decide what to gate on it.
 _Avoid_: account activation
 
+**Sync Version**:
+A number from a per-**Organization** counter that the server stamps on a **Todo** or **Note** at every insert and update, and on every **Tombstone**. It only goes up, and a client pulls the changes after the last Sync Version it saw. The server orders changes by it, never by a clock.
+_Avoid_: revision, timestamp, `updated_at` (for sync order)
+
+**Tombstone**:
+The server's record that a **Todo** or **Note** was deleted: its entity, id, **Organization**, and the **Sync Version** of the delete. It tells offline clients about hard deletes. Retention prunes it; a client that has not pulled since then must reset its local data.
+_Avoid_: soft delete, deleted flag
+
+**Pending Change**:
+A create, update, or delete that a client has applied locally and the server has not yet confirmed. It waits in the **Outbox** until the server applies or rejects it; a reject rolls it back on the client.
+_Avoid_: draft, unsaved change, dirty row
+
+**Outbox**:
+The durable, ordered queue of **Pending Changes** on one device for one **User** and one **Organization**. It sends them to the server in order, each batch with an idempotency key scoped to that **User** and **Organization**, so a resent change applies once while the server keeps its receipt.
+_Avoid_: queue (alone), sync queue, mutation log
+
 ## Relationships
 
 - A **User** belongs to one or more **Organizations** through membership.
@@ -105,6 +125,8 @@ _Avoid_: account activation
 - Only a member with the owner-only `billing:manage` Permission starts a checkout or opens the provider portal; every member reads the **Plan**.
 - An **API Key** belongs to exactly one **Organization** and was created by one **User**; it never reaches another Organization.
 - A **Webhook Endpoint** belongs to exactly one **Organization** and receives only that Organization's events.
+- A **Sync Version** belongs to exactly one **Organization**; Sync Versions of different Organizations are never compared.
+- An **Outbox** belongs to exactly one **User** and one **Organization** on one device; switching the **Active Organization** switches to that Organization's local data and Outbox.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
 ## Example dialogue
