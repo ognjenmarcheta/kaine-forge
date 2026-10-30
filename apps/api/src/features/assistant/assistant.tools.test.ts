@@ -10,6 +10,7 @@ const todo = {
   id: "11111111-1111-1111-1111-111111111111",
   noteId: null,
   organizationId: "org-1",
+  syncVersion: 0,
   title: "Buy milk",
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   userId: "user-1"
@@ -20,6 +21,7 @@ const note = {
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   id: "22222222-2222-2222-2222-222222222222",
   organizationId: "org-1",
+  syncVersion: 0,
   title: "N",
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   userId: "user-1"

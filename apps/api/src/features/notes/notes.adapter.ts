@@ -47,6 +47,19 @@ export async function createNote(
   return note;
 }
 
+/** Inserts a Note with a client-generated id; null when a row already has the id. */
+export async function createNoteWithId(
+  data: ScopedData,
+  input: { id: string; title: string; body: string | null }
+): Promise<Note | null> {
+  const rows = await data
+    .insert(notesTable)
+    .values({ ...data.stamp("userId"), ...input })
+    .onConflictDoNothing({ target: notesTable.id })
+    .returning();
+  return rows[0] ?? null;
+}
+
 export async function updateNote(data: ScopedData, id: string, patch: NotePatch): Promise<Note> {
   const rows = await data
     .update(notesTable, { ...patch, updatedAt: new Date() }, eq(notesTable.id, id))

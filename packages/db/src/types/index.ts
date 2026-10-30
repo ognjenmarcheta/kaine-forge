@@ -5,6 +5,7 @@ export * from "./files.type";
 export * from "./notes.type";
 export * from "./organizations.type";
 export * from "./sessions.type";
+export * from "./sync.type";
 export * from "./todos.type";
 export * from "./users.type";
 export * from "./verifications.type";

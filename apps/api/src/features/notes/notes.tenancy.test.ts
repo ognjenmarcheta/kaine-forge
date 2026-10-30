@@ -402,6 +402,83 @@ describe("notes tenancy", () => {
   });
 });
 
+describe("sync tenancy", () => {
+  async function todoB(): Promise<{ id: string; title: string }> {
+    const { eq } = await import("drizzle-orm");
+    const [row] = await testDb
+      .select({ id: todosTable.id, title: todosTable.title })
+      .from(todosTable)
+      .where(eq(todosTable.title, "Todo B"));
+    if (!row) throw new Error("missing Todo B fixture");
+    return row;
+  }
+
+  it("pulls only the active organization's rows", async () => {
+    const result = await runAs(
+      fixture.orgA,
+      "{ syncPull(first: 500) { todos { id noteId } notes { id } deleted { id } hasMore resetRequired } }"
+    );
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      syncPull: {
+        todos: [{ id: fixture.todoA, noteId: fixture.noteA }],
+        notes: [{ id: fixture.noteA }],
+        deleted: [],
+        hasMore: false,
+        resetRequired: false
+      }
+    });
+  });
+
+  it("refuses to push into another organization's rows and leaves them untouched", async () => {
+    const { eq } = await import("drizzle-orm");
+    const foreign = await todoB();
+
+    const result = await runAs(
+      fixture.orgA,
+      `mutation Push($input: SyncPushInput!) { syncPush(input: $input) { results { status code } } }`,
+      {
+        input: {
+          idempotencyKey: "tenancy",
+          mutations: [
+            { todoUpdate: { id: foreign.id, title: "hijacked" } },
+            { todoCreate: { id: foreign.id, title: "collides" } },
+            { noteDelete: { id: fixture.noteB } }
+          ]
+        }
+      }
+    );
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      syncPush: {
+        results: [
+          { status: "REJECTED", code: "NOT_FOUND" },
+          { status: "REJECTED", code: "CONFLICT" },
+          // Deleting a row the scope cannot see deletes nothing.
+          { status: "APPLIED", code: null }
+        ]
+      }
+    });
+    expect(await todoB()).toEqual(foreign);
+    const notesB = await testDb.select().from(notesTable).where(eq(notesTable.id, fixture.noteB));
+    expect(notesB).toHaveLength(1);
+  });
+
+  it("refuses a sync mutation that names more than one operation", async () => {
+    const result = await runAs(
+      fixture.orgA,
+      `mutation { syncPush(input: { idempotencyKey: "one-of", mutations: [
+        { todoDelete: { id: "${fixture.todoA}" }, noteDelete: { id: "${fixture.noteA}" } }
+      ] }) { results { status } } }`
+    );
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.data).toBeUndefined();
+  });
+});
+
 describe("attachment deletion SQL", () => {
   it("soft-deletes only live files of the requested entity in the active organization", async () => {
     const { deleteFilesByEntity } = await import("../storage/storage.adapter");

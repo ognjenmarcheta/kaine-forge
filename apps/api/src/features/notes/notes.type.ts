@@ -1,4 +1,6 @@
 export interface CreateNoteInput {
+  /** Internal only — a client-generated id from a sync push. */
+  id?: string | undefined;
   title: string;
   body?: string | null;
 }

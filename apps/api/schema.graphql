@@ -12,6 +12,7 @@ type Query {
   notes(first: Int, after: String, search: String): NoteConnection!
   note(id: ID!): Note
   noteCount: Int!
+  syncPull(cursor: String, first: Int): SyncPullPayload!
   file(id: ID!): FileInfo
   files(filter: FilesFilterInput, first: Int, after: String): FileInfoConnection!
   publicAssets: PublicAssets!
@@ -41,6 +42,7 @@ type Mutation {
   updateNote(id: ID!, input: UpdateNoteInput!): Note!
   deleteNote(id: ID!): Boolean!
   addTodoToNote(noteId: ID!, input: CreateTodoInput!): Todo!
+  syncPush(input: SyncPushInput!): SyncPushPayload!
   requestUploadUrl(input: RequestUploadInput!): PresignedUploadResponse!
   confirmUpload(fileId: ID!): FileInfo!
   deleteFile(fileId: ID!): Boolean!
@@ -119,6 +121,7 @@ type Todo {
   description: String
   completed: Boolean!
   organizationId: ID!
+  noteId: ID
   attachments: [FileInfo!]!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -194,6 +197,95 @@ type NoteDeletedPayload {
 type NoteConnection {
   items: [Note!]!
   pageInfo: PageInfo!
+}
+
+enum SyncEntity {
+  TODO
+  NOTE
+}
+
+type SyncDeletion {
+  entity: SyncEntity!
+  id: ID!
+}
+
+"""
+The changes after a cursor, oldest first. When resetRequired is true the
+client drops its local rows and pulls again without a cursor; cursor is null.
+"""
+type SyncPullPayload {
+  todos: [Todo!]!
+  notes: [Note!]!
+  deleted: [SyncDeletion!]!
+  cursor: String
+  hasMore: Boolean!
+  resetRequired: Boolean!
+}
+
+input SyncTodoCreate {
+  id: ID!
+  title: String!
+  description: String
+  noteId: ID
+}
+
+input SyncTodoUpdate {
+  id: ID!
+  title: String
+  description: String
+  completed: Boolean
+}
+
+input SyncNoteCreate {
+  id: ID!
+  title: String!
+  body: String
+}
+
+input SyncNoteUpdate {
+  id: ID!
+  title: String
+  body: String
+}
+
+input SyncDelete {
+  id: ID!
+}
+
+input SyncMutationInput @oneOf {
+  todoCreate: SyncTodoCreate
+  todoUpdate: SyncTodoUpdate
+  todoDelete: SyncDelete
+  noteCreate: SyncNoteCreate
+  noteUpdate: SyncNoteUpdate
+  noteDelete: SyncDelete
+}
+
+input SyncPushInput {
+  idempotencyKey: String!
+  mutations: [SyncMutationInput!]!
+}
+
+enum SyncMutationStatus {
+  APPLIED
+  REJECTED
+}
+
+enum SyncRejectionCode {
+  NOT_FOUND
+  FORBIDDEN
+  INVALID
+  CONFLICT
+  PLAN_LIMIT_REACHED
+}
+
+type SyncMutationResult {
+  status: SyncMutationStatus!
+  code: SyncRejectionCode
+}
+
+type SyncPushPayload {
+  results: [SyncMutationResult!]!
 }
 
 enum FileStatus {

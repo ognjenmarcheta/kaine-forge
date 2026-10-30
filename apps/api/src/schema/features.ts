@@ -21,6 +21,8 @@ import { publicAssetsResolvers } from "../features/public-assets/public-assets.r
 import { publicAssetsTypeDefs } from "../features/public-assets/public-assets.schema";
 import { storageResolvers } from "../features/storage/storage.router";
 import { storageTypeDefs } from "../features/storage/storage.schema";
+import { syncResolvers } from "../features/sync/sync.router";
+import { syncTypeDefs } from "../features/sync/sync.schema";
 import { todosResolvers } from "../features/todos/todos.router";
 import { todosTypeDefs } from "../features/todos/todos.schema";
 import { webhooksResolvers } from "../features/webhooks/webhooks.router";
@@ -103,6 +105,11 @@ const apiFeatures: ApiFeature[] = [
     name: "notes",
     typeDefs: notesTypeDefs,
     resolvers: notesResolvers
+  },
+  {
+    name: "sync",
+    typeDefs: syncTypeDefs,
+    resolvers: syncResolvers
   },
   {
     name: "storage",

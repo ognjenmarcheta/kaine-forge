@@ -35,7 +35,9 @@ export function resolveHousekeepingConfig(
       dataExportsMs: days(env.RETENTION_DATA_EXPORTS_DAYS, defaults.dataExports),
       notificationsMs: days(env.RETENTION_NOTIFICATIONS_DAYS, defaults.notifications),
       purgedFilesMs: days(env.RETENTION_PURGED_FILES_DAYS, defaults.purgedFiles),
-      webhookDeliveriesMs: days(env.RETENTION_WEBHOOK_DELIVERIES_DAYS, defaults.webhookDeliveries)
+      webhookDeliveriesMs: days(env.RETENTION_WEBHOOK_DELIVERIES_DAYS, defaults.webhookDeliveries),
+      syncTombstonesMs: days(env.RETENTION_SYNC_TOMBSTONES_DAYS, defaults.syncTombstones),
+      syncReceiptsMs: days(env.RETENTION_SYNC_RECEIPTS_DAYS, defaults.syncReceipts)
     }
   };
 }
