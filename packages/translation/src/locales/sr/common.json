@@ -64,5 +64,8 @@
   "sync.rejected.FORBIDDEN": "Izmena nije sačuvana: nemate dozvolu.",
   "sync.rejected.INVALID": "Izmena nije sačuvana: nije ispravna.",
   "sync.rejected.CONFLICT": "Izmena nije sačuvana: u sukobu je sa drugom stavkom.",
-  "sync.rejected.PLAN_LIMIT_REACHED": "Izmena nije sačuvana: dostignuto je ograničenje vašeg paketa."
+  "sync.rejected.PLAN_LIMIT_REACHED": "Izmena nije sačuvana: dostignuto je ograničenje vašeg paketa.",
+  "sync.signOut.title": "Odjaviti se sa nesinhronizovanim izmenama?",
+  "sync.signOut.message": "Neke izmene na ovom uređaju još nisu sinhronizovane. Odjavom se brišu.",
+  "sync.signOut.confirm": "Ipak se odjavi"
 }

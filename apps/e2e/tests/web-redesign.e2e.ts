@@ -95,7 +95,7 @@ test("a Todo the server refuses rolls back with a message", async ({ page }) => 
   await expect(page.getByRole("checkbox", { name: "Refused draft", exact: true })).toHaveCount(0);
 });
 
-test("Note drafts survive theme changes and failed saves", async ({ page }) => {
+test("Note drafts survive theme changes and an unreachable API", async ({ page }) => {
   await signIn(page);
   await page.goto("/notes");
   await page.getByRole("button", { name: "New note", exact: true }).click();
@@ -107,17 +107,20 @@ test("Note drafts survive theme changes and failed saves", async ({ page }) => {
   await page.getByRole("button", { name: /^Appearance\b/ }).click();
   await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
+  let reachable = false;
   await page.route("**/graphql", async (route) => {
-    if (route.request().postData()?.includes("mutation UpdateNote")) {
+    if (!reachable && route.request().postData()?.includes("mutation SyncPush")) {
       await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
     } else await route.continue();
   });
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("The save could not be confirmed.", { exact: false })).toBeVisible();
-  await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
-  await page.unroute("**/graphql");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  // Saved on the device at once; it syncs once the API answers.
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const status = page.getByRole("status", { name: "Sync status", exact: true });
+  await expect(status).toContainText("Syncing");
+  reachable = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(status).toContainText("Online", { timeout: 15_000 });
   await page.reload();
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");
 });

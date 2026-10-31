@@ -43,17 +43,15 @@ for (const theme of ["light", "dark"] as const)
       fixture.state.hold = true;
       await page.getByLabel("Body", { exact: true }).fill("Release notes ready for review.");
       await page.getByRole("button", { name: "Save", exact: true }).click();
+      // A save applies at once and syncs in the background, here held by the fixture.
       await expect(page.locator(".ui-notes__editor-header").getByRole("status")).toHaveText(
-        "Saving…"
+        "Saved"
       );
-      await page.screenshot({ path: testInfo.outputPath("saving.png") });
-      fixture.state.fail = true;
+      await expect.poll(() => fixture.state.saves).toBe(1);
+      await page.screenshot({ path: testInfo.outputPath("saved.png") });
       fixture.finish();
-      await expect(
-        page.getByRole("alert").getByText(/The save could not be confirmed/)
-      ).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath("failed.png") });
-      for (const state of ["library", "empty", "populated", "saving", "failed"])
+      await expect.poll(() => fixture.notes[0]?.body).toBe("Release notes ready for review.");
+      for (const state of ["library", "empty", "populated", "saved"])
         await testInfo.attach(`${state}-${width.toString()}-${theme}`, {
           path: testInfo.outputPath(`${state}.png`),
           contentType: "image/png"
@@ -118,7 +116,8 @@ test("new note completion leaves another note selected and creates a reloadable 
     .getByRole("region", { name: "Unsaved drafts" })
     .getByRole("link", { name: /A new idea/ })
     .click();
-  await expect(page).toHaveURL(/\/notes\/created-1$/);
+  // The Note's id is the client id it got when it was first saved.
+  await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}$/);
   await expect(page.getByLabel("Body", { exact: true })).toHaveValue("Typed during creation");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".ui-notes__editor-header").getByRole("status")).toHaveText("Saved");
@@ -210,32 +209,30 @@ test("search preserves drafts and translated long content fits short viewports",
   expect(errors).toEqual([]);
 });
 
-test("empty library and failed search have distinct recovery states", async ({
+test("failed loading, an empty library, and an empty search have distinct states", async ({
   page
 }, testInfo) => {
   const fixture = await mockNotes(page);
   fixture.notes.splice(0);
+  fixture.state.loadFailed = true;
   await page.goto("/notes");
+  await expect(page.getByText("Notes could not be loaded.", { exact: false })).toBeVisible();
+  await expect(page.getByText("No notes yet.", { exact: true })).toHaveCount(0);
+  fixture.state.loadFailed = false;
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByText("No notes yet.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("empty-library.png") });
   await testInfo.attach("empty-library", {
     path: testInfo.outputPath("empty-library.png"),
     contentType: "image/png"
   });
-  fixture.state.loadFailed = true;
+  // Search reads the Notes on the device, so it needs no request and cannot fail.
   await page.getByRole("searchbox", { name: "Search notes" }).fill("Missing");
-  await expect(page.getByText("Notes could not be loaded.", { exact: false })).toBeVisible({
-    timeout: 15000
-  });
-  await expect(page.getByText("No notes yet.", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("No matching notes.", { exact: false })).toHaveCount(0);
-  fixture.state.loadFailed = false;
-  await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByText("No matching notes.", { exact: false })).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
-test("Organization changes wait for saves and warn about newer drafts", async ({ page }) => {
+test("Organization changes keep a queued save and warn about newer drafts", async ({ page }) => {
   const fixture = await mockNotes(page);
   await page.goto("/notes/a");
   fixture.state.hold = true;
@@ -245,11 +242,10 @@ test("Organization changes wait for saves and warn about newer drafts", async ({
   await page.getByLabel("Body", { exact: true }).fill("Newer draft");
   await page.getByRole("button", { name: NAV_LABELS.organization }).click();
   await page.getByRole("menuitem", { name: "Second Organization", exact: true }).click();
+  // Only the newer draft holds the switch: the save waits in this Organization's Outbox.
   const dialog = page.getByRole("dialog", { name: "Leave unsaved drafts?" });
-  await expect(dialog.getByRole("button", { name: "Discard drafts and leave" })).toBeDisabled();
-  expect(fixture.state.organization).toBe("org-one");
-  fixture.finish();
   await expect(dialog.getByRole("button", { name: "Discard drafts and leave" })).toBeEnabled();
+  expect(fixture.state.organization).toBe("org-one");
   await dialog.getByRole("button", { name: "Discard drafts and leave" }).click();
   await expect(page.getByText("Note not found.", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Body", exact: true })).toHaveCount(0);

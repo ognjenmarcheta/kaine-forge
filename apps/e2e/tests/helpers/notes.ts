@@ -4,6 +4,7 @@ import { connection } from "./connection";
 import { featureFlagData } from "./feature-flags";
 import { notificationData } from "./notifications";
 import { ORGANIZATION_PERMISSIONS_RESPONSE } from "./permissions";
+import { pushedMutations, textOf, type PushedMutation } from "./sync";
 
 interface FixtureNote {
   id: string;
@@ -11,7 +12,13 @@ interface FixtureNote {
   body: string | null;
   createdAt: string;
   updatedAt: string;
-  todos: { id: string; title: string; description: null; completed: boolean }[];
+  todos: {
+    id: string;
+    title: string;
+    description: null;
+    completed: boolean;
+    createdAt?: string;
+  }[];
 }
 function variables(body: string) {
   const parsed: unknown = JSON.parse(body);
@@ -73,6 +80,88 @@ export async function mockNotes(page: Page) {
     organization: "org-one"
   };
   let release: () => void = () => {};
+  let pulls = 0;
+  const served = { notes: new Set<string>(), todos: new Set<string>() };
+  /**
+   * This fixture's part of a sync pull: the Notes, their checklist Todos, and
+   * every served row gone since the last pull, as its deletion.
+   */
+  function pullData() {
+    const visible = state.organization === "org-two" ? [] : notes;
+    const todos = visible.flatMap((note) =>
+      note.todos.map((todo) => ({
+        id: todo.id,
+        title: todo.title,
+        description: todo.description,
+        completed: todo.completed,
+        noteId: note.id,
+        attachments: [],
+        createdAt: todo.createdAt ?? stamp,
+        updatedAt: stamp
+      }))
+    );
+    const noteIds = new Set(visible.map((note) => note.id));
+    const todoIds = new Set(todos.map((todo) => todo.id));
+    const deleted = [
+      ...[...served.notes].filter((id) => !noteIds.has(id)).map((id) => ({ entity: "NOTE", id })),
+      ...[...served.todos].filter((id) => !todoIds.has(id)).map((id) => ({ entity: "TODO", id }))
+    ];
+    served.notes = noteIds;
+    served.todos = todoIds;
+    return {
+      notes: visible.map(({ id, title, body, createdAt, updatedAt }) => ({
+        id,
+        title,
+        body,
+        createdAt,
+        updatedAt
+      })),
+      todos,
+      deleted
+    };
+  }
+  /** Whether a pushed mutation is this fixture's: a Note, or a Todo on a Note's checklist. */
+  function owns({ kind, id, fields }: PushedMutation): boolean {
+    if (kind === "noteCreate" || kind === "noteUpdate" || kind === "noteDelete") return true;
+    if (kind === "todoCreate") return textOf(fields, "noteId") !== null;
+    return notes.some((note) => note.todos.some((todo) => todo.id === id));
+  }
+  function apply({ kind, id, fields }: PushedMutation): void {
+    const note = notes.find((item) => item.id === id);
+    const body = textOf(fields, "body")?.trim() || null;
+    if (kind === "noteCreate")
+      notes.unshift({
+        id,
+        title: textOf(fields, "title")?.trim() ?? "",
+        body,
+        createdAt: new Date().toISOString(),
+        updatedAt: stamp,
+        todos: []
+      });
+    if (kind === "noteUpdate" && note) {
+      if ("title" in fields) note.title = textOf(fields, "title")?.trim() ?? note.title;
+      if ("body" in fields) note.body = body;
+    }
+    if (kind === "noteDelete" && note) notes.splice(notes.indexOf(note), 1);
+    if (kind === "todoCreate") {
+      notes
+        .find((item) => item.id === textOf(fields, "noteId"))
+        ?.todos.unshift({
+          id,
+          title: textOf(fields, "title") ?? "",
+          description: null,
+          completed: false,
+          createdAt: new Date().toISOString()
+        });
+    }
+    for (const item of notes) {
+      const todo = item.todos.find((entry) => entry.id === id);
+      if (!todo) continue;
+      if (kind === "todoUpdate" && typeof fields.completed === "boolean")
+        todo.completed = fields.completed;
+      if (kind === "todoDelete") item.todos.splice(item.todos.indexOf(todo), 1);
+    }
+  }
   let publish: (event: "noteUpdated" | "noteDeleted", id: string) => void = () => {};
   await page.route("**/api/auth/**", async (route) => {
     const url = route.request().url();
@@ -127,7 +216,44 @@ export async function mockNotes(page: Page) {
   await page.route("**/graphql", async (route) => {
     const query = route.request().postData() ?? "{}";
     const vars = variables(query);
-    if (query.includes("query GetNotes(")) {
+    if (query.includes("query SyncPull(")) {
+      await route.fulfill({
+        json: state.loadFailed
+          ? { errors: [{ message: "Unavailable" }] }
+          : {
+              data: {
+                syncPull: {
+                  ...pullData(),
+                  cursor: String(++pulls),
+                  hasMore: false,
+                  resetRequired: false
+                }
+              }
+            }
+      });
+    } else if (query.includes("mutation SyncPush(")) {
+      const mutations = pushedMutations(query);
+      for (const { kind } of mutations) {
+        if (kind === "noteCreate" || kind === "noteUpdate") state.saves++;
+        if (kind === "noteCreate") state.creates++;
+      }
+      if (state.hold)
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      if (state.fail) {
+        await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
+        return;
+      }
+      for (const mutation of mutations) apply(mutation);
+      await route.fulfill({
+        json: {
+          data: {
+            syncPush: { results: mutations.map(() => ({ status: "APPLIED", code: null })) }
+          }
+        }
+      });
+    } else if (query.includes("query GetNotes(")) {
       await route.fulfill({
         json: state.loadFailed
           ? { errors: [{ message: "Unavailable" }] }
@@ -198,6 +324,8 @@ export async function mockNotes(page: Page) {
   return {
     state,
     notes,
+    /** For a fixture built on this one, which answers the shared sync requests. */
+    sync: { pull: pullData, owns, apply },
     finish: () => {
       state.hold = false;
       release();

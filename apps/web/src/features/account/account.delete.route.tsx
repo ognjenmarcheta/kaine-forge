@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom";
 
 import { getAccountErrorMessage } from "./account.util";
 import { useAuth } from "../../hooks/use-auth";
+import { useSignOut } from "../../hooks/use-sync";
 import { useTranslation } from "../../hooks/use-translation";
 import { accountApi } from "../../lib/auth-api";
 import { AUTH_DEFINITION } from "../auth/auth.definition";
@@ -41,7 +42,8 @@ export function AccountDeleteRoute() {
 /** Deletes the account with the emailed token once the user confirms. */
 function AccountDeleteConfirm({ onDeleted }: { onDeleted: () => void }) {
   const { t } = useTranslation();
-  const { logout } = useAuth();
+  // Also deletes this device's sync data: the account and its changes are gone.
+  const { signOut } = useSignOut();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const confirm = useMutation({
@@ -49,7 +51,7 @@ function AccountDeleteConfirm({ onDeleted }: { onDeleted: () => void }) {
     onSuccess: async () => {
       onDeleted();
       // The server already ended every session; this clears the local state.
-      await logout().catch(() => undefined);
+      await signOut().catch(() => undefined);
     }
   });
 

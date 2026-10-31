@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createSyncEngine, type SyncEngine, type SyncMutation, type SyncTodo } from "@repo/sync";
+import type { SyncEngine, SyncTodo } from "@repo/sync";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -10,22 +10,24 @@ import type {
   GenerateTodosMutation,
   GenerateTodosMutationVariables
 } from "../../graphql/generated/react-query";
+import {
+  createFakeSyncServer,
+  createTestSyncEngine,
+  type FakeSyncServer
+} from "../../lib/sync.testing";
 
-/** The server side of the fake: its rows, and every mutation pushed to it. */
-const server = vi.hoisted(() => ({
-  rows: new Map<string, SyncTodo>(),
-  pushed: [] as SyncMutation[][],
-  version: 0,
-  generate: vi.fn<(variables: GenerateTodosMutationVariables) => Promise<GenerateTodosMutation>>()
-}));
+const generate = vi.hoisted(() =>
+  vi.fn<(variables: GenerateTodosMutationVariables) => Promise<GenerateTodosMutation>>()
+);
 let engine: SyncEngine;
+let server: FakeSyncServer;
 vi.mock("../../hooks/use-sync", () => ({
   useSyncEngine: () => engine,
   useSyncStatus: () => engine.getStatus()
 }));
 vi.mock("../../hooks/use-subscription", () => ({ useSubscription: () => {} }));
 vi.mock("../../lib/graphql-codegen-fetcher", () => ({
-  useGraphqlFetcher: () => server.generate
+  useGraphqlFetcher: () => generate
 }));
 
 function todo(id = "a", fields: Partial<SyncTodo> = {}): SyncTodo {
@@ -40,59 +42,6 @@ function todo(id = "a", fields: Partial<SyncTodo> = {}): SyncTodo {
     updatedAt: "2026-09-13T12:00:00Z",
     ...fields
   };
-}
-
-function startEngine(): SyncEngine {
-  const store = new Map<string, string>();
-  return createSyncEngine({
-    transport: {
-      // Every pull returns the full server state: enough for the hook's contract.
-      pull: async (cursor) => ({
-        todos: [...server.rows.values()],
-        notes: [],
-        deleted:
-          cursor === null ? [] : [...deletedSince()].map((id) => ({ entity: "TODO" as const, id })),
-        cursor: String(server.version),
-        hasMore: false,
-        resetRequired: false
-      }),
-      push: async (_key, mutations) => {
-        server.pushed.push(mutations);
-        for (const mutation of mutations) {
-          if ("todoCreate" in mutation) {
-            const { id, title, description } = mutation.todoCreate;
-            server.rows.set(id, todo(id, { title, description }));
-          }
-          if ("todoUpdate" in mutation) {
-            const { id, ...patch } = mutation.todoUpdate;
-            const row = server.rows.get(id);
-            if (row) server.rows.set(id, { ...row, ...patch });
-          }
-        }
-        return mutations.map(() => ({ status: "APPLIED" as const, code: null }));
-      }
-    },
-    storage: {
-      get: async (key) => store.get(key) ?? null,
-      set: async (key, value) => void store.set(key, value),
-      delete: async (key) => void store.delete(key),
-      keys: async () => [...store.keys()],
-      clear: async () => store.clear()
-    },
-    leaderElection: {
-      requestLeadership: async () => true,
-      releaseLeadership: () => undefined,
-      isLeader: () => true,
-      onLeadershipChange: () => () => undefined
-    }
-  });
-}
-
-// Ids the fake server deleted, reported once to the next pull.
-const deleted = new Set<string>();
-function* deletedSince() {
-  yield* deleted;
-  deleted.clear();
 }
 
 let current: ReturnType<typeof useTodos>;
@@ -123,11 +72,9 @@ async function settle() {
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  server.rows.clear();
-  server.pushed = [];
-  server.rows.set("a", todo("a"));
-  deleted.clear();
-  engine = startEngine();
+  server = createFakeSyncServer();
+  server.todos.set("a", todo("a"));
+  engine = createTestSyncEngine(server);
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   container = document.createElement("div");
   document.body.append(container);
@@ -182,7 +129,7 @@ it("keeps quick and edit drafts through searches and status changes", async () =
 });
 
 it("sends only the text when saving, and an explicit state when toggling", async () => {
-  server.rows.set("a", todo("a", { completed: true }));
+  server.todos.set("a", todo("a", { completed: true }));
   await render();
   await act(async () => current.openEdit(todo("a", { completed: true })));
   await act(async () =>
@@ -215,7 +162,7 @@ it("keeps local text on another user's change and detects a deletion", async () 
       value ? { ...value, draft: { title: "local", description: "" } } : value
     )
   );
-  server.rows.set("a", todo("a", { title: "external" }));
+  server.todos.set("a", todo("a", { title: "external" }));
   await act(async () => current.refresh());
 
   expect(current.externalChange).toBe(true);
@@ -223,8 +170,8 @@ it("keeps local text on another user's change and detects a deletion", async () 
   await act(async () => current.loadLatest());
   expect(current.editing?.draft.title).toBe("external");
 
-  server.rows.delete("a");
-  deleted.add("a");
+  server.todos.delete("a");
+  server.deleted.push({ entity: "TODO", id: "a" });
   await act(async () => current.refresh());
 
   expect(current.editing?.deleted).toBe(true);
@@ -234,8 +181,8 @@ it("keeps local text on another user's change and detects a deletion", async () 
 });
 
 it("filters and pages the local rows, newest first", async () => {
-  for (let i = 0; i < 55; i++) server.rows.set(String(i), todo(String(i)));
-  server.rows.set("done", todo("done", { completed: true, title: "Finished report" }));
+  for (let i = 0; i < 55; i++) server.todos.set(String(i), todo(String(i)));
+  server.todos.set("done", todo("done", { completed: true, title: "Finished report" }));
   await render();
 
   expect(current.rows).toHaveLength(50);
@@ -248,13 +195,13 @@ it("filters and pages the local rows, newest first", async () => {
 });
 
 it("sends the prompt through the generated AI operation", async () => {
-  server.generate.mockResolvedValue({
+  generate.mockResolvedValue({
     generateTodos: { status: "AI_NOT_CONFIGURED", message: null, todos: [] }
   });
   await render();
   await act(async () => {
     await current.generate("Plan release");
   });
-  expect(server.generate).toHaveBeenCalledOnce();
-  expect(server.generate.mock.calls[0]?.[0]).toEqual({ input: { prompt: "Plan release" } });
+  expect(generate).toHaveBeenCalledOnce();
+  expect(generate.mock.calls[0]?.[0]).toEqual({ input: { prompt: "Plan release" } });
 });
