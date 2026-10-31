@@ -1,31 +1,24 @@
 import { createActiveOrganizationQueryKey } from "@repo/query";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useLiveQuery } from "@tanstack/react-db";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { NOTES_CONFIG } from "./notes.config";
-import type { NoteDraft } from "./notes.type";
+import type { NoteDetail, NoteDraft } from "./notes.type";
 import { canSaveNote, createNoteDraft, isNoteDirty, NEW_NOTE } from "./notes.util";
 import {
-  GetNotesDocument,
   useGetNotesQuery,
   useGetNoteQuery,
-  useCreateNoteMutation,
-  useUpdateNoteMutation,
-  useDeleteNoteMutation,
-  useNoteCountQuery,
-  type GetNotesQuery,
-  type GetNotesQueryVariables
+  useNoteCountQuery
 } from "../../graphql/generated/react-query";
 import { useLiveNotes, useLiveTodos } from "../../hooks/use-live-list";
-import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
+import { useSyncEngine, useSyncStatus } from "../../hooks/use-sync";
 import { queryRuntime } from "../../lib/query-runtime";
 
 queryRuntime.registerOrgScopedOperation("notes.web.list", useGetNotesQuery.getKey());
 const detailPrefix = useGetNoteQuery.getKey({ id: "" }).slice(0, 1);
 queryRuntime.registerOrgScopedOperation("notes.web.detail", detailPrefix);
 queryRuntime.registerOrgScopedOperation("notes.web.count", useNoteCountQuery.getKey());
-/** The `after` cursor of the first page: none. */
-const FIRST_PAGE: string | null = null;
 
 /** The number of Notes in the Active Organization. */
 export function useNoteCount(organizationId: string | null, enabled: boolean) {
@@ -35,14 +28,24 @@ export function useNoteCount(organizationId: string | null, enabled: boolean) {
   });
 }
 
+/**
+ * The Active Organization's Notes and their checklists from the local sync
+ * collections. Saving and deleting work offline: a write shows at once and
+ * syncs when the network allows; one the server refuses rolls back with a
+ * toast (sync.provider).
+ */
 export function useNotes(organizationId: string | null, enabled: boolean, selected: string | null) {
   const client = useQueryClient();
+  const engine = useSyncEngine();
+  const syncStatus = useSyncStatus();
   const [search, setSearch] = useState("");
   const [phrase, setPhrase] = useState("");
   const [drafts, setDrafts] = useState<Record<string, NoteDraft>>({});
   const draftsRef = useRef(drafts);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const [visible, setVisible] = useState<number>(NOTES_CONFIG.pageSize);
   const mounted = useRef(false);
   const locks = useRef(new Set<string>());
   useEffect(() => {
@@ -68,108 +71,123 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     });
   }
 
-  const fetchNotes = useGraphqlFetcher<GetNotesQuery, GetNotesQueryVariables>(GetNotesDocument);
-  const listKey = createActiveOrganizationQueryKey(
-    [...useGetNotesQuery.getKey({ search: phrase, first: NOTES_CONFIG.pageSize }), "pages"],
-    organizationId
+  const liveNotes = useLiveQuery(() => (enabled ? engine?.notes : null), [engine, enabled]);
+  const liveTodos = useLiveQuery(() => (enabled ? engine?.todos : null), [engine, enabled]);
+  const ready = liveNotes.isReady;
+  const all = [...(liveNotes.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const lowerPhrase = phrase.toLowerCase();
+  const matching = all.filter(
+    (note) =>
+      note.title.toLowerCase().includes(lowerPhrase) ||
+      (note.body ?? "").toLowerCase().includes(lowerPhrase)
   );
-  const list = useInfiniteQuery({
-    queryKey: listKey,
-    enabled,
-    initialPageParam: FIRST_PAGE,
-    queryFn: ({ pageParam }) =>
-      fetchNotes({ search: phrase, first: NOTES_CONFIG.pageSize, after: pageParam }),
-    getNextPageParam: ({ notes: { pageInfo } }) =>
-      pageInfo.hasNextPage ? pageInfo.endCursor : undefined
-  });
+  useEffect(() => {
+    setVisible(NOTES_CONFIG.pageSize);
+  }, [phrase]);
+  // The list's loading and paging state, in the shape the routes read. With
+  // no rows to show, a failed pull is a load error the user can retry.
+  const list = {
+    isPending: !ready,
+    isError: ready && all.length === 0 && syncStatus?.state === "error",
+    isFetchNextPageError: false,
+    hasNextPage: matching.length > visible,
+    isFetching: false,
+    isFetchingNextPage: false,
+    fetchNextPage: () => {
+      setVisible((count) => count + NOTES_CONFIG.pageSize);
+    },
+    refetch: () => engine?.pull().catch(() => undefined)
+  };
   const selectedDraft = selected ? drafts[selected] : undefined;
   const serverId = selectedDraft?.serverId ?? (selected === NEW_NOTE ? null : selected);
-  const detailKey = createActiveOrganizationQueryKey(
-    useGetNoteQuery.getKey({ id: serverId ?? "" }),
-    organizationId
-  );
-  const detail = useGetNoteQuery(
-    { id: serverId ?? "" },
-    { enabled: enabled && Boolean(serverId), queryKey: detailKey }
-  );
-  const create = useCreateNoteMutation({ retry: false });
-  const update = useUpdateNoteMutation({ retry: false });
-  const remove = useDeleteNoteMutation({ retry: false });
+  const savedNote = serverId ? all.find((note) => note.id === serverId) : undefined;
+  const note: NoteDetail | null = savedNote
+    ? {
+        ...savedNote,
+        todos: (liveTodos.data ?? [])
+          .filter((todo) => todo.noteId === savedNote.id)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      }
+    : null;
+  // The selected Note's state, in the shape the detail route reads.
+  const detail = {
+    data: ready && serverId ? { note } : undefined,
+    isError: list.isError,
+    isSuccess: ready && Boolean(serverId),
+    refetch: () => engine?.pull().catch(() => undefined)
+  };
 
   useEffect(() => {
     if (!selected) return;
     const current = draftsRef.current[selected];
     if (selected === NEW_NOTE && !current) {
-      changeDrafts((all) => ({ ...all, [NEW_NOTE]: createNoteDraft() }));
-    } else if (
-      detail.data?.note &&
-      detail.data.note.id === serverId &&
-      current?.status !== "saving"
-    ) {
-      const note = detail.data.note;
+      changeDrafts((drafts) => ({ ...drafts, [NEW_NOTE]: createNoteDraft() }));
+    } else if (savedNote && current?.status !== "saving") {
       if (!current || !isNoteDirty(current)) {
-        changeDrafts((all) => ({
-          ...all,
-          [selected]: { ...createNoteDraft(note), status: current?.status ?? "idle" }
+        changeDrafts((drafts) => ({
+          ...drafts,
+          [selected]: { ...createNoteDraft(savedNote), status: current?.status ?? "idle" }
         }));
       }
-    } else if (serverId && detail.isSuccess && detail.data.note === null && current) {
+    } else if (serverId && ready && !savedNote && current) {
       patchDraft(selected, { deleted: true });
     }
-  }, [selected, serverId, detail.data, detail.isSuccess]);
+  }, [selected, serverId, savedNote, ready]);
 
-  const invalidationKeys = [listKey, detailKey, useNoteCountQuery.getKey()];
+  const countKey = useNoteCountQuery.getKey();
+  const pull = () => void engine?.pull().catch(() => undefined);
   useLiveNotes({
     enabled,
-    invalidateKeys: invalidationKeys,
+    invalidateKeys: [countKey],
     onDeleted: (id) =>
-      changeDrafts((all) =>
+      changeDrafts((drafts) =>
         Object.fromEntries(
-          Object.entries(all).map(([key, draft]) => [
+          Object.entries(drafts).map(([key, draft]) => [
             key,
             draft.serverId === id ? { ...draft, deleted: true } : draft
           ])
         )
-      )
+      ),
+    onEvent: pull
   });
-  // A Note's embedded Todos change through Todo events.
-  useLiveTodos({ enabled, invalidateKeys: [detailKey] });
+  // A Note's checklist changes through Todo events.
+  useLiveTodos({ enabled, invalidateKeys: [], onEvent: pull });
 
   async function refresh() {
-    await Promise.all([
-      client.invalidateQueries({ queryKey: useGetNotesQuery.getKey() }),
-      client.invalidateQueries({ queryKey: detailPrefix }),
-      client.invalidateQueries({ queryKey: useNoteCountQuery.getKey() })
-    ]);
+    await Promise.all([engine?.pull(), client.invalidateQueries({ queryKey: countKey })]);
   }
   async function save(key: string) {
     const submitted = draftsRef.current[key];
-    if (!enabled || !submitted || !canSaveNote(submitted) || locks.current.has(key)) return;
+    if (!enabled || !engine || !submitted || !canSaveNote(submitted) || locks.current.has(key))
+      return;
     locks.current.add(key);
     patchDraft(key, { status: "saving" });
     try {
-      const input = { title: submitted.title.trim(), body: submitted.body };
-      const result = submitted.serverId
-        ? (await update.mutateAsync({ id: submitted.serverId, input })).updateNote
-        : (await create.mutateAsync({ input })).createNote;
+      // Normalized as the server stores it, so the synced row matches the draft.
+      const body = submitted.body.trim();
+      const input = { title: submitted.title.trim(), body: body.length > 0 ? body : null };
+      let id = submitted.serverId;
+      if (id) await engine.updateNote(id, input);
+      else id = await engine.createNote(input);
       if (!mounted.current) return;
-      changeDrafts((all) => {
-        const latest = all[key];
-        if (!latest) return all;
+      const savedId = id;
+      changeDrafts((drafts) => {
+        const latest = drafts[key];
+        if (!latest) return drafts;
         return {
-          ...all,
+          ...drafts,
           [key]: {
             ...latest,
-            serverId: result.id,
-            baseTitle: result.title,
-            baseBody: result.body ?? "",
-            title: latest.title === submitted.title ? result.title : latest.title,
-            body: latest.body === submitted.body ? (result.body ?? "") : latest.body,
+            serverId: savedId,
+            baseTitle: input.title,
+            baseBody: input.body ?? "",
+            title: latest.title === submitted.title ? input.title : latest.title,
+            body: latest.body === submitted.body ? (input.body ?? "") : latest.body,
             status: "saved"
           }
         };
       });
-      await refresh();
+      void client.invalidateQueries({ queryKey: countKey });
     } catch {
       if (mounted.current) patchDraft(key, { status: "error" });
     } finally {
@@ -177,60 +195,57 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     }
   }
   async function deleteNote(id: string) {
-    if (locks.current.size || remove.isPending) return false;
+    if (!engine || locks.current.size || deletePending) return false;
     locks.current.add(id);
     setDeleteError(false);
+    setDeletePending(true);
     try {
-      await remove.mutateAsync({ id });
+      await engine.deleteNote(id);
       if (!mounted.current) return false;
-      changeDrafts((all) =>
-        Object.fromEntries(Object.entries(all).filter(([, draft]) => draft.serverId !== id))
+      changeDrafts((drafts) =>
+        Object.fromEntries(Object.entries(drafts).filter(([, draft]) => draft.serverId !== id))
       );
       setDeleting(null);
-      await refresh();
-      return mounted.current;
+      void client.invalidateQueries({ queryKey: countKey });
+      return true;
     } catch {
       if (mounted.current) setDeleteError(true);
       return false;
     } finally {
       locks.current.delete(id);
+      if (mounted.current) setDeletePending(false);
     }
   }
   function startNew() {
     const previous = draftsRef.current[NEW_NOTE];
     if (previous?.serverId) {
-      changeDrafts((all) => ({
-        ...all,
+      changeDrafts((drafts) => ({
+        ...drafts,
         [previous.serverId ?? NEW_NOTE]: previous,
         [NEW_NOTE]: createNoteDraft()
       }));
-    } else if (!previous) changeDrafts((all) => ({ ...all, [NEW_NOTE]: createNoteDraft() }));
+    } else if (!previous) changeDrafts((drafts) => ({ ...drafts, [NEW_NOTE]: createNoteDraft() }));
   }
-  const rows = [
-    ...new Map(
-      (list.data?.pages.flatMap((page) => page.notes.items) ?? []).map((note) => [note.id, note])
-    ).values()
-  ];
+  const rows = matching.slice(0, visible);
   const unsaved = Object.entries(drafts).filter(
     ([, draft]) => isNoteDirty(draft) || draft.status === "saving" || draft.status === "error"
   );
-  const pending =
-    Object.values(drafts).some((draft) => draft.status === "saving") || remove.isPending;
+  const pending = Object.values(drafts).some((draft) => draft.status === "saving") || deletePending;
   const externalChange = Boolean(
     selectedDraft &&
-    detail.data?.note &&
+    savedNote &&
     !selectedDraft.deleted &&
     selectedDraft.status !== "saving" &&
-    (selectedDraft.baseTitle !== detail.data.note.title ||
-      selectedDraft.baseBody !== (detail.data.note.body ?? ""))
+    (selectedDraft.baseTitle !== savedNote.title ||
+      selectedDraft.baseBody !== (savedNote.body ?? ""))
   );
 
   return {
     promoteNew: () => {
       const draft = draftsRef.current[NEW_NOTE];
       if (!draft?.serverId || draft.status === "saving") return;
-      changeDrafts((all) => {
-        const next = { ...all, [draft.serverId ?? NEW_NOTE]: draft };
+      changeDrafts((drafts) => {
+        const next = { ...drafts, [draft.serverId ?? NEW_NOTE]: draft };
         delete next[NEW_NOTE];
         return next;
       });
@@ -253,15 +268,12 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     deleting,
     setDeleting,
     deleteError,
-    deletePending: remove.isPending,
+    deletePending,
     edit: (key: string, field: "title" | "body", value: string) =>
       patchDraft(key, { [field]: value }),
     loadLatest: () => {
-      if (selected && detail.data?.note)
-        changeDrafts((all) => ({
-          ...all,
-          [selected]: createNoteDraft(detail.data.note ?? undefined)
-        }));
+      if (selected && savedNote)
+        changeDrafts((drafts) => ({ ...drafts, [selected]: createNoteDraft(savedNote) }));
     },
     refresh
   };

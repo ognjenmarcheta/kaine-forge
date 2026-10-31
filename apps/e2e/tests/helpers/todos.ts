@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { mockNotes } from "./notes";
+import { pushedMutations, textOf } from "./sync";
 
 interface FixtureTodo {
   id: string;
@@ -76,37 +77,6 @@ function variables(body: string) {
         ? input.completed
         : undefined
   };
-}
-interface PushedMutation {
-  kind: "todoCreate" | "todoUpdate" | "todoDelete" | "other";
-  id: string;
-  fields: Record<string, unknown>;
-}
-/** The mutations of a `SyncPush` request, each as its operation name and fields. */
-function pushedMutations(body: string): PushedMutation[] {
-  const parsed: unknown = JSON.parse(body);
-  const vars =
-    parsed && typeof parsed === "object" && "variables" in parsed ? parsed.variables : null;
-  const input = vars && typeof vars === "object" && "input" in vars ? vars.input : null;
-  const list =
-    input && typeof input === "object" && "mutations" in input && Array.isArray(input.mutations)
-      ? input.mutations
-      : [];
-  return list.flatMap((entry: unknown) => {
-    if (!entry || typeof entry !== "object") return [];
-    const [kind, value] = Object.entries(entry)[0] ?? [];
-    if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "string")
-      return [];
-    const fields: Record<string, unknown> = { ...value };
-    return [
-      {
-        kind:
-          kind === "todoCreate" || kind === "todoUpdate" || kind === "todoDelete" ? kind : "other",
-        id: value.id,
-        fields
-      }
-    ];
-  });
 }
 function todoIdOf(body: string): string {
   const parsed: unknown = JSON.parse(body);
@@ -237,37 +207,42 @@ export async function mockTodos(page: Page) {
       const deleted = [...served].filter((id) => !ids.has(id));
       served.clear();
       for (const id of ids) served.add(id);
+      // The Notes underneath, without their checklist Todos: these specs count only their own rows.
+      const shared = common.sync.pull();
       await route.fulfill({
-        json: state.loadFailed
-          ? { errors: [{ message: "Unavailable" }] }
-          : {
-              data: {
-                syncPull: {
-                  todos: visible.map((item) => ({
-                    id: item.id,
-                    title: item.title,
-                    description: item.description,
-                    completed: item.completed,
-                    noteId: null,
-                    attachments: item.attachments.map(
-                      ({ id, originalName, mimeType, sizeBytes }) => ({
-                        id,
-                        originalName,
-                        mimeType,
-                        sizeBytes
-                      })
-                    ),
-                    createdAt: item.createdAt,
-                    updatedAt: item.updatedAt
-                  })),
-                  notes: [],
-                  deleted: deleted.map((id) => ({ entity: "TODO", id })),
-                  cursor: String(++pulls),
-                  hasMore: false,
-                  resetRequired: false
+        json:
+          state.loadFailed || common.state.loadFailed
+            ? { errors: [{ message: "Unavailable" }] }
+            : {
+                data: {
+                  syncPull: {
+                    todos: [
+                      ...visible.map((item) => ({
+                        id: item.id,
+                        title: item.title,
+                        description: item.description,
+                        completed: item.completed,
+                        noteId: null,
+                        attachments: item.attachments.map(
+                          ({ id, originalName, mimeType, sizeBytes }) => ({
+                            id,
+                            originalName,
+                            mimeType,
+                            sizeBytes
+                          })
+                        ),
+                        createdAt: item.createdAt,
+                        updatedAt: item.updatedAt
+                      }))
+                    ],
+                    notes: shared.notes,
+                    deleted: [...deleted.map((id) => ({ entity: "TODO", id })), ...shared.deleted],
+                    cursor: String(++pulls),
+                    hasMore: false,
+                    resetRequired: false
+                  }
                 }
               }
-            }
       });
     } else if (query.includes("query GetTodoAttachmentLinks(")) {
       const item = rows.find((row) => row.id === todoIdOf(query));
@@ -285,7 +260,9 @@ export async function mockTodos(page: Page) {
         }
       });
     } else if (query.includes("mutation SyncPush(")) {
-      const mutations = pushedMutations(query);
+      const all = pushedMutations(query);
+      // Note and checklist changes belong to the Notes fixture underneath.
+      const mutations = all.filter((mutation) => !common.sync.owns(mutation));
       for (const mutation of mutations) {
         if (mutation.kind === "todoCreate") state.creates++;
         if (mutation.kind === "todoUpdate") state.updates++;
@@ -298,8 +275,9 @@ export async function mockTodos(page: Page) {
         await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
         return;
       }
+      for (const mutation of all) if (common.sync.owns(mutation)) common.sync.apply(mutation);
       for (const { kind, id, fields } of mutations) {
-        const text = (key: string) => (typeof fields[key] === "string" ? fields[key] : null);
+        const text = (key: string) => textOf(fields, key);
         if (kind === "todoCreate")
           rows.unshift({
             id,
@@ -322,7 +300,7 @@ export async function mockTodos(page: Page) {
       await route.fulfill({
         json: {
           data: {
-            syncPush: { results: mutations.map(() => ({ status: "APPLIED", code: null })) }
+            syncPush: { results: all.map(() => ({ status: "APPLIED", code: null })) }
           }
         }
       });

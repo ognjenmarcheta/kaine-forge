@@ -18,6 +18,10 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 const sessionLifecycle = createClientSessionLifecycle({
   auth: authTransport,
+  // A session check that cannot reach the API (offline, or the API down)
+  // keeps the last session, so the app and its local Todos and Notes stay
+  // usable. A real sign-out still returns null and signs the user out.
+  fallbackToStoredSession: true,
   persistence: {
     getStoredSession: () => getStoredSession(AUTH_DEFINITION.storageKey),
     setStoredSession: (session) => setStoredSession(AUTH_DEFINITION.storageKey, session),

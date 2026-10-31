@@ -30,6 +30,7 @@ import {
 
 import { ShellCommandMenu } from "./components/command-menu";
 import { CommandMenuButton } from "./components/command-menu-button";
+import { ConfirmDialog } from "./components/confirm-dialog";
 import { NotFoundPage } from "./components/not-found.page";
 import { RouteErrorPage } from "./components/route-error.page";
 import {
@@ -88,6 +89,7 @@ import { WebhooksRoute } from "./features/webhooks/webhooks.route";
 import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
 import { useRouteTitle } from "./hooks/use-route-title";
+import { useSignOut, useSyncStatus } from "./hooks/use-sync";
 import { useTheme } from "./hooks/use-theme";
 import { useTranslation } from "./hooks/use-translation";
 import { saveEmailLanguageRequest } from "./lib/auth-api";
@@ -156,7 +158,10 @@ function ShellContent() {
   const { requestLeave } = useWorkspaceNavigation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoading, logout, session } = useAuth();
+  const { isLoading, session } = useAuth();
+  const signOut = useSignOut();
+  const syncStatus = useSyncStatus();
+  const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false);
   const {
     activeOrganizationId,
     hasError,
@@ -335,7 +340,13 @@ function ShellContent() {
               }}
               className="w-full min-w-0 max-w-none"
               logoutLabel={t("auth.logout")}
-              onLogout={() => requestLeave(() => void logout())}
+              onLogout={() =>
+                requestLeave(() => {
+                  // Signing out deletes changes not yet synced: ask first.
+                  if (syncStatus && syncStatus.pending > 0) setIsSignOutConfirmOpen(true);
+                  else void signOut();
+                })
+              }
               user={{
                 email: currentSession.user.email,
                 name: currentSession.user.name,
@@ -361,6 +372,18 @@ function ShellContent() {
         isOpen={isCreateOrganizationOpen}
         onClose={() => setIsCreateOrganizationOpen(false)}
         onSubmit={createOrganization}
+      />
+      <ConfirmDialog
+        isOpen={isSignOutConfirmOpen}
+        title={t("sync.signOut.title")}
+        message={t("sync.signOut.message")}
+        confirmLabel={t("sync.signOut.confirm")}
+        cancelLabel={t("button.cancel")}
+        onCancel={() => setIsSignOutConfirmOpen(false)}
+        onConfirm={() => {
+          setIsSignOutConfirmOpen(false);
+          void signOut();
+        }}
       />
     </>
   );

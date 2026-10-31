@@ -64,5 +64,8 @@
   "sync.rejected.FORBIDDEN": "A change was not saved: you do not have permission.",
   "sync.rejected.INVALID": "A change was not saved: it was not valid.",
   "sync.rejected.CONFLICT": "A change was not saved: it conflicts with another item.",
-  "sync.rejected.PLAN_LIMIT_REACHED": "A change was not saved: your plan's limit is reached."
+  "sync.rejected.PLAN_LIMIT_REACHED": "A change was not saved: your plan's limit is reached.",
+  "sync.signOut.title": "Sign out with unsynced changes?",
+  "sync.signOut.message": "Some changes on this device are not synced yet. Signing out deletes them.",
+  "sync.signOut.confirm": "Sign out anyway"
 }

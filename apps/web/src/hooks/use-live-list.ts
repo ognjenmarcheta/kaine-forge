@@ -42,13 +42,22 @@ export function useLiveTodos({
 }
 
 /** Keeps Note queries fresh: refetches on every Note event of the Active Organization. */
-export function useLiveNotes({ enabled, invalidateKeys, onDeleted }: LiveListOptions): void {
-  useSubscription({ query: OnNoteCreatedDocument, enabled, invalidateKeys });
-  useSubscription({ query: OnNoteUpdatedDocument, enabled, invalidateKeys });
+export function useLiveNotes({
+  enabled,
+  invalidateKeys,
+  onDeleted,
+  onEvent
+}: LiveListOptions): void {
+  const onData = () => onEvent?.();
+  useSubscription({ query: OnNoteCreatedDocument, enabled, invalidateKeys, onData });
+  useSubscription({ query: OnNoteUpdatedDocument, enabled, invalidateKeys, onData });
   useSubscription({
     query: OnNoteDeletedDocument,
     enabled,
     invalidateKeys,
-    onData: ({ noteDeleted }) => onDeleted?.(noteDeleted.id)
+    onData: ({ noteDeleted }) => {
+      onDeleted?.(noteDeleted.id);
+      onEvent?.();
+    }
   });
 }

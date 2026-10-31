@@ -64,6 +64,8 @@ export interface SyncEngine {
   deleteNote: (id: string) => Promise<void>;
   /** Pulls the changes after the cursor; a call during a pull runs one more after it. */
   pull: () => Promise<void>;
+  /** Drops this device's Pending Changes for the engine's scope, for a sign-out. */
+  clearLocalData: () => Promise<void>;
   getStatus: () => SyncStatus;
   subscribeStatus: (listener: (status: SyncStatus) => void) => () => void;
   dispose: () => void;
@@ -444,6 +446,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     updateNote: (id, patch) => act(() => updateNoteAction({ id, patch })),
     deleteNote: (id) => act(() => deleteNoteAction(id)),
     pull,
+    async clearLocalData() {
+      await initialized;
+      await executor.clearOutbox();
+      publish();
+    },
     getStatus: () => status,
     subscribeStatus(listener) {
       listeners.add(listener);
@@ -473,11 +480,16 @@ export function browserSyncStores(scope: { userId: string; organizationId: strin
   storage: StorageAdapter;
   leaderElection: LeaderElection | undefined;
 } {
-  const name = `kaine-sync:${scope.userId}:${scope.organizationId}`;
+  const name = `${browserSyncStorePrefix(scope.userId)}${scope.organizationId}`;
   const leaderElection = WebLocksLeader.isSupported()
     ? new WebLocksLeader(name)
     : BroadcastChannelLeader.isSupported()
       ? new BroadcastChannelLeader(name)
       : undefined;
   return { storage: new IndexedDBAdapter(name, "outbox"), leaderElection };
+}
+
+/** The start of every browser store name of a User, in any Organization. */
+export function browserSyncStorePrefix(userId: string): string {
+  return `kaine-sync:${userId}:`;
 }

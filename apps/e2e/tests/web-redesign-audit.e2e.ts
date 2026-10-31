@@ -65,7 +65,9 @@ test("a Todo saved while the API cannot be reached shows at once and syncs when 
   await expect(page.getByRole("checkbox", { name: title, exact: true })).toBeVisible();
 });
 
-test("Note checklist retries additions and confirms pending deletions", async ({ page }) => {
+test("Note checklist changes apply at once, survive an unreachable API, and sync", async ({
+  page
+}) => {
   await signIn(page);
   await page.getByRole("link", { name: "Notes", exact: true }).click();
   await page.getByRole("button", { name: "New note", exact: true }).click();
@@ -74,43 +76,35 @@ test("Note checklist retries additions and confirms pending deletions", async ({
   await expect(page).not.toHaveURL(/\/notes\/new$/);
   const title = `Checklist item ${Date.now()}`;
   const input = page.getByRole("textbox", { name: "Checklist item", exact: true });
-  await input.fill(title);
+  let reachable = false;
   await page.route("**/graphql", async (route) => {
-    if (route.request().postData()?.includes("mutation AddTodoToNote")) {
+    if (!reachable && route.request().postData()?.includes("mutation SyncPush")) {
       await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
     } else await route.continue();
   });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(
-    page.getByText("The checklist item could not be added.", { exact: false })
-  ).toBeVisible();
-  await expect(input).toHaveValue(title);
-  await page.unroute("**/graphql");
+  await input.fill(title);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const checkbox = page.getByRole("checkbox", { name: title, exact: true });
   await expect(checkbox).toBeVisible();
+  await expect(input).toHaveValue("");
   await checkbox.click();
   await expect(checkbox).toBeChecked();
+  const status = page.getByRole("status", { name: "Sync status", exact: true });
+  await expect(status).toContainText("Syncing");
+
+  reachable = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(status).toContainText("Online", { timeout: 15_000 });
+  await page.reload();
+  await expect(checkbox).toBeChecked();
+
   const row = page.getByRole("listitem").filter({ has: checkbox });
   await row.getByRole("button", { name: "Delete Todo", exact: true }).click();
   const confirm = page.getByRole("dialog", { name: "Delete todo", exact: true });
   await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(checkbox).toBeVisible();
   await row.getByRole("button", { name: "Delete Todo", exact: true }).click();
-  let release: () => void = () => {};
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route("**/graphql", async (route) => {
-    if (route.request().postData()?.includes("mutation DeleteTodo")) await gate;
-    await route.continue();
-  });
   await confirm.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect(confirm.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
-  await page.keyboard.press("Escape");
-  await page.mouse.click(5, 5);
-  await expect(confirm).toBeVisible();
-  release();
   await expect(confirm).toHaveCount(0);
   await expect(checkbox).toHaveCount(0);
 });
@@ -189,7 +183,7 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   let noteSaved = false;
   let noteDelivered = false;
   await page.route("**/graphql", async (route) => {
-    if (route.request().postData()?.includes("mutation CreateNote")) {
+    if (route.request().postData()?.includes("mutation SyncPush")) {
       const response = await route.fetch();
       noteSaved = true;
       await noteGate;
@@ -205,12 +199,8 @@ test("Organization switches clear Assistant state and ignore late replies", asyn
   await expect.poll(() => noteSaved).toBe(true);
   await switcher.click();
   await page.getByRole("menuitem", { name, exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Leave unsaved drafts?" })).toBeVisible();
-  // The modal makes the page inert to role queries, so find the switcher by structure:
-  // it is the dropdown trigger in the sidebar header (named by its text since #545).
-  await expect(
-    page.locator('[data-sidebar="header"] [data-slot="dropdown-menu-trigger"]')
-  ).toContainText("Personal");
+  // Nothing waits for the server: the save stays in the first Organization's Outbox.
+  await expect(switcher).toContainText(name);
   releaseNote();
   await expect.poll(() => noteDelivered).toBe(true);
   await expect(switcher).toContainText(name);
