@@ -159,6 +159,8 @@ it("lists a Note's checklist from the synced Todos, newest first", async () => {
     await engine.createTodo({ title: "Second item", noteId: "a" });
     await engine.createTodo({ title: "Elsewhere", noteId: "b" });
   });
+  // The server's creation times order the checklist, not the device's clock.
+  await settle();
 
   expect(current.detail.data?.note?.todos.map((todo) => todo.title)).toEqual([
     "Second item",

@@ -23,6 +23,11 @@ export function createFakeSyncServer(): FakeSyncServer {
 }
 
 const STAMP = "2026-09-13T12:00:00.000Z";
+let created = 0;
+/** A creation time later than every one before it, as the database's clock gives. */
+function nextCreatedAt(): string {
+  return new Date(Date.UTC(2026, 8, 14) + ++created * 1000).toISOString();
+}
 
 function apply(server: FakeSyncServer, mutation: SyncMutation): void {
   if ("todoCreate" in mutation) {
@@ -34,7 +39,7 @@ function apply(server: FakeSyncServer, mutation: SyncMutation): void {
       completed: false,
       noteId,
       attachments: [],
-      createdAt: new Date().toISOString(),
+      createdAt: nextCreatedAt(),
       updatedAt: STAMP
     });
   } else if ("todoUpdate" in mutation) {
@@ -42,14 +47,15 @@ function apply(server: FakeSyncServer, mutation: SyncMutation): void {
     const row = server.todos.get(id);
     if (row) server.todos.set(id, { ...row, ...patch });
   } else if ("todoDelete" in mutation) {
-    server.todos.delete(mutation.todoDelete.id);
+    if (server.todos.delete(mutation.todoDelete.id))
+      server.deleted.push({ entity: "TODO", id: mutation.todoDelete.id });
   } else if ("noteCreate" in mutation) {
     const { id, title, body } = mutation.noteCreate;
     server.notes.set(id, {
       id,
       title,
       body,
-      createdAt: new Date().toISOString(),
+      createdAt: nextCreatedAt(),
       updatedAt: STAMP
     });
   } else if ("noteUpdate" in mutation) {
@@ -57,7 +63,8 @@ function apply(server: FakeSyncServer, mutation: SyncMutation): void {
     const row = server.notes.get(id);
     if (row) server.notes.set(id, { ...row, ...patch });
   } else if ("noteDelete" in mutation) {
-    server.notes.delete(mutation.noteDelete.id);
+    if (server.notes.delete(mutation.noteDelete.id))
+      server.deleted.push({ entity: "NOTE", id: mutation.noteDelete.id });
   }
 }
 

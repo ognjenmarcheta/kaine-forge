@@ -165,7 +165,11 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   useLiveTodos({ enabled, invalidateKeys: [], onEvent: pull });
 
   async function refresh() {
-    await Promise.all([engine?.pull(), client.invalidateQueries({ queryKey: countKey })]);
+    // Offline the pull fails; the sync status already shows it.
+    await Promise.all([
+      engine?.pull().catch(() => undefined),
+      client.invalidateQueries({ queryKey: countKey })
+    ]);
   }
   async function save(key: string) {
     const submitted = draftsRef.current.get(key);

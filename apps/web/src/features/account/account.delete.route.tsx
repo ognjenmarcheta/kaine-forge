@@ -43,7 +43,7 @@ export function AccountDeleteRoute() {
 function AccountDeleteConfirm({ onDeleted }: { onDeleted: () => void }) {
   const { t } = useTranslation();
   // Also deletes this device's sync data: the account and its changes are gone.
-  const signOut = useSignOut();
+  const { signOut } = useSignOut();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const confirm = useMutation({

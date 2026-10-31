@@ -89,7 +89,7 @@ import { WebhooksRoute } from "./features/webhooks/webhooks.route";
 import { useAuth } from "./hooks/use-auth";
 import { useOrganization } from "./hooks/use-organization";
 import { useRouteTitle } from "./hooks/use-route-title";
-import { useSignOut, useSyncStatus } from "./hooks/use-sync";
+import { useSignOut } from "./hooks/use-sync";
 import { useTheme } from "./hooks/use-theme";
 import { useTranslation } from "./hooks/use-translation";
 import { saveEmailLanguageRequest } from "./lib/auth-api";
@@ -159,8 +159,7 @@ function ShellContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoading, session } = useAuth();
-  const signOut = useSignOut();
-  const syncStatus = useSyncStatus();
+  const { signOut, countPendingChanges } = useSignOut();
   const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = useState(false);
   const {
     activeOrganizationId,
@@ -342,9 +341,11 @@ function ShellContent() {
               logoutLabel={t("auth.logout")}
               onLogout={() =>
                 requestLeave(() => {
-                  // Signing out deletes changes not yet synced: ask first.
-                  if (syncStatus && syncStatus.pending > 0) setIsSignOutConfirmOpen(true);
-                  else void signOut();
+                  // Signing out deletes changes not yet synced, in every Organization: ask first.
+                  void countPendingChanges().then((pending) => {
+                    if (pending > 0) setIsSignOutConfirmOpen(true);
+                    else void signOut();
+                  });
                 })
               }
               user={{
