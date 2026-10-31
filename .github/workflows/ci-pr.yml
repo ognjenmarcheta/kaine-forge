@@ -652,6 +652,14 @@ jobs:
           pnpm run db:push
           pnpm run db:seed
 
+      # Concurrent writers need a real Postgres, which only this job starts
+      # (issue #803). The test makes and drops its own migrated database.
+      - name: Sync version concurrency on Postgres
+        if: matrix.shard == 1
+        env:
+          SYNC_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: pnpm --filter @repo/api exec vitest run src/features/sync/sync.concurrency.test.ts
+
       # Invoked directly rather than via `pnpm run test:e2e` so this shard's
       # --shard flag reaches playwright. The root script also re-runs
       # db:ensure/db:push/db:seed, which the previous step already did.
