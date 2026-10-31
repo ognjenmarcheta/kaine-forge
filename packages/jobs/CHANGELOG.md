@@ -1,5 +1,25 @@
 # @repo/jobs
 
+## 1.1.0
+
+### Minor Changes
+
+- 63d8df4: Sync per-seat billing and cancel subscriptions of deleted Organizations. Adding or removing a
+  member queues a `billing.syncSeats` job, which sets a per-seat subscription's provider quantity to
+  the member count and retries while the provider is unavailable. A reconcile sweep corrects
+  quantities that drifted without a hook, such as after a member leaves. Deleting an Organization,
+  directly or with the owner's account, cancels its paid subscriptions first and fails with
+  `BILLING_CANCEL_FAILED` when the provider refuses. `@repo/auth/billing` holds the hooks the API sets.
+
+### Patch Changes
+
+- Updated dependencies [5659f20]
+- Updated dependencies [718e2e7]
+- Updated dependencies [6980f5e]
+- Updated dependencies [58e7b6f]
+  - @repo/db@2.2.0
+  - @repo/email@1.3.3
+
 ## 1.0.2
 
 ### Patch Changes

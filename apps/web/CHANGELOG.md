@@ -1,5 +1,39 @@
 # @repo/web
 
+## 1.16.0
+
+### Minor Changes
+
+- 4bf3bde: Add the Billing tab. Every member sees the Organization's Plan, its status, and usage at
+  `/organization/billing`; the owner chooses a larger Plan (Stripe Checkout redirect or the Paddle.js
+  overlay) or opens the provider's billing portal. A failed payment shows a warning. Creating a Todo
+  past the Plan's limit, or using the assistant without it, shows a message with a link to the Billing
+  tab. Mobile adds a read-only Plan screen and the plan-limit message. The web image accepts
+  `CSP_BILLING_ORIGINS` and `BILLING_PAYMENT_ORIGINS` for the Paddle checkout.
+- 6f6690c: Web Notes and their checklists now read from and write to the local sync collections, so they
+  keep working offline. A Note gets a client id when it is first saved, and checklist Todos made
+  offline link to it in order. A session check that cannot reach the API keeps the last session.
+  Signing out deletes this device's sync data for the User, and warns first when changes are not
+  synced yet.
+- 6980f5e: Add `@repo/sync`, the client half of offline sync. It holds Todo and Note collections fed by
+  `syncPull`, and an Outbox that replays local changes through `syncPush` in order. Web Todos now
+  read from and write to the local collection, so they keep working offline and sync when the
+  network returns. The header shows the sync status. A change to a Todo's Attachments now gives
+  the Todo a new Sync Version (migration 0028).
+
+### Patch Changes
+
+- Updated dependencies [5659f20]
+- Updated dependencies [63d8df4]
+- Updated dependencies [474e9c1]
+- Updated dependencies [4bf3bde]
+- Updated dependencies [6f6690c]
+- Updated dependencies [6980f5e]
+  - @repo/auth@5.2.0
+  - @repo/translation@1.14.0
+  - @repo/sync@0.1.0
+  - @repo/ui@2.0.1
+
 ## 1.15.0
 
 ### Minor Changes
