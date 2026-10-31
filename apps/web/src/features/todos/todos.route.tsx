@@ -101,6 +101,8 @@ function TodosWorkspace({
   const menuAction = useRef<"ai" | "simple" | "advanced" | null>(null);
   const previousIds = useRef<string[]>([]);
   const focusedId = useRef<string | null>(null);
+  // The row a confirmed delete hands focus to once its dialog closes.
+  const focusAfterDelete = useRef<string | null>(null);
   const ids = todos.rows.map((item) => item.id);
   useEffect(() => {
     const old = previousIds.current;
@@ -513,10 +515,25 @@ function TodosWorkspace({
         confirmLabel={t("button.delete")}
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
-          if (deleting)
-            void todos.deleteTodo(deleting).then((success) => {
-              if (success) setDeleting(null);
-            });
+          if (!deleting) return;
+          // The row goes at once, while this dialog still holds focus.
+          const index = ids.indexOf(deleting);
+          focusAfterDelete.current = ids[index + 1] ?? ids[index - 1] ?? "";
+          void todos.deleteTodo(deleting).then((success) => {
+            if (success) setDeleting(null);
+          });
+        }}
+        onCloseAutoFocus={(event) => {
+          const id = focusAfterDelete.current;
+          if (id === null) return;
+          focusAfterDelete.current = null;
+          event.preventDefault();
+          const target = id
+            ? listRegion.current?.querySelector<HTMLElement>(
+                '[data-todo-id="' + CSS.escape(id) + '"] button'
+              )
+            : null;
+          (target ?? heading.current)?.focus();
         }}
       />
       <ConfirmDialog

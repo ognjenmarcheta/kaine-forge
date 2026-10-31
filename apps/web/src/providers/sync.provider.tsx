@@ -20,15 +20,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const { activeOrganizationId } = useOrganization();
   const { t } = useTranslation();
-  const [engine, setEngine] = useState<SyncEngine | null>(null);
+  const [current, setCurrent] = useState<{ scope: string; engine: SyncEngine } | null>(null);
   const userId = session?.user.id ?? null;
+  const scope = userId && activeOrganizationId ? `${userId}:${activeOrganizationId}` : null;
   // Read when an engine starts, so a session refresh does not restart it.
   const latest = useRef({ session, t });
   latest.current = { session, t };
 
   useEffect(() => {
-    if (!userId || !activeOrganizationId) {
-      setEngine(null);
+    if (!scope || !userId || !activeOrganizationId) {
+      setCurrent(null);
       return;
     }
     const { storage, leaderElection } = browserSyncStores({
@@ -43,11 +44,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         toast.error(latest.current.t(`sync.rejected.${code}`));
       }
     });
-    setEngine(next);
+    setCurrent({ scope, engine: next });
     return () => {
       next.dispose();
     };
-  }, [userId, activeOrganizationId]);
+  }, [scope, userId, activeOrganizationId]);
 
+  // Right after a switch the effect has not run yet: the previous scope's
+  // engine must never reach the new Organization's screens.
+  const engine = current?.scope === scope ? current.engine : null;
   return <SyncContext.Provider value={engine}>{children}</SyncContext.Provider>;
 }

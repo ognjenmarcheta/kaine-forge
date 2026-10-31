@@ -45,7 +45,11 @@ export function TodoItemRow({
 }: TodoItemProps) {
   const { t, language } = useTranslation();
   const [open, setOpen] = useState(false);
-  const links = useTodoAttachmentLinks(item.id, open);
+  const links = useTodoAttachmentLinks(
+    item.id,
+    item.attachments.map((file) => file.id),
+    open
+  );
   const offline = useSyncStatus()?.state === "offline";
   const selected = useRef<"edit" | "delete" | null>(null);
   return (

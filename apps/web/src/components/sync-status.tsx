@@ -20,7 +20,10 @@ export function SyncStatusBadge() {
 
   return (
     <div role="status" aria-label={t("sync.status.label")} className="flex items-center gap-ds-050">
-      <Badge appearance={APPEARANCE[status.state]}>{t(`sync.status.${status.state}`)}</Badge>
+      {/* Below the lg width the header has no room for the text: the badge stays as a colored mark. */}
+      <Badge appearance={APPEARANCE[status.state]}>
+        <span className="sr-only lg:not-sr-only">{t(`sync.status.${status.state}`)}</span>
+      </Badge>
       {status.pending > 0 ? (
         <Badge appearance="default" aria-label={t("sync.status.pending")}>
           {status.pending}

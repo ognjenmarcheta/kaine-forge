@@ -1,6 +1,5 @@
 import type { Page } from "@playwright/test";
 
-import { connection } from "./connection";
 import { mockNotes } from "./notes";
 
 interface FixtureTodo {
@@ -78,6 +77,45 @@ function variables(body: string) {
         : undefined
   };
 }
+interface PushedMutation {
+  kind: "todoCreate" | "todoUpdate" | "todoDelete" | "other";
+  id: string;
+  fields: Record<string, unknown>;
+}
+/** The mutations of a `SyncPush` request, each as its operation name and fields. */
+function pushedMutations(body: string): PushedMutation[] {
+  const parsed: unknown = JSON.parse(body);
+  const vars =
+    parsed && typeof parsed === "object" && "variables" in parsed ? parsed.variables : null;
+  const input = vars && typeof vars === "object" && "input" in vars ? vars.input : null;
+  const list =
+    input && typeof input === "object" && "mutations" in input && Array.isArray(input.mutations)
+      ? input.mutations
+      : [];
+  return list.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== "object") return [];
+    const [kind, value] = Object.entries(entry)[0] ?? [];
+    if (!value || typeof value !== "object" || !("id" in value) || typeof value.id !== "string")
+      return [];
+    const fields: Record<string, unknown> = { ...value };
+    return [
+      {
+        kind:
+          kind === "todoCreate" || kind === "todoUpdate" || kind === "todoDelete" ? kind : "other",
+        id: value.id,
+        fields
+      }
+    ];
+  });
+}
+function todoIdOf(body: string): string {
+  const parsed: unknown = JSON.parse(body);
+  const vars =
+    parsed && typeof parsed === "object" && "variables" in parsed ? parsed.variables : null;
+  return vars && typeof vars === "object" && "todoId" in vars && typeof vars.todoId === "string"
+    ? vars.todoId
+    : "";
+}
 export async function mockTodos(page: Page) {
   const common = await mockNotes(page);
   const stamp = "2026-09-13T12:00:00Z";
@@ -101,7 +139,8 @@ export async function mockTodos(page: Page) {
       updatedAt: stamp
     }
   ];
-  const searches: string[] = [];
+  const served = new Set<string>();
+  let pulls = 0;
   const state = {
     holdUpload: false,
     failUpload: false,
@@ -113,8 +152,7 @@ export async function mockTodos(page: Page) {
     loadFailed: false,
     creates: 0,
     updates: 0,
-    generation: "AI_NOT_CONFIGURED",
-    searches
+    generation: "AI_NOT_CONFIGURED"
   };
   let release: () => void = () => {};
   let releaseUpload: () => void = () => {};
@@ -192,33 +230,103 @@ export async function mockTodos(page: Page) {
           }
         }
       });
-    } else if (query.includes("query GetTodos(")) {
-      state.searches.push(vars.search);
+    } else if (query.includes("query SyncPull(")) {
+      const visible = common.state.organization === "org-two" ? [] : rows;
+      // Rows served before and gone now are the deletions this pull reports.
+      const ids = new Set(visible.map((item) => item.id));
+      const deleted = [...served].filter((id) => !ids.has(id));
+      served.clear();
+      for (const id of ids) served.add(id);
       await route.fulfill({
         json: state.loadFailed
           ? { errors: [{ message: "Unavailable" }] }
           : {
               data: {
-                todos: connection(
-                  common.state.organization === "org-two"
-                    ? []
-                    : rows.filter(
-                        (item) =>
-                          `${item.title} ${item.description ?? ""}`
-                            .toLowerCase()
-                            .includes(vars.search.toLowerCase()) &&
-                          (vars.completed === null || item.completed === vars.completed)
-                      ),
-                  { after: vars.after, first: 50 }
-                )
+                syncPull: {
+                  todos: visible.map((item) => ({
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    completed: item.completed,
+                    noteId: null,
+                    attachments: item.attachments.map(
+                      ({ id, originalName, mimeType, sizeBytes }) => ({
+                        id,
+                        originalName,
+                        mimeType,
+                        sizeBytes
+                      })
+                    ),
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt
+                  })),
+                  notes: [],
+                  deleted: deleted.map((id) => ({ entity: "TODO", id })),
+                  cursor: String(++pulls),
+                  hasMore: false,
+                  resetRequired: false
+                }
               }
             }
       });
-    } else if (query.includes("query GetTodo("))
+    } else if (query.includes("query GetTodoAttachmentLinks(")) {
+      const item = rows.find((row) => row.id === todoIdOf(query));
       await route.fulfill({
-        json: { data: { todo: rows.find((item) => item.id === vars.id) ?? null } }
+        json: {
+          data: {
+            files: {
+              items: (item?.attachments ?? []).map(({ id, downloadUrl }) => ({
+                id,
+                downloadUrl,
+                thumbnailUrl: null
+              }))
+            }
+          }
+        }
       });
-    else if (query.includes("mutation GenerateTodos"))
+    } else if (query.includes("mutation SyncPush(")) {
+      const mutations = pushedMutations(query);
+      for (const mutation of mutations) {
+        if (mutation.kind === "todoCreate") state.creates++;
+        if (mutation.kind === "todoUpdate") state.updates++;
+      }
+      if (state.hold)
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      if (state.fail) {
+        await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
+        return;
+      }
+      for (const { kind, id, fields } of mutations) {
+        const text = (key: string) => (typeof fields[key] === "string" ? fields[key] : null);
+        if (kind === "todoCreate")
+          rows.unshift({
+            id,
+            title: text("title") ?? "",
+            description: text("description"),
+            completed: false,
+            attachments: [],
+            // A new row sorts first, as the optimistic row did.
+            createdAt: new Date().toISOString(),
+            updatedAt: stamp
+          });
+        const item = rows.find((row) => row.id === id);
+        if (kind === "todoUpdate" && item) {
+          if ("title" in fields) item.title = text("title") ?? item.title;
+          if ("description" in fields) item.description = text("description");
+          if (typeof fields.completed === "boolean") item.completed = fields.completed;
+        }
+        if (kind === "todoDelete" && item) rows.splice(rows.indexOf(item), 1);
+      }
+      await route.fulfill({
+        json: {
+          data: {
+            syncPush: { results: mutations.map(() => ({ status: "APPLIED", code: null })) }
+          }
+        }
+      });
+    } else if (query.includes("mutation GenerateTodos"))
       await route.fulfill({
         json: {
           data: {

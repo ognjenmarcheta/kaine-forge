@@ -52,22 +52,14 @@ for (const theme of ["light", "dark"] as const)
       await expect(page.getByRole("checkbox")).toHaveCount(1);
       await shot("filtered");
       await page.getByRole("button", { name: "All", exact: true }).click();
-      fixture.state.hold = true;
       await page.getByRole("button", { name: "Prepare release notes", exact: true }).click();
       const dialog = page.getByRole("dialog", { name: "Edit todo" });
       await dialog.getByLabel("Description", { exact: true }).fill("A revised release summary.");
       await dialog.getByRole("button", { name: "Save", exact: true }).click();
-      await expect(dialog.getByRole("button", { name: "Saving…" })).toBeDisabled();
-      await shot("pending");
-      fixture.state.fail = true;
-      fixture.finish();
-      await expect(dialog.getByRole("alert")).toBeVisible();
-      await shot("failed");
-      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-      await page
-        .getByRole("dialog", { name: "Discard changes?" })
-        .getByRole("button", { name: "Discard changes", exact: true })
-        .click();
+      // A save applies at once and syncs in the background.
+      await expect(dialog).toHaveCount(0);
+      await expect.poll(() => fixture.rows[0]?.description).toBe("A revised release summary.");
+      await shot("saved");
       fixture.rows.splice(0);
       fixture.publish("todoDeleted", "a");
       await expect(page.getByText("No todos yet. Create your first one.")).toBeVisible();
@@ -96,11 +88,11 @@ test("quick creation shares details, respects IME, validates and restores focus"
   await quick.press("Enter");
   await expect(quick).toHaveValue("");
   await expect(quick).toBeFocused();
-  expect(fixture.state.creates).toBe(1);
-  expect(fixture.rows[0]?.description).toBe("Shared description");
+  await expect.poll(() => fixture.state.creates).toBe(1);
+  await expect.poll(() => fixture.rows[0]?.description).toBe("Shared description");
 });
 test("search and status use URL history without discarding quick drafts", async ({ page }) => {
-  const fixture = await mockTodos(page);
+  await mockTodos(page);
   await page.goto("/todos");
   await page.getByLabel("What needs to be done?").fill("Keep this draft");
   await page.getByLabel("Search Todos").fill("keyboard");
@@ -111,27 +103,24 @@ test("search and status use URL history without discarding quick drafts", async 
   await page.goBack();
   await expect(page.getByRole("checkbox")).toHaveCount(1);
   await expect(page.getByLabel("What needs to be done?")).toHaveValue("Keep this draft");
-  expect(fixture.state.searches).toContain("keyboard");
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Leave Todos?" })).toBeVisible();
   await page.getByRole("button", { name: "Keep editing", exact: true }).click();
   await expect(page).toHaveURL(/todos/);
 });
-test("completion waits for confirmation and filtered removal restores row focus", async ({
-  page
-}) => {
+test("completion applies at once and filtered removal restores row focus", async ({ page }) => {
   const fixture = await mockTodos(page);
   await page.goto("/todos?status=open");
   fixture.state.hold = true;
   const checkbox = page.getByRole("checkbox", { name: "Prepare release notes" });
   await checkbox.focus();
   await checkbox.press("Space");
-  await expect(checkbox).not.toBeChecked();
-  await expect(checkbox).toBeDisabled();
-  expect(fixture.state.updates).toBe(1);
-  fixture.finish();
+  // The open filter drops the completed Todo before the server answers.
   await expect(checkbox).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Todos loaded: 0" })).toBeFocused();
+  await expect.poll(() => fixture.state.updates).toBe(1);
+  fixture.finish();
+  await expect.poll(() => fixture.rows.find((row) => row.id === "a")?.completed).toBe(true);
 });
 test("external updates preserve edits and external deletion keeps copyable text", async ({
   page
@@ -150,7 +139,7 @@ test("external updates preserve edits and external deletion keeps copyable text"
   expect(fixture.state.updates).toBe(0);
   await description.press("Control+s");
   await expect(dialog).toHaveCount(0);
-  expect(fixture.rows[0]?.description).toBe("Local text");
+  await expect.poll(() => fixture.rows[0]?.description).toBe("Local text");
   await page.getByRole("button", { name: "Prepare release notes", exact: true }).click();
   await description.fill("Recover me");
   fixture.rows.splice(0, 1);
@@ -190,7 +179,7 @@ test("menus, AI feedback, and confirmed deletion stay keyboard accessible", asyn
   await expect(page.getByRole("checkbox", { name: "Prepare release notes" })).toHaveCount(0);
 });
 
-test("Organization changes wait for quick creation and discard drafts only on request", async ({
+test("Organization changes keep a queued Todo and discard drafts only on request", async ({
   page
 }) => {
   const fixture = await mockTodos(page);
@@ -198,14 +187,13 @@ test("Organization changes wait for quick creation and discard drafts only on re
   fixture.state.hold = true;
   await page.getByLabel("What needs to be done?").fill("Submitted Todo");
   await page.getByRole("button", { name: "Add Todo", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "Submitted Todo" })).toBeVisible();
   await expect.poll(() => fixture.state.creates).toBe(1);
+  // Nothing waits for the server: the change stays in this Organization's Outbox.
   await page.getByRole("button", { name: NAV_LABELS.organization }).click();
   await page.getByRole("menuitem", { name: "Second Organization", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Leave Todos?" });
-  await expect(dialog.getByRole("button", { name: "Discard drafts and leave" })).toBeDisabled();
-  expect(fixture.organization.organization).toBe("org-one");
-  fixture.finish();
   await expect.poll(() => fixture.organization.organization).toBe("org-two");
+  const dialog = page.getByRole("dialog", { name: "Leave Todos?" });
   await expect(page.getByLabel("What needs to be done?")).toHaveValue("");
   await page.getByLabel("What needs to be done?").fill("Keep this one");
   await page.getByRole("button", { name: NAV_LABELS.organization }).click();
@@ -247,7 +235,7 @@ test("long content and drafts survive theme and language changes in short viewpo
     });
 });
 
-test("failed loading and Load more recover without losing existing rows", async ({ page }) => {
+test("failed loading recovers, and Load more pages the local rows", async ({ page }) => {
   const fixture = await mockTodos(page);
   const base = fixture.rows[0];
   if (!base) throw new Error("missing fixture");
@@ -259,12 +247,9 @@ test("failed loading and Load more recover without losing existing rows", async 
   fixture.state.loadFailed = false;
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByRole("checkbox")).toHaveCount(50);
+  // The rows are on the device, so Load more needs no request and cannot fail.
   fixture.state.loadFailed = true;
   await page.getByRole("button", { name: "Load more" }).click();
-  await expect(page.getByText(/Could not load more Todos/)).toBeVisible();
-  await expect(page.getByRole("checkbox")).toHaveCount(50);
-  fixture.state.loadFailed = false;
-  await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByRole("checkbox")).toHaveCount(57);
 });
 

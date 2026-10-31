@@ -19,7 +19,10 @@ const server = vi.hoisted(() => ({
   generate: vi.fn<(variables: GenerateTodosMutationVariables) => Promise<GenerateTodosMutation>>()
 }));
 let engine: SyncEngine;
-vi.mock("../../hooks/use-sync", () => ({ useSyncEngine: () => engine }));
+vi.mock("../../hooks/use-sync", () => ({
+  useSyncEngine: () => engine,
+  useSyncStatus: () => engine.getStatus()
+}));
 vi.mock("../../hooks/use-subscription", () => ({ useSubscription: () => {} }));
 vi.mock("../../lib/graphql-codegen-fetcher", () => ({
   useGraphqlFetcher: () => server.generate

@@ -262,7 +262,12 @@ function ShellContent() {
               orientation="vertical"
               className="mr-ds-100 data-[orientation=vertical]:h-4"
             />
-            <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
+            {/* A long trail clips before it pushes the header's controls off screen. */}
+            <Breadcrumbs
+              ariaLabel={t("navigation.breadcrumb")}
+              className="min-w-0 overflow-hidden"
+              items={breadcrumbItems}
+            />
             <div className="ml-auto flex items-center gap-ds-100">
               <SyncStatusBadge />
               <CommandMenuButton onOpen={() => setIsCommandMenuOpen(true)} />

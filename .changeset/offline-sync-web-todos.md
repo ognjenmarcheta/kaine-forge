@@ -3,6 +3,7 @@
 "@repo/web": minor
 "@repo/db": minor
 "@repo/translation": minor
+"@repo/ui": patch
 ---
 
 Add `@repo/sync`, the client half of offline sync. It holds Todo and Note collections fed by

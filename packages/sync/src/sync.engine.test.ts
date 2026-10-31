@@ -15,7 +15,7 @@ import type {
   SyncTodo,
   SyncTransport
 } from "./sync.type";
-import { SyncAuthError } from "./sync.util";
+import { SyncAuthError, SyncRequestError } from "./sync.util";
 
 /** A server with the protocol's rules: one version per change, Tombstones, replayed keys. */
 function createFakeServer() {
@@ -27,7 +27,14 @@ function createFakeServer() {
   const tombstones: Array<{ entity: "TODO" | "NOTE"; id: string; version: number }> = [];
   const receipts = new Map<string, SyncMutationOutcome[]>();
   const pushes: Array<{ idempotencyKey: string; mutations: SyncMutation[] }> = [];
-  const state = { online: true, signedIn: true, reject: new Set<string>() };
+  const state = {
+    online: true,
+    signedIn: true,
+    reject: new Set<string>(),
+    // Each pull with a cursor answers resetRequired while this is set.
+    reset: false,
+    refuseRequest: false
+  };
   const stamp = "2026-10-31T00:00:00.000Z";
 
   function guard() {
@@ -80,6 +87,16 @@ function createFakeServer() {
   const transport: SyncTransport = {
     async pull(cursor) {
       guard();
+      if (state.reset && cursor !== null) {
+        return {
+          todos: [],
+          notes: [],
+          deleted: [],
+          cursor: null,
+          hasMore: false,
+          resetRequired: true
+        };
+      }
       const after = cursor === null ? 0 : Number(cursor);
       const changed = (entity: string) => (row: { id: string }) =>
         (versions.get(`${entity}:${row.id}`) ?? 0) > after;
@@ -97,6 +114,7 @@ function createFakeServer() {
     },
     async push(idempotencyKey, mutations) {
       guard();
+      if (state.refuseRequest) throw new SyncRequestError("invalid idempotency key");
       pushes.push({ idempotencyKey, mutations });
       const stored = receipts.get(idempotencyKey);
       if (stored) return stored;
@@ -273,6 +291,47 @@ describe("createSyncEngine", () => {
     await vi.waitFor(() => expect(rejections).toEqual([{ entity: "TODO", id, code: "INVALID" }]));
     await vi.waitFor(() => expect(engine.todos.get(id)).toBeUndefined());
     expect(engine.getStatus().pending).toBe(0);
+  });
+
+  it("keeps a reset the server asked for when the full pull after it fails", async () => {
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "Kept", description: null, noteId: null } });
+    server.apply({ todoCreate: { id: "t2", title: "Gone", description: null, noteId: null } });
+    const { engine } = start(server);
+    await engine.ready;
+    // The server lost t2 without a Tombstone the client can still read.
+    server.todos.delete("t2");
+    server.state.reset = true;
+    const pullOnce = server.transport.pull;
+    let failNext = false;
+    server.transport.pull = async (cursor) => {
+      const page = await pullOnce(cursor);
+      if (page.resetRequired) failNext = true;
+      else if (failNext) {
+        failNext = false;
+        throw new TypeError("Failed to fetch");
+      }
+      return page;
+    };
+
+    await expect(engine.pull()).rejects.toThrow("Failed to fetch");
+    server.state.reset = false;
+    await engine.pull();
+
+    expect(titles(engine)).toEqual(["Kept"]);
+  });
+
+  it("reports and rolls back changes in a request the server refuses as a whole", async () => {
+    const server = createFakeServer();
+    server.state.refuseRequest = true;
+    const rejections: SyncRejection[] = [];
+    const { engine } = start(server, (rejection) => rejections.push(rejection));
+    await engine.ready;
+
+    const id = await engine.createTodo({ title: "Refused" });
+
+    await vi.waitFor(() => expect(rejections).toEqual([{ entity: "TODO", id, code: "INVALID" }]));
+    await vi.waitFor(() => expect(engine.todos.get(id)).toBeUndefined());
   });
 
   it("keeps Pending Changes while signed out and sends them after sign-in", async () => {

@@ -136,6 +136,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   let cursor: string | null = null;
   let pulling = false;
   let pullFailed = false;
+  // A reset the server asked for, kept until its full pull applies: a failed
+  // pull in between must not lose it.
+  let resetPending = false;
   let signedOut = false;
   let disposed = false;
   let status: SyncStatus = { state: "syncing", pending: 0 };
@@ -189,7 +192,6 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   async function drain(): Promise<void> {
     pulling = true;
     publish();
-    let reset = false;
     try {
       for (;;) {
         const page = await transport.pull(cursor);
@@ -197,11 +199,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         if (page.resetRequired) {
           // The server cannot replay from here: rebuild from a full pull.
           cursor = null;
-          reset = true;
+          resetPending = true;
           continue;
         }
-        apply(page, reset);
-        reset = false;
+        apply(page, resetPending);
+        resetPending = false;
         cursor = page.cursor;
         if (!page.hasMore) break;
       }
@@ -254,7 +256,12 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         publish();
       }
       // Resending a refused request cannot succeed; anything else retries.
-      if (error instanceof SyncRequestError) throw new NonRetriableError(error.message);
+      if (error instanceof SyncRequestError) {
+        for (const change of changes) {
+          options.onRejected?.({ entity: change.entity, id: change.key, code: "INVALID" });
+        }
+        throw new NonRetriableError(error.message);
+      }
       throw error;
     } finally {
       queueMicrotask(publish);

@@ -11,9 +11,17 @@ export interface AttachmentLinks {
  */
 export function useTodoAttachmentLinks(
   todoId: string,
+  attachmentIds: readonly string[],
   open: boolean
 ): Record<string, AttachmentLinks> {
-  const query = useGetTodoAttachmentLinksQuery({ todoId }, { enabled: open });
+  // Keyed by the Attachment ids too: a synced upload or removal reads fresh links.
+  const query = useGetTodoAttachmentLinksQuery(
+    { todoId },
+    {
+      enabled: open,
+      queryKey: [...useGetTodoAttachmentLinksQuery.getKey({ todoId }), [...attachmentIds].sort()]
+    }
+  );
   return Object.fromEntries(
     (query.data?.files.items ?? []).map(({ id, downloadUrl, thumbnailUrl }) => [
       id,

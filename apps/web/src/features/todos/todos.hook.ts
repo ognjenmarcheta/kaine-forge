@@ -15,7 +15,7 @@ import {
   useTodoCountsQuery
 } from "../../graphql/generated/react-query";
 import { useLiveTodos } from "../../hooks/use-live-list";
-import { useSyncEngine } from "../../hooks/use-sync";
+import { useSyncEngine, useSyncStatus } from "../../hooks/use-sync";
 import { queryRuntime } from "../../lib/query-runtime";
 import { planErrorOf } from "../billing/billing.hook";
 
@@ -50,6 +50,7 @@ export function useTodos(
 ) {
   const client = useQueryClient();
   const engine = useSyncEngine();
+  const syncStatus = useSyncStatus();
   const [draft, setDraft] = useState<TodoDraft>(EMPTY_DRAFT);
   const [editing, setEditing] = useState<{
     base: TodoItem;
@@ -80,10 +81,11 @@ export function useTodos(
   useEffect(() => {
     setVisible(TODOS_CONFIG.pageSize);
   }, [search, status]);
-  // The list's loading and paging state, in the shape the route reads.
+  // The list's loading and paging state, in the shape the route reads. With
+  // no rows to show, a failed pull is a load error the user can retry.
   const list = {
     isPending: !live.isReady,
-    isError: false,
+    isError: live.isReady && all.length === 0 && syncStatus?.state === "error",
     isFetchNextPageError: false,
     hasNextPage: matching.length > visible,
     isFetching: false,
@@ -91,7 +93,7 @@ export function useTodos(
     fetchNextPage: () => {
       setVisible((count) => count + TODOS_CONFIG.pageSize);
     },
-    refetch: () => engine?.pull()
+    refetch: () => engine?.pull().catch(() => undefined)
   };
   const generate = useGenerateTodosMutation({ retry: false });
   const removeFile = useDeleteFileMutation({ retry: false });
@@ -148,22 +150,37 @@ export function useTodos(
       if (alive.current) setPending([...locks.current]);
     }
   }
+  /** Runs a local write; one that cannot start (the Outbox failed to load) shows an error. */
+  async function write(key: string, action: () => Promise<unknown>): Promise<boolean> {
+    clearError(key);
+    try {
+      await action();
+      return true;
+    } catch {
+      if (alive.current) setErrors((current) => ({ ...current, [key]: "todos.actionFailed" }));
+      return false;
+    }
+  }
   async function add(input = draft) {
     if (!validTodo(input) || !engine || locks.current.has("create")) return false;
     // A double submit creates one Todo.
     locks.current.add("create");
+    let written = false;
     try {
-      await engine.createTodo(toTodoCreatePayload(input));
+      written = await write("create", () => engine.createTodo(toTodoCreatePayload(input)));
     } finally {
       locks.current.delete("create");
     }
+    if (!written) return false;
     setDraft(EMPTY_DRAFT);
     setNotice("todos.created");
     return true;
   }
   async function save() {
     if (!engine || !editing || editing.deleted || !validTodo(editing.draft)) return false;
-    await engine.updateTodo(editing.base.id, toTodoUpdatePayload(editing.draft));
+    const { id } = editing.base;
+    if (!(await write(id, () => engine.updateTodo(id, toTodoUpdatePayload(editing.draft)))))
+      return false;
     setEditing(null);
     setNotice("todos.saved");
     return true;
@@ -171,12 +188,11 @@ export function useTodos(
   async function toggle(item: TodoItem) {
     if (!engine) return;
     // Sets the state the user sees, never flips it: a replayed change stays correct.
-    await engine.updateTodo(item.id, { completed: !item.completed });
-    setNotice(item.completed ? "todos.markedOpen" : "todos.markedCompleted");
+    if (await write(item.id, () => engine.updateTodo(item.id, { completed: !item.completed })))
+      setNotice(item.completed ? "todos.markedOpen" : "todos.markedCompleted");
   }
   async function deleteTodo(id: string) {
-    if (!engine) return false;
-    await engine.deleteTodo(id);
+    if (!engine || !(await write(id, () => engine.deleteTodo(id)))) return false;
     setNotice("todos.deleted");
     return true;
   }

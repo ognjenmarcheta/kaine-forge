@@ -76,26 +76,23 @@ test("theme follows system changes and persists an explicit choice", async ({ pa
   await expect(page.locator("html")).toHaveAttribute("data-color-mode", "dark");
 });
 
-test("failed Todo submission preserves the open form and its draft", async ({ page }) => {
+test("a Todo the server refuses rolls back with a message", async ({ page }) => {
   await signIn(page);
   await page.goto("/todos");
-  await page.getByRole("button", { name: "Add details", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
-  await dialog.getByLabel("Title", { exact: true }).fill("Retain this draft");
-  await dialog.getByLabel("Description", { exact: true }).fill("Even after a failed request");
   await page.route("**/graphql", async (route) => {
-    if (route.request().postData()?.includes("mutation CreateTodo")) {
-      await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
+    if (route.request().postData()?.includes("mutation SyncPush")) {
+      await route.fulfill({
+        json: { data: { syncPush: { results: [{ status: "REJECTED", code: "INVALID" }] } } }
+      });
     } else await route.continue();
   });
+  await page.getByRole("button", { name: "Add details", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
+  await dialog.getByLabel("Title", { exact: true }).fill("Refused draft");
   await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
-  await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
-  await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Retain this draft");
-  await expect(dialog.getByLabel("Description", { exact: true })).toHaveValue(
-    "Even after a failed request"
-  );
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Add details", exact: true })).toBeFocused();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("A change was not saved: it was not valid.")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Refused draft", exact: true })).toHaveCount(0);
 });
 
 test("Note drafts survive theme changes and failed saves", async ({ page }) => {
