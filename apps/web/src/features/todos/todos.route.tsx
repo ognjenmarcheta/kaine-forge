@@ -521,6 +521,8 @@ function TodosWorkspace({
           focusAfterDelete.current = ids[index + 1] ?? ids[index - 1] ?? "";
           void todos.deleteTodo(deleting).then((success) => {
             if (success) setDeleting(null);
+            // The row stays, so closing the dialog returns focus to its trigger.
+            else focusAfterDelete.current = null;
           });
         }}
         onCloseAutoFocus={(event) => {
