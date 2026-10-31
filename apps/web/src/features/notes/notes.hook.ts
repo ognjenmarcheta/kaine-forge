@@ -40,8 +40,10 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   const syncStatus = useSyncStatus();
   const [search, setSearch] = useState("");
   const [phrase, setPhrase] = useState("");
-  const [drafts, setDrafts] = useState<Record<string, NoteDraft>>({});
-  const draftsRef = useRef(drafts);
+  // A Map, not an object: a draft's key comes from the URL, so it must never name a property.
+  const [draftMap, setDraftMap] = useState<ReadonlyMap<string, NoteDraft>>(new Map());
+  const drafts: Record<string, NoteDraft> = Object.fromEntries(draftMap);
+  const draftsRef = useRef(draftMap);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
@@ -59,15 +61,21 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     return () => clearTimeout(timer);
   }, [search]);
 
-  function changeDrafts(change: (current: Record<string, NoteDraft>) => Record<string, NoteDraft>) {
+  function changeDrafts(
+    change: (current: ReadonlyMap<string, NoteDraft>) => ReadonlyMap<string, NoteDraft>
+  ) {
     const next = change(draftsRef.current);
     draftsRef.current = next;
-    setDrafts(next);
+    setDraftMap(next);
+  }
+  /** The drafts with `key` set to `draft`. */
+  function withDraft(current: ReadonlyMap<string, NoteDraft>, key: string, draft: NoteDraft) {
+    return new Map(current).set(key, draft);
   }
   function patchDraft(key: string, patch: Partial<NoteDraft>) {
     changeDrafts((current) => {
-      const draft = current[key];
-      return draft ? { ...current, [key]: { ...draft, ...patch } } : current;
+      const draft = current.get(key);
+      return draft ? withDraft(current, key, { ...draft, ...patch }) : current;
     });
   }
 
@@ -98,7 +106,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     },
     refetch: () => engine?.pull().catch(() => undefined)
   };
-  const selectedDraft = selected ? drafts[selected] : undefined;
+  const selectedDraft = selected ? draftMap.get(selected) : undefined;
   const serverId = selectedDraft?.serverId ?? (selected === NEW_NOTE ? null : selected);
   const savedNote = serverId ? all.find((note) => note.id === serverId) : undefined;
   const note: NoteDetail | null = savedNote
@@ -119,15 +127,17 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
 
   useEffect(() => {
     if (!selected) return;
-    const current = draftsRef.current[selected];
+    const current = draftsRef.current.get(selected);
     if (selected === NEW_NOTE && !current) {
-      changeDrafts((drafts) => ({ ...drafts, [NEW_NOTE]: createNoteDraft() }));
+      changeDrafts((all) => withDraft(all, NEW_NOTE, createNoteDraft()));
     } else if (savedNote && current?.status !== "saving") {
       if (!current || !isNoteDirty(current)) {
-        changeDrafts((drafts) => ({
-          ...drafts,
-          [selected]: { ...createNoteDraft(savedNote), status: current?.status ?? "idle" }
-        }));
+        changeDrafts((all) =>
+          withDraft(all, selected, {
+            ...createNoteDraft(savedNote),
+            status: current?.status ?? "idle"
+          })
+        );
       }
     } else if (serverId && ready && !savedNote && current) {
       patchDraft(selected, { deleted: true });
@@ -140,13 +150,14 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     enabled,
     invalidateKeys: [countKey],
     onDeleted: (id) =>
-      changeDrafts((drafts) =>
-        Object.fromEntries(
-          Object.entries(drafts).map(([key, draft]) => [
-            key,
-            draft.serverId === id ? { ...draft, deleted: true } : draft
-          ])
-        )
+      changeDrafts(
+        (all) =>
+          new Map(
+            [...all].map(([key, draft]) => [
+              key,
+              draft.serverId === id ? { ...draft, deleted: true } : draft
+            ])
+          )
       ),
     onEvent: pull
   });
@@ -157,7 +168,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     await Promise.all([engine?.pull(), client.invalidateQueries({ queryKey: countKey })]);
   }
   async function save(key: string) {
-    const submitted = draftsRef.current[key];
+    const submitted = draftsRef.current.get(key);
     if (!enabled || !engine || !submitted || !canSaveNote(submitted) || locks.current.has(key))
       return;
     locks.current.add(key);
@@ -171,21 +182,18 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
       else id = await engine.createNote(input);
       if (!mounted.current) return;
       const savedId = id;
-      changeDrafts((drafts) => {
-        const latest = drafts[key];
-        if (!latest) return drafts;
-        return {
-          ...drafts,
-          [key]: {
-            ...latest,
-            serverId: savedId,
-            baseTitle: input.title,
-            baseBody: input.body ?? "",
-            title: latest.title === submitted.title ? input.title : latest.title,
-            body: latest.body === submitted.body ? (input.body ?? "") : latest.body,
-            status: "saved"
-          }
-        };
+      changeDrafts((all) => {
+        const latest = all.get(key);
+        if (!latest) return all;
+        return withDraft(all, key, {
+          ...latest,
+          serverId: savedId,
+          baseTitle: input.title,
+          baseBody: input.body ?? "",
+          title: latest.title === submitted.title ? input.title : latest.title,
+          body: latest.body === submitted.body ? (input.body ?? "") : latest.body,
+          status: "saved"
+        });
       });
       void client.invalidateQueries({ queryKey: countKey });
     } catch {
@@ -202,9 +210,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     try {
       await engine.deleteNote(id);
       if (!mounted.current) return false;
-      changeDrafts((drafts) =>
-        Object.fromEntries(Object.entries(drafts).filter(([, draft]) => draft.serverId !== id))
-      );
+      changeDrafts((all) => new Map([...all].filter(([, draft]) => draft.serverId !== id)));
       setDeleting(null);
       void client.invalidateQueries({ queryKey: countKey });
       return true;
@@ -217,14 +223,13 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     }
   }
   function startNew() {
-    const previous = draftsRef.current[NEW_NOTE];
+    const previous = draftsRef.current.get(NEW_NOTE);
     if (previous?.serverId) {
-      changeDrafts((drafts) => ({
-        ...drafts,
-        [previous.serverId ?? NEW_NOTE]: previous,
-        [NEW_NOTE]: createNoteDraft()
-      }));
-    } else if (!previous) changeDrafts((drafts) => ({ ...drafts, [NEW_NOTE]: createNoteDraft() }));
+      const savedId = previous.serverId;
+      changeDrafts((all) =>
+        withDraft(withDraft(all, savedId, previous), NEW_NOTE, createNoteDraft())
+      );
+    } else if (!previous) changeDrafts((all) => withDraft(all, NEW_NOTE, createNoteDraft()));
   }
   const rows = matching.slice(0, visible);
   const unsaved = Object.entries(drafts).filter(
@@ -242,11 +247,12 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
 
   return {
     promoteNew: () => {
-      const draft = draftsRef.current[NEW_NOTE];
+      const draft = draftsRef.current.get(NEW_NOTE);
       if (!draft?.serverId || draft.status === "saving") return;
-      changeDrafts((drafts) => {
-        const next = { ...drafts, [draft.serverId ?? NEW_NOTE]: draft };
-        delete next[NEW_NOTE];
+      const savedId = draft.serverId;
+      changeDrafts((all) => {
+        const next = withDraft(all, savedId, draft);
+        next.delete(NEW_NOTE);
         return next;
       });
     },
@@ -273,7 +279,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
       patchDraft(key, { [field]: value }),
     loadLatest: () => {
       if (selected && savedNote)
-        changeDrafts((drafts) => ({ ...drafts, [selected]: createNoteDraft(savedNote) }));
+        changeDrafts((all) => withDraft(all, selected, createNoteDraft(savedNote)));
     },
     refresh
   };
