@@ -1,5 +1,12 @@
 # @repo/ui-lab
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [6980f5e]
+  - @repo/ui@2.0.1
+
 ## 0.1.0
 
 ### Minor Changes

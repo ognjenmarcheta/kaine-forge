@@ -1,5 +1,63 @@
 # @repo/api
 
+## 2.4.0
+
+### Minor Changes
+
+- 214c6cc: Add Paddle billing. With `BILLING_PROVIDER=paddle`, `startCheckout` creates a Paddle transaction for
+  the Paddle.js overlay checkout, `openBillingPortal` opens the Paddle customer portal, and
+  `POST /api/billing/webhooks/paddle` verifies and stores Paddle subscription events the same way as
+  Stripe's. The `billing` query returns the Paddle client token and environment for the browser
+  checkout. An owner's Organizations share one Paddle customer, because Paddle keeps one customer per
+  email address.
+- 5659f20: Add billing Plans and Plan gates. The new `@repo/billing` package holds the Plan catalog (free,
+  pro, business, and unlimited while billing is off) and resolves an Organization's Entitlements
+  from its subscriptions. The API adds a `billing` query, refuses a Todo past the Plan's todo limit
+  with `PLAN_LIMIT_REACHED`, and refuses the assistant on a Plan without it with
+  `PLAN_FEATURE_REQUIRED`. `BILLING_PROVIDER` defaults to `none`, which gives every Organization the
+  unlimited Plan. The database adds the billing customer, subscription, and event tables, and the
+  owner role gains the owner-only `billing:manage` Permission.
+- 63d8df4: Sync per-seat billing and cancel subscriptions of deleted Organizations. Adding or removing a
+  member queues a `billing.syncSeats` job, which sets a per-seat subscription's provider quantity to
+  the member count and retries while the provider is unavailable. A reconcile sweep corrects
+  quantities that drifted without a hook, such as after a member leaves. Deleting an Organization,
+  directly or with the owner's account, cancels its paid subscriptions first and fails with
+  `BILLING_CANCEL_FAILED` when the provider refuses. `@repo/auth/billing` holds the hooks the API sets.
+- 474e9c1: Add Stripe billing. With `BILLING_PROVIDER=stripe`, an organization owner starts a Stripe Checkout
+  with the `startCheckout` mutation and opens the Stripe Billing Portal with `openBillingPortal`.
+  `POST /api/billing/webhooks/stripe` verifies each Stripe event, refetches the subscription from
+  Stripe, and stores its current state, so repeated or out-of-order events cannot corrupt it; a
+  price outside the catalog answers 500 so Stripe retries. Checkout, portal, and webhook changes
+  write Audit Events, and housekeeping purges processed billing event ids after 30 days.
+- 718e2e7: Add the server half of offline sync for Todos and Notes. Every write to `todos` and `notes` now
+  gets a per-organization Sync Version from a trigger, and a delete leaves a Tombstone. The new
+  `syncPull(cursor, first)` query returns the changes after a cursor. The new
+  `syncPush(input)` mutation applies an Outbox batch once per idempotency key and accepts
+  client-generated ids. `Todo` gains a `noteId` field. Housekeeping prunes old Tombstones and push
+  receipts (`RETENTION_SYNC_TOMBSTONES_DAYS`, `RETENTION_SYNC_RECEIPTS_DAYS`).
+
+### Patch Changes
+
+- 9f5af06: Raise `decode-uri-component` to 0.5.1 (GHSA-qr28-fpjm-wq7f, GHSA-vcc3-ghjq-m6fr) for deep link query parsing, with a `query-string@7.1.3` patch that reads its ESM default export, and raise `seroval` to 1.7.2 (GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj, GHSA-3pfx-gxff-vg76).
+- 58e7b6f: Add a real-Postgres test that proves Sync Versions commit in order under concurrent writers: a
+  paging sync pull misses no change, and one Organization's writes never wait on another's. It
+  runs in CI's e2e job (issue #803). `@repo/db/testing` gains `createPostgresTestDatabase`.
+- Updated dependencies [214c6cc]
+- Updated dependencies [5659f20]
+- Updated dependencies [63d8df4]
+- Updated dependencies [474e9c1]
+- Updated dependencies [4bf3bde]
+- Updated dependencies [718e2e7]
+- Updated dependencies [6f6690c]
+- Updated dependencies [6980f5e]
+- Updated dependencies [58e7b6f]
+  - @repo/billing@0.1.0
+  - @repo/auth@5.2.0
+  - @repo/db@2.2.0
+  - @repo/jobs@1.1.0
+  - @repo/translation@1.14.0
+  - @repo/email@1.3.3
+
 ## 2.3.0
 
 ### Minor Changes

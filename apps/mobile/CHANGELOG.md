@@ -1,5 +1,28 @@
 # @repo/mobile
 
+## 1.11.0
+
+### Minor Changes
+
+- 4bf3bde: Add the Billing tab. Every member sees the Organization's Plan, its status, and usage at
+  `/organization/billing`; the owner chooses a larger Plan (Stripe Checkout redirect or the Paddle.js
+  overlay) or opens the provider's billing portal. A failed payment shows a warning. Creating a Todo
+  past the Plan's limit, or using the assistant without it, shows a message with a link to the Billing
+  tab. Mobile adds a read-only Plan screen and the plan-limit message. The web image accepts
+  `CSP_BILLING_ORIGINS` and `BILLING_PAYMENT_ORIGINS` for the Paddle checkout.
+
+### Patch Changes
+
+- 9f5af06: Raise `decode-uri-component` to 0.5.1 (GHSA-qr28-fpjm-wq7f, GHSA-vcc3-ghjq-m6fr) for deep link query parsing, with a `query-string@7.1.3` patch that reads its ESM default export, and raise `seroval` to 1.7.2 (GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj, GHSA-3pfx-gxff-vg76).
+- Updated dependencies [5659f20]
+- Updated dependencies [63d8df4]
+- Updated dependencies [474e9c1]
+- Updated dependencies [4bf3bde]
+- Updated dependencies [6f6690c]
+- Updated dependencies [6980f5e]
+  - @repo/auth@5.2.0
+  - @repo/translation@1.14.0
+
 ## 1.10.0
 
 ### Minor Changes

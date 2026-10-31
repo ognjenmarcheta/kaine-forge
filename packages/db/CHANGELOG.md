@@ -1,5 +1,34 @@
 # @repo/db
 
+## 2.2.0
+
+### Minor Changes
+
+- 5659f20: Add billing Plans and Plan gates. The new `@repo/billing` package holds the Plan catalog (free,
+  pro, business, and unlimited while billing is off) and resolves an Organization's Entitlements
+  from its subscriptions. The API adds a `billing` query, refuses a Todo past the Plan's todo limit
+  with `PLAN_LIMIT_REACHED`, and refuses the assistant on a Plan without it with
+  `PLAN_FEATURE_REQUIRED`. `BILLING_PROVIDER` defaults to `none`, which gives every Organization the
+  unlimited Plan. The database adds the billing customer, subscription, and event tables, and the
+  owner role gains the owner-only `billing:manage` Permission.
+- 718e2e7: Add the server half of offline sync for Todos and Notes. Every write to `todos` and `notes` now
+  gets a per-organization Sync Version from a trigger, and a delete leaves a Tombstone. The new
+  `syncPull(cursor, first)` query returns the changes after a cursor. The new
+  `syncPush(input)` mutation applies an Outbox batch once per idempotency key and accepts
+  client-generated ids. `Todo` gains a `noteId` field. Housekeeping prunes old Tombstones and push
+  receipts (`RETENTION_SYNC_TOMBSTONES_DAYS`, `RETENTION_SYNC_RECEIPTS_DAYS`).
+- 6980f5e: Add `@repo/sync`, the client half of offline sync. It holds Todo and Note collections fed by
+  `syncPull`, and an Outbox that replays local changes through `syncPush` in order. Web Todos now
+  read from and write to the local collection, so they keep working offline and sync when the
+  network returns. The header shows the sync status. A change to a Todo's Attachments now gives
+  the Todo a new Sync Version (migration 0028).
+
+### Patch Changes
+
+- 58e7b6f: Add a real-Postgres test that proves Sync Versions commit in order under concurrent writers: a
+  paging sync pull misses no change, and one Organization's writes never wait on another's. It
+  runs in CI's e2e job (issue #803). `@repo/db/testing` gains `createPostgresTestDatabase`.
+
 ## 2.1.0
 
 ### Minor Changes
