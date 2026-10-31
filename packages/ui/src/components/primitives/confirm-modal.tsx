@@ -6,6 +6,7 @@ export interface ConfirmModalProps extends Pick<
   | "closeOnEscape"
   | "closeOnOverlayClick"
   | "description"
+  | "onCloseAutoFocus"
   | "onOpenChange"
   | "open"
   | "showCloseButton"
@@ -26,6 +27,7 @@ export function ConfirmModal({
   confirmLabel,
   description,
   isConfirming = false,
+  onCloseAutoFocus,
   onConfirm,
   onOpenChange,
   open,
@@ -55,6 +57,7 @@ export function ConfirmModal({
       closeOnEscape={!isConfirming && (closeOnEscape ?? true)}
       closeOnOverlayClick={!isConfirming && (closeOnOverlayClick ?? true)}
       {...(description ? { description } : {})}
+      {...(onCloseAutoFocus ? { onCloseAutoFocus } : {})}
       onOpenChange={(nextOpen) => {
         if (!isConfirming) onOpenChange(nextOpen);
       }}

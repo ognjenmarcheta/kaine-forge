@@ -9,6 +9,8 @@ interface ConfirmDialogProps {
   isConfirming?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Where focus goes when the dialog closes; call `event.preventDefault()` to take it over. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function ConfirmDialog({
@@ -19,7 +21,8 @@ export function ConfirmDialog({
   cancelLabel,
   isConfirming = false,
   onConfirm,
-  onCancel
+  onCancel,
+  onCloseAutoFocus
 }: ConfirmDialogProps) {
   return (
     <ConfirmModal
@@ -27,6 +30,7 @@ export function ConfirmDialog({
       confirmLabel={confirmLabel}
       description={message}
       isConfirming={isConfirming}
+      {...(onCloseAutoFocus ? { onCloseAutoFocus } : {})}
       open={isOpen}
       title={title}
       onConfirm={onConfirm}

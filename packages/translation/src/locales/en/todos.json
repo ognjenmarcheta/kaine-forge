@@ -99,5 +99,6 @@
   "todos.uploadProgress": "Uploading {filename} to {title}: {progress}%",
   "todos.uploadFailed": "Could not attach {filename} to {title}. Select the file again to retry.",
   "todos.uploaded": "Attached {filename} to {title}.",
-  "todos.createdCompletionFailed": "Todo created, but completion could not be confirmed. Refresh the list to check its status."
+  "todos.createdCompletionFailed": "Todo created, but completion could not be confirmed. Refresh the list to check its status.",
+  "todos.attachments.offline": "Attachments need a connection."
 }

@@ -99,5 +99,6 @@
   "todos.uploadProgress": "{filename} wird zu {title} hochgeladen: {progress}%",
   "todos.uploadFailed": "{filename} konnte nicht an {title} angehängt werden. Wähle die Datei erneut aus.",
   "todos.uploaded": "{filename} an {title} angehängt.",
-  "todos.createdCompletionFailed": "Todo erstellt, aber die Erledigung konnte nicht bestätigt werden. Aktualisiere die Liste, um den Status zu prüfen."
+  "todos.createdCompletionFailed": "Todo erstellt, aber die Erledigung konnte nicht bestätigt werden. Aktualisiere die Liste, um den Status zu prüfen.",
+  "todos.attachments.offline": "Anhänge brauchen eine Verbindung."
 }

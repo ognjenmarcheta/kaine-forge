@@ -34,17 +34,23 @@ it("drops a thumbnail that fails to load and keeps the file row", async () => {
         id: "file-1",
         originalName: "photo.png",
         mimeType: "image/png",
-        sizeBytes: 2048,
-        downloadUrl: "https://storage.example.com/photo.png",
-        thumbnailUrl: "https://storage.example.com/photo.png.thumb.webp"
+        sizeBytes: 2048
       }
     ]
   } as TodoItem; // SAFETY: the component reads only id and attachments.
+  const links = {
+    "file-1": {
+      downloadUrl: "https://storage.example.com/photo.png",
+      thumbnailUrl: "https://storage.example.com/photo.png.thumb.webp"
+    }
+  };
 
   await act(async () =>
     root.render(
       <TodoAttachments
         item={item}
+        links={links}
+        offline={false}
         busy={false}
         uploadBusy={false}
         onUpload={() => {}}

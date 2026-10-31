@@ -2,7 +2,6 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./helpers/auth";
-import { connection } from "./helpers/connection";
 
 for (const theme of ["light", "dark"] as const) {
   test(`nested workflows and feedback remain usable in ${theme} theme`, async ({
@@ -25,7 +24,7 @@ for (const theme of ["light", "dark"] as const) {
     });
     await page.route("**/graphql", async (route) => {
       const query = route.request().postData() ?? "";
-      if (query.includes("query GetTodos")) {
+      if (query.includes("query SyncPull")) {
         if (state === "loading") await gate;
         await route.fulfill({
           json:
@@ -33,41 +32,50 @@ for (const theme of ["light", "dark"] as const) {
               ? { errors: [{ message: "Unavailable" }] }
               : {
                   data: {
-                    todos: connection(
-                      state === "empty"
-                        ? []
-                        : [
-                            {
-                              id: "preview-one",
-                              title: "Review the design system",
-                              description: "Check typography, spacing, and both themes.",
-                              completed: false,
-                              createdAt: "2026-09-11",
-                              updatedAt: "2026-09-11",
-                              attachments: [
-                                {
-                                  id: "preview-file",
-                                  originalName: "design-checklist.txt",
-                                  mimeType: "text/plain",
-                                  sizeBytes: 128,
-                                  downloadUrl: null
-                                }
-                              ]
-                            },
-                            {
-                              id: "preview-two",
-                              title: "Prepare the next release",
-                              description: "Review changes and verify the supported workflows.",
-                              completed: true,
-                              createdAt: "2026-09-11",
-                              updatedAt: "2026-09-11",
-                              attachments: []
-                            }
-                          ]
-                    )
+                    syncPull: {
+                      todos:
+                        state === "empty"
+                          ? []
+                          : [
+                              {
+                                id: "preview-one",
+                                title: "Review the design system",
+                                description: "Check typography, spacing, and both themes.",
+                                completed: false,
+                                noteId: null,
+                                createdAt: "2026-09-11",
+                                updatedAt: "2026-09-11",
+                                attachments: [
+                                  {
+                                    id: "preview-file",
+                                    originalName: "design-checklist.txt",
+                                    mimeType: "text/plain",
+                                    sizeBytes: 128
+                                  }
+                                ]
+                              },
+                              {
+                                id: "preview-two",
+                                title: "Prepare the next release",
+                                description: "Review changes and verify the supported workflows.",
+                                completed: true,
+                                noteId: null,
+                                createdAt: "2026-09-11",
+                                updatedAt: "2026-09-11",
+                                attachments: []
+                              }
+                            ],
+                      notes: [],
+                      deleted: [],
+                      cursor: "1",
+                      hasMore: false,
+                      resetRequired: false
+                    }
                   }
                 }
         });
+      } else if (query.includes("query GetTodoAttachmentLinks")) {
+        await route.fulfill({ json: { data: { files: { items: [] } } } });
       } else if (query.includes("mutation CreateTodo")) {
         await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
       } else if (query.includes("mutation GenerateTodos")) {
@@ -78,7 +86,8 @@ for (const theme of ["light", "dark"] as const) {
         });
       } else await route.continue();
     });
-    await page.getByRole("link", { name: "Todos", exact: true }).click();
+    // A fresh load: the sync engine starts at sign-in, so its first pull runs now.
+    await page.goto("/todos");
     await expect(page.getByRole("status", { name: "Loading todos...", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`loading-${theme}.png`) });
     state = "error";

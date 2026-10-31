@@ -1,314 +1,260 @@
 // @vitest-environment jsdom
+import { createSyncEngine, type SyncEngine, type SyncMutation, type SyncTodo } from "@repo/sync";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useTodos } from "./todos.hook";
-import type { TodoItem } from "./todos.type";
 import type {
-  CreateTodoMutationVariables,
-  GenerateTodosMutationVariables,
-  UpdateTodoMutationVariables,
-  GetTodosQueryVariables
+  GenerateTodosMutation,
+  GenerateTodosMutationVariables
 } from "../../graphql/generated/react-query";
 
-const api = vi.hoisted(() => ({
-  rows: new Map<string, TodoItem>(),
-  create: vi.fn<(variables: CreateTodoMutationVariables) => Promise<{ createTodo: TodoItem }>>(),
-  update: vi.fn<(variables: UpdateTodoMutationVariables) => Promise<{ updateTodo: TodoItem }>>(),
-  generate:
-    vi.fn<
-      (
-        variables: GenerateTodosMutationVariables
-      ) => Promise<{ generateTodos: { status: string; todos: TodoItem[] } }>
-    >(),
-  searches: vi.fn<(variables: GetTodosQueryVariables) => void>()
+/** The server side of the fake: its rows, and every mutation pushed to it. */
+const server = vi.hoisted(() => ({
+  rows: new Map<string, SyncTodo>(),
+  pushed: [] as SyncMutation[][],
+  version: 0,
+  generate: vi.fn<(variables: GenerateTodosMutationVariables) => Promise<GenerateTodosMutation>>()
 }));
-vi.mock("../../lib/graphql-codegen-fetcher", () => ({
-  useGraphqlFetcher: (document: { toString(): string }) => {
-    const query = document.toString();
-    if (query.includes("mutation CreateTodo")) return api.create;
-    if (query.includes("mutation UpdateTodo")) return api.update;
-    if (query.includes("mutation GenerateTodos")) return api.generate;
-    if (query.includes("query GetTodos("))
-      return (variables: GetTodosQueryVariables) => {
-        api.searches(variables);
-        const matching = [...api.rows.values()].filter(
-          (item) =>
-            `${item.title} ${item.description}`
-              .toLowerCase()
-              .includes(variables.search?.toLowerCase() ?? "") &&
-            (variables.completed == null || item.completed === variables.completed)
-        );
-        // A fake keyset: the cursor is `cursor:<id of the last row>`.
-        const start = variables.after
-          ? matching.findIndex((item) => `cursor:${item.id}` === variables.after) + 1
-          : 0;
-        const items = matching.slice(start, start + (variables.first ?? 50));
-        const last = items.at(-1);
-        return Promise.resolve({
-          todos: {
-            items,
-            pageInfo: {
-              hasNextPage: start + items.length < matching.length,
-              endCursor: last ? `cursor:${last.id}` : null
-            }
-          }
-        });
-      };
-    return ({ id }: { id: string }) => Promise.resolve({ todo: api.rows.get(id) ?? null });
-  }
+let engine: SyncEngine;
+vi.mock("../../hooks/use-sync", () => ({
+  useSyncEngine: () => engine,
+  useSyncStatus: () => engine.getStatus()
 }));
 vi.mock("../../hooks/use-subscription", () => ({ useSubscription: () => {} }));
-let current: ReturnType<typeof useTodos>;
-let root: ReturnType<typeof createRoot>;
-let client: QueryClient;
-let container: HTMLDivElement;
-function Harness({
-  organization,
-  search,
-  status
-}: {
-  organization: string;
-  search: string;
-  status: string;
-}) {
-  current = useTodos(organization, true, search, status);
-  return null;
-}
-function todo(id = "a"): TodoItem {
+vi.mock("../../lib/graphql-codegen-fetcher", () => ({
+  useGraphqlFetcher: () => server.generate
+}));
+
+function todo(id = "a", fields: Partial<SyncTodo> = {}): SyncTodo {
   return {
     id,
     title: `Todo ${id}`,
     description: "Description",
     completed: false,
+    noteId: null,
     attachments: [],
-    createdAt: "2026-09-13T12:00:00Z",
-    updatedAt: "2026-09-13T12:00:00Z"
+    createdAt: `2026-09-13T12:00:${id.padStart(2, "0").slice(-2)}Z`,
+    updatedAt: "2026-09-13T12:00:00Z",
+    ...fields
   };
 }
-async function flush() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 15));
+
+function startEngine(): SyncEngine {
+  const store = new Map<string, string>();
+  return createSyncEngine({
+    transport: {
+      // Every pull returns the full server state: enough for the hook's contract.
+      pull: async (cursor) => ({
+        todos: [...server.rows.values()],
+        notes: [],
+        deleted:
+          cursor === null ? [] : [...deletedSince()].map((id) => ({ entity: "TODO" as const, id })),
+        cursor: String(server.version),
+        hasMore: false,
+        resetRequired: false
+      }),
+      push: async (_key, mutations) => {
+        server.pushed.push(mutations);
+        for (const mutation of mutations) {
+          if ("todoCreate" in mutation) {
+            const { id, title, description } = mutation.todoCreate;
+            server.rows.set(id, todo(id, { title, description }));
+          }
+          if ("todoUpdate" in mutation) {
+            const { id, ...patch } = mutation.todoUpdate;
+            const row = server.rows.get(id);
+            if (row) server.rows.set(id, { ...row, ...patch });
+          }
+        }
+        return mutations.map(() => ({ status: "APPLIED" as const, code: null }));
+      }
+    },
+    storage: {
+      get: async (key) => store.get(key) ?? null,
+      set: async (key, value) => void store.set(key, value),
+      delete: async (key) => void store.delete(key),
+      keys: async () => [...store.keys()],
+      clear: async () => store.clear()
+    },
+    leaderElection: {
+      requestLeadership: async () => true,
+      releaseLeadership: () => undefined,
+      isLeader: () => true,
+      onLeadershipChange: () => () => undefined
+    }
   });
 }
-async function render(organization = "one", search = "", status = "all") {
+
+// Ids the fake server deleted, reported once to the next pull.
+const deleted = new Set<string>();
+function* deletedSince() {
+  yield* deleted;
+  deleted.clear();
+}
+
+let current: ReturnType<typeof useTodos>;
+let root: ReturnType<typeof createRoot>;
+let client: QueryClient;
+let container: HTMLDivElement;
+function Harness({ search, status }: { search: string; status: string }) {
+  current = useTodos("one", true, search, status);
+  return null;
+}
+async function render(search = "", status = "all") {
   await act(async () =>
     root.render(
       <QueryClientProvider client={client}>
-        <Harness key={organization} organization={organization} search={search} status={status} />
+        <Harness search={search} status={status} />
       </QueryClientProvider>
     )
   );
-  await flush();
-}
-function deferred<T>() {
-  let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((res) => {
-    resolve = res;
+  await act(async () => {
+    await engine.ready;
   });
-  return { promise, resolve };
 }
+async function settle() {
+  await act(async () => {
+    await vi.waitFor(() => expect(engine.getStatus().pending).toBe(0));
+  });
+}
+
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.clearAllMocks();
-  api.searches.mockReset();
-  api.rows.clear();
-  api.rows.set("a", todo());
-  api.create.mockImplementation(async ({ input }) => ({
-    createTodo: { ...todo("new"), title: input.title, description: input.description ?? null }
-  }));
-  api.update.mockImplementation(async ({ id, input }) => {
-    const previous = api.rows.get(String(id)) ?? todo(String(id));
-    const saved = {
-      ...previous,
-      title: input.title ?? previous.title,
-      description: input.description === undefined ? previous.description : input.description,
-      completed: input.completed ?? previous.completed
-    };
-    api.rows.set(String(id), saved);
-    return { updateTodo: saved };
-  });
-  client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
-  });
+  server.rows.clear();
+  server.pushed = [];
+  server.rows.set("a", todo("a"));
+  deleted.clear();
+  engine = startEngine();
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  engine.dispose();
   client.clear();
   container.remove();
   vi.unstubAllGlobals();
 });
 
-it("validates quick creation and submits normalized title and shared description once", async () => {
+it("validates quick creation, sends the normalized Todo once, and shows it at once", async () => {
   await render();
-  await act(async () => {
-    current.setDraft({ title: " ", description: "" });
-  });
-  await act(async () => {
-    await current.add();
-  });
-  expect(api.create).not.toHaveBeenCalled();
-  await act(async () => {
-    current.setDraft({ title: "x".repeat(256), description: "" });
-  });
-  await act(async () => {
-    await current.add();
-  });
-  expect(api.create).not.toHaveBeenCalled();
-  await act(async () => {
-    current.setDraft({ title: " New ", description: " Details " });
-  });
+  for (const title of [" ", "x".repeat(256)]) {
+    await act(async () => current.setDraft({ title, description: "" }));
+    await act(async () => {
+      await current.add();
+    });
+  }
+  await act(async () => current.setDraft({ title: " New ", description: " Details " }));
   await act(async () => {
     await Promise.all([current.add(), current.add()]);
   });
-  expect(api.create).toHaveBeenCalledTimes(1);
-  expect(api.create.mock.calls[0]?.[0]).toEqual({
-    input: { title: "New", description: "Details" }
-  });
+
+  expect(current.rows.map((row) => row.title)).toContain("New");
   expect(current.draft).toEqual({ title: "", description: "" });
+  await settle();
+  expect(server.pushed).toEqual([
+    [{ todoCreate: { id: expect.any(String), title: "New", description: "Details", noteId: null } }]
+  ]);
 });
-it("preserves failed drafts and only retries when asked", async () => {
-  await render();
-  api.create.mockRejectedValueOnce(new Error("offline"));
-  await act(async () => current.setDraft({ title: "Keep me", description: "body" }));
-  await act(async () => current.add());
-  await flush();
-  expect(current.draft.title).toBe("Keep me");
-  expect(current.errors.create).toBe("todos.createUncertain");
-  expect(api.create).toHaveBeenCalledTimes(1);
-  await act(async () => current.add());
-  expect(current.draft.title).toBe("");
-});
+
 it("keeps quick and edit drafts through searches and status changes", async () => {
   await render();
   await act(async () => {
     current.setDraft({ title: "draft", description: "body" });
-    current.openEdit(todo());
+    current.openEdit(todo("a"));
   });
   await act(async () =>
     current.setEditing((value) =>
       value ? { ...value, draft: { title: "edited", description: "local" } } : value
     )
   );
-  await render("one", "missing", "completed");
+
+  await render("missing", "completed");
+
   expect(current.rows).toEqual([]);
   expect(current.draft.title).toBe("draft");
   expect(current.editing?.draft.title).toBe("edited");
-  expect(api.searches).toHaveBeenLastCalledWith({
-    search: "missing",
-    completed: true,
-    first: 50,
-    after: null
-  });
 });
-it("does not overwrite completion when saving text", async () => {
+
+it("sends only the text when saving, and an explicit state when toggling", async () => {
+  server.rows.set("a", todo("a", { completed: true }));
   await render();
-  await act(async () => current.openEdit(todo()));
-  api.rows.set("a", { ...todo(), completed: true });
+  await act(async () => current.openEdit(todo("a", { completed: true })));
   await act(async () =>
     current.setEditing((value) =>
       value ? { ...value, draft: { title: "Changed", description: "" } } : value
     )
   );
-  await act(async () => current.save());
-  expect(api.update.mock.calls[0]?.[0]).toEqual({
-    id: "a",
-    input: { title: "Changed", description: null }
-  });
-  expect(api.rows.get("a")?.completed).toBe(true);
-});
-it("uses an explicit completion state, locks the row, and waits for confirmation", async () => {
-  await render();
-  const held = deferred<{ updateTodo: TodoItem }>();
-  api.update.mockReturnValueOnce(held.promise);
   await act(async () => {
-    void current.toggle(todo());
-    void current.toggle(todo());
+    await current.save();
   });
-  expect(current.pending).toContain("a");
-  expect(current.rows[0]?.completed).toBe(false);
-  expect(api.update).toHaveBeenCalledTimes(1);
-  expect(api.update.mock.calls[0]?.[0]).toEqual({ id: "a", input: { completed: true } });
-  await act(async () => held.resolve({ updateTodo: { ...todo(), completed: true } }));
-  expect(current.pending).toEqual([]);
-});
-it("ignores late creation after Organization reset", async () => {
-  await render();
-  const held = deferred<{ createTodo: TodoItem }>();
-  api.create.mockReturnValueOnce(held.promise);
-  await act(async () => current.setDraft({ title: "old", description: "" }));
+  await settle();
   await act(async () => {
-    void current.add();
+    await current.toggle(todo("a", { completed: true }));
   });
-  await render("two");
-  await act(async () => current.setDraft({ title: "new Organization", description: "" }));
-  await act(async () => held.resolve({ createTodo: todo("old") }));
-  expect(current.draft.title).toBe("new Organization");
-  expect(current.notice).toBe("");
-  expect(current.pending).toEqual([]);
+  await settle();
+
+  expect(server.pushed).toEqual([
+    [{ todoUpdate: { id: "a", title: "Changed", description: null } }],
+    // Sets the state the user saw flipped; a replay cannot flip it back.
+    [{ todoUpdate: { id: "a", completed: false } }]
+  ]);
+  expect(current.notice).toBe("todos.markedOpen");
 });
-it("retains local text on external changes and detects external deletion", async () => {
+
+it("keeps local text on another user's change and detects a deletion", async () => {
   await render();
-  await act(async () => current.openEdit(todo()));
-  await flush();
+  await act(async () => current.openEdit(todo("a")));
   await act(async () =>
     current.setEditing((value) =>
       value ? { ...value, draft: { title: "local", description: "" } } : value
     )
   );
-  api.rows.set("a", { ...todo(), title: "external" });
+  server.rows.set("a", todo("a", { title: "external" }));
   await act(async () => current.refresh());
-  await flush();
+
   expect(current.externalChange).toBe(true);
   expect(current.editing?.draft.title).toBe("local");
   await act(async () => current.loadLatest());
   expect(current.editing?.draft.title).toBe("external");
-  api.rows.delete("a");
+
+  server.rows.delete("a");
+  deleted.add("a");
   await act(async () => current.refresh());
-  await flush();
+
   expect(current.editing?.deleted).toBe(true);
-  await act(async () => current.save());
-  expect(api.update).not.toHaveBeenCalled();
-});
-it("paginates and deduplicates loaded results", async () => {
-  for (let i = 0; i < 55; i++) api.rows.set(String(i), todo(String(i)));
-  await render();
-  expect(current.rows).toHaveLength(50);
-  await act(async () => current.list.fetchNextPage());
-  await flush();
-  expect(current.rows).toHaveLength(56);
-  expect(current.list.hasNextPage).toBe(false);
-  expect(api.searches).toHaveBeenLastCalledWith({
-    search: "",
-    completed: null,
-    first: 50,
-    after: "cursor:48"
+  await act(async () => {
+    expect(await current.save()).toBe(false);
   });
 });
+
+it("filters and pages the local rows, newest first", async () => {
+  for (let i = 0; i < 55; i++) server.rows.set(String(i), todo(String(i)));
+  server.rows.set("done", todo("done", { completed: true, title: "Finished report" }));
+  await render();
+
+  expect(current.rows).toHaveLength(50);
+  await act(async () => current.list.fetchNextPage());
+  expect(current.rows).toHaveLength(57);
+  expect(current.list.hasNextPage).toBe(false);
+
+  await render("REPORT", "completed");
+  expect(current.rows.map((row) => row.id)).toEqual(["done"]);
+});
+
 it("sends the prompt through the generated AI operation", async () => {
-  api.generate.mockResolvedValue({ generateTodos: { status: "AI_NOT_CONFIGURED", todos: [] } });
+  server.generate.mockResolvedValue({
+    generateTodos: { status: "AI_NOT_CONFIGURED", message: null, todos: [] }
+  });
   await render();
   await act(async () => {
     await current.generate("Plan release");
   });
-  expect(api.generate).toHaveBeenCalledOnce();
-  expect(api.generate.mock.calls[0]?.[0]).toEqual({ input: { prompt: "Plan release" } });
-});
-
-it("retains a confirmed completion when refreshing fails", async () => {
-  await render();
-  api.searches.mockImplementation(() => {
-    throw new Error("list unavailable");
-  });
-  await act(async () => current.toggle(todo()));
-  await flush();
-  expect(current.rows[0]?.completed).toBe(true);
-  expect(current.list.isError).toBe(true);
-  expect(current.errors.a).toBeUndefined();
-  expect(current.notice).toBe("todos.markedCompleted");
+  expect(server.generate).toHaveBeenCalledOnce();
+  expect(server.generate.mock.calls[0]?.[0]).toEqual({ input: { prompt: "Plan release" } });
 });

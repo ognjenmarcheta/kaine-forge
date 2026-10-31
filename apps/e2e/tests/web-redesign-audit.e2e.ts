@@ -35,38 +35,34 @@ test("Organization menus scroll within a short viewport", async ({ page }) => {
   await expect(switcher).toBeFocused();
 });
 
-test("pending Todo forms prevent edits and dismissal, then retain failed drafts", async ({
+test("a Todo saved while the API cannot be reached shows at once and syncs when it can", async ({
   page
 }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Todos", exact: true }).click();
-  await page.getByRole("button", { name: "Add details", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
-  await dialog.getByLabel("Title", { exact: true }).fill("Pending draft");
-  let release: () => void = () => {};
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
+  const title = `Queued ${Date.now()}`;
+  let reachable = false;
   await page.route("**/graphql", async (route) => {
-    if (route.request().postData()?.includes("mutation CreateTodo")) {
-      await gate;
+    if (!reachable && route.request().postData()?.includes("mutation SyncPush")) {
       await route.fulfill({ json: { errors: [{ message: "Unavailable" }] } });
     } else await route.continue();
   });
+  await page.getByRole("button", { name: "Add details", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "New todo", exact: true });
+  await dialog.getByLabel("Title", { exact: true }).fill(title);
   await dialog.getByRole("button", { name: "Add Todo", exact: true }).click();
-  await expect(dialog.getByLabel("Title", { exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await page.mouse.click(5, 5);
-  await expect(dialog).toBeVisible();
-  release();
-  await expect(dialog.getByText(/Could not confirm creation/)).toBeVisible();
-  await expect(dialog.getByLabel("Title", { exact: true })).toBeEnabled();
-  await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("Pending draft");
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: title, exact: true })).toBeVisible();
+  const status = page.getByRole("status", { name: "Sync status", exact: true });
+  await expect(status).toContainText("Syncing");
+  await expect(status.getByLabel("Changes waiting", { exact: true })).toHaveText("1");
+
+  reachable = true;
+  // The browser's online event retries the Outbox at once instead of after its backoff.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(status).toContainText("Online", { timeout: 15_000 });
+  await page.reload();
+  await expect(page.getByRole("checkbox", { name: title, exact: true })).toBeVisible();
 });
 
 test("Note checklist retries additions and confirms pending deletions", async ({ page }) => {

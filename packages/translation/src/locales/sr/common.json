@@ -52,5 +52,17 @@
   "dataExport.error.list": "Izvozi nisu mogli da se učitaju.",
   "dataExport.failure.too_large": "Ovaj izvoz je veći od ograničenja arhive. Uklonite stare podatke ili kontaktirajte podršku.",
   "dataExport.failure.error": "Ovaj izvoz nije uspeo. Zatražite novi.",
-  "common.copied": "Kopirano"
+  "common.copied": "Kopirano",
+  "sync.status.label": "Status sinhronizacije",
+  "sync.status.online": "Na mreži",
+  "sync.status.offline": "Van mreže – čuva se na ovom uređaju",
+  "sync.status.syncing": "Sinhronizacija",
+  "sync.status.error": "Sinhronizacija nije uspela – pokušava se ponovo",
+  "sync.status.signedOut": "Prijavite se da biste sinhronizovali izmene",
+  "sync.status.pending": "Izmene na čekanju",
+  "sync.rejected.NOT_FOUND": "Izmena nije sačuvana: stavka je obrisana.",
+  "sync.rejected.FORBIDDEN": "Izmena nije sačuvana: nemate dozvolu.",
+  "sync.rejected.INVALID": "Izmena nije sačuvana: nije ispravna.",
+  "sync.rejected.CONFLICT": "Izmena nije sačuvana: u sukobu je sa drugom stavkom.",
+  "sync.rejected.PLAN_LIMIT_REACHED": "Izmena nije sačuvana: dostignuto je ograničenje vašeg paketa."
 }

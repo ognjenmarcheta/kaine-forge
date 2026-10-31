@@ -14,7 +14,9 @@ import {
 import { useRef, useState } from "react";
 
 import { TodoAttachments } from "./todo-attachments";
+import { useSyncStatus } from "../../../hooks/use-sync";
 import { useTranslation } from "../../../hooks/use-translation";
+import { useTodoAttachmentLinks } from "../todos-attachment-links.hook";
 import type { TodoItem } from "../todos.type";
 
 export interface TodoItemProps {
@@ -43,6 +45,12 @@ export function TodoItemRow({
 }: TodoItemProps) {
   const { t, language } = useTranslation();
   const [open, setOpen] = useState(false);
+  const links = useTodoAttachmentLinks(
+    item.id,
+    item.attachments.map((file) => file.id),
+    open
+  );
+  const offline = useSyncStatus()?.state === "offline";
   const selected = useRef<"edit" | "delete" | null>(null);
   return (
     <li className="ui-work-row ui-todos__row" data-todo-id={item.id}>
@@ -134,6 +142,8 @@ export function TodoItemRow({
         <CollapsibleContent forceMount inert={!open}>
           <TodoAttachments
             item={item}
+            links={links}
+            offline={offline}
             busy={busy}
             uploadBusy={uploadBusy}
             onUpload={onUpload}

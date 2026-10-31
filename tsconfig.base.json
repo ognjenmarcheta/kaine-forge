@@ -19,6 +19,8 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
+      "@repo/sync": ["packages/sync/src/index.ts"],
+      "@repo/sync/*": ["packages/sync/src/*"],
       "@repo/billing": ["packages/billing/src/index.ts"],
       "@repo/billing/*": ["packages/billing/src/*"],
       "@repo/auth": ["packages/auth/src/index.ts"],

@@ -40,6 +40,10 @@ catalog:
   # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
   yaml: "^2.9.1"
   "@tanstack/react-query": "^5.104.5"
+  # Offline sync (ADR 0020): exact pins, the 0.x set until the 1.0 RC set passes minimumReleaseAge.
+  "@tanstack/db": "0.15.2"
+  "@tanstack/react-db": "0.5.12"
+  "@tanstack/offline-transactions": "1.1.4"
   # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
   # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify,
   # and the API zips data export archives with it.

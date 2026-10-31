@@ -1,26 +1,21 @@
 import { createActiveOrganizationQueryKey } from "@repo/query";
 import { toTodoCreatePayload, toTodoUpdatePayload } from "@repo/todos";
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useLiveQuery } from "@tanstack/react-db";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { TODOS_CONFIG } from "./todos.config";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { sameTodoText, validTodo } from "./todos.util";
 import {
-  GetTodosDocument,
   useGetTodosQuery,
   useGetTodoQuery,
-  useCreateTodoMutation,
-  useUpdateTodoMutation,
-  useDeleteTodoMutation,
   useGenerateTodosMutation,
   useDeleteFileMutation,
-  useTodoCountsQuery,
-  type GetTodosQuery,
-  type GetTodosQueryVariables
+  useTodoCountsQuery
 } from "../../graphql/generated/react-query";
 import { useLiveTodos } from "../../hooks/use-live-list";
-import { useGraphqlFetcher } from "../../lib/graphql-codegen-fetcher";
+import { useSyncEngine, useSyncStatus } from "../../hooks/use-sync";
 import { queryRuntime } from "../../lib/query-runtime";
 import { planErrorOf } from "../billing/billing.hook";
 
@@ -40,9 +35,13 @@ export function useTodoCounts(organizationId: string | null, enabled: boolean) {
   });
 }
 const EMPTY_DRAFT: TodoDraft = { title: "", description: "" };
-/** The `after` cursor of the first page: none. */
-const FIRST_PAGE: string | null = null;
 
+/**
+ * The Active Organization's Todos from the local sync collection. Reads and
+ * writes work offline: a write shows at once and syncs when the network
+ * allows; a write the server refuses rolls back with a toast (sync.provider).
+ * Generating Todos and Attachments still need the network.
+ */
 export function useTodos(
   organizationId: string | null,
   enabled: boolean,
@@ -50,6 +49,8 @@ export function useTodos(
   status: string
 ) {
   const client = useQueryClient();
+  const engine = useSyncEngine();
+  const syncStatus = useSyncStatus();
   const [draft, setDraft] = useState<TodoDraft>(EMPTY_DRAFT);
   const [editing, setEditing] = useState<{
     base: TodoItem;
@@ -59,6 +60,7 @@ export function useTodos(
   const [pending, setPending] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
+  const [visible, setVisible] = useState<number>(TODOS_CONFIG.pageSize);
   const locks = useRef(new Set<string>());
   const alive = useRef(false);
   useEffect(() => {
@@ -68,49 +70,49 @@ export function useTodos(
     };
   }, []);
   const completed = status === "all" ? null : status === "completed";
-  const fetchTodos = useGraphqlFetcher<GetTodosQuery, GetTodosQueryVariables>(GetTodosDocument);
-  const listKey = createActiveOrganizationQueryKey(
-    [...useGetTodosQuery.getKey({ search, completed, first: TODOS_CONFIG.pageSize }), "pages"],
-    organizationId
+  const live = useLiveQuery(() => (enabled ? engine?.todos : null), [engine, enabled]);
+  const all = [...(live.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const matching = all.filter(
+    (item) =>
+      (completed === null || item.completed === completed) &&
+      (item.title.toLowerCase().includes(search.toLowerCase()) ||
+        (item.description ?? "").toLowerCase().includes(search.toLowerCase()))
   );
-  const list = useInfiniteQuery({
-    queryKey: listKey,
-    enabled,
-    initialPageParam: FIRST_PAGE,
-    queryFn: ({ pageParam }) =>
-      fetchTodos({ search, completed, first: TODOS_CONFIG.pageSize, after: pageParam }),
-    getNextPageParam: ({ todos: { pageInfo } }) =>
-      pageInfo.hasNextPage ? pageInfo.endCursor : undefined
-  });
-  const detailKey = createActiveOrganizationQueryKey(
-    useGetTodoQuery.getKey({ id: editing?.base.id ?? "" }),
-    organizationId
-  );
-  const detail = useGetTodoQuery(
-    { id: editing?.base.id ?? "" },
-    { enabled: enabled && Boolean(editing), queryKey: detailKey }
-  );
-  const create = useCreateTodoMutation({ retry: false });
-  const update = useUpdateTodoMutation({ retry: false });
-  const remove = useDeleteTodoMutation({ retry: false });
+  useEffect(() => {
+    setVisible(TODOS_CONFIG.pageSize);
+  }, [search, status]);
+  // The list's loading and paging state, in the shape the route reads. With
+  // no rows to show, a failed pull is a load error the user can retry.
+  const list = {
+    isPending: !live.isReady,
+    isError: live.isReady && all.length === 0 && syncStatus?.state === "error",
+    isFetchNextPageError: false,
+    hasNextPage: matching.length > visible,
+    isFetching: false,
+    isFetchingNextPage: false,
+    fetchNextPage: () => {
+      setVisible((count) => count + TODOS_CONFIG.pageSize);
+    },
+    refetch: () => engine?.pull().catch(() => undefined)
+  };
   const generate = useGenerateTodosMutation({ retry: false });
   const removeFile = useDeleteFileMutation({ retry: false });
-  const invalidationKeys = [listKey, detailKey, useTodoCountsQuery.getKey()];
+  const countsKey = useTodoCountsQuery.getKey();
   useLiveTodos({
     enabled,
-    invalidateKeys: invalidationKeys,
+    invalidateKeys: [countsKey],
     onDeleted: (id) =>
-      setEditing((current) => (current?.base.id === id ? { ...current, deleted: true } : current))
+      setEditing((current) => (current?.base.id === id ? { ...current, deleted: true } : current)),
+    onEvent: () => void engine?.pull().catch(() => undefined)
   });
+  const latest = editing ? all.find((item) => item.id === editing.base.id) : undefined;
   useEffect(() => {
-    if (detail.isSuccess && detail.data.todo === null)
+    if (editing && !editing.deleted && live.isReady && !latest)
       setEditing((current) => (current ? { ...current, deleted: true } : current));
-  }, [detail.data, detail.isSuccess]);
-  const latest = detail.data?.todo;
+  }, [editing, latest, live.isReady]);
   const externalChange = Boolean(
     editing &&
     latest &&
-    latest.id === editing.base.id &&
     !sameTodoText(
       { title: latest.title, description: latest.description ?? "" },
       { title: editing.base.title, description: editing.base.description ?? "" }
@@ -118,11 +120,7 @@ export function useTodos(
   );
 
   async function refresh() {
-    await Promise.all([
-      client.invalidateQueries({ queryKey: useGetTodosQuery.getKey() }),
-      client.invalidateQueries({ queryKey: detailPrefix }),
-      client.invalidateQueries({ queryKey: useTodoCountsQuery.getKey() })
-    ]);
+    await Promise.all([engine?.pull(), client.invalidateQueries({ queryKey: countsKey })]);
   }
   function clearError(key: string) {
     setErrors((current) => {
@@ -130,33 +128,6 @@ export function useTodos(
       delete next[key];
       return next;
     });
-  }
-  function confirmRow(id: string, patch: Partial<TodoItem> | null) {
-    client.setQueriesData<InfiniteData<GetTodosQuery>>(
-      {
-        queryKey: useGetTodosQuery.getKey(),
-        predicate: (query) =>
-          query.queryKey.includes("pages") && query.queryKey.includes(organizationId)
-      },
-      (data) =>
-        data
-          ? {
-              ...data,
-              pages: data.pages.map((page) => ({
-                ...page,
-                todos: {
-                  ...page.todos,
-                  items:
-                    patch === null
-                      ? page.todos.items.filter((item) => item.id !== id)
-                      : page.todos.items.map((item) =>
-                          item.id === id ? { ...item, ...patch } : item
-                        )
-                }
-              }))
-            }
-          : data
-    );
   }
   async function run<T>(key: string, action: () => Promise<T>, errorKey = "todos.actionFailed") {
     if (!enabled || !alive.current || locks.current.has(key)) return;
@@ -179,45 +150,51 @@ export function useTodos(
       if (alive.current) setPending([...locks.current]);
     }
   }
+  /** Runs a local write; one that cannot start (the Outbox failed to load) shows an error. */
+  async function write(key: string, action: () => Promise<unknown>): Promise<boolean> {
+    clearError(key);
+    try {
+      await action();
+      return true;
+    } catch {
+      if (alive.current) setErrors((current) => ({ ...current, [key]: "todos.actionFailed" }));
+      return false;
+    }
+  }
   async function add(input = draft) {
-    if (!validTodo(input)) return false;
-    const result = await run(
-      "create",
-      () => create.mutateAsync({ input: toTodoCreatePayload(input) }),
-      "todos.createUncertain"
-    );
-    if (!result) return false;
+    if (!validTodo(input) || !engine || locks.current.has("create")) return false;
+    // A double submit creates one Todo.
+    locks.current.add("create");
+    let written = false;
+    try {
+      written = await write("create", () => engine.createTodo(toTodoCreatePayload(input)));
+    } finally {
+      locks.current.delete("create");
+    }
+    if (!written) return false;
     setDraft(EMPTY_DRAFT);
     setNotice("todos.created");
     return true;
   }
   async function save() {
-    if (!editing || editing.deleted || !validTodo(editing.draft)) return false;
-    const result = await run(editing.base.id, () =>
-      update.mutateAsync({ id: editing.base.id, input: toTodoUpdatePayload(editing.draft) })
-    );
-    if (!result) return false;
-    confirmRow(editing.base.id, result.updateTodo);
+    if (!engine || !editing || editing.deleted || !validTodo(editing.draft)) return false;
+    const { id } = editing.base;
+    if (!(await write(id, () => engine.updateTodo(id, toTodoUpdatePayload(editing.draft)))))
+      return false;
     setEditing(null);
     setNotice("todos.saved");
     return true;
   }
   async function toggle(item: TodoItem) {
-    const result = await run(item.id, () =>
-      update.mutateAsync({ id: item.id, input: { completed: !item.completed } })
-    );
-    if (result) {
-      confirmRow(item.id, result.updateTodo);
-      setNotice(result.updateTodo.completed ? "todos.markedCompleted" : "todos.markedOpen");
-    }
+    if (!engine) return;
+    // Sets the state the user sees, never flips it: a replayed change stays correct.
+    if (await write(item.id, () => engine.updateTodo(item.id, { completed: !item.completed })))
+      setNotice(item.completed ? "todos.markedOpen" : "todos.markedCompleted");
   }
   async function deleteTodo(id: string) {
-    const result = await run(id, () => remove.mutateAsync({ id }));
-    if (result) {
-      confirmRow(id, null);
-      setNotice("todos.deleted");
-    }
-    return Boolean(result);
+    if (!engine || !(await write(id, () => engine.deleteTodo(id)))) return false;
+    setNotice("todos.deleted");
+    return true;
   }
   function openEdit(item: TodoItem) {
     clearError(item.id);
@@ -229,16 +206,7 @@ export function useTodos(
   }
   return {
     list,
-    rows: [
-      ...new Map(
-        (list.data?.pages.flatMap((page) => page.todos.items) ?? []).map((item) => [item.id, item])
-      ).values()
-    ].filter(
-      (item) =>
-        (completed === null || item.completed === completed) &&
-        (item.title.toLowerCase().includes(search.toLowerCase()) ||
-          (item.description ?? "").toLowerCase().includes(search.toLowerCase()))
-    ),
+    rows: matching.slice(0, visible),
     draft,
     setDraft,
     editing,
@@ -256,7 +224,6 @@ export function useTodos(
     deleteTodo,
     openEdit,
     externalChange,
-    detail,
     editDirty: Boolean(
       editing &&
       !sameTodoText(editing.draft, {

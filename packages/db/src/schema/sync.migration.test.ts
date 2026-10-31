@@ -148,6 +148,24 @@ describe("sync version migration", () => {
     expect(rows).toEqual([{ entity: "todo" }]);
   });
 
+  it("gives a Todo a new version when one of its Attachments is added or changes", async () => {
+    const [before] = await versions("todos");
+
+    await client.exec(`
+      INSERT INTO files (id, key, bucket, original_name, mime_type, size_bytes, organization_id, entity_type, entity_id)
+      VALUES ('00000000-0000-4000-8000-0000000000f1', 'k', 'b', 'a.txt', 'text/plain', 1,
+              '${ORG_ID}', 'todo', '${OLD_TODO_ID}');
+    `);
+    const [afterInsert] = await versions("todos");
+    await client.exec(
+      "UPDATE files SET status = 'uploaded' WHERE id = '00000000-0000-4000-8000-0000000000f1'"
+    );
+    const [afterUpload] = await versions("todos");
+
+    expect(afterInsert?.sync_version).toBeGreaterThan(before?.sync_version ?? 0);
+    expect(afterUpload?.sync_version).toBeGreaterThan(afterInsert?.sync_version ?? 0);
+  });
+
   it("deletes an Organization with its rows, counter, and Tombstones", async () => {
     // A linked todo, so the cascade also runs note_id SET NULL mid-delete.
     await client.exec(`
@@ -183,7 +201,9 @@ describe("sync triggers on a schema built by drizzle-kit push", () => {
       DROP TRIGGER "notes_sync_version" ON "notes";
       DROP TRIGGER "todos_sync_tombstone" ON "todos";
       DROP TRIGGER "notes_sync_tombstone" ON "notes";
-      DROP FUNCTION "sync_stamp_version"(), "sync_record_tombstone"(), "sync_next_version"(uuid);
+      DROP TRIGGER "files_sync_todo_version" ON "files";
+      DROP FUNCTION "sync_stamp_version"(), "sync_record_tombstone"(), "sync_next_version"(uuid),
+        "sync_touch_attachment_todos"();
       INSERT INTO users (id, email, name) VALUES ('${USER_ID}', 'owner@example.test', 'Owner');
       INSERT INTO organizations (id, name, slug) VALUES ('${ORG_ID}', 'Org', 'org');
       INSERT INTO todos (title, user_id, organization_id) VALUES
