@@ -44,6 +44,7 @@ import {
   groupShellNavigation,
   isNavItemActive
 } from "./components/shell-navigation.util";
+import { SyncStatusBadge } from "./components/sync-status";
 import {
   WorkspaceNavigationProvider,
   useWorkspaceNavigation
@@ -263,6 +264,7 @@ function ShellContent() {
             />
             <Breadcrumbs ariaLabel={t("navigation.breadcrumb")} items={breadcrumbItems} />
             <div className="ml-auto flex items-center gap-ds-100">
+              <SyncStatusBadge />
               <CommandMenuButton onOpen={() => setIsCommandMenuOpen(true)} />
               <NotificationBell />
             </div>

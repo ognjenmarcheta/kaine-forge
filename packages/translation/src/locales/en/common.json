@@ -52,5 +52,17 @@
   "dataExport.error.list": "Exports could not be loaded.",
   "dataExport.failure.too_large": "This export is larger than the archive limit. Remove old data or contact support.",
   "dataExport.failure.error": "This export failed. Request a new one.",
-  "common.copied": "Copied"
+  "common.copied": "Copied",
+  "sync.status.label": "Sync status",
+  "sync.status.online": "Online",
+  "sync.status.offline": "Offline – saving on this device",
+  "sync.status.syncing": "Syncing",
+  "sync.status.error": "Sync failed – retrying",
+  "sync.status.signedOut": "Sign in to sync your changes",
+  "sync.status.pending": "Changes waiting",
+  "sync.rejected.NOT_FOUND": "A change was not saved: the item was deleted.",
+  "sync.rejected.FORBIDDEN": "A change was not saved: you do not have permission.",
+  "sync.rejected.INVALID": "A change was not saved: it was not valid.",
+  "sync.rejected.CONFLICT": "A change was not saved: it conflicts with another item.",
+  "sync.rejected.PLAN_LIMIT_REACHED": "A change was not saved: your plan's limit is reached."
 }

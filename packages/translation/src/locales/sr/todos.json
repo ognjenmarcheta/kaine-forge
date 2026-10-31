@@ -99,5 +99,6 @@
   "todos.uploadProgress": "Otpremanje {filename} za {title}: {progress}%",
   "todos.uploadFailed": "Datoteka {filename} nije priložena uz {title}. Izaberi je ponovo za novi pokušaj.",
   "todos.uploaded": "Datoteka {filename} je priložena uz {title}.",
-  "todos.createdCompletionFailed": "Todo stavka je kreirana, ali završetak nije potvrđen. Osveži listu da proveriš status."
+  "todos.createdCompletionFailed": "Todo stavka je kreirana, ali završetak nije potvrđen. Osveži listu da proveriš status.",
+  "todos.attachments.offline": "Za priloge je potrebna veza."
 }

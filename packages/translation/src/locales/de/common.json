@@ -52,5 +52,17 @@
   "dataExport.error.list": "Exporte konnten nicht geladen werden.",
   "dataExport.failure.too_large": "Dieser Export ist größer als die Archivgrenze. Entferne alte Daten oder wende dich an den Support.",
   "dataExport.failure.error": "Dieser Export ist fehlgeschlagen. Fordere einen neuen an.",
-  "common.copied": "Kopiert"
+  "common.copied": "Kopiert",
+  "sync.status.label": "Synchronisierungsstatus",
+  "sync.status.online": "Online",
+  "sync.status.offline": "Offline – wird auf diesem Gerät gespeichert",
+  "sync.status.syncing": "Wird synchronisiert",
+  "sync.status.error": "Synchronisierung fehlgeschlagen – neuer Versuch folgt",
+  "sync.status.signedOut": "Melden Sie sich an, um Ihre Änderungen zu synchronisieren",
+  "sync.status.pending": "Wartende Änderungen",
+  "sync.rejected.NOT_FOUND": "Eine Änderung wurde nicht gespeichert: Das Element wurde gelöscht.",
+  "sync.rejected.FORBIDDEN": "Eine Änderung wurde nicht gespeichert: Ihnen fehlt die Berechtigung.",
+  "sync.rejected.INVALID": "Eine Änderung wurde nicht gespeichert: Sie war ungültig.",
+  "sync.rejected.CONFLICT": "Eine Änderung wurde nicht gespeichert: Sie steht im Konflikt mit einem anderen Element.",
+  "sync.rejected.PLAN_LIMIT_REACHED": "Eine Änderung wurde nicht gespeichert: Das Limit Ihres Tarifs ist erreicht."
 }

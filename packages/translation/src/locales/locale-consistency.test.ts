@@ -24,6 +24,8 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "billing.json:billing.plan.free",
     "billing.json:billing.plan.pro",
     "billing.json:billing.plan.business",
+    // Sync: "Online" is the German word for a connected state.
+    "common.json:sync.status.online",
     // Auth: "Code" is the German word for a one-time code.
     "auth.json:auth.otp.codeLabel",
     // Auth: "Passkeys" is the German term Apple, Google, and Microsoft use.

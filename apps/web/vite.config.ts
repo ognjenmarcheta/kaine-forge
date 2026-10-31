@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
         "@repo/storage": path.join(workspaceRoot, "packages/storage/src/index.ts"),
         "@repo/todos": path.join(workspaceRoot, "packages/todos/src/index.ts"),
         "@repo/translation": path.join(workspaceRoot, "packages/translation/src/index.ts"),
+        "@repo/sync": path.join(workspaceRoot, "packages/sync/src/index.ts"),
         "@repo/ui": path.join(workspaceRoot, "packages/ui/src/index.ts")
       }
     },

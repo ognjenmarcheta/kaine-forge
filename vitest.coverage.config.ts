@@ -22,6 +22,7 @@ export default defineConfig({
       "packages/theme",
       "packages/translation",
       "packages/billing",
+      "packages/sync",
       "packages/ui",
       "packages/ui-3d"
     ],

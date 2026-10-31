@@ -15,18 +15,29 @@ interface LiveListOptions {
   invalidateKeys: readonly (readonly unknown[])[];
   /** Runs with the deleted row's id after a delete event. */
   onDeleted?: (id: string) => void;
+  /** Runs after any event of the entity kind, for example to start a sync pull. */
+  onEvent?: () => void;
 }
 
 /** Keeps Todo queries fresh: refetches on every Todo event of the Active Organization. */
-export function useLiveTodos({ enabled, invalidateKeys, onDeleted }: LiveListOptions): void {
-  useSubscription({ query: OnTodoCreatedDocument, enabled, invalidateKeys });
-  useSubscription({ query: OnTodoUpdatedDocument, enabled, invalidateKeys });
-  useSubscription({ query: OnTodoToggledDocument, enabled, invalidateKeys });
+export function useLiveTodos({
+  enabled,
+  invalidateKeys,
+  onDeleted,
+  onEvent
+}: LiveListOptions): void {
+  const onData = () => onEvent?.();
+  useSubscription({ query: OnTodoCreatedDocument, enabled, invalidateKeys, onData });
+  useSubscription({ query: OnTodoUpdatedDocument, enabled, invalidateKeys, onData });
+  useSubscription({ query: OnTodoToggledDocument, enabled, invalidateKeys, onData });
   useSubscription({
     query: OnTodoDeletedDocument,
     enabled,
     invalidateKeys,
-    onData: ({ todoDeleted }) => onDeleted?.(todoDeleted.id)
+    onData: ({ todoDeleted }) => {
+      onDeleted?.(todoDeleted.id);
+      onEvent?.();
+    }
   });
 }
 
