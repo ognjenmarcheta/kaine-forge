@@ -1182,13 +1182,13 @@ export function ${names.pluralPascal}Route() {
   const error = listQuery.error ? t("error.generic") : null;
 
   return (
-    <section className="grid gap-[var(--ds-space-200)]">
-      <header className="flex items-center justify-between gap-[var(--ds-space-150)]">
+    <section className="grid gap-ds-200">
+      <header className="flex items-center justify-between gap-ds-150">
         <h1>{t("${names.pluralKebab}.title")}</h1>
       </header>
 
       <form
-        className="flex items-center gap-[var(--ds-space-100)]"
+        className="flex items-center gap-ds-100"
         onSubmit={(event) => void handleCreate(event)}
       >
         <Input
@@ -1202,29 +1202,29 @@ export function ${names.pluralPascal}Route() {
       </form>
 
       {isLoading ? (
-        <p className="text-[color:var(--ds-text-subtle)]">{t("common.loading")}</p>
+        <p className="text-ds-text-subtle">{t("common.loading")}</p>
       ) : null}
       {error ? <FieldError>{error}</FieldError> : null}
 
       {!isLoading && ${names.pluralCamel}.length === 0 ? (
-        <p className="text-[color:var(--ds-text-subtle)]">{t("${names.pluralKebab}.empty")}</p>
+        <p className="text-ds-text-subtle">{t("${names.pluralKebab}.empty")}</p>
       ) : null}
 
       {!isLoading && ${names.pluralCamel}.length > 0 ? (
-        <ul className="flex flex-col gap-[var(--ds-space-100)]">
+        <ul className="flex flex-col gap-ds-100">
           {${names.pluralCamel}.map((${names.singularCamel}) => {
             const preview = (${names.singularCamel}.body ?? "").split("\\n")[0] ?? "";
 
             return (
               <li key={${names.singularCamel}.id}>
-                <div className="flex items-center justify-between gap-[var(--ds-space-150)] rounded-[var(--ds-radius-300)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-[var(--ds-space-150)]">
+                <div className="flex items-center justify-between gap-ds-150 rounded-xl border border-ds-border bg-ds-surface p-ds-150">
                   <NavLink
-                    className="flex min-w-0 flex-1 flex-col gap-[var(--ds-space-050)]"
+                    className="flex min-w-0 flex-1 flex-col gap-ds-050"
                     to={\`/${names.pluralKebab}/\${${names.singularCamel}.id}\`}
                   >
                     <span className="truncate">{${names.singularCamel}.title}</span>
                     {preview ? (
-                      <span className="truncate text-[color:var(--ds-text-subtle)] text-[length:var(--ds-font-size-100)]">
+                      <span className="truncate text-ds-text-subtle text-body-sm">
                         {preview}
                       </span>
                     ) : null}
@@ -1348,16 +1348,16 @@ export function ${names.singularPascal}DetailRoute() {
   }
 
   if (isLoading) {
-    return <p className="text-[color:var(--ds-text-subtle)]">{t("common.loading")}</p>;
+    return <p className="text-ds-text-subtle">{t("common.loading")}</p>;
   }
 
   if (!${names.singularCamel}) {
-    return <p className="text-[color:var(--ds-text-subtle)]">{t("${names.pluralKebab}.notFound")}</p>;
+    return <p className="text-ds-text-subtle">{t("${names.pluralKebab}.notFound")}</p>;
   }
 
   return (
-    <section className="grid gap-[var(--ds-space-200)]">
-      <div className="flex flex-col gap-[var(--ds-space-150)]">
+    <section className="grid gap-ds-200">
+      <div className="flex flex-col gap-ds-150">
         <Field>
           <FieldLabel htmlFor="${names.singularKebab}-title">
             {t("${names.pluralKebab}.titleLabel")}
