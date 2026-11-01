@@ -60,6 +60,8 @@ test("creates, edits, completes, and deletes a todo", async ({ page }) => {
   // Complete, then prove the server persisted it (not just optimistic UI).
   await todoCheckbox.click();
   await expect(todoCheckbox).toBeChecked();
+  // The checkmark shows at once; the notice follows once the change is stored on the device.
+  await expect(page.getByText("Todo marked completed.", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("checkbox", { name: todoTitle })).toBeChecked();
   await expect(row.getByText("Updated description", { exact: true })).toBeVisible();

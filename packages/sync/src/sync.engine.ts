@@ -72,7 +72,11 @@ export interface SyncEngine {
   notes: Collection<SyncNote, string>;
   /** Resolves once the Outbox is loaded and the first pull settled, whether or not it succeeded. */
   ready: Promise<void>;
-  /** Creates a Todo with a client id and returns the id at once. */
+  /*
+   * Each write below shows at once and resolves once the Outbox stores it, so
+   * a page that closes after that keeps the change. It never waits for the server.
+   */
+  /** Creates a Todo with a client id and returns the id. */
   createTodo: (input: {
     title: string;
     description?: string | null;
@@ -364,10 +368,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     }
   }
 
+  /** Local changes waiting for their Outbox entry, by transaction id. */
+  const storing = new Map<string, () => void>();
+
   /**
    * The Outbox store, with the status refreshed after each write. The
    * executor queues a change only after storing it, so that is when the
-   * pending count moves.
+   * pending count moves, and when a waiting change is safe on the device.
    */
   function observed(storage: StorageAdapter): StorageAdapter {
     const refresh = () => {
@@ -378,6 +385,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       keys: () => storage.keys(),
       set: async (key, value) => {
         await storage.set(key, value);
+        for (const [transactionId, stored] of storing) {
+          if (key.endsWith(transactionId)) stored();
+        }
         refresh();
       },
       delete: async (key) => {
@@ -485,12 +495,30 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     }
   });
 
-  /** Runs a local change once the Outbox is loaded, and tracks its settling. */
+  /**
+   * Runs a local change once the Outbox is loaded, and resolves once the
+   * Outbox stores it: a page that closes after that keeps the change. A tab
+   * that does not lead the Outbox stores nothing, so it resolves at once.
+   */
   async function act(run: () => Transaction): Promise<void> {
     await initialized;
     const transaction = run();
     publish();
-    transaction.when("settled").then(publish, publish);
+    const settled = transaction.when("settled");
+    settled.then(publish, publish);
+    if (!executor.isOfflineEnabled) return;
+    try {
+      await Promise.race([
+        new Promise<void>((resolve) => storing.set(transaction.id, resolve)),
+        // A change the Outbox refuses settles without being stored.
+        settled.then(
+          () => undefined,
+          () => undefined
+        )
+      ]);
+    } finally {
+      storing.delete(transaction.id);
+    }
   }
 
   return {

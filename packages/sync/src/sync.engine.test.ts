@@ -372,6 +372,54 @@ describe("createSyncEngine", () => {
     await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
   });
 
+  it("keeps a change once its call resolves, even if the page closes while a push runs", async () => {
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "Draft", description: null, noteId: null } });
+    // Outbox storage as a page sees it: writes take a moment, and none land after the page closes.
+    const store = memoryStorage();
+    let closed = false;
+    const storage: StorageAdapter = {
+      ...store,
+      set: async (key, value) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (!closed) await store.set(key, value);
+      }
+    };
+    const pushOnce = server.transport.push;
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.transport.push = async (key, mutations) => {
+      await held;
+      return pushOnce(key, mutations);
+    };
+    const open = () =>
+      createSyncEngine({
+        transport: server.transport,
+        storage,
+        onlineDetector: controlledOnline(),
+        leaderElection: alwaysLeader
+      });
+    const first = open();
+    engines.push(first);
+    await first.ready;
+
+    await first.updateTodo("t1", { title: "Edited" });
+    await first.updateTodo("t1", { completed: true });
+    closed = true;
+    first.dispose();
+    closed = false;
+    server.transport.push = pushOnce;
+    release();
+    engines.push(open());
+
+    await vi.waitFor(
+      () => expect(server.todos.get("t1")).toMatchObject({ title: "Edited", completed: true }),
+      { timeout: 5_000 }
+    );
+  });
+
   it("rolls back a change the server refuses and reports it", async () => {
     const server = createFakeServer();
     server.state.reject.add("Refused");
