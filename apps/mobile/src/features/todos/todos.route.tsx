@@ -35,7 +35,7 @@ export function TodosRoute() {
   const syncStatus = useSyncStatus();
   const { rejection, dismissRejection } = useSyncRejection();
   const enabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
-  const live = useLiveQuery(() => (enabled ? engine?.todos : null), [engine, enabled]);
+  const live = useLiveQuery(() => (enabled ? engine?.todos : null));
 
   const invalidateTodos = useCallback(async () => {
     // Offline the pull fails; the status badge already shows it.

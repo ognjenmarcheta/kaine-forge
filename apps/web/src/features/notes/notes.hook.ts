@@ -79,8 +79,8 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     });
   }
 
-  const liveNotes = useLiveQuery(() => (enabled ? engine?.notes : null), [engine, enabled]);
-  const liveTodos = useLiveQuery(() => (enabled ? engine?.todos : null), [engine, enabled]);
+  const liveNotes = useLiveQuery(() => (enabled ? engine?.notes : null));
+  const liveTodos = useLiveQuery(() => (enabled ? engine?.todos : null));
   const ready = liveNotes.isReady;
   const all = [...(liveNotes.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const lowerPhrase = phrase.toLowerCase();
