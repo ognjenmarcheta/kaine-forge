@@ -287,6 +287,14 @@ describe("buildFeatureFiles", () => {
     }
   });
 
+  it("styles the web routes with theme utilities, never arbitrary token values", () => {
+    for (const [path, content] of files) {
+      if (path.startsWith(webDir)) {
+        expect(content, path).not.toContain("var(--ds-");
+      }
+    }
+  });
+
   it("tests the module on PGlite with the emitted event names", () => {
     const test = read(`${apiDir}/purchase-orders.module.test.ts`);
 
