@@ -21,6 +21,8 @@
   "connection.reconnecting": "Reconnecting...",
   "common.retry": "Try again",
   "common.goToDashboard": "Go to dashboard",
+  "update.available": "A new version is available.",
+  "update.reload": "Reload",
   "error.routeSummary": "This page could not load. Try again, or go back to the dashboard.",
   "notFound.title": "Page not found",
   "notFound.summary": "This page does not exist or has moved.",

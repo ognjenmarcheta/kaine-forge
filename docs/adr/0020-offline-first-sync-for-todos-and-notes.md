@@ -99,6 +99,13 @@ The server work is additive. Existing CRUD mutations, API-key clients, and onlin
 - Collection ids stay `todos` and `notes` inside each database. A mounted TanStack DB 1.0 live query requires a collection id to keep naming one collection, so the screens key their live queries on the engine's unique `id` instead.
 - The web CSP allows `'wasm-unsafe-eval'` in `script-src`: SQLite runs as WebAssembly in a same-origin worker, which gets the same header.
 
+### App shell offline (M3b, 2026-11-01)
+
+- `vite-plugin-pwa` (`generateSW`) precaches the web build, answers navigations with `index.html`, and never caches `/api/` or `/graphql`. With the stored session and the device database, the app starts and shows its data with no network.
+- The app registers the worker itself and never in the desktop shell, which loads the same build from disk. A waiting version shows a toast with Reload; it never takes over a running page by itself.
+- nginx sends `Cache-Control: no-cache` for `sw.js`, so a deploy reaches every browser on its next visit.
+- Playwright blocks service workers by default, because a worker answers requests before `page.route` mocks see them. `web-offline-start.e2e.ts` allows it and runs only against the production build.
+
 ### Removing the capability (downstream adopters)
 
 A product that does not want offline sync removes it in one change:
