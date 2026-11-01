@@ -1,4 +1,4 @@
-import type { Note, SyncMutationOutcome, Todo } from "@repo/db";
+import type { Note, SyncMutationOutcome, SyncTombstone, Todo } from "@repo/db";
 
 export interface SyncPullArgs {
   cursor?: string | null | undefined;
@@ -6,8 +6,15 @@ export interface SyncPullArgs {
 }
 
 export interface SyncDeletion {
-  entity: "TODO" | "NOTE";
+  /** The Tombstone's `sync_entity` value in upper case, as the `SyncEntity` enum names it. */
+  entity: Uppercase<SyncTombstone["entity"]>;
   id: string;
+}
+
+/** The changed rows of a pull, one field per synced table. */
+export interface SyncedRows {
+  todos: Todo[];
+  notes: Note[];
 }
 
 /**
@@ -15,9 +22,7 @@ export interface SyncDeletion {
  * `resetRequired` is true: the client then drops its local rows and pulls
  * again without a cursor.
  */
-export interface SyncPullPayload {
-  todos: Todo[];
-  notes: Note[];
+export interface SyncPullPayload extends SyncedRows {
   deleted: SyncDeletion[];
   cursor: string | null;
   hasMore: boolean;
