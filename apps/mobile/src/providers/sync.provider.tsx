@@ -50,6 +50,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   latestSession.current = session;
 
   useEffect(() => {
+    // A rejection belongs to the scope that pushed it.
+    setRejection(null);
     if (!scope || !userId || !activeOrganizationId) {
       setCurrent(null);
       return;

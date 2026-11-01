@@ -48,7 +48,9 @@ export function useSignOut(): {
   }, [engine, logout, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;
-    const keys = await userOutboxKeys(userId).catch(() => []);
+    const keys = await userOutboxKeys(userId).catch(() => null);
+    // Unknown is not zero: assume a Pending Change, so the sign-out asks first.
+    if (!keys) return Math.max(1, engine?.getStatus().pending ?? 0);
     // An Outbox entry's key ends in `tx:<id>` under its scope's prefix.
     const stored = keys.filter((key) => key.includes(":tx:")).length;
     return Math.max(stored, engine?.getStatus().pending ?? 0);
