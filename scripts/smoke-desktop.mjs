@@ -20,7 +20,6 @@ import {
  *   pnpm smoke:desktop [--web http://localhost:3000] [--timeout <ms>]
  */
 const usage = "usage: pnpm smoke:desktop [--web <web origin URL>] [--timeout <ms>]";
-const WINDOW_TITLE = "Kaine Forge Desktop";
 const LOG_DIR = join(".ai.local", "agent-desktop");
 const LOG_FILE = join(LOG_DIR, "smoke-desktop.log");
 
@@ -78,6 +77,9 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
   console.error(usage);
   process.exit(2);
 }
+// Read from the Tauri config, so template adoption keeps the title and this check in step.
+const WINDOW_TITLE = JSON.parse(readFileSync("apps/desktop/src-tauri/tauri.conf.json", "utf8")).app
+  .windows[0].title;
 const signInTitle = JSON.parse(
   readFileSync("packages/translation/src/locales/en/auth.json", "utf8")
 )["auth.login.title"];

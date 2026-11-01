@@ -129,6 +129,7 @@ export const adoptionTargets = [
   ".ai/serena-memories/core.md",
   ".ai/serena-memories/project_overview.md",
   ".ai/serena-memories/suggested_commands.md",
+  ".ai/skills/kaine-computer-use.md",
   ".ai/skills/kaine-open-pr.md",
   ".ai/skills/kaine-test.md",
   ".ai/agents/kaine-explorer.md",

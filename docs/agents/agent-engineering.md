@@ -195,7 +195,7 @@ which renders with WebKitGTK on Linux, native apps, Firefox, and Chrome started 
   refuse; observation, semantic actions, and `press` still work. Verified on Ubuntu 26.04 GNOME
   Wayland: `status` reports `window`, `sheet`, `alert`, `menu`, and `system-tray`, and a Chrome
   instance with a throwaway profile exposed the sign-in form's Email and Password fields.
-  `pnpm smoke:desktop` passed there: the `kaine_forge_desktop` window showed the sign-in screen.
+  `pnpm smoke:desktop` passed there: the desktop window showed the sign-in screen.
 - `pnpm smoke:desktop` checks that the Tauri window opens on the sign-in screen. It needs
   `pnpm dev:web` and the Tauri Linux system libraries. It stays local: a CI run needs Xvfb,
   D-Bus, AT-SPI, and WebKitGTK on the runner, and the desktop app has no native features yet.
