@@ -215,6 +215,24 @@ describe("createSyncEngine", () => {
     expect(engine.getStatus()).toEqual({ state: "online", pending: 0 });
   });
 
+  it("skips a deletion of an entity it does not sync, even one with a Todo's id", async () => {
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "Kept", description: null, noteId: null } });
+    // A newer server syncs an entity this client predates.
+    const pull = server.transport.pull;
+    server.transport.pull = async (cursor) => {
+      const page = await pull(cursor);
+      return { ...page, deleted: [...page.deleted, { entity: "INVOICE", id: "t1" }] };
+    };
+    const { engine } = start(server);
+
+    await engine.ready;
+    await engine.pull();
+
+    expect(titles(engine)).toEqual(["Kept"]);
+    expect(engine.getStatus()).toEqual({ state: "online", pending: 0 });
+  });
+
   it("shows a local create at once and keeps the server's row after the push", async () => {
     const server = createFakeServer();
     const { engine } = start(server);
