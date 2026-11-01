@@ -35,52 +35,77 @@ async function writeRegistry(names: Iterable<string>): Promise<void> {
 const openDatabases = new Map<string, () => Promise<void>>();
 
 /**
- * Opens the device database of one User in one Organization. Resolves null
- * when SQLite cannot open it; the synced rows then live in memory, as before.
+ * One queue for every open and deletion: each reads and rewrites the
+ * registry, and a deletion must see every database opened before it.
  */
-export async function openDeviceStorage(scope: {
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(run: () => Promise<T>): Promise<T> {
+  const result = queue.then(run, run);
+  queue = result.catch(() => undefined);
+  return result;
+}
+
+/** How many sign-outs deleted each User's storage: an open asked for before one is cancelled. */
+const deletions = new Map<string, number>();
+
+/**
+ * Opens the device database of one User in one Organization. Resolves null
+ * when SQLite cannot open it, or when the User signed out while it waited; the
+ * synced rows then live in memory, as before.
+ */
+export function openDeviceStorage(scope: {
   userId: string;
   organizationId: string;
 }): Promise<{ persistence: DevicePersistence; close: () => Promise<void> } | null> {
-  const databaseName = `${await deviceDatabasePrefix(scope.userId)}${await namePart(scope.organizationId)}.db`;
-  let database: Awaited<ReturnType<typeof openDatabaseAsync>>;
-  try {
-    database = await openDatabaseAsync(databaseName);
+  const asked = deletions.get(scope.userId) ?? 0;
+  return serial(async () => {
+    if ((deletions.get(scope.userId) ?? 0) !== asked) return null;
+    const databaseName = `${await deviceDatabasePrefix(scope.userId)}${await namePart(scope.organizationId)}.db`;
+    // Listed before it exists, so no database file is ever left unlisted.
     await writeRegistry([...(await registeredDatabases()), databaseName]);
-  } catch (error) {
-    console.warn("Synced rows stay in memory: no device storage.", error);
-    return null;
-  }
-  let closing: Promise<void> | null = null;
-  const close = () => {
-    closing ??= (async () => {
-      openDatabases.delete(databaseName);
-      await database.closeAsync();
-    })();
-    return closing;
-  };
-  openDatabases.set(databaseName, close);
-  return { persistence: createExpoSQLitePersistence({ database }), close };
+    let database: Awaited<ReturnType<typeof openDatabaseAsync>>;
+    try {
+      database = await openDatabaseAsync(databaseName);
+    } catch (error) {
+      console.warn("Synced rows stay in memory: no device storage.", error);
+      return null;
+    }
+    let closing: Promise<void> | null = null;
+    const close = () => {
+      closing ??= (async () => {
+        await database.closeAsync();
+        // Only once it is closed: a deletion waits on this to finish first.
+        openDatabases.delete(databaseName);
+      })();
+      return closing;
+    };
+    openDatabases.set(databaseName, close);
+    return { persistence: createExpoSQLitePersistence({ database }), close };
+  });
 }
 
 /** Closes and deletes the registered device databases that `match` selects. */
-async function deleteDatabases(match: (name: string) => boolean): Promise<void> {
-  const registered = await registeredDatabases();
-  const deleted = new Set<string>();
-  for (const name of registered.filter(match)) {
-    await openDatabases.get(name)?.();
-    try {
-      await deleteDatabaseAsync(name);
-      deleted.add(name);
-    } catch {
-      // Kept in the registry, so a later deletion tries again.
+function deleteDatabases(match: (name: string) => boolean): Promise<void> {
+  return serial(async () => {
+    const registered = await registeredDatabases();
+    const deleted = new Set<string>();
+    for (const name of registered.filter(match)) {
+      await openDatabases.get(name)?.();
+      try {
+        await deleteDatabaseAsync(name);
+        deleted.add(name);
+      } catch {
+        // Kept in the registry, so a later deletion tries again.
+      }
     }
-  }
-  await writeRegistry(registered.filter((name) => !deleted.has(name)));
+    await writeRegistry(registered.filter((name) => !deleted.has(name)));
+  });
 }
 
 /** Closes and deletes every device database of a User, for a sign-out. */
 export async function deleteDeviceStorage(userId: string): Promise<void> {
+  // Counted at once, so an open the provider asked for earlier is cancelled.
+  deletions.set(userId, (deletions.get(userId) ?? 0) + 1);
   const prefix = await deviceDatabasePrefix(userId);
   await deleteDatabases((name) => name.startsWith(prefix));
 }

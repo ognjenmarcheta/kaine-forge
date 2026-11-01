@@ -28,6 +28,17 @@ async function deviceDatabasePrefix(userId: string): Promise<string> {
 /** This tab's open device databases, by name, so a sign-out can close them before deleting. */
 const openDatabases = new Map<string, () => Promise<void>>();
 
+/** How many sign-outs deleted each User's storage: an open asked for before one is undone. */
+const deletions = new Map<string, number>();
+
+/** Removes every OPFS file whose name `match` selects: a database and its journal files. */
+async function removeFiles(match: (name: string) => boolean): Promise<void> {
+  const root = await navigator.storage.getDirectory();
+  for await (const name of root.keys()) {
+    if (match(name)) await root.removeEntry(name).catch(() => undefined);
+  }
+}
+
 /**
  * Opens the device database of one User in one Organization, shared by every
  * tab of that pair: one tab leads it, the others reach it through the leader.
@@ -38,6 +49,7 @@ export async function openDeviceStorage(
   scope: { userId: string; organizationId: string },
   signal: AbortSignal
 ): Promise<{ persistence: DevicePersistence; close: () => Promise<void> } | null> {
+  const asked = deletions.get(scope.userId) ?? 0;
   const databaseName = `${await deviceDatabasePrefix(scope.userId)}${await namePart(scope.organizationId)}.db`;
   let database: Awaited<ReturnType<typeof openBrowserWASQLiteOPFSDatabase>>;
   try {
@@ -46,13 +58,20 @@ export async function openDeviceStorage(
     if (!signal.aborted) console.warn("Synced rows stay in memory: no device storage.", error);
     return null;
   }
+  if ((deletions.get(scope.userId) ?? 0) !== asked) {
+    // The User signed out while this opened, after the sign-out deleted their files.
+    await database.close?.();
+    await removeFiles((name) => name.startsWith(databaseName));
+    return null;
+  }
   const coordinator = new BrowserCollectionCoordinator({ dbName: databaseName });
   let closing: Promise<void> | null = null;
   const close = () => {
     closing ??= (async () => {
-      openDatabases.delete(databaseName);
       coordinator.dispose();
       await database.close?.();
+      // Only once it is closed: a sign-out waits on this before it deletes the file.
+      openDatabases.delete(databaseName);
     })();
     return closing;
   };
@@ -65,14 +84,13 @@ export async function openDeviceStorage(
  * sign-out. A database another tab still holds stays until that tab closes it.
  */
 export async function deleteDeviceStorage(userId: string): Promise<void> {
+  // Counted at once, so an open the provider asked for earlier undoes itself.
+  deletions.set(userId, (deletions.get(userId) ?? 0) + 1);
   const prefix = await deviceDatabasePrefix(userId);
   await Promise.all(
     [...openDatabases].filter(([name]) => name.startsWith(prefix)).map(([, close]) => close())
   );
-  const root = await navigator.storage.getDirectory();
-  for await (const name of root.keys()) {
-    if (name.startsWith(prefix)) await root.removeEntry(name).catch(() => undefined);
-  }
+  await removeFiles((name) => name.startsWith(prefix));
 }
 
 /**
@@ -83,10 +101,5 @@ export async function deleteDeviceStorage(userId: string): Promise<void> {
  */
 export async function deleteOtherUsersStorage(userId: string): Promise<void> {
   const own = await deviceDatabasePrefix(userId);
-  const root = await navigator.storage.getDirectory();
-  for await (const name of root.keys()) {
-    if (name.startsWith(DEVICE_DATABASE_PREFIX) && !name.startsWith(own)) {
-      await root.removeEntry(name).catch(() => undefined);
-    }
-  }
+  await removeFiles((name) => name.startsWith(DEVICE_DATABASE_PREFIX) && !name.startsWith(own));
 }
