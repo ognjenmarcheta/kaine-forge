@@ -70,7 +70,7 @@ export function useTodos(
     };
   }, []);
   const completed = status === "all" ? null : status === "completed";
-  const live = useLiveQuery(() => (enabled ? engine?.todos : null), [engine, enabled]);
+  const live = useLiveQuery(() => (enabled ? engine?.todos : null));
   const all = [...(live.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const matching = all.filter(
     (item) =>

@@ -411,7 +411,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     await initialized;
     const transaction = run();
     publish();
-    transaction.isPersisted.promise.then(publish, publish);
+    transaction.when("settled").then(publish, publish);
   }
 
   return {

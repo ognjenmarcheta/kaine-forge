@@ -40,14 +40,14 @@ catalogs:
       specifier: ^4.3.3
       version: 4.3.3
     '@tanstack/db':
-      specifier: 0.15.2
-      version: 0.15.2
+      specifier: 1.0.0-rc.1
+      version: 1.0.0-rc.1
     '@tanstack/offline-transactions':
-      specifier: 1.1.4
-      version: 1.1.4
+      specifier: 1.2.0
+      version: 1.2.0
     '@tanstack/react-db':
-      specifier: 0.5.12
-      version: 0.5.12
+      specifier: 1.0.0-rc.1
+      version: 1.0.0-rc.1
     '@tanstack/react-query':
       specifier: ^5.104.5
       version: 5.104.5
@@ -512,7 +512,7 @@ importers:
         version: link:../../packages/translation
       '@tanstack/react-db':
         specifier: 'catalog:'
-        version: 0.5.12(react@19.2.0)(typescript@5.9.3)
+        version: 1.0.0-rc.1(react@19.2.0)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.104.5(@types/react@19.2.14)(react@19.2.0)
@@ -663,7 +663,7 @@ importers:
         version: link:../../packages/ui
       '@tanstack/react-db':
         specifier: 'catalog:'
-        version: 0.5.12(react@19.2.8)(typescript@5.9.3)
+        version: 1.0.0-rc.1(react@19.2.8)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.104.5(@types/react@19.2.18)(react@19.2.8)
@@ -1050,10 +1050,10 @@ importers:
     dependencies:
       '@tanstack/db':
         specifier: 'catalog:'
-        version: 0.15.2(typescript@5.9.3)
+        version: 1.0.0-rc.1(typescript@5.9.3)
       '@tanstack/offline-transactions':
         specifier: 'catalog:'
-        version: 1.1.4(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))(typescript@5.9.3)
+        version: 1.2.0(@tanstack/db@1.0.0-rc.1(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))
     devDependencies:
       '@repo/config':
         specifier: workspace:*
@@ -5504,13 +5504,13 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
-  '@tanstack/db-ivm@0.2.0':
-    resolution: {integrity: sha512-AuMuGzVdWR5qzJPRYajmrUp95vMo0duvMZ0zBjMOvaI9rkh2GHZWCsJ/p7s81UN4Lep6HHJjahnYUF+XVL0+AQ==}
+  '@tanstack/db-ivm@1.0.0-rc.1':
+    resolution: {integrity: sha512-Se2n19f/Ydl+j9/CFCybvQJuRYGPGv2ERm+x0uD8VjnSoRjvez74YS9P0ywyAbVNSAU3k+hwZF3AWXh23gltOA==}
     peerDependencies:
       typescript: '>=4.7'
 
-  '@tanstack/db@0.15.2':
-    resolution: {integrity: sha512-s7CR8kOgkF1oPEGyKWItWHsg7U3hhQQu+k9CPjjAWwS6wzWVvjCbHbu/xnJvO1aPe7v3SBwo1tf6CMyKjNPNxg==}
+  '@tanstack/db@1.0.0-rc.1':
+    resolution: {integrity: sha512-Kwk4bMDr2XkYCkIyA8h2rEbqACspvLhiGFeciz1FHWFrR4Oqa8IrJjUAJgpKEtBXdLbYinxDcFv0rxvbTtz/MQ==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -5526,10 +5526,11 @@ packages:
     resolution: {integrity: sha512-DIpUSOhPfQ7u/qfUi/Wgm0wBO56MyBYXGvnlI0NcauDRPqdBUlAZZjW2Dxm92m+k1UWVhKw8YJ4f47+75Aujyw==}
     engines: {node: '>=20'}
 
-  '@tanstack/offline-transactions@1.1.4':
-    resolution: {integrity: sha512-cAs1uO5Q4DWkXZoQYzKK3kf7xAsr4LDNs6LSdhe2j6g8jgi6fsRrRw+vbwV/ziTP7n8AbIjp7xF94OY4RF0u+g==}
+  '@tanstack/offline-transactions@1.2.0':
+    resolution: {integrity: sha512-bITqJN2lSHeXTxDaqNhieW94qUuivxyzxD+ehb25/j0PWPpTJoB8RNzbjvU0Q2j6hAfdplgu+P3TewoNTjlOMQ==}
     peerDependencies:
       '@react-native-community/netinfo': '>=11.0.0'
+      '@tanstack/db': ^1.0.0-rc.0
       react-native: '>=0.70.0'
     peerDependenciesMeta:
       '@react-native-community/netinfo':
@@ -5551,8 +5552,8 @@ packages:
   '@tanstack/query-devtools@5.104.5':
     resolution: {integrity: sha512-BLVEw4lFF7aIRsfqGvI50SSR9oN46/EmlygC+3h5TUdI+fL8GnMQialL3H92TbYi7J1b/hYlUGnckBT2uG5h8w==}
 
-  '@tanstack/react-db@0.5.12':
-    resolution: {integrity: sha512-Sq5qtW/vJRzV3+vSFnr5dEk3GHOc/x7aG3lte6Y1wnC3GwsbnrBm1xy7XccPIvkeV8AU88Bo9QJwQXoElYqKLg==}
+  '@tanstack/react-db@1.0.0-rc.1':
+    resolution: {integrity: sha512-eCwKDW4IwhU1ycxFaquXAZxbzF6/XLZuXQbqt819j52tmaE4/zxxnx9WUsUosQ32P3RFEwds0OC2NCrny8pTFw==}
     peerDependencies:
       react: '>=18.0.0'
 
@@ -16588,15 +16589,15 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1)
 
-  '@tanstack/db-ivm@0.2.0(typescript@5.9.3)':
+  '@tanstack/db-ivm@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       fractional-indexing: 3.4.0
       typescript: 5.9.3
 
-  '@tanstack/db@0.15.2(typescript@5.9.3)':
+  '@tanstack/db@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
-      '@tanstack/db-ivm': 0.2.0(typescript@5.9.3)
+      '@tanstack/db-ivm': 1.0.0-rc.1(typescript@5.9.3)
       '@tanstack/pacer-lite': 0.2.2
       typescript: 5.9.3
 
@@ -16612,13 +16613,11 @@ snapshots:
     dependencies:
       remove-accents: 0.5.0
 
-  '@tanstack/offline-transactions@1.1.4(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))(typescript@5.9.3)':
+  '@tanstack/offline-transactions@1.2.0(@tanstack/db@1.0.0-rc.1(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))':
     dependencies:
-      '@tanstack/db': 0.15.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
     optionalDependencies:
       react-native: 0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8)
-    transitivePeerDependencies:
-      - typescript
 
   '@tanstack/pacer-lite@0.1.1': {}
 
@@ -16642,16 +16641,16 @@ snapshots:
     transitivePeerDependencies:
       - csstype
 
-  '@tanstack/react-db@0.5.12(react@19.2.0)(typescript@5.9.3)':
+  '@tanstack/react-db@1.0.0-rc.1(react@19.2.0)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db': 0.15.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
       react: 19.2.0
     transitivePeerDependencies:
       - typescript
 
-  '@tanstack/react-db@0.5.12(react@19.2.8)(typescript@5.9.3)':
+  '@tanstack/react-db@1.0.0-rc.1(react@19.2.8)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db': 0.15.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
       react: 19.2.8
     transitivePeerDependencies:
       - typescript
