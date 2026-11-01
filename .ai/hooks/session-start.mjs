@@ -7,6 +7,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 
 import { refreshAiSetup, refreshRoots } from "./ai-refresh.mjs";
+import { desktopStatus, formatDesktopStatusLine, probeDesktopCli } from "./desktop-cli.mjs";
 import { formatStatusLine, graphStatus, probeCliVersion } from "./graph-status.mjs";
 
 const args = process.argv.slice(2);
@@ -179,7 +180,8 @@ const main = async () => {
     ...refresh.lines.map((line) => `- ${line}`),
     ...refresh.failures.map((line) => `- Warning: ${line}`),
     "- Runtime verification: MCP and sandbox not verified at startup",
-    formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot)))
+    formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot))),
+    formatDesktopStatusLine(desktopStatus(probeDesktopCli(repoRoot)))
   ];
 
   if (

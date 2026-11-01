@@ -169,6 +169,37 @@ changed after the build, not file age.
 - Every Graphify installer is forbidden (`kaine-graph` lists them). The platform installers
   write into the repo for Cursor, OpenCode, and Gemini, even without `--project`.
 
+### agent-desktop computer use
+
+agent-desktop 1.0.2 (`vercel-labs/agent-desktop`, released 2026-10-30, Apache-2.0, read at tag
+`v1.0.2` and installed with npm on 2026-11-01) is optional tooling for each machine. It reads
+and operates any desktop app through the OS accessibility tree (AT-SPI on Linux, AX on macOS,
+UI Automation on Windows). Agents use it for what Playwright cannot reach: the Tauri window,
+which renders with WebKitGTK on Linux, native apps, Firefox, and Chrome started with
+`--force-renderer-accessibility`. `.ai/hooks/desktop-cli.mjs` holds the one version pin and the
+`agent-desktop status` probe. The SessionStart hook and `pnpm doctor` print its
+`Desktop automation:` line. The `kaine-computer-use` skill holds the repo rules.
+
+- It is a CLI, not an MCP server: upstream ships none, and every command prints one JSON
+  envelope. Its agent guide is in the binary (`agent-desktop skills get desktop|platform`), so it
+  always matches the installed version. The repo does not vendor it.
+- It is not a workspace devDependency. The npm package carries about 29.5 MB of native binaries
+  for every platform and a `postinstall`, which would run on every `pnpm install`, CI included.
+- It acts on the owner's real desktop. Headless ref actions (the default) use semantic
+  accessibility calls and move no pointer. The guard hook asks before `--headed` (real pointer
+  and keyboard), `clipboard-get`, `close-app`, `dismiss-all-notifications`, and
+  `notification-action`. The matcher moves agent-desktop's leading global options after the
+  subcommand, so `agent-desktop --session s1 clipboard-get` still matches.
+- Linux needs the user's graphical session and a running AT-SPI bus. On Wayland, no client can
+  bring another client's window forward, and pointer gestures (`hover`, `drag`, `double-click`)
+  refuse; observation, semantic actions, and `press` still work. Verified on Ubuntu 26.04 GNOME
+  Wayland: `status` reports `window`, `sheet`, `alert`, `menu`, and `system-tray`, and a Chrome
+  instance with a throwaway profile exposed the sign-in form's Email and Password fields.
+  `pnpm smoke:desktop` passed there: the desktop window showed the sign-in screen.
+- `pnpm smoke:desktop` checks that the Tauri window opens on the sign-in screen. It needs
+  `pnpm dev:web` and the Tauri Linux system libraries. It stays local: a CI run needs Xvfb,
+  D-Bus, AT-SPI, and WebKitGTK on the runner, and the desktop app has no native features yet.
+
 ### MCP servers not adopted
 
 | Server              | Reason                                                                                                                                                                                                                |

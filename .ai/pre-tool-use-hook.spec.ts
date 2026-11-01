@@ -109,7 +109,10 @@ describe("matchGuardedCommand", () => {
     'but commit -b KAINE-1-feat-x -m "--no-verify" ab:1',
     'but pr new KAINE-1-feat-x --draft -m "--no-hooks"',
     "but push KAINE-1-feat-x",
-    "but branch new -s KAINE-1-feat-x"
+    "but branch new -s KAINE-1-feat-x",
+    "agent-desktop snapshot --app firefox -i --compact",
+    "agent-desktop --session s1 --agent-id a1 click @s8f3k2p9:e8",
+    "agent-desktop --trace .ai.local/agent-desktop/t.jsonl snapshot --app nautilus"
   ])("allows argument data and safe variants: %s", (command) => {
     expect(matchGuardedCommand(command, rules)).toBeNull();
   });
@@ -130,6 +133,17 @@ describe("matchGuardedCommand", () => {
     ["but pr new KAINE-1-feat-x -s", "but-pr-new-skip-protection-short"]
   ])("guards GitButler hook and force-push bypasses: %s", (command, id) => {
     expect(matchGuardedCommand(command, rules)?.id).toBe(id);
+  });
+
+  it.each([
+    ["agent-desktop click @s8f3k2p9:e8 --headed", "agent-desktop-headed"],
+    ["agent-desktop --headed --session s1 double-click @s8f3k2p9:e8", "agent-desktop-headed"],
+    ["agent-desktop --session s1 clipboard-get", "agent-desktop-clipboard-get"],
+    ["agent-desktop -v close-app firefox", "agent-desktop-close-app"],
+    ["agent-desktop dismiss-all-notifications", "agent-desktop-dismiss-all-notifications"],
+    ["agent-desktop notification-action 3 Reply", "agent-desktop-notification-action"]
+  ])("asks before agent-desktop touches the owner's real desktop: %s", (command, id) => {
+    expect(matchGuardedCommand(command, rules)).toMatchObject({ id, decision: "ask" });
   });
 
   it("retains actual review approval after a quoted review body", () => {

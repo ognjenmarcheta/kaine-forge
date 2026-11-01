@@ -8,7 +8,15 @@
       "Bash(pnpm reinstall-deps)",
       "Bash(pnpm reinstall-deps *)",
       "Bash(git reset --hard)",
-      "Bash(git reset --hard *)"
+      "Bash(git reset --hard *)",
+      "Bash(agent-desktop clipboard-get)",
+      "Bash(agent-desktop clipboard-get *)",
+      "Bash(agent-desktop close-app)",
+      "Bash(agent-desktop close-app *)",
+      "Bash(agent-desktop dismiss-all-notifications)",
+      "Bash(agent-desktop dismiss-all-notifications *)",
+      "Bash(agent-desktop notification-action)",
+      "Bash(agent-desktop notification-action *)"
     ],
     "deny": [
       "Bash(pnpm db:push)",

@@ -10,6 +10,11 @@ import { createConnection } from "node:net";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 
+import {
+  desktopStatus,
+  formatDesktopStatusLine,
+  probeDesktopCli
+} from "../.ai/hooks/desktop-cli.mjs";
 import { formatStatusLine, graphStatus, probeCliVersion } from "../.ai/hooks/graph-status.mjs";
 import { pnpmInvocation } from "./pnpm.util.mjs";
 
@@ -495,6 +500,20 @@ function checkGraphifyFreshness() {
   return { ok: true, name: "Knowledge graph", detail: line.replace("- Knowledge graph: ", "") };
 }
 
+/**
+ * The optional agent-desktop CLI lets agents operate desktop apps and real
+ * browsers. Informational only, like the knowledge graph above.
+ * @returns {CheckResult}
+ */
+function checkDesktopAutomation() {
+  const line = formatDesktopStatusLine(desktopStatus(probeDesktopCli(repoRoot)));
+  return {
+    ok: true,
+    name: "Desktop automation",
+    detail: line.replace("- Desktop automation: ", "")
+  };
+}
+
 function printResult(result) {
   const icon = result.ok ? (result.warn ? "warn" : "ok") : "FAIL";
   console.log(`[doctor] ${icon.padEnd(4)} ${result.name}: ${result.detail}`);
@@ -520,6 +539,7 @@ async function main() {
   results.push(checkTrackerLabels());
   results.push(checkCoverageFreshness());
   results.push(checkGraphifyFreshness());
+  results.push(checkDesktopAutomation());
   if (withDb) {
     results.push(await checkPostgres());
   }
