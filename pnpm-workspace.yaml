@@ -122,13 +122,6 @@ catalogs:
 # cooldown, so keep this equal to the Dependabot cooldown (3 days).
 minimumReleaseAge: 4320 # minutes
 
-# Accepted temporary risk: node-forge 1.4.0 has no fixed release for this GHSA.
-# Expo CLI certificate tooling calls the affected RSA verification code.
-# Remove when an SDK-compatible fix ships or the dependency is removed (#457).
-auditConfig:
-  ignoreGhsas:
-    - GHSA-86w9-cpqp-85rv
-
 # Force fixed versions for packages that Trivy flags as CRITICAL in the API image
 # (optional better-auth peers + transitive CLI deps otherwise pin older releases).
 overrides:
@@ -168,7 +161,7 @@ overrides:
   "@xmldom/xmldom": "^0.8.15" # 2026-09-09: six GHSAs via expo>@expo/cli>@expo/plist (#258)
   defu: "^6.1.5"
   "nanoid@3": "^3.3.18"
-  node-forge: "^1.4.0"
+  node-forge: "^1.4.2" # GHSA-7wch-p9px-956x, GHSA-jc66-7q78-782g, GHSA-8hrf-8g6f-7xwp, GHSA-hqq3-7jhf-c5jx, GHSA-5x38-2vff-x55p via expo>@expo/cli
   # Security floors from the 2026-09 audit (issue #258). All transitive dev
   # tooling; caret ranges so later patches flow and the major stays put.
   # Selector `pkg@N` keeps the floor inside the major the dependent expects.
