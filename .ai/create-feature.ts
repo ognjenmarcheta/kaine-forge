@@ -93,8 +93,9 @@ const hasDatabaseUrl = (): boolean => {
 // drizzle-kit emits the column, index, and enum value; the triggers are custom
 // SQL that only this step adds to the migration.
 const syncMigrationStep = (names: FeatureNames): string => `
-     Synced slice: append these lines to the end of that migration, and match the
-     Sync${names.singularPascal}* inputs in apps/api/src/features/sync to the real columns:
+     Synced slice: append these lines to the end of that migration (sync.migration.test.ts
+     fails pnpm check until they are there), and match the Sync${names.singularPascal}* inputs in
+     apps/api/src/features/sync to the real columns:
 ${syncTriggerSql(names)
   .map((statement) => `       --> statement-breakpoint\n       ${statement}`)
   .join("\n")}`;

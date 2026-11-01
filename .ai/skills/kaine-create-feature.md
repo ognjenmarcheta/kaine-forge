@@ -30,6 +30,8 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    pnpm create:feature <singular> --plural <plural> --write
    ```
 
+   Repeat every option from the preview, including `--sync`: the preview writes nothing, so its options do not carry over, and a second run refuses because the scaffold paths exist.
+
    The CLI writes the files, runs prettier and `eslint --fix` over them, then runs `pnpm generate`. It refuses to start — with no partial writes — when a scaffold path exists, a wiring anchor moved, or the name is already registered.
 
 4. Replace the placeholder columns. Every slice starts with `title varchar(255) NOT NULL` and `body text` (ceiling tracked in issue #383). Edit `packages/db/src/schema/{plural}.schema.ts` to the real shape, then match:
@@ -48,7 +50,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    pnpm db:generate
    ```
 
-   Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one. For a `--sync` slice, `db:generate` emits only the column, index, and enum value: append the two trigger statements the CLI prints to this new migration, each after a `--> statement-breakpoint` line. The generated `{plural}.module.test.ts` runs on PGlite, which replays every migration, so it fails with `relation "{plural}" does not exist` until this step is done.
+   Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one. For a `--sync` slice, `db:generate` emits only the column, index, and enum value: append the two trigger statements the CLI prints to this new migration, each after a `--> statement-breakpoint` line. `packages/db/src/schema/sync.migration.test.ts` fails `pnpm check` until every table with a `sync_version` column has both triggers after the migrations. The generated `{plural}.module.test.ts` runs on PGlite, which replays every migration, so it fails with `relation "{plural}" does not exist` until this step is done.
 
 6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. The generator writes English placeholders. `locale-consistency.test.ts` rejects values identical to English, so `pnpm check` fails until translation is complete. Add a locale/key exception only for a term that is legitimately identical in both languages; stale exceptions also fail.
 
