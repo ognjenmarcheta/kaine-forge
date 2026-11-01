@@ -48,6 +48,7 @@ catalog:
   # wa-sqlite 1.x line its browser package declares as a peer.
   "@tanstack/db-sqlite-persistence-core": "1.0.0-rc.1"
   "@tanstack/browser-db-sqlite-persistence": "1.0.0-rc.1"
+  "@tanstack/expo-db-sqlite-persistence": "1.0.0-rc.1"
   "@journeyapps/wa-sqlite": "1.7.2"
   # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
   # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify,

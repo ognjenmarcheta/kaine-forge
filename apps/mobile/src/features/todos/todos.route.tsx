@@ -172,7 +172,8 @@ export function TodosRoute() {
             </View>
           ) : null}
         </View>
-        <Button spacing="compact" onPress={() => setIsCreateOpen(true)}>
+        {/* The engine starts once the device database opens; a write before it would fail. */}
+        <Button spacing="compact" disabled={!engine} onPress={() => setIsCreateOpen(true)}>
           {t("todos.create")}
         </Button>
       </View>
