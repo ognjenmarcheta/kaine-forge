@@ -99,6 +99,12 @@ The server work is additive. Existing CRUD mutations, API-key clients, and onlin
 - Collection ids stay `todos` and `notes` inside each database. A mounted TanStack DB 1.0 live query requires a collection id to keep naming one collection, so the screens key their live queries on the engine's unique `id` instead.
 - The web CSP allows `'wasm-unsafe-eval'` in `script-src`: SQLite runs as WebAssembly in a same-origin worker, which gets the same header.
 
+### Mobile rows on the device (2026-11-02)
+
+- Mobile opens one `expo-sqlite` database per `(userId, organizationId)`, named like the web ones (`ks-<user hash>-<organization hash>.db`, hashed with `expo-crypto`), and passes it to `createSyncEngine` through `@tanstack/expo-db-sqlite-persistence`.
+- `expo-sqlite` cannot list databases, so the app keeps their names in AsyncStorage (`kaine-sync:databases`). Sign-out closes and deletes the User's databases; starting sync deletes other Users'. Outboxes stay in AsyncStorage, as before.
+- A cold start with no network shows the stored Todos. The native module needs a rebuilt dev client.
+
 ### App shell offline (M3b, 2026-11-01)
 
 - `vite-plugin-pwa` (`generateSW`) precaches the web build, answers navigations with `index.html`, and never caches `/api/` or `/graphql`. With the stored session and the device database, the app starts and shows its data with no network.
