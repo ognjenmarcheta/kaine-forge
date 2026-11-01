@@ -12,6 +12,8 @@ import {
   CreateFeatureError,
   deriveFeatureNames,
   parseCreateFeatureArgs,
+  syncTriggerSql,
+  syncWiringTargets,
   wiringTargets,
   type FeatureNames
 } from "./create-feature.util";
@@ -23,6 +25,7 @@ const usage = `Usage:
 Options:
   --plural <kebab>   Plural form (default: "<singular>s")
   --label "<Text>"   Human label for navigation and headings (default: Title Case of plural)
+  --sync             Add the entity to offline sync (server side: pull, push, triggers)
   --write            Apply the changes (default: preview only)
   --no-generate      Skip the automatic "pnpm generate" after --write
   -h, --help         Show this message
@@ -30,14 +33,16 @@ Options:
 Examples:
   pnpm create:feature invoice --write
   pnpm create:feature purchase-order --plural purchase-orders --label "Purchase orders" --write
+  pnpm create:feature invoice --sync --write
 `;
 
 // The wiring targets plus any scaffold path that is already on disk, so the pure
 // core sees a real collision instead of silently overwriting a file.
-const readRepoFiles = (names: FeatureNames): Map<string, string> => {
+const readRepoFiles = (names: FeatureNames, sync: boolean): Map<string, string> => {
   const files = new Map<string, string>();
+  const targets = sync ? [...wiringTargets, ...syncWiringTargets] : wiringTargets;
 
-  for (const path of [...wiringTargets, ...buildFeatureFiles(names).keys()]) {
+  for (const path of [...targets, ...buildFeatureFiles(names, { sync }).keys()]) {
     const absolute = join(REPO_ROOT, path);
     if (existsSync(absolute)) {
       files.set(path, readFileSync(absolute, "utf8"));
@@ -85,13 +90,23 @@ const hasDatabaseUrl = (): boolean => {
   return existsSync(envPath) && /^DATABASE_URL=.+$/m.test(readFileSync(envPath, "utf8"));
 };
 
-const nextSteps = (names: FeatureNames): string => `Next steps:
+// drizzle-kit emits the column, index, and enum value; the triggers are custom
+// SQL that only this step adds to the migration.
+const syncMigrationStep = (names: FeatureNames): string => `
+     Synced slice: append these lines to the end of that migration (sync.migration.test.ts
+     fails pnpm check until they are there), and match the Sync${names.singularPascal}* inputs in
+     apps/api/src/features/sync to the real columns:
+${syncTriggerSql(names)
+  .map((statement) => `       --> statement-breakpoint\n       ${statement}`)
+  .join("\n")}`;
+
+const nextSteps = (names: FeatureNames, sync: boolean): string => `Next steps:
   1. Edit packages/db/src/schema/${names.pluralKebab}.schema.ts - replace the placeholder
      title and body columns with the real ones.
   2. Match apps/api/src/features/${names.pluralKebab}/${names.pluralKebab}.{schema,type,util,module}.ts and
      apps/web/src/graphql/operations/${names.pluralKebab}.graphql to those columns, then: pnpm generate
   3. pnpm db:generate   # writes a new packages/db/drizzle/*.sql - review it before committing;
-                        # ${names.pluralKebab}.module.test.ts replays it on PGlite
+                        # ${names.pluralKebab}.module.test.ts replays it on PGlite${sync ? syncMigrationStep(names) : ""}
   4. pnpm db:push:local # requires ALLOW_LOCAL_DB_PUSH=true and local PostgreSQL
   5. Translate packages/translation/src/locales/{de,sr}/${names.pluralKebab}.json and the
      navigation.${names.pluralKebab} keys - English-identical values fail pnpm check.
@@ -109,10 +124,13 @@ const main = (): void => {
 
   const options = parseCreateFeatureArgs(argv);
   const names = deriveFeatureNames(options);
-  const result = applyCreateFeature(readRepoFiles(names), names);
+  const sync = options.sync === true;
+  const result = applyCreateFeature(readRepoFiles(names, sync), names, { sync });
 
   console.log(chalk.bold(options.write ? "Creating feature" : "Preview feature"));
-  console.log(`  ${names.pluralKebab} ${chalk.gray(`(${names.label})`)}`);
+  console.log(
+    `  ${names.pluralKebab} ${chalk.gray(`(${names.label}${sync ? ", synced offline" : ""})`)}`
+  );
   console.log();
   console.log(chalk.bold(`Created (${result.createdPaths.length})`));
   for (const path of result.createdPaths) {
@@ -145,7 +163,7 @@ const main = (): void => {
   }
 
   console.log();
-  console.log(nextSteps(names));
+  console.log(nextSteps(names, sync));
 };
 
 try {

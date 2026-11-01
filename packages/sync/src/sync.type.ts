@@ -28,7 +28,8 @@ export interface SyncNote {
 }
 
 export interface SyncDeletion {
-  entity: "TODO" | "NOTE";
+  /** A `SyncEntity` value. The server may sync entities this client does not; it skips those. */
+  entity: string;
   id: string;
 }
 
