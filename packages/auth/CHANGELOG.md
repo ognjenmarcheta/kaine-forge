@@ -1,5 +1,44 @@
 # @repo/auth
 
+## 5.2.0
+
+### Minor Changes
+
+- 5659f20: Add billing Plans and Plan gates. The new `@repo/billing` package holds the Plan catalog (free,
+  pro, business, and unlimited while billing is off) and resolves an Organization's Entitlements
+  from its subscriptions. The API adds a `billing` query, refuses a Todo past the Plan's todo limit
+  with `PLAN_LIMIT_REACHED`, and refuses the assistant on a Plan without it with
+  `PLAN_FEATURE_REQUIRED`. `BILLING_PROVIDER` defaults to `none`, which gives every Organization the
+  unlimited Plan. The database adds the billing customer, subscription, and event tables, and the
+  owner role gains the owner-only `billing:manage` Permission.
+- 63d8df4: Sync per-seat billing and cancel subscriptions of deleted Organizations. Adding or removing a
+  member queues a `billing.syncSeats` job, which sets a per-seat subscription's provider quantity to
+  the member count and retries while the provider is unavailable. A reconcile sweep corrects
+  quantities that drifted without a hook, such as after a member leaves. Deleting an Organization,
+  directly or with the owner's account, cancels its paid subscriptions first and fails with
+  `BILLING_CANCEL_FAILED` when the provider refuses. `@repo/auth/billing` holds the hooks the API sets.
+- 474e9c1: Add Stripe billing. With `BILLING_PROVIDER=stripe`, an organization owner starts a Stripe Checkout
+  with the `startCheckout` mutation and opens the Stripe Billing Portal with `openBillingPortal`.
+  `POST /api/billing/webhooks/stripe` verifies each Stripe event, refetches the subscription from
+  Stripe, and stores its current state, so repeated or out-of-order events cannot corrupt it; a
+  price outside the catalog answers 500 so Stripe retries. Checkout, portal, and webhook changes
+  write Audit Events, and housekeeping purges processed billing event ids after 30 days.
+
+### Patch Changes
+
+- Updated dependencies [5659f20]
+- Updated dependencies [63d8df4]
+- Updated dependencies [474e9c1]
+- Updated dependencies [4bf3bde]
+- Updated dependencies [718e2e7]
+- Updated dependencies [6f6690c]
+- Updated dependencies [6980f5e]
+- Updated dependencies [58e7b6f]
+  - @repo/db@2.2.0
+  - @repo/jobs@1.1.0
+  - @repo/translation@1.14.0
+  - @repo/email@1.3.3
+
 ## 5.1.0
 
 ### Minor Changes
