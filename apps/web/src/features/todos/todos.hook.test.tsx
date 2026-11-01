@@ -205,3 +205,18 @@ it("sends the prompt through the generated AI operation", async () => {
   expect(generate).toHaveBeenCalledOnce();
   expect(generate.mock.calls[0]?.[0]).toEqual({ input: { prompt: "Plan release" } });
 });
+
+it("shows the new Organization's Todos when its sync engine replaces the old one", async () => {
+  await render();
+  expect(current.rows.map((row) => row.title)).toEqual(["Todo a"]);
+
+  // An Organization switch: a new engine, while the Todos screen stays mounted.
+  const otherServer = createFakeSyncServer();
+  otherServer.todos.set("b", todo("b"));
+  const previous = engine;
+  engine = createTestSyncEngine(otherServer);
+  previous.dispose();
+  await render();
+
+  expect(current.rows.map((row) => row.title)).toEqual(["Todo b"]);
+});

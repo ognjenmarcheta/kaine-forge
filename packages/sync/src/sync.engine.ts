@@ -31,6 +31,10 @@ import { SyncAuthError, SyncRequestError, toSyncMutation, type SyncEntity } from
 
 /** How often a client pulls without a poke: realtime events reach one API process only. */
 const PULL_INTERVAL_MS = 60_000;
+// Numbers each engine's collections: a mounted live query requires a collection
+// id to keep naming one collection, so a new engine after an Organization
+// switch must not reuse the old engine's ids.
+let engineCount = 0;
 
 export interface SyncEngineOptions {
   transport: SyncTransport;
@@ -118,12 +122,6 @@ function applyRows<TRow extends { id: string }>(
   void handle.commit();
 }
 
-function entityOf(collectionId: string): SyncEntity {
-  if (collectionId === "todos") return "TODO";
-  if (collectionId === "notes") return "NOTE";
-  throw new Error(`no synced entity for collection ${collectionId}`);
-}
-
 /**
  * Offline sync for one User in one Organization: Todo and Note collections
  * fed by `syncPull`, and an Outbox that replays local changes through
@@ -145,6 +143,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   let disposed = false;
   let status: SyncStatus = { state: "syncing", pending: 0 };
   const listeners = new Set<(status: SyncStatus) => void>();
+  const instance = ++engineCount;
 
   function register<TRow extends { id: string }>(
     target: SyncTarget<TRow>,
@@ -157,7 +156,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   }
 
   const todos = createCollection<SyncTodo, string>({
-    id: "todos",
+    id: `todos:${String(instance)}`,
     getKey: (todo) => todo.id,
     startSync: true,
     gcTime: 0,
@@ -168,7 +167,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     }
   });
   const notes = createCollection<SyncNote, string>({
-    id: "notes",
+    id: `notes:${String(instance)}`,
     getKey: (note) => note.id,
     startSync: true,
     gcTime: 0,
@@ -178,6 +177,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         register(noteTarget, { begin, write, commit, truncate, markReady })
     }
   });
+
+  function entityOf(collectionId: string): SyncEntity {
+    if (collectionId === todos.id) return "TODO";
+    if (collectionId === notes.id) return "NOTE";
+    throw new Error(`no synced entity for collection ${collectionId}`);
+  }
+
   // A collection pauses its sync without subscribers; the engine stays its subscriber.
   const keepAlive = [
     todos.subscribeChanges(() => undefined),
