@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/use-auth";
 import { useOrganization } from "../hooks/use-organization";
 import { useTranslation } from "../hooks/use-translation";
 import { createGraphqlClient } from "../lib/graphql-client";
-import { openDeviceStorage } from "../lib/sync-storage";
+import { deleteOtherUsersStorage, openDeviceStorage } from "../lib/sync-storage";
 import { createSyncTransport } from "../lib/sync-transport";
 
 /** The sync engine of the signed-in User's Active Organization, or null without one. */
@@ -38,6 +38,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     let started: SyncEngine | null = null;
     let closeStorage: (() => Promise<void>) | null = null;
     void (async () => {
+      // Best effort: without OPFS or on a failure, startup goes on.
+      await deleteOtherUsersStorage(userId).catch(() => undefined);
       const device = await openDeviceStorage({ userId, organizationId }, opening.signal);
       if (opening.signal.aborted) {
         await device?.close();

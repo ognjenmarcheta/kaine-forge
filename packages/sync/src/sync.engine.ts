@@ -106,10 +106,9 @@ interface SyncHandle<TRow extends { id: string }> {
   metadata?: SyncMetadataApi<string> | undefined;
 }
 
-/** One synced collection: its sync run's handle, and the keys in its synced state. */
+/** One synced collection: its sync run's handle. */
 interface SyncTarget<TRow extends { id: string }> {
   handle: SyncHandle<TRow> | null;
-  keys: Set<string>;
   /** Resolves when the collection starts its sync run, after stored rows load. */
   started: Promise<void>;
   start: () => void;
@@ -120,7 +119,7 @@ function syncTarget<TRow extends { id: string }>(): SyncTarget<TRow> {
   const started = new Promise<void>((resolve) => {
     start = resolve;
   });
-  return { handle: null, keys: new Set(), started, start };
+  return { handle: null, started, start };
 }
 
 /** The pull cursor stored beside a collection's rows, if any. */
@@ -134,28 +133,24 @@ function storedCursor<TRow extends { id: string }>(target: SyncTarget<TRow>): st
  * never awaits the commit: during a push, sync commits wait for the push. A
  * stored collection also stores the page's cursor in the same commit, so its
  * rows and cursor never disagree.
+ *
+ * Every row is written as a full-row update, which inserts a row the synced
+ * state lacks, and a deletion of a missing row does nothing. So rows loaded
+ * from the device need no bookkeeping before a pull changes or deletes them.
  */
 function applyRows<TRow extends { id: string }>(
   target: SyncTarget<TRow>,
   page: { values: TRow[]; deletedIds: string[]; cursor: string | null },
   { reset, stored }: { reset: boolean; stored: boolean }
 ): void {
-  const { handle, keys } = target;
+  const { handle } = target;
   const { values, deletedIds, cursor } = page;
   if (!handle || (!reset && !stored && values.length === 0 && deletedIds.length === 0)) return;
 
   handle.begin();
-  if (reset) {
-    handle.truncate();
-    keys.clear();
-  }
-  for (const value of values) {
-    handle.write({ type: keys.has(value.id) ? "update" : "insert", value });
-    keys.add(value.id);
-  }
-  for (const id of deletedIds) {
-    if (keys.delete(id)) handle.write({ type: "delete", key: id });
-  }
+  if (reset) handle.truncate();
+  for (const value of values) handle.write({ type: "update", value });
+  for (const id of deletedIds) handle.write({ type: "delete", key: id });
   if (stored && cursor !== null) handle.metadata?.collection.set(CURSOR_KEY, cursor);
   void handle.commit();
 }
@@ -169,7 +164,6 @@ function applyRows<TRow extends { id: string }>(
 export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const { transport } = options;
   const stored = options.persistence !== undefined;
-  // The synced keys tell an insert from an update.
   const todoTarget = syncTarget<SyncTodo>();
   const noteTarget = syncTarget<SyncNote>();
   let cursor: string | null = null;

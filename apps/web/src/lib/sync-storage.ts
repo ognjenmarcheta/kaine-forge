@@ -17,9 +17,12 @@ async function namePart(id: string): Promise<string> {
     .join("");
 }
 
+/** The start of every device database name. */
+const DEVICE_DATABASE_PREFIX = "ks-";
+
 /** The start of every device database name of a User, in any Organization. */
 async function deviceDatabasePrefix(userId: string): Promise<string> {
-  return `ks-${await namePart(userId)}-`;
+  return `${DEVICE_DATABASE_PREFIX}${await namePart(userId)}-`;
 }
 
 /** This tab's open device databases, by name, so a sign-out can close them before deleting. */
@@ -69,5 +72,21 @@ export async function deleteDeviceStorage(userId: string): Promise<void> {
   const root = await navigator.storage.getDirectory();
   for await (const name of root.keys()) {
     if (name.startsWith(prefix)) await root.removeEntry(name).catch(() => undefined);
+  }
+}
+
+/**
+ * Deletes the device databases of every other User. A browser holds one
+ * signed-in User at a time, so another User's stored rows are only a copy of
+ * server data that this User must not keep. Their Outbox stays: a session that
+ * expires keeps its Pending Changes for that User's next sign-in.
+ */
+export async function deleteOtherUsersStorage(userId: string): Promise<void> {
+  const own = await deviceDatabasePrefix(userId);
+  const root = await navigator.storage.getDirectory();
+  for await (const name of root.keys()) {
+    if (name.startsWith(DEVICE_DATABASE_PREFIX) && !name.startsWith(own)) {
+      await root.removeEntry(name).catch(() => undefined);
+    }
   }
 }

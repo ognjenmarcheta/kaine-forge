@@ -480,6 +480,24 @@ describe("createSyncEngine with device storage", () => {
     expect(cursors).not.toContain(null);
   });
 
+  it("applies a resumed pull's update and deletion to rows loaded from the device", async () => {
+    const { persistence, idle } = deviceStorage();
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "Draft", description: null, noteId: null } });
+    server.apply({ todoCreate: { id: "t2", title: "Gone", description: null, noteId: null } });
+    const first = start(server, undefined, persistence).engine;
+    await first.ready;
+    await idle();
+    first.dispose();
+
+    server.apply({ todoUpdate: { id: "t1", title: "Final" } });
+    server.apply({ todoDelete: { id: "t2" } });
+    const second = start(server, undefined, persistence).engine;
+    await second.ready;
+
+    expect(titles(second)).toEqual(["Final"]);
+  });
+
   it("rebuilds the stored rows in full when the server asks for a reset", async () => {
     const { persistence, idle } = deviceStorage();
     const server = createFakeServer();
