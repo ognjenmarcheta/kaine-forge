@@ -257,6 +257,8 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   );
 
   return {
+    /** Whether the sync engine runs. It starts after the device database opens; a write before it would be lost. */
+    ready: engine !== null,
     promoteNew: () => {
       const draft = draftsRef.current.get(NEW_NOTE);
       if (!draft?.serverId || draft.status === "saving") return;

@@ -209,6 +209,8 @@ export function useTodos(
     });
   }
   return {
+    /** Whether the sync engine runs. It starts after the device database opens; a write before it would be lost. */
+    ready: engine !== null,
     list,
     rows: matching.slice(0, visible),
     draft,
