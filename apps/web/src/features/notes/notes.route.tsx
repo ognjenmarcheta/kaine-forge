@@ -171,7 +171,7 @@ function NotesWorkspace({
         title={t("notes.title")}
         description={t("notes.description")}
         actions={
-          <Button onClick={newNote} disabled={!enabled}>
+          <Button onClick={newNote} disabled={!enabled || !notes.ready}>
             {t("notes.create")}
           </Button>
         }

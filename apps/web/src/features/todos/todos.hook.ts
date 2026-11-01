@@ -70,7 +70,11 @@ export function useTodos(
     };
   }, []);
   const completed = status === "all" ? null : status === "completed";
-  const live = useLiveQuery(() => (enabled ? engine?.todos : null));
+  // Keyed by engine: after an Organization switch the new engine reuses the collection ids.
+  const live = useLiveQuery({
+    queryKey: ["todos", engine?.id ?? "none", enabled],
+    query: (q) => (enabled && engine ? q.from({ todo: engine.todos }) : null)
+  });
   const all = [...(live.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const matching = all.filter(
     (item) =>
@@ -205,6 +209,8 @@ export function useTodos(
     });
   }
   return {
+    /** Whether the sync engine runs. It starts after the device database opens; a write before it would be lost. */
+    ready: engine !== null,
     list,
     rows: matching.slice(0, visible),
     draft,

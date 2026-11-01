@@ -21,6 +21,9 @@ catalogs:
     '@graphql-typed-document-node/core':
       specifier: ^3.2.0
       version: 3.2.0
+    '@journeyapps/wa-sqlite':
+      specifier: 1.7.2
+      version: 1.7.2
     '@paddle/paddle-js':
       specifier: 1.6.5
       version: 1.6.5
@@ -39,7 +42,13 @@ catalogs:
     '@tailwindcss/vite':
       specifier: ^4.3.3
       version: 4.3.3
+    '@tanstack/browser-db-sqlite-persistence':
+      specifier: 1.0.0-rc.1
+      version: 1.0.0-rc.1
     '@tanstack/db':
+      specifier: 1.0.0-rc.1
+      version: 1.0.0-rc.1
+    '@tanstack/db-sqlite-persistence-core':
       specifier: 1.0.0-rc.1
       version: 1.0.0-rc.1
     '@tanstack/offline-transactions':
@@ -625,6 +634,9 @@ importers:
       '@graphql-typed-document-node/core':
         specifier: 'catalog:'
         version: 3.2.0(graphql@16.14.2)
+      '@journeyapps/wa-sqlite':
+        specifier: 'catalog:'
+        version: 1.7.2
       '@marsidev/react-turnstile':
         specifier: 1.6.3
         version: 1.6.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -661,6 +673,9 @@ importers:
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@tanstack/browser-db-sqlite-persistence':
+        specifier: 'catalog:'
+        version: 1.0.0-rc.1(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)
       '@tanstack/react-db':
         specifier: 'catalog:'
         version: 1.0.0-rc.1(react@19.2.8)(typescript@5.9.3)
@@ -1049,6 +1064,9 @@ importers:
   packages/sync:
     dependencies:
       '@tanstack/db':
+        specifier: 'catalog:'
+        version: 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/db-sqlite-persistence-core':
         specifier: 'catalog:'
         version: 1.0.0-rc.1(typescript@5.9.3)
       '@tanstack/offline-transactions':
@@ -3759,6 +3777,9 @@ packages:
     resolution: {integrity: sha512-u3UPsIilWKOM3F9CXtrG8LEJmNxwoCQC/XVj4IKYXvvpx7QIi/Kg1LI5uDmDpKlac62NUtX7eLjRh+jVZcLOzw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
+  '@journeyapps/wa-sqlite@1.7.2':
+    resolution: {integrity: sha512-EVRMzqHtHgJBFcTGOgQ5/YlxrYFSXLFFztC5yo6+jQx2mqFR+a1kkLV4IirquiBzIonjmYXfBtvZ26fmI8r9Nw==}
+
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -5504,8 +5525,19 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
+  '@tanstack/browser-db-sqlite-persistence@1.0.0-rc.1':
+    resolution: {integrity: sha512-kW008FnEkO1AduRrcZRRxh1qNy+U4oC0j0IP/HRwzKDzcMgtv3Tzf2ltMgmtwKsvxt4l6NcM9gHZnbp+28KN9Q==}
+    peerDependencies:
+      '@journeyapps/wa-sqlite': ^1.4.1
+      typescript: '>=4.7'
+
   '@tanstack/db-ivm@1.0.0-rc.1':
     resolution: {integrity: sha512-Se2n19f/Ydl+j9/CFCybvQJuRYGPGv2ERm+x0uD8VjnSoRjvez74YS9P0ywyAbVNSAU3k+hwZF3AWXh23gltOA==}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1':
+    resolution: {integrity: sha512-RcdVHzmRjdpqLMrdyFRCkvstjgl9o18nA+m+KAGEh1JgljGcuL9HjPbbwE8fCBz83h5PannicjBqET4M8pAyjg==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -14439,6 +14471,8 @@ snapshots:
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
+  '@journeyapps/wa-sqlite@1.7.2': {}
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
@@ -16589,9 +16623,21 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  '@tanstack/browser-db-sqlite-persistence@1.0.0-rc.1(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)':
+    dependencies:
+      '@journeyapps/wa-sqlite': 1.7.2
+      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
+
   '@tanstack/db-ivm@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       fractional-indexing: 3.4.0
+      typescript: 5.9.3
+
+  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1(typescript@5.9.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
       typescript: 5.9.3
 
   '@tanstack/db@1.0.0-rc.1(typescript@5.9.3)':

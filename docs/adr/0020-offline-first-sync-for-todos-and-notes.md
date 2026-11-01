@@ -91,6 +91,14 @@ The server work is additive. Existing CRUD mutations, API-key clients, and onlin
 - The server never trusts the store's scope: `syncPush` and `syncPull` resolve the Authenticated Organization Scope from the session or bearer token, as every other operation does.
 - Logout deletes the local data of that User. If Pending Changes remain, logout first warns how many are not synced.
 
+### Web rows on the device (M3b, 2026-11-01)
+
+- The web app opens one OPFS database per `(userId, organizationId)` and passes it to `createSyncEngine` as `persistence`. Without OPFS (a private window, Linux WebKitGTK until M4), the rows stay in memory as before.
+- The database name is `ks-<user hash>-<organization hash>.db`, from the first 8 bytes of SHA-256 of each id. wa-sqlite caps a database path at 64 characters, which two plain UUIDs exceed. Sign-out finds a User's databases by the `ks-<user hash>-` prefix. Starting sync also deletes the `ks-` databases of every other User: a browser holds one signed-in User, so those rows are only a copy of server data. Their Outboxes stay, so an expired session keeps its Pending Changes.
+- The pull cursor is stored in each collection's metadata, in the same commit as that collection's rows. The engine resumes from it only when the Todo and Note collections hold the same cursor; otherwise its first pull rebuilds both in full.
+- Collection ids stay `todos` and `notes` inside each database. A mounted TanStack DB 1.0 live query requires a collection id to keep naming one collection, so the screens key their live queries on the engine's unique `id` instead.
+- The web CSP allows `'wasm-unsafe-eval'` in `script-src`: SQLite runs as WebAssembly in a same-origin worker, which gets the same header.
+
 ### Removing the capability (downstream adopters)
 
 A product that does not want offline sync removes it in one change:

@@ -115,7 +115,7 @@ export function NoteEditor({ selected, notes, onChecklistPending }: NoteEditorPr
         <span role="status" className="ui-notes__meta">
           {t(status)}
         </span>
-        <Button type="submit" form="note-form" disabled={!canSaveNote(draft)}>
+        <Button type="submit" form="note-form" disabled={!notes.ready || !canSaveNote(draft)}>
           {t("notes.save")}
         </Button>
       </header>

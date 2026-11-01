@@ -35,7 +35,11 @@ export function TodosRoute() {
   const syncStatus = useSyncStatus();
   const { rejection, dismissRejection } = useSyncRejection();
   const enabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
-  const live = useLiveQuery(() => (enabled ? engine?.todos : null));
+  // Keyed by engine: after an Organization switch the new engine reuses the collection ids.
+  const live = useLiveQuery({
+    queryKey: ["todos", engine?.id ?? "none", enabled],
+    query: (q) => (enabled && engine ? q.from({ todo: engine.todos }) : null)
+  });
 
   const invalidateTodos = useCallback(async () => {
     // Offline the pull fails; the status badge already shows it.

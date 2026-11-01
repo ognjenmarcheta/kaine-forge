@@ -289,21 +289,26 @@ function TodosWorkspace({
               ref={quickInput}
               id="todo-quick-title"
               value={todos.draft.title}
-              disabled={!enabled || todos.pending.includes("create")}
+              disabled={!enabled || !todos.ready || todos.pending.includes("create")}
               onChange={(event) => todos.setDraft({ ...todos.draft, title: event.target.value })}
               aria-describedby="todo-quick-help"
             />
           </Field>
           <Button
             type="submit"
-            disabled={!enabled || !validTodo(todos.draft) || todos.pending.includes("create")}
+            disabled={
+              !enabled ||
+              !todos.ready ||
+              !validTodo(todos.draft) ||
+              todos.pending.includes("create")
+            }
           >
             {t(todos.pending.includes("create") ? "todos.saving" : "todos.add")}
           </Button>
           <Button
             type="button"
             appearance="subtle"
-            disabled={todos.pending.includes("create")}
+            disabled={!todos.ready || todos.pending.includes("create")}
             onClick={() => {
               focusQuickAddOnClose.current = false;
               setCreateOpen(true);
