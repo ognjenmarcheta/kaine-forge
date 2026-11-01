@@ -189,21 +189,52 @@ describe("sync version migration", () => {
   });
 });
 
+describe("sync triggers after every migration", () => {
+  let database: TestDatabase;
+
+  beforeAll(async () => {
+    database = await createTestDatabase();
+  }, 30_000);
+
+  afterAll(async () => {
+    await database.close();
+  });
+
+  // `pnpm db:generate` never emits a trigger, so a synced table whose migration
+  // lacks the appended statements would silently stop syncing on a migrated database.
+  it("gives every table with a Sync Version its version and Tombstone triggers", async () => {
+    const { rows } = await database.client.query<{
+      table: string;
+      versioned: boolean;
+      tombstoned: boolean;
+    }>(`
+      SELECT c.relname AS "table",
+        coalesce(bool_or(t.tgname = c.relname || '_sync_version'), false) AS versioned,
+        coalesce(bool_or(t.tgname = c.relname || '_sync_tombstone'), false) AS tombstoned
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid AND c.relkind = 'r'
+      JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+      LEFT JOIN pg_trigger t ON t.tgrelid = c.oid AND NOT t.tgisinternal
+      WHERE a.attname = 'sync_version' AND NOT a.attisdropped
+        AND c.relname <> 'sync_tombstones'
+      GROUP BY c.relname
+    `);
+
+    expect(rows.map((row) => row.table)).toEqual(expect.arrayContaining(["notes", "todos"]));
+    expect(rows.filter((row) => !row.versioned || !row.tombstoned)).toEqual([]);
+  });
+});
+
 describe("sync triggers on a schema built by drizzle-kit push", () => {
   let database: TestDatabase;
 
   beforeAll(async () => {
     database = await createTestDatabase();
     // What a pushed schema lacks: push applies the tables, never a migration's
-    // functions and triggers.
+    // functions and triggers. CASCADE drops every synced table's triggers too.
     await database.client.exec(`
-      DROP TRIGGER "todos_sync_version" ON "todos";
-      DROP TRIGGER "notes_sync_version" ON "notes";
-      DROP TRIGGER "todos_sync_tombstone" ON "todos";
-      DROP TRIGGER "notes_sync_tombstone" ON "notes";
-      DROP TRIGGER "files_sync_todo_version" ON "files";
       DROP FUNCTION "sync_stamp_version"(), "sync_record_tombstone"(), "sync_next_version"(uuid),
-        "sync_touch_attachment_todos"();
+        "sync_touch_attachment_todos"() CASCADE;
       INSERT INTO users (id, email, name) VALUES ('${USER_ID}', 'owner@example.test', 'Owner');
       INSERT INTO organizations (id, name, slug) VALUES ('${ORG_ID}', 'Org', 'org');
       INSERT INTO todos (title, user_id, organization_id) VALUES

@@ -20,6 +20,12 @@ export interface CreateFeatureOptions {
   label?: string | undefined;
   write: boolean;
   generate: boolean;
+  /** Adds the entity to offline sync: Sync Version, triggers, and pull and push. */
+  sync?: boolean | undefined;
+}
+
+export interface FeatureFileOptions {
+  sync?: boolean | undefined;
 }
 
 // Raised for repository-level problems that name a file: a scaffold path that
@@ -97,6 +103,7 @@ export const parseCreateFeatureArgs = (argv: readonly string[]): CreateFeatureOp
   let label: string | undefined;
   let write = false;
   let generate = true;
+  let sync = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -110,6 +117,10 @@ export const parseCreateFeatureArgs = (argv: readonly string[]): CreateFeatureOp
     }
     if (arg === "--no-generate") {
       generate = false;
+      continue;
+    }
+    if (arg === "--sync") {
+      sync = true;
       continue;
     }
     if (arg === "--plural" || arg === "--label") {
@@ -140,12 +151,13 @@ export const parseCreateFeatureArgs = (argv: readonly string[]): CreateFeatureOp
     throw new Error(`create-feature accepts one feature name, received: ${positionals.join(", ")}`);
   }
 
-  return { name, plural, label, write, generate };
+  return { name, plural, label, write, generate, sync };
 };
 
 const dbSchemaFile = (
-  names: FeatureNames
-): string => `import { index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+  names: FeatureNames,
+  sync: boolean
+): string => `import { ${sync ? "bigint, " : ""}index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { organizationsTable } from "./organizations.schema";
 import { usersTable } from "./users.schema";
@@ -163,14 +175,28 @@ export const ${names.pluralCamel}Table = pgTable(
       .notNull()
       .references(() => organizationsTable.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()${
+      sync
+        ? `,
+    syncVersion: bigint("sync_version", { mode: "number" }).notNull().default(0)`
+        : ""
+    }
   },
   (table) => [
     // Every tenant query filters by organization and orders by creation time.
     index("${names.pluralSnake}_organization_id_created_at_idx").on(
       table.organizationId,
       table.createdAt
-    )
+    )${
+      sync
+        ? `,
+    // A sync pull reads an Organization's changes in Sync Version order.
+    index("${names.pluralSnake}_organization_id_sync_version_idx").on(
+      table.organizationId,
+      table.syncVersion
+    )`
+        : ""
+    }
   ]
 );
 `;
@@ -189,8 +215,15 @@ const apiConfigFile = (names: FeatureNames): string =>
   `export const ${names.pluralConstant}_CONFIG = { pagination: { defaultLimit: 20, maxLimit: 100 } } as const;\n`;
 
 const apiTypeFile = (
-  names: FeatureNames
-): string => `export interface Create${names.singularPascal}Input {
+  names: FeatureNames,
+  sync: boolean
+): string => `export interface Create${names.singularPascal}Input {${
+  sync
+    ? `
+  /** Internal only — a client-generated id from a sync push. */
+  id?: string | undefined;`
+    : ""
+}
   title: string;
   body?: string | null;
 }
@@ -222,7 +255,8 @@ export function parseOptionalBody(body?: string | null): string | null {
 `;
 
 const apiModuleFile = (
-  names: FeatureNames
+  names: FeatureNames,
+  sync: boolean
 ): string => `import type { ${names.singularPascal} } from "@repo/db";
 import { ${names.pluralCamel}Table } from "@repo/db/schema";
 import { eq } from "drizzle-orm";
@@ -253,7 +287,13 @@ export interface ${names.pluralPascal} {
   /** Newest first; throws \`invalid cursor\` for a malformed or foreign \`after\`. */
   list: (page: PageInput) => Promise<Connection<${names.singularPascal}>>;
   get: (id: string) => Promise<${names.singularPascal} | null>;
-  /** Throws \`${names.singularWords} title is required\`/\`too long\` and writes nothing. */
+  /** Throws \`${names.singularWords} title is required\`/\`too long\` and writes nothing.${
+    sync
+      ? ` With an
+   * \`id\`, the same author creating it again gets the existing row back; any
+   * other row with it throws \`${names.singularWords} id conflict\`.`
+      : ""
+  } */
   create: (input: Create${names.singularPascal}Input) => Promise<${names.singularPascal}>;
   /** Throws \`${names.singularWords} not found\` when no ${names.singularPascal} with this id is in the scope. */
   update: (id: string, input: Update${names.singularPascal}Input) => Promise<${names.singularPascal}>;
@@ -279,12 +319,24 @@ export function create${names.pluralPascal}({ data, publish }: ${names.singularP
       const rows = await data
         .insert(${names.pluralCamel}Table)
         .values({
-          ...data.stamp("userId"),
+          ...data.stamp("userId"),${sync ? "\n          ...(input.id === undefined ? {} : { id: input.id })," : ""}
           title: ensure${names.singularPascal}Title(input.title),
           body: parseOptionalBody(input.body ?? null)
-        })
+        })${sync ? `\n        .onConflictDoNothing({ target: ${names.pluralCamel}Table.id })` : ""}
         .returning();
-      const ${names.singularCamel} = rows[0];
+      const ${names.singularCamel} = rows[0];${
+        sync
+          ? `
+      if (!${names.singularCamel} && input.id !== undefined) {
+        // The same author creating the same id again is a replayed sync push.
+        const [existing] = await data
+          .selectFrom(${names.pluralCamel}Table, eq(${names.pluralCamel}Table.id, input.id))
+          .limit(1);
+        if (existing?.userId === data.stamp("userId").userId) return existing;
+        throw new Error("${names.singularWords} id conflict");
+      }`
+          : ""
+      }
       if (!${names.singularCamel}) throw new Error("failed to create ${names.singularWords}");
       publish("${names.singularCamel}:created", ${names.singularCamel});
       return ${names.singularCamel};
@@ -412,8 +464,9 @@ export const ${names.pluralCamel}Resolvers = {
 `;
 
 const apiModuleTestFile = (
-  names: FeatureNames
-): string => `import { resolveRolePermissions } from "@repo/auth/permissions";
+  names: FeatureNames,
+  sync: boolean
+): string => `${sync ? 'import { randomUUID } from "node:crypto";\n\n' : ""}import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
 import { organizationsTable, ${names.pluralCamel}Table, usersTable } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
@@ -588,7 +641,23 @@ describe("create${names.pluralPascal}", () => {
     await expect(${names.pluralCamel}.list({ after: page.pageInfo.endCursor })).rejects.toThrow(
       "invalid cursor"
     );
-  });
+  });${
+    sync
+      ? `
+
+  it("creates with a client id once: the author's replay returns the row, any other collision conflicts", async () => {
+    const id = randomUUID();
+    const created = await ${names.pluralCamel}.create({ id, title: "Synced" });
+    events = [];
+
+    await expect(${names.pluralCamel}.create({ id, title: "Replayed" })).resolves.toEqual(created);
+    await expect(foreign${names.pluralPascal}.create({ id, title: "Taken" })).rejects.toThrow(
+      "${names.singularWords} id conflict"
+    );
+    expect(events).toEqual([]);
+  });`
+      : ""
+  }
 });
 `;
 
@@ -613,19 +682,22 @@ const localeFile = (names: FeatureNames): string => {
   )}\n`;
 };
 
-export const buildFeatureFiles = (names: FeatureNames): Map<string, string> => {
+export const buildFeatureFiles = (
+  names: FeatureNames,
+  { sync = false }: FeatureFileOptions = {}
+): Map<string, string> => {
   const feature = names.pluralKebab;
   const apiDir = `apps/api/src/features/${feature}`;
   const webDir = `apps/web/src/features/${feature}`;
 
   return new Map([
-    [`packages/db/src/schema/${feature}.schema.ts`, dbSchemaFile(names)],
+    [`packages/db/src/schema/${feature}.schema.ts`, dbSchemaFile(names, sync)],
     [`packages/db/src/types/${feature}.type.ts`, dbTypeFile(names)],
     [`${apiDir}/${feature}.config.ts`, apiConfigFile(names)],
-    [`${apiDir}/${feature}.type.ts`, apiTypeFile(names)],
+    [`${apiDir}/${feature}.type.ts`, apiTypeFile(names, sync)],
     [`${apiDir}/${feature}.util.ts`, apiUtilFile(names)],
-    [`${apiDir}/${feature}.module.ts`, apiModuleFile(names)],
-    [`${apiDir}/${feature}.module.test.ts`, apiModuleTestFile(names)],
+    [`${apiDir}/${feature}.module.ts`, apiModuleFile(names, sync)],
+    [`${apiDir}/${feature}.module.test.ts`, apiModuleTestFile(names, sync)],
     [`${apiDir}/${feature}.schema.ts`, apiSdlFile(names)],
     [`${apiDir}/${feature}.router.ts`, apiRouterFile(names)],
     [`packages/translation/src/locales/en/${feature}.json`, localeFile(names)],
@@ -915,6 +987,272 @@ const wireTranslationConfig = (source: string, names: FeatureNames): string => {
   return next;
 };
 
+// The `sync_entity` value: the singular in snake_case. Its `SyncEntity` GraphQL
+// value is the same in upper case, which is how a pull names a Tombstone.
+export const syncEntityValue = (names: FeatureNames): string =>
+  names.singularKebab.split("-").join("_");
+
+// The Sync Version and Tombstone triggers of one table. sync.triggers.ts installs
+// them after `drizzle-kit push`; the migration needs the same statements, because
+// `pnpm db:generate` emits only the column, index, and enum value.
+export const syncTriggerSql = (names: FeatureNames): string[] => [
+  `CREATE OR REPLACE TRIGGER "${names.pluralSnake}_sync_version" BEFORE INSERT OR UPDATE ON "${names.pluralSnake}" FOR EACH ROW EXECUTE FUNCTION "sync_stamp_version"();`,
+  `CREATE OR REPLACE TRIGGER "${names.pluralSnake}_sync_tombstone" AFTER DELETE ON "${names.pluralSnake}" FOR EACH ROW EXECUTE FUNCTION "sync_record_tombstone"('${syncEntityValue(names)}');`
+];
+
+// The extra wiring points of a synced slice. The spec asserts that `--sync`
+// changes all of them and that a slice without it changes none.
+export const syncWiringTargets = [
+  "packages/db/src/schema/sync.schema.ts",
+  "packages/db/src/sync.triggers.ts",
+  "apps/api/src/features/sync/sync.schema.ts",
+  "apps/api/src/features/sync/sync.type.ts",
+  "apps/api/src/features/sync/sync.module.ts",
+  "apps/api/src/features/sync/sync.module.test.ts",
+  "apps/api/src/context.ts"
+] as const;
+
+const insertAfter = (path: string, source: string, anchor: string, text: string): string => {
+  const index = anchorIndex(path, source, anchor) + anchor.length;
+  return `${source.slice(0, index)}${text}${source.slice(index)}`;
+};
+
+// Adds a name to an `import { ... } from "<module>";` list, single- or
+// multi-line. Prettier rewraps the result.
+const addNamedImport = (
+  path: string,
+  source: string,
+  prefix: "import" | "import type",
+  module: string,
+  name: string
+): string => {
+  const end = anchorIndex(path, source, `} from "${module}";`);
+  const start = source.lastIndexOf(`${prefix} {`, end);
+  if (start === -1) {
+    throw new CreateFeatureError(`${path}: no ${prefix} list from "${module}"`);
+  }
+  const listed = source
+    .slice(start + prefix.length + 2, end)
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (listed.includes(name)) {
+    throw new CreateFeatureError(`${path}: already imports ${name}`);
+  }
+  const names = [...listed, name].sort((a, b) => byLine(a.toLowerCase(), b.toLowerCase()));
+  const statement = `${prefix} { ${names.join(", ")} } from "${module}";`;
+  return `${source.slice(0, start)}${statement}${source.slice(end + `} from "${module}";`.length)}`;
+};
+
+const wireSyncDbSchema = (source: string, names: FeatureNames): string =>
+  insertBeforeClose(
+    "packages/db/src/schema/sync.schema.ts",
+    source,
+    'pgEnum("sync_entity", [',
+    "]);",
+    `, "${syncEntityValue(names)}"`
+  );
+
+const wireSyncTriggers = (source: string, names: FeatureNames): string => {
+  const path = "packages/db/src/sync.triggers.ts";
+  const withTriggers = insertBefore(
+    path,
+    source,
+    'UPDATE "todos" SET "sync_version" = 0',
+    syncTriggerSql(names)
+      .map((statement) => `${statement}\n`)
+      .join("")
+  );
+  return insertBeforeClose(
+    path,
+    withTriggers,
+    "export const SYNC_TRIGGERS_SQL",
+    "\n`;",
+    `\nUPDATE "${names.pluralSnake}" SET "sync_version" = 0 WHERE "sync_version" = 0;`
+  );
+};
+
+const wireSyncSdl = (source: string, names: FeatureNames): string => {
+  const path = "apps/api/src/features/sync/sync.schema.ts";
+  const singular = names.singularPascal;
+  const withEntity = insertBeforeClose(
+    path,
+    source,
+    "enum SyncEntity {",
+    "\n  }",
+    `\n    ${syncEntityValue(names).toUpperCase()}`
+  );
+  const withRows = insertBefore(
+    path,
+    withEntity,
+    "    deleted: [SyncDeletion!]!",
+    `    ${names.pluralCamel}: [${singular}!]!\n`
+  );
+  const withInputs = insertBefore(
+    path,
+    withRows,
+    "  input SyncDelete {",
+    `  input Sync${singular}Create {
+    id: ID!
+    title: String!
+    body: String
+  }
+
+  input Sync${singular}Update {
+    id: ID!
+    title: String
+    body: String
+  }
+
+`
+  );
+  return insertBeforeClose(
+    path,
+    withInputs,
+    "input SyncMutationInput @oneOf {",
+    "\n  }",
+    `\n    ${names.singularCamel}Create: Sync${singular}Create` +
+      `\n    ${names.singularCamel}Update: Sync${singular}Update` +
+      `\n    ${names.singularCamel}Delete: SyncDelete`
+  );
+};
+
+const wireSyncTypes = (source: string, names: FeatureNames): string => {
+  const path = "apps/api/src/features/sync/sync.type.ts";
+  const singular = names.singularPascal;
+  const withImport = addNamedImport(path, source, "import type", "@repo/db", singular);
+  const withRows = insertBeforeClose(
+    path,
+    withImport,
+    "export interface SyncedRows {",
+    "\n}",
+    `\n  ${names.pluralCamel}: ${singular}[];`
+  );
+  const withInputs = insertBefore(
+    path,
+    withRows,
+    "export interface SyncDelete {",
+    `export interface Sync${singular}Create {
+  id: string;
+  title: string;
+  body?: string | null;
+}
+
+export interface Sync${singular}Update {
+  id: string;
+  title?: string | null;
+  body?: string | null;
+}
+
+`
+  );
+  return insertBeforeClose(
+    path,
+    withInputs,
+    "export interface SyncMutationInput {",
+    "\n}",
+    `\n  ${names.singularCamel}Create?: Sync${singular}Create | null;` +
+      `\n  ${names.singularCamel}Update?: Sync${singular}Update | null;` +
+      `\n  ${names.singularCamel}Delete?: SyncDelete | null;`
+  );
+};
+
+const wireSyncModule = (source: string, names: FeatureNames): string => {
+  const path = "apps/api/src/features/sync/sync.module.ts";
+  const plural = names.pluralCamel;
+  const withTable = addNamedImport(path, source, "import", "@repo/db/schema", `${plural}Table`);
+  const withModule = insertSortedLine(
+    path,
+    withTable,
+    /^import type \{ [\w, ]+ \} from "\.\.\/[\w-]+\/[\w-]+\.module";$/,
+    `import type { ${names.pluralPascal} } from "../${names.pluralKebab}/${names.pluralKebab}.module";`
+  );
+  const withWriter = insertBeforeClose(
+    path,
+    withModule,
+    "export interface SyncWriters {",
+    "\n}",
+    `\n  ${plural}: ${names.pluralPascal};`
+  );
+  const withTableEntry = insertBeforeClose(
+    path,
+    withWriter,
+    "const SYNCED_TABLES = {",
+    "\n} satisfies",
+    `,\n  ${plural}: ${plural}Table`
+  );
+  return insertBeforeClose(
+    path,
+    withTableEntry,
+    "const MUTATIONS: MutationHandlers = {",
+    "\n};",
+    `,
+  async ${names.singularCamel}Create({ id, title, body }, { ${plural} }, data) {
+    await ensureNotDeleted(data, "${syncEntityValue(names)}", ensureUuid(id));
+    await ${plural}.create({ id, title, body: body ?? null });
+  },
+  async ${names.singularCamel}Update({ id, ...fields }, { ${plural} }) {
+    await ${plural}.update(ensureUuid(id), {
+      ...("body" in fields ? { body: fields.body ?? null } : {}),
+      ...(typeof fields.title === "string" ? { title: fields.title } : {})
+    });
+  },
+  async ${names.singularCamel}Delete({ id }, { ${plural} }) {
+    await ${plural}.delete(ensureUuid(id));
+  }`
+  );
+};
+
+const wireSyncModuleTest = (source: string, names: FeatureNames): string => {
+  const path = "apps/api/src/features/sync/sync.module.test.ts";
+  const withImport = insertSortedLine(
+    path,
+    source,
+    /^import \{ [\w, ]+ \} from "\.\.\/[\w-]+\/[\w-]+\.module";$/,
+    `import { create${names.pluralPascal} } from "../${names.pluralKebab}/${names.pluralKebab}.module";`
+  );
+  return insertAfter(
+    path,
+    withImport,
+    "  notes: createNotes({ data, publish })",
+    `,\n  ${names.pluralCamel}: create${names.pluralPascal}({ data, publish })`
+  );
+};
+
+// A push builds each module over its savepoint, next to the Todo and Note ones.
+const wireSyncWriters = (source: string, names: FeatureNames): string =>
+  insertAfter(
+    "apps/api/src/context.ts",
+    source,
+    "        notes: createNotes({ data: savepointData, publish: publishAfterCommit })",
+    `,\n        ${names.pluralCamel}: create${names.pluralPascal}({ data: savepointData, publish: publishAfterCommit })`
+  );
+
+const wireSyncTarget = (path: string, source: string, names: FeatureNames): string => {
+  if (path === "packages/db/src/schema/sync.schema.ts") {
+    return wireSyncDbSchema(source, names);
+  }
+  if (path === "packages/db/src/sync.triggers.ts") {
+    return wireSyncTriggers(source, names);
+  }
+  if (path === "apps/api/src/features/sync/sync.schema.ts") {
+    return wireSyncSdl(source, names);
+  }
+  if (path === "apps/api/src/features/sync/sync.type.ts") {
+    return wireSyncTypes(source, names);
+  }
+  if (path === "apps/api/src/features/sync/sync.module.ts") {
+    return wireSyncModule(source, names);
+  }
+  if (path === "apps/api/src/features/sync/sync.module.test.ts") {
+    return wireSyncModuleTest(source, names);
+  }
+  if (path === "apps/api/src/context.ts") {
+    return wireSyncWriters(source, names);
+  }
+  throw new CreateFeatureError(`${path}: no sync wiring rule for this target`);
+};
+
 const wireTarget = (path: string, source: string, names: FeatureNames): string => {
   if (path === "packages/db/src/schema/index.ts") {
     return insertSortedLine(
@@ -974,13 +1312,24 @@ const assertNotRegistered = (files: ReadonlyMap<string, string>, names: FeatureN
   }
 };
 
+// Wires one target, keeping the source's line endings.
+const wireSource = (path: string, source: string, wire: (normalized: string) => string): string => {
+  const wired = wire(source.replace(/\r\n/g, "\n"));
+  const updated = source.includes("\r\n") ? wired.replace(/\n/g, "\r\n") : wired;
+  if (updated === source) {
+    throw new CreateFeatureError(`${path}: wiring made no change`);
+  }
+  return updated;
+};
+
 export const applyCreateFeature = (
   files: ReadonlyMap<string, string>,
-  names: FeatureNames
+  names: FeatureNames,
+  { sync = false }: FeatureFileOptions = {}
 ): CreateFeatureResult => {
   assertNotRegistered(files, names);
 
-  const created = buildFeatureFiles(names);
+  const created = buildFeatureFiles(names, { sync });
   for (const path of created.keys()) {
     if (files.has(path)) {
       throw new CreateFeatureError(`${path}: already exists; choose another feature name`);
@@ -993,19 +1342,21 @@ export const applyCreateFeature = (
   }
 
   const changedPaths: string[] = [];
-  for (const path of wiringTargets) {
-    const source = files.get(path);
+  const targets = sync ? [...wiringTargets, ...syncWiringTargets] : [...wiringTargets];
+  for (const [index, path] of targets.entries()) {
+    const source = next.get(path);
     if (source === undefined) {
       throw new CreateFeatureError(`${path}: wiring target is missing from the repository`);
     }
-    const normalized = source.replace(/\r\n/g, "\n");
-    const wired = wireTarget(path, normalized, names);
-    const updated = source.includes("\r\n") ? wired.replace(/\n/g, "\r\n") : wired;
-    if (updated === source) {
-      throw new CreateFeatureError(`${path}: wiring made no change`);
-    }
-    next.set(path, updated);
-    changedPaths.push(path);
+    // The sync targets come last; one may also be a base target, like context.ts.
+    const isSyncTarget = index >= wiringTargets.length;
+    next.set(
+      path,
+      wireSource(path, source, (normalized) =>
+        isSyncTarget ? wireSyncTarget(path, normalized, names) : wireTarget(path, normalized, names)
+      )
+    );
+    if (!changedPaths.includes(path)) changedPaths.push(path);
   }
 
   return { files: next, createdPaths: [...created.keys()], changedPaths };

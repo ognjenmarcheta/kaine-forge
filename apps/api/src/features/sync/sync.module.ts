@@ -1,5 +1,5 @@
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import type { SyncMutationOutcome } from "@repo/db";
+import type { SyncMutationOutcome, SyncTombstone } from "@repo/db";
 import {
   notesTable,
   organizationSyncVersionsTable,
@@ -12,6 +12,8 @@ import { and, asc, eq, gt, lte, type AnyColumn } from "drizzle-orm";
 
 import { SYNC_CONFIG } from "./sync.config";
 import type {
+  SyncDeletion,
+  SyncedRows,
   SyncMutationInput,
   SyncPullArgs,
   SyncPullPayload,
@@ -25,13 +27,13 @@ import {
   ensureUuid,
   rejectionCode
 } from "./sync.util";
-import { createScopedData, type ScopedData } from "../../context.data";
+import { createScopedData, type OrganizationOwnedTable, type ScopedData } from "../../context.data";
 import type { NoteModuleDeps, Notes } from "../notes/notes.module";
 import type { Todos } from "../todos/todos.module";
 
 type Publish = NoteModuleDeps["publish"];
 
-/** The Todo and Note modules over one mutation's savepoint. */
+/** The modules of the synced entities, over one mutation's savepoint. */
 export interface SyncWriters {
   todos: Todos;
   notes: Notes;
@@ -63,8 +65,8 @@ export interface Sync {
   /** A malformed or foreign cursor throws `invalid cursor`. */
   pull: (args: SyncPullArgs) => Promise<SyncPullPayload>;
   /**
-   * Applies the mutations in order, each in its own savepoint, through the
-   * Todo and Note modules. A mutation those modules refuse is REJECTED and the
+   * Applies the mutations in order, each in its own savepoint, through each
+   * entity's own module. A mutation a module refuses is REJECTED and the
    * rest still apply; any other error fails the whole push for the client to
    * retry. Events publish after commit. A repeated idempotency key returns the
    * first push's results and applies nothing.
@@ -72,21 +74,50 @@ export interface Sync {
   push: (input: SyncPushInput) => Promise<SyncPushPayload>;
 }
 
+const APPLIED: SyncMutationOutcome = { status: "APPLIED", code: null };
+
+/** A table a pull reads: its rows carry a Sync Version. */
+type SyncedTable = OrganizationOwnedTable & { syncVersion: AnyColumn };
+
+/** The table behind each SyncedRows field. */
+const SYNCED_TABLES = {
+  todos: todosTable,
+  notes: notesTable
+} satisfies { [Field in keyof SyncedRows]: SyncedTable };
+
+// SAFETY: the keys of SYNCED_TABLES, whose type allows exactly the SyncedRows fields.
+const SYNCED_FIELDS = Object.keys(SYNCED_TABLES) as Array<keyof SyncedRows>;
+
+type SyncedRow = SyncedRows[keyof SyncedRows][number];
+
+type Change =
+  | { syncVersion: number; field: keyof SyncedRows; row: SyncedRow }
+  | { syncVersion: number; deleted: SyncDeletion };
+
+/** Each SyncedRows field with the rows among `changes` read from its table. */
+function rowsByField(changes: readonly Change[]): SyncedRows {
+  const rows: Partial<Record<keyof SyncedRows, SyncedRow[]>> = {};
+  for (const field of SYNCED_FIELDS) {
+    rows[field] = changes.flatMap((change) =>
+      "field" in change && change.field === field ? [change.row] : []
+    );
+  }
+  // SAFETY: one entry per SyncedRows field, holding only rows read from that field's table.
+  return rows as SyncedRows;
+}
+
 const RESET: SyncPullPayload = {
-  todos: [],
-  notes: [],
+  ...rowsByField([]),
   deleted: [],
   cursor: null,
   hasMore: false,
   resetRequired: true
 };
 
-const APPLIED: SyncMutationOutcome = { status: "APPLIED", code: null };
-
-type Change =
-  | { syncVersion: number; todo: SyncPullPayload["todos"][number] }
-  | { syncVersion: number; note: SyncPullPayload["notes"][number] }
-  | { syncVersion: number; deleted: SyncPullPayload["deleted"][number] };
+function deletionEntity(entity: SyncTombstone["entity"]): SyncDeletion["entity"] {
+  // SAFETY: toUpperCase maps a sync_entity value to exactly its Uppercase<> form.
+  return entity.toUpperCase() as SyncDeletion["entity"];
+}
 
 function clampLimit(first: number | null | undefined): number {
   const { defaultLimit, maxLimit } = SYNC_CONFIG.pull;
@@ -99,7 +130,7 @@ function within(column: AnyColumn, after: number, head: number) {
 
 async function ensureNotDeleted(
   data: ScopedData,
-  entity: "todo" | "note",
+  entity: SyncTombstone["entity"],
   id: string
 ): Promise<void> {
   const tombstones = await data
@@ -113,13 +144,25 @@ async function ensureNotDeleted(
   if (tombstones[0]) throw new Error(`${entity} not found`);
 }
 
-async function applyMutation(
-  data: ScopedData,
-  { todos, notes }: SyncWriters,
-  mutation: SyncMutationInput
-): Promise<void> {
-  if (mutation.todoCreate) {
-    const { id, title, description, noteId } = mutation.todoCreate;
+type MutationInputs = {
+  [Field in keyof SyncMutationInput]-?: NonNullable<SyncMutationInput[Field]>;
+};
+
+type MutationHandlers = {
+  [Field in keyof MutationInputs]: (
+    input: MutationInputs[Field],
+    writers: SyncWriters,
+    data: ScopedData
+  ) => Promise<unknown>;
+};
+
+/**
+ * How a push applies each SyncMutationInput field, through the entity's own
+ * module. An update passes only the fields the client sent: GraphQL omits the
+ * rest, and null clears an optional text but never a title or completion.
+ */
+const MUTATIONS: MutationHandlers = {
+  async todoCreate({ id, title, description, noteId }, { todos }, data) {
     await ensureNotDeleted(data, "todo", ensureUuid(id));
     await todos.create({
       id,
@@ -127,32 +170,58 @@ async function applyMutation(
       description: description ?? null,
       noteId: noteId == null ? null : ensureUuid(noteId)
     });
-  } else if (mutation.todoUpdate) {
-    // Only the fields the client sent: GraphQL omits the rest, and null
-    // clears a description but never a title or completion.
-    const { id, ...fields } = mutation.todoUpdate;
+  },
+  async todoUpdate({ id, ...fields }, { todos }) {
     await todos.update(ensureUuid(id), {
       ...("description" in fields ? { description: fields.description ?? null } : {}),
       ...(typeof fields.title === "string" ? { title: fields.title } : {}),
       ...(typeof fields.completed === "boolean" ? { completed: fields.completed } : {})
     });
-  } else if (mutation.todoDelete) {
-    await todos.delete(ensureUuid(mutation.todoDelete.id));
-  } else if (mutation.noteCreate) {
-    const { id, title, body } = mutation.noteCreate;
+  },
+  async todoDelete({ id }, { todos }) {
+    await todos.delete(ensureUuid(id));
+  },
+  async noteCreate({ id, title, body }, { notes }, data) {
     await ensureNotDeleted(data, "note", ensureUuid(id));
     await notes.create({ id, title, body: body ?? null });
-  } else if (mutation.noteUpdate) {
-    const { id, ...fields } = mutation.noteUpdate;
+  },
+  async noteUpdate({ id, ...fields }, { notes }) {
     await notes.update(ensureUuid(id), {
       ...("body" in fields ? { body: fields.body ?? null } : {}),
       ...(typeof fields.title === "string" ? { title: fields.title } : {})
     });
-  } else if (mutation.noteDelete) {
-    await notes.delete(ensureUuid(mutation.noteDelete.id));
-  } else {
-    throw new Error("invalid id");
+  },
+  async noteDelete({ id }, { notes }) {
+    await notes.delete(ensureUuid(id));
   }
+};
+
+// SAFETY: the keys of MUTATIONS, whose type requires exactly the SyncMutationInput fields.
+const MUTATION_FIELDS = Object.keys(MUTATIONS) as Array<keyof MutationInputs>;
+
+function applyField<Field extends keyof MutationInputs>(
+  field: Field,
+  input: MutationInputs[Field],
+  writers: SyncWriters,
+  data: ScopedData
+): Promise<unknown> {
+  return MUTATIONS[field](input, writers, data);
+}
+
+async function applyMutation(
+  data: ScopedData,
+  writers: SyncWriters,
+  mutation: SyncMutationInput
+): Promise<void> {
+  // `@oneOf` lets exactly one field through.
+  for (const field of MUTATION_FIELDS) {
+    const input = mutation[field];
+    if (input) {
+      await applyField(field, input, writers, data);
+      return;
+    }
+  }
+  throw new Error("invalid id");
 }
 
 export function createSync({
@@ -185,15 +254,17 @@ export function createSync({
       const limit = clampLimit(first);
       // Each list reads one past the limit: the first `limit` changes overall
       // are among the first `limit` of their own list.
-      const [todoRows, noteRows, tombstones] = await Promise.all([
-        data
-          .selectFrom(todosTable, within(todosTable.syncVersion, after, head))
-          .orderBy(asc(todosTable.syncVersion))
-          .limit(limit + 1),
-        data
-          .selectFrom(notesTable, within(notesTable.syncVersion, after, head))
-          .orderBy(asc(notesTable.syncVersion))
-          .limit(limit + 1),
+      const [rows, tombstones] = await Promise.all([
+        Promise.all(
+          SYNCED_FIELDS.map(async (field) => {
+            const table = SYNCED_TABLES[field];
+            const found: SyncedRow[] = await data
+              .selectFrom(table, within(table.syncVersion, after, head))
+              .orderBy(asc(table.syncVersion))
+              .limit(limit + 1);
+            return found.map((row): Change => ({ syncVersion: row.syncVersion, field, row }));
+          })
+        ),
         data
           .selectFrom(
             syncTombstonesTable,
@@ -203,14 +274,10 @@ export function createSync({
           .limit(limit + 1)
       ]);
       const changes: Change[] = [
-        ...todoRows.map((todo) => ({ syncVersion: todo.syncVersion, todo })),
-        ...noteRows.map((note) => ({ syncVersion: note.syncVersion, note })),
+        ...rows.flat(),
         ...tombstones.map((tombstone) => ({
           syncVersion: tombstone.syncVersion,
-          deleted: {
-            entity: tombstone.entity === "todo" ? ("TODO" as const) : ("NOTE" as const),
-            id: tombstone.entityId
-          }
+          deleted: { entity: deletionEntity(tombstone.entity), id: tombstone.entityId }
         }))
       ].sort((a, b) => a.syncVersion - b.syncVersion);
       const page = changes.slice(0, limit);
@@ -218,8 +285,7 @@ export function createSync({
       const version = hasMore ? (page.at(-1)?.syncVersion ?? after) : head;
 
       return {
-        todos: page.flatMap((change) => ("todo" in change ? [change.todo] : [])),
-        notes: page.flatMap((change) => ("note" in change ? [change.note] : [])),
+        ...rowsByField(page),
         deleted: page.flatMap((change) => ("deleted" in change ? [change.deleted] : [])),
         cursor: encodeSyncCursor(organizationId, { version, floor }),
         hasMore,

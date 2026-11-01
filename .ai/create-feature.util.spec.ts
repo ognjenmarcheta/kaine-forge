@@ -9,6 +9,7 @@ import {
   CreateFeatureError,
   deriveFeatureNames,
   parseCreateFeatureArgs,
+  syncWiringTargets,
   wiringTargets
 } from "./create-feature.util";
 
@@ -106,7 +107,8 @@ describe("parseCreateFeatureArgs", () => {
       plural: undefined,
       label: undefined,
       write: false,
-      generate: true
+      generate: true,
+      sync: false
     });
   });
 
@@ -119,14 +121,16 @@ describe("parseCreateFeatureArgs", () => {
         "--label",
         "Purchase orders",
         "--write",
-        "--no-generate"
+        "--no-generate",
+        "--sync"
       ])
     ).toEqual({
       name: "purchase-order",
       plural: "purchase-orders",
       label: "Purchase orders",
       write: true,
-      generate: false
+      generate: false,
+      sync: true
     });
   });
 
@@ -464,6 +468,112 @@ describe("applyCreateFeature", () => {
 
     expect(() => applyCreateFeature(files, names)).toThrowError(
       /scaffoldfixtures\.module\.ts: already exists/
+    );
+  });
+});
+
+describe("applyCreateFeature with --sync", () => {
+  // A reserved multi-word fixture name, so every casing of the entity differs.
+  const names = deriveFeatureNames({
+    name: "scaffold-fixture",
+    plural: "scaffold-fixtures",
+    write: false,
+    generate: true
+  });
+
+  const readTargets = (): Map<string, string> => {
+    const files = new Map<string, string>();
+    for (const path of new Set([...wiringTargets, ...syncWiringTargets])) {
+      files.set(path, readFileSync(join(REPO_ROOT, path), "utf8"));
+    }
+    return files;
+  };
+
+  it("changes every sync wiring target in the real repository", () => {
+    const result = applyCreateFeature(readTargets(), names, { sync: true });
+
+    expect(result.changedPaths).toEqual(expect.arrayContaining([...syncWiringTargets]));
+    expect(result.createdPaths).toEqual([...buildFeatureFiles(names, { sync: true }).keys()]);
+  });
+
+  it("leaves the sync files and the slice free of sync without the option", () => {
+    const files = readTargets();
+    const result = applyCreateFeature(files, names);
+
+    for (const path of syncWiringTargets.filter((target) => target !== "apps/api/src/context.ts")) {
+      expect(result.files.get(path)).toBe(files.get(path));
+    }
+    for (const path of result.createdPaths) {
+      expect(result.files.get(path)).not.toMatch(/sync_version|syncVersion|onConflictDoNothing/);
+    }
+  });
+
+  it("registers the entity everywhere a pull and a push read it from", () => {
+    const { files } = applyCreateFeature(readTargets(), names, { sync: true });
+    const read = (path: string): string => files.get(path) ?? "";
+    const syncModule = read("apps/api/src/features/sync/sync.module.ts");
+    const syncSdl = read("apps/api/src/features/sync/sync.schema.ts");
+    const syncTypes = read("apps/api/src/features/sync/sync.type.ts");
+
+    expect(read("packages/db/src/schema/sync.schema.ts")).toContain(
+      'pgEnum("sync_entity", ["todo", "note", "scaffold_fixture"]);'
+    );
+    expect(read("packages/db/src/sync.triggers.ts")).toContain(
+      `CREATE OR REPLACE TRIGGER "scaffold_fixtures_sync_version" BEFORE INSERT OR UPDATE ON "scaffold_fixtures" FOR EACH ROW EXECUTE FUNCTION "sync_stamp_version"();
+CREATE OR REPLACE TRIGGER "scaffold_fixtures_sync_tombstone" AFTER DELETE ON "scaffold_fixtures" FOR EACH ROW EXECUTE FUNCTION "sync_record_tombstone"('scaffold_fixture');`
+    );
+    expect(read("packages/db/src/sync.triggers.ts")).toContain(
+      'UPDATE "scaffold_fixtures" SET "sync_version" = 0 WHERE "sync_version" = 0;\n`;'
+    );
+    expect(syncSdl).toContain("    NOTE\n    SCAFFOLD_FIXTURE\n  }");
+    expect(syncSdl).toContain("    scaffoldFixtures: [ScaffoldFixture!]!\n    deleted:");
+    expect(syncSdl).toContain("  input SyncScaffoldFixtureCreate {");
+    expect(syncSdl).toContain("    scaffoldFixtureDelete: SyncDelete\n  }");
+    expect(syncTypes).toContain(
+      'import type { Note, ScaffoldFixture, SyncMutationOutcome, SyncTombstone, Todo } from "@repo/db";'
+    );
+    expect(syncTypes).toContain("  scaffoldFixtures: ScaffoldFixture[];\n}");
+    expect(syncTypes).toContain("  scaffoldFixtureUpdate?: SyncScaffoldFixtureUpdate | null;");
+    expect(syncModule).toContain(
+      "organizationSyncVersionsTable, scaffoldFixturesTable, syncMutationReceiptsTable"
+    );
+    expect(syncModule).toContain(
+      'import type { ScaffoldFixtures } from "../scaffold-fixtures/scaffold-fixtures.module";'
+    );
+    expect(syncModule).toContain("  scaffoldFixtures: ScaffoldFixtures;\n}");
+    expect(syncModule).toContain("  scaffoldFixtures: scaffoldFixturesTable\n} satisfies");
+    expect(syncModule).toContain(
+      'await ensureNotDeleted(data, "scaffold_fixture", ensureUuid(id));'
+    );
+    expect(syncModule).toContain("  async scaffoldFixtureDelete({ id }, { scaffoldFixtures }) {");
+    expect(read("apps/api/src/features/sync/sync.module.test.ts")).toContain(
+      "  scaffoldFixtures: createScaffoldFixtures({ data, publish })\n});"
+    );
+    expect(read("apps/api/src/context.ts")).toContain(
+      "        scaffoldFixtures: createScaffoldFixtures({ data: savepointData, publish: publishAfterCommit })"
+    );
+  });
+
+  it("emits a Sync Version column and a create that accepts a client id once", () => {
+    const files = buildFeatureFiles(names, { sync: true });
+    const read = (path: string): string => files.get(path) ?? "";
+    const apiDir = "apps/api/src/features/scaffold-fixtures";
+
+    expect(read("packages/db/src/schema/scaffold-fixtures.schema.ts")).toContain(
+      'syncVersion: bigint("sync_version", { mode: "number" }).notNull().default(0)'
+    );
+    expect(read("packages/db/src/schema/scaffold-fixtures.schema.ts")).toContain(
+      'index("scaffold_fixtures_organization_id_sync_version_idx")'
+    );
+    expect(read(`${apiDir}/scaffold-fixtures.type.ts`)).toContain("  id?: string | undefined;");
+    expect(read(`${apiDir}/scaffold-fixtures.module.ts`)).toContain(
+      ".onConflictDoNothing({ target: scaffoldFixturesTable.id })"
+    );
+    expect(read(`${apiDir}/scaffold-fixtures.module.ts`)).toContain(
+      'throw new Error("scaffold fixture id conflict");'
+    );
+    expect(read(`${apiDir}/scaffold-fixtures.module.test.ts`)).toContain(
+      '"scaffold fixture id conflict"'
     );
   });
 });

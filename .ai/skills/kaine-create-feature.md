@@ -22,11 +22,15 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 
    Pass `--label "<Text>"` when the navigation label is not the Title Case of the plural.
 
+   Pass `--sync` when the entity must work offline like Todos and Notes. It adds the server half of offline sync: a `sync_version` column and index, a `sync_entity` enum value, the version and Tombstone triggers in `packages/db/src/sync.triggers.ts`, a create that accepts a client id, and pull and push support in `apps/api/src/features/sync` (one `SYNCED_TABLES` entry and three `MUTATIONS` handlers). Without `--sync` the output is unchanged. The client side (`@repo/sync` collection, web sync operations) stays manual; clients skip pulled deletions of entities they do not sync.
+
 3. Apply it:
 
    ```bash
    pnpm create:feature <singular> --plural <plural> --write
    ```
+
+   Repeat every option from the preview, including `--sync`: the preview writes nothing, so its options do not carry over, and a second run refuses because the scaffold paths exist.
 
    The CLI writes the files, runs prettier and `eslint --fix` over them, then runs `pnpm generate`. It refuses to start — with no partial writes — when a scaffold path exists, a wiring anchor moved, or the name is already registered.
 
@@ -36,6 +40,8 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    - `apps/web/src/graphql/operations/{plural}.graphql`
    - the two web routes
 
+   For a `--sync` slice, also match the `Sync{Singular}Create` and `Sync{Singular}Update` inputs and the three `MUTATIONS` handlers in `apps/api/src/features/sync`.
+
    Then re-run `pnpm generate`.
 
 5. Only once the columns are final:
@@ -44,7 +50,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
    pnpm db:generate
    ```
 
-   Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one. The generated `{plural}.module.test.ts` runs on PGlite, which replays every migration, so it fails with `relation "{plural}" does not exist` until this step is done.
+   Review the emitted `packages/db/drizzle/*.sql`. Never edit a migration that already shipped — add a new one. For a `--sync` slice, `db:generate` emits only the column, index, and enum value: append the two trigger statements the CLI prints to this new migration, each after a `--> statement-breakpoint` line. `packages/db/src/schema/sync.migration.test.ts` fails `pnpm check` until every table with a `sync_version` column has both triggers after the migrations. The generated `{plural}.module.test.ts` runs on PGlite, which replays every migration, so it fails with `relation "{plural}" does not exist` until this step is done.
 
 6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. The generator writes English placeholders. `locale-consistency.test.ts` rejects values identical to English, so `pnpm check` fails until translation is complete. Add a locale/key exception only for a term that is legitimately identical in both languages; stale exceptions also fail.
 
@@ -71,4 +77,4 @@ Do not "improve" these — they are the contract `.ai/create-feature.util.spec.t
 
 ## Reporting
 
-State which names you used, that `pnpm check` passed, and which of steps 4-6 the user still owns — the columns, the migration, and the two untranslated locales.
+State which names you used, whether you passed `--sync`, that `pnpm check` passed, and which of steps 4-6 the user still owns — the columns, the migration (with the trigger statements for `--sync`), and the two untranslated locales.
