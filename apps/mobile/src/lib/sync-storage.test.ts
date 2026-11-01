@@ -114,3 +114,10 @@ it("deletes a database only after a close already under way finishes", async () 
     "deleted ks-u100000000000000-o100000000000000.db"
   ]);
 });
+
+it("still opens when the database list on the device cannot be read", async () => {
+  store.set("kaine-sync:databases", "{not json");
+
+  expect(await openDeviceStorage({ userId: "u1", organizationId: "o1" })).not.toBeNull();
+  expect(registry()).toEqual(["ks-u100000000000000-o100000000000000.db"]);
+});

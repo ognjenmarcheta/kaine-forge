@@ -21,7 +21,14 @@ async function deviceDatabasePrefix(userId: string): Promise<string> {
 }
 
 async function registeredDatabases(): Promise<string[]> {
-  const stored: unknown = JSON.parse((await AsyncStorage.getItem(REGISTRY_KEY)) ?? "[]");
+  let stored: unknown;
+  try {
+    stored = JSON.parse((await AsyncStorage.getItem(REGISTRY_KEY)) ?? "[]");
+  } catch (error) {
+    // Unreadable text names no database: start the list again rather than stop sync.
+    console.warn("The device database list could not be read; starting it again.", error);
+    return [];
+  }
   return Array.isArray(stored)
     ? stored.filter((name): name is string => typeof name === "string")
     : [];
@@ -61,10 +68,10 @@ export function openDeviceStorage(scope: {
   return serial(async () => {
     if ((deletions.get(scope.userId) ?? 0) !== asked) return null;
     const databaseName = `${await deviceDatabasePrefix(scope.userId)}${await namePart(scope.organizationId)}.db`;
-    // Listed before it exists, so no database file is ever left unlisted.
-    await writeRegistry([...(await registeredDatabases()), databaseName]);
     let database: Awaited<ReturnType<typeof openDatabaseAsync>>;
     try {
+      // Listed before it exists, so no database file is ever left unlisted.
+      await writeRegistry([...(await registeredDatabases()), databaseName]);
       database = await openDatabaseAsync(databaseName);
     } catch (error) {
       console.warn("Synced rows stay in memory: no device storage.", error);
