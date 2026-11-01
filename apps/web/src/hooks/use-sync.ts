@@ -28,11 +28,14 @@ async function browserSyncStores(userId: string): Promise<string[]> {
   );
 }
 
-/** Pending Changes in one Outbox store: its `tx:` keys. */
+/**
+ * Pending Changes in one Outbox store: its `tx:` keys. A store it cannot read
+ * counts as one, so the sign-out asks first instead of deleting it unseen.
+ */
 function countStorePendingChanges(name: string): Promise<number> {
   return new Promise((resolve) => {
     const request = indexedDB.open(name);
-    request.onerror = () => resolve(0);
+    request.onerror = () => resolve(1);
     request.onsuccess = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains("outbox")) {
@@ -43,7 +46,7 @@ function countStorePendingChanges(name: string): Promise<number> {
       const keys = database.transaction("outbox", "readonly").objectStore("outbox").getAllKeys();
       keys.onerror = () => {
         database.close();
-        resolve(0);
+        resolve(1);
       };
       keys.onsuccess = () => {
         database.close();
@@ -78,9 +81,10 @@ export function useSignOut(): {
   }, [engine, logout, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;
-    const counts = await Promise.all(
-      (await browserSyncStores(userId).catch(() => [])).map(countStorePendingChanges)
-    );
+    const stores = await browserSyncStores(userId).catch(() => null);
+    // Unknown is not zero: assume a Pending Change, so the sign-out asks first.
+    if (!stores) return Math.max(1, engine?.getStatus().pending ?? 0);
+    const counts = await Promise.all(stores.map(countStorePendingChanges));
     // The active Outbox's count is the engine's own, which is never behind its store.
     return Math.max(
       counts.reduce((sum, count) => sum + count, 0),
