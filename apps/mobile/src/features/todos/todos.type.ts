@@ -1,11 +1,13 @@
+import type { SyncTodo } from "@repo/sync";
+
 import type {
   CreateTodoInput,
-  GetMobileTodosQuery,
   ToggleMobileTodoMutation,
   UpdateTodoInput
 } from "../../graphql/generated/react-query";
 
-export type TodoItem = GetMobileTodosQuery["todos"]["items"][number];
+/** A Todo row from the local sync collection. */
+export type TodoItem = SyncTodo;
 
 export interface TodoDraft {
   description: string;

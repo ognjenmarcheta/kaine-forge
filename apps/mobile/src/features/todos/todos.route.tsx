@@ -1,121 +1,83 @@
-import { Button, Skeleton, Text } from "@repo/mobile-ui";
-import { createActiveOrganizationQueryKey } from "@repo/query";
+import { Badge, Button, Skeleton, Text } from "@repo/mobile-ui";
 import { createTodoClientWorkflow } from "@repo/todos";
-import { useQueryClient } from "@tanstack/react-query";
+import { useLiveQuery } from "@tanstack/react-db";
 import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { TodoFormModal } from "./components/todo-form-modal";
 import { TodoList } from "./components/todo-list";
-import { TODOS_CONFIG } from "./todos.config";
 import { TODO_DEFINITION } from "./todos.definition";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { ConfirmModal } from "../../components/confirm-modal";
 import { ScreenContainer } from "../../components/screen-container";
-import {
-  useCreateMobileTodoMutation,
-  useDeleteMobileTodoMutation,
-  useGetMobileTodosQuery,
-  useToggleMobileTodoMutation,
-  useUpdateMobileTodoMutation
-} from "../../graphql/generated/react-query";
 import { useOrganization } from "../../hooks/use-organization";
+import { useSyncEngine, useSyncRejection, useSyncStatus } from "../../hooks/use-sync";
 import { useTranslation } from "../../hooks/use-translation";
-import { queryRuntime } from "../../lib/query-runtime";
-import { isPlanLimitError } from "../billing/billing.util";
 
-queryRuntime.registerOrgScopedOperation("todos.mobile.list", useGetMobileTodosQuery.getKey());
+const STATUS_APPEARANCE = {
+  online: "success",
+  offline: "warning",
+  syncing: "information",
+  error: "danger",
+  signedOut: "danger"
+} as const;
 
 export function TodosRoute() {
   const { t } = useTranslation();
   const { activeOrganizationId, isLoading: isOrganizationLoading } = useOrganization();
-  const queryClient = useQueryClient();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const listVariables = useMemo(
-    () => ({
-      first: TODOS_CONFIG.pageSize
-    }),
-    []
-  );
-  const todosQueryKey = useMemo(
-    () =>
-      createActiveOrganizationQueryKey(
-        useGetMobileTodosQuery.getKey(listVariables),
-        activeOrganizationId
-      ),
-    [activeOrganizationId, listVariables]
-  );
-
-  const todosQuery = useGetMobileTodosQuery(listVariables, {
-    queryKey: todosQueryKey,
-    enabled: Boolean(activeOrganizationId) && !isOrganizationLoading
-  });
-
-  const createMutation = useCreateMobileTodoMutation();
-
-  const updateMutation = useUpdateMobileTodoMutation();
-
-  const deleteMutation = useDeleteMobileTodoMutation();
-
-  const toggleMutation = useToggleMobileTodoMutation();
+  const engine = useSyncEngine();
+  const syncStatus = useSyncStatus();
+  const { rejection, dismissRejection } = useSyncRejection();
+  const enabled = Boolean(activeOrganizationId) && !isOrganizationLoading;
+  const live = useLiveQuery(() => (enabled ? engine?.todos : null), [engine, enabled]);
 
   const invalidateTodos = useCallback(async () => {
-    if (!activeOrganizationId) {
-      return;
+    // Offline the pull fails; the status badge already shows it.
+    await engine?.pull().catch(() => undefined);
+  }, [engine]);
+
+  // Writes go to the device at once and sync when the network allows.
+  const todoWorkflow = useMemo(() => {
+    function requireEngine() {
+      if (!engine) throw new Error("sync is not ready");
+      return engine;
     }
-
-    await queryClient.invalidateQueries({
-      queryKey: todosQueryKey
-    });
-  }, [activeOrganizationId, queryClient, todosQueryKey]);
-
-  const todoWorkflow = useMemo(
-    () =>
-      createTodoClientWorkflow<TodoItem>({
-        createTodo: async (payload) => {
-          const result = await createMutation.mutateAsync({
-            input: payload
-          });
-          return result.createTodo;
-        },
-        deleteTodo: async (id) => {
-          const result = await deleteMutation.mutateAsync({
-            id
-          });
-          return result.deleteTodo;
-        },
-        getActiveOrganizationId: () => activeOrganizationId,
-        invalidateTodos,
-        toggleTodo: async (id) => {
-          const result = await toggleMutation.mutateAsync({
-            id
-          });
-          return result.toggleTodo;
-        },
-        updateTodo: async (id, payload) => {
-          const result = await updateMutation.mutateAsync({
-            id,
-            input: payload
-          });
-          return result.updateTodo;
-        }
-      }),
-    [
-      activeOrganizationId,
-      createMutation,
-      deleteMutation,
+    return createTodoClientWorkflow<TodoItem | undefined>({
+      createTodo: async (payload) => {
+        const id = await requireEngine().createTodo(payload);
+        return requireEngine().todos.get(id);
+      },
+      deleteTodo: async (id) => {
+        await requireEngine().deleteTodo(id);
+        return true;
+      },
+      getActiveOrganizationId: () => activeOrganizationId,
       invalidateTodos,
-      toggleMutation,
-      updateMutation
-    ]
-  );
+      // Sets the state the user sees, never flips it: a replayed change stays correct.
+      toggleTodo: async (id) => {
+        const sync = requireEngine();
+        const current = sync.todos.get(id);
+        if (!current) throw new Error("todo not found");
+        await sync.updateTodo(id, { completed: !current.completed });
+        return sync.todos.get(id);
+      },
+      updateTodo: async (id, payload) => {
+        await requireEngine().updateTodo(id, payload);
+        return requireEngine().todos.get(id);
+      }
+    });
+  }, [activeOrganizationId, invalidateTodos, engine]);
 
-  const todos = useMemo(() => todosQuery.data?.todos.items ?? [], [todosQuery.data]);
+  const todos = useMemo(
+    () => [...(live.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [live.data]
+  );
   const completedCount = useMemo(() => todos.filter((todo) => todo.completed).length, [todos]);
   const completionSummary = `${completedCount.toString()}/${todos.length.toString()} ${t("todos.completed")}`;
 
@@ -126,7 +88,7 @@ export function TodosRoute() {
         draft
       });
     } catch (error) {
-      setActionError(t(isPlanLimitError(error) ? "billing.limitReached.todos" : "error.generic"));
+      setActionError(t("error.generic"));
       throw error;
     }
   }
@@ -180,8 +142,8 @@ export function TodosRoute() {
     }
   }
 
-  const isLoading = isOrganizationLoading || todosQuery.status === "pending";
-  const error = actionError ?? (todosQuery.error ? t("error.generic") : null);
+  const isLoading = isOrganizationLoading || !live.isReady;
+  const error = actionError ?? (rejection ? t(`sync.rejected.${rejection.code}`) : null);
 
   return (
     <ScreenContainer>
@@ -189,6 +151,22 @@ export function TodosRoute() {
         <View>
           <Text className="text-2xl font-semibold text-ds-text">{t("todos.title")}</Text>
           <Text className="text-sm text-ds-text-subtle">{completionSummary}</Text>
+          {syncStatus ? (
+            <View
+              accessibilityLabel={t("sync.status.label")}
+              accessibilityRole="text"
+              className="mt-1 flex-row items-center gap-2"
+            >
+              <Badge appearance={STATUS_APPEARANCE[syncStatus.state]}>
+                {t(`sync.status.${syncStatus.state}`)}
+              </Badge>
+              {syncStatus.pending > 0 ? (
+                <Badge accessibilityLabel={t("sync.status.pending")}>
+                  {syncStatus.pending.toString()}
+                </Badge>
+              ) : null}
+            </View>
+          ) : null}
         </View>
         <Button spacing="compact" onPress={() => setIsCreateOpen(true)}>
           {t("todos.create")}
@@ -200,7 +178,14 @@ export function TodosRoute() {
           <Text accessibilityRole="alert" className="text-sm text-ds-text-danger">
             {error}
           </Text>
-          <Button appearance="secondary" onPress={() => void todosQuery.refetch()}>
+          <Button
+            appearance="secondary"
+            onPress={() => {
+              setActionError(null);
+              dismissRejection();
+              void invalidateTodos();
+            }}
+          >
             {t("common.retry")}
           </Button>
         </View>
@@ -216,7 +201,7 @@ export function TodosRoute() {
           <Skeleton className="h-16" />
         </View>
       ) : null}
-      {!isLoading && !todosQuery.error ? (
+      {!isLoading ? (
         <TodoList
           items={todos}
           onAttachmentChanged={() => {
@@ -250,7 +235,7 @@ export function TodosRoute() {
         cancelLabel={t("button.cancel")}
         confirmingLabel={t("common.loadingShort")}
         confirmLabel={t("button.delete")}
-        isConfirming={deleteMutation.status === "pending"}
+        isConfirming={false}
         isOpen={Boolean(deletingTodoId)}
         message={t("todos.deleteConfirmMessage")}
         title={t("todos.deleteConfirmTitle")}

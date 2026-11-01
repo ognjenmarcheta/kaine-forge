@@ -1,0 +1,42 @@
+query SyncPull($cursor: String, $first: Int) {
+  syncPull(cursor: $cursor, first: $first) {
+    todos {
+      id
+      title
+      description
+      completed
+      noteId
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+      }
+      createdAt
+      updatedAt
+    }
+    notes {
+      id
+      title
+      body
+      createdAt
+      updatedAt
+    }
+    deleted {
+      entity
+      id
+    }
+    cursor
+    hasMore
+    resetRequired
+  }
+}
+
+mutation SyncPush($input: SyncPushInput!) {
+  syncPush(input: $input) {
+    results {
+      status
+      code
+    }
+  }
+}

@@ -36,6 +36,98 @@ export type RequestUploadInput = {
 export type SubscriptionStatus =
   "active" | "canceled" | "expired" | "incomplete" | "past_due" | "paused" | "trialing" | "unpaid";
 
+export type SyncDelete = {
+  id: string | number;
+};
+
+export type SyncEntity = "NOTE" | "TODO";
+
+export type SyncMutationInput =
+  | {
+      noteCreate: SyncNoteCreate;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete: SyncDelete;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate: SyncNoteUpdate;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate: SyncTodoCreate;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete: SyncDelete;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate: SyncTodoUpdate;
+    };
+
+export type SyncMutationStatus = "APPLIED" | "REJECTED";
+
+export type SyncNoteCreate = {
+  body?: string | null | undefined;
+  id: string | number;
+  title: string;
+};
+
+export type SyncNoteUpdate = {
+  body?: string | null | undefined;
+  id: string | number;
+  title?: string | null | undefined;
+};
+
+export type SyncPushInput = {
+  idempotencyKey: string;
+  mutations: Array<SyncMutationInput>;
+};
+
+export type SyncRejectionCode =
+  "CONFLICT" | "FORBIDDEN" | "INVALID" | "NOT_FOUND" | "PLAN_LIMIT_REACHED";
+
+export type SyncTodoCreate = {
+  description?: string | null | undefined;
+  id: string | number;
+  noteId?: string | number | null | undefined;
+  title: string;
+};
+
+export type SyncTodoUpdate = {
+  completed?: boolean | null | undefined;
+  description?: string | null | undefined;
+  id: string | number;
+  title?: string | null | undefined;
+};
+
 export type UpdateTodoInput = {
   completed?: boolean | null | undefined;
   description?: string | null | undefined;
@@ -139,6 +231,45 @@ export type DeleteMobileFileMutationVariables = Exact<{
 }>;
 
 export type DeleteMobileFileMutation = { deleteFile: boolean };
+
+export type SyncPullQueryVariables = Exact<{
+  cursor?: string | null | undefined;
+  first?: number | null | undefined;
+}>;
+
+export type SyncPullQuery = {
+  syncPull: {
+    cursor: string | null;
+    hasMore: boolean;
+    resetRequired: boolean;
+    todos: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      noteId: string | null;
+      createdAt: string;
+      updatedAt: string;
+      attachments: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+    }>;
+    notes: Array<{
+      id: string;
+      title: string;
+      body: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    deleted: Array<{ entity: SyncEntity; id: string }>;
+  };
+};
+
+export type SyncPushMutationVariables = Exact<{
+  input: SyncPushInput;
+}>;
+
+export type SyncPushMutation = {
+  syncPush: { results: Array<{ status: SyncMutationStatus; code: SyncRejectionCode | null }> };
+};
 
 export type GetMobileTodosQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -303,6 +434,14 @@ export type OnMobileTodoToggledSubscription = {
       downloadUrl: string | null;
     }>;
   };
+};
+
+export type GetMobileTodoAttachmentLinksQueryVariables = Exact<{
+  todoId: string | number;
+}>;
+
+export type GetMobileTodoAttachmentLinksQuery = {
+  files: { items: Array<{ id: string; downloadUrl: string | null }> };
 };
 
 export class TypedDocumentString<TResult, TVariables>
@@ -597,6 +736,84 @@ export const useDeleteMobileFileMutation = <TError = unknown, TContext = unknown
 
 useDeleteMobileFileMutation.getKey = () => ["DeleteMobileFile"];
 
+export const SyncPullDocument = new TypedDocumentString(`
+    query SyncPull($cursor: String, $first: Int) {
+  syncPull(cursor: $cursor, first: $first) {
+    todos {
+      id
+      title
+      description
+      completed
+      noteId
+      attachments {
+        id
+        originalName
+        mimeType
+        sizeBytes
+      }
+      createdAt
+      updatedAt
+    }
+    notes {
+      id
+      title
+      body
+      createdAt
+      updatedAt
+    }
+    deleted {
+      entity
+      id
+    }
+    cursor
+    hasMore
+    resetRequired
+  }
+}
+    `);
+
+export const useSyncPullQuery = <TData = SyncPullQuery, TError = unknown>(
+  variables?: SyncPullQueryVariables,
+  options?: Omit<UseQueryOptions<SyncPullQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<SyncPullQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<SyncPullQuery, TError, TData>({
+    queryKey: variables === undefined ? ["SyncPull"] : ["SyncPull", variables],
+    queryFn: useGraphqlFetcher<SyncPullQuery, SyncPullQueryVariables>(SyncPullDocument).bind(
+      null,
+      variables
+    ),
+    ...options
+  });
+};
+
+useSyncPullQuery.getKey = (variables?: SyncPullQueryVariables) =>
+  variables === undefined ? ["SyncPull"] : ["SyncPull", variables];
+
+export const SyncPushDocument = new TypedDocumentString(`
+    mutation SyncPush($input: SyncPushInput!) {
+  syncPush(input: $input) {
+    results {
+      status
+      code
+    }
+  }
+}
+    `);
+
+export const useSyncPushMutation = <TError = unknown, TContext = unknown>(
+  options?: UseMutationOptions<SyncPushMutation, TError, SyncPushMutationVariables, TContext>
+) => {
+  return useMutation<SyncPushMutation, TError, SyncPushMutationVariables, TContext>({
+    mutationKey: ["SyncPush"],
+    mutationFn: useGraphqlFetcher<SyncPushMutation, SyncPushMutationVariables>(SyncPushDocument),
+    ...options
+  });
+};
+
+useSyncPushMutation.getKey = () => ["SyncPush"];
+
 export const GetMobileTodosDocument = new TypedDocumentString(`
     query GetMobileTodos($first: Int, $after: String) {
   todos(first: $first, after: $after) {
@@ -856,3 +1073,39 @@ export const OnMobileTodoToggledDocument = new TypedDocumentString(`
   }
 }
     `);
+export const GetMobileTodoAttachmentLinksDocument = new TypedDocumentString(`
+    query GetMobileTodoAttachmentLinks($todoId: ID!) {
+  files(
+    filter: {entityType: todo, entityId: $todoId, status: uploaded}
+    first: 100
+  ) {
+    items {
+      id
+      downloadUrl
+    }
+  }
+}
+    `);
+
+export const useGetMobileTodoAttachmentLinksQuery = <
+  TData = GetMobileTodoAttachmentLinksQuery,
+  TError = unknown
+>(
+  variables: GetMobileTodoAttachmentLinksQueryVariables,
+  options?: Omit<UseQueryOptions<GetMobileTodoAttachmentLinksQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<GetMobileTodoAttachmentLinksQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<GetMobileTodoAttachmentLinksQuery, TError, TData>({
+    queryKey: ["GetMobileTodoAttachmentLinks", variables],
+    queryFn: useGraphqlFetcher<
+      GetMobileTodoAttachmentLinksQuery,
+      GetMobileTodoAttachmentLinksQueryVariables
+    >(GetMobileTodoAttachmentLinksDocument).bind(null, variables),
+    ...options
+  });
+};
+
+useGetMobileTodoAttachmentLinksQuery.getKey = (
+  variables: GetMobileTodoAttachmentLinksQueryVariables
+) => ["GetMobileTodoAttachmentLinks", variables];

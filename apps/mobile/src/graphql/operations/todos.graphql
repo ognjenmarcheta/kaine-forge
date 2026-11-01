@@ -140,3 +140,12 @@ subscription OnMobileTodoToggled {
     updatedAt
   }
 }
+
+query GetMobileTodoAttachmentLinks($todoId: ID!) {
+  files(filter: { entityType: todo, entityId: $todoId, status: uploaded }, first: 100) {
+    items {
+      id
+      downloadUrl
+    }
+  }
+}

@@ -35,6 +35,98 @@ export type RequestUploadInput = {
 export type SubscriptionStatus =
   "active" | "canceled" | "expired" | "incomplete" | "past_due" | "paused" | "trialing" | "unpaid";
 
+export type SyncDelete = {
+  id: string | number;
+};
+
+export type SyncEntity = "NOTE" | "TODO";
+
+export type SyncMutationInput =
+  | {
+      noteCreate: SyncNoteCreate;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete: SyncDelete;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate: SyncNoteUpdate;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate: SyncTodoCreate;
+      todoDelete?: never;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete: SyncDelete;
+      todoUpdate?: never;
+    }
+  | {
+      noteCreate?: never;
+      noteDelete?: never;
+      noteUpdate?: never;
+      todoCreate?: never;
+      todoDelete?: never;
+      todoUpdate: SyncTodoUpdate;
+    };
+
+export type SyncMutationStatus = "APPLIED" | "REJECTED";
+
+export type SyncNoteCreate = {
+  body?: string | null | undefined;
+  id: string | number;
+  title: string;
+};
+
+export type SyncNoteUpdate = {
+  body?: string | null | undefined;
+  id: string | number;
+  title?: string | null | undefined;
+};
+
+export type SyncPushInput = {
+  idempotencyKey: string;
+  mutations: Array<SyncMutationInput>;
+};
+
+export type SyncRejectionCode =
+  "CONFLICT" | "FORBIDDEN" | "INVALID" | "NOT_FOUND" | "PLAN_LIMIT_REACHED";
+
+export type SyncTodoCreate = {
+  description?: string | null | undefined;
+  id: string | number;
+  noteId?: string | number | null | undefined;
+  title: string;
+};
+
+export type SyncTodoUpdate = {
+  completed?: boolean | null | undefined;
+  description?: string | null | undefined;
+  id: string | number;
+  title?: string | null | undefined;
+};
+
 export type UpdateTodoInput = {
   completed?: boolean | null | undefined;
   description?: string | null | undefined;
@@ -138,6 +230,45 @@ export type DeleteMobileFileMutationVariables = Exact<{
 }>;
 
 export type DeleteMobileFileMutation = { deleteFile: boolean };
+
+export type SyncPullQueryVariables = Exact<{
+  cursor?: string | null | undefined;
+  first?: number | null | undefined;
+}>;
+
+export type SyncPullQuery = {
+  syncPull: {
+    cursor: string | null;
+    hasMore: boolean;
+    resetRequired: boolean;
+    todos: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      noteId: string | null;
+      createdAt: unknown;
+      updatedAt: unknown;
+      attachments: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+    }>;
+    notes: Array<{
+      id: string;
+      title: string;
+      body: string | null;
+      createdAt: unknown;
+      updatedAt: unknown;
+    }>;
+    deleted: Array<{ entity: SyncEntity; id: string }>;
+  };
+};
+
+export type SyncPushMutationVariables = Exact<{
+  input: SyncPushInput;
+}>;
+
+export type SyncPushMutation = {
+  syncPush: { results: Array<{ status: SyncMutationStatus; code: SyncRejectionCode | null }> };
+};
 
 export type GetMobileTodosQueryVariables = Exact<{
   first?: number | null | undefined;
@@ -302,6 +433,14 @@ export type OnMobileTodoToggledSubscription = {
       downloadUrl: string | null;
     }>;
   };
+};
+
+export type GetMobileTodoAttachmentLinksQueryVariables = Exact<{
+  todoId: string | number;
+}>;
+
+export type GetMobileTodoAttachmentLinksQuery = {
+  files: { items: Array<{ id: string; downloadUrl: string | null }> };
 };
 
 export const MobileHealthDocument = {
@@ -648,6 +787,163 @@ export const DeleteMobileFileDocument = {
     }
   ]
 } as unknown as DocumentNode<DeleteMobileFileMutation, DeleteMobileFileMutationVariables>;
+export const SyncPullDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "SyncPull" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "cursor" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "syncPull" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "cursor" },
+                value: { kind: "Variable", name: { kind: "Name", value: "cursor" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "todos" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "completed" } },
+                      { kind: "Field", name: { kind: "Name", value: "noteId" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "attachments" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                            { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                            { kind: "Field", name: { kind: "Name", value: "sizeBytes" } }
+                          ]
+                        }
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "notes" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "title" } },
+                      { kind: "Field", name: { kind: "Name", value: "body" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                    ]
+                  }
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "deleted" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "entity" } },
+                      { kind: "Field", name: { kind: "Name", value: "id" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "cursor" } },
+                { kind: "Field", name: { kind: "Name", value: "hasMore" } },
+                { kind: "Field", name: { kind: "Name", value: "resetRequired" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<SyncPullQuery, SyncPullQueryVariables>;
+export const SyncPushDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "SyncPush" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "SyncPushInput" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "syncPush" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "results" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "code" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<SyncPushMutation, SyncPushMutationVariables>;
 export const GetMobileTodosDocument = {
   kind: "Document",
   definitions: [
@@ -1137,4 +1433,83 @@ export const OnMobileTodoToggledDocument = {
 } as unknown as DocumentNode<
   OnMobileTodoToggledSubscription,
   OnMobileTodoToggledSubscriptionVariables
+>;
+export const GetMobileTodoAttachmentLinksDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "GetMobileTodoAttachmentLinks" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "todoId" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ID" } }
+          }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filter" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "entityType" },
+                      value: { kind: "EnumValue", value: "todo" }
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "entityId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "todoId" } }
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "status" },
+                      value: { kind: "EnumValue", value: "uploaded" }
+                    }
+                  ]
+                }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "IntValue", value: "100" }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "items" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "downloadUrl" } }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<
+  GetMobileTodoAttachmentLinksQuery,
+  GetMobileTodoAttachmentLinksQueryVariables
 >;
