@@ -147,6 +147,37 @@
       "command": "but pr new",
       "flag": "-s",
       "reason": "Short form of --skip-force-push-protection."
+    },
+    {
+      "id": "agent-desktop-headed",
+      "decision": "ask",
+      "command": "agent-desktop",
+      "flag": "--headed",
+      "reason": "Moves the owner's real pointer and keyboard and can take focus from the app they are using. Headless ref actions need no approval."
+    },
+    {
+      "id": "agent-desktop-clipboard-get",
+      "decision": "ask",
+      "command": "agent-desktop clipboard-get",
+      "reason": "Reads the owner's clipboard, which often holds passwords, tokens, or private text."
+    },
+    {
+      "id": "agent-desktop-close-app",
+      "decision": "ask",
+      "command": "agent-desktop close-app",
+      "reason": "Closes a desktop app and can lose its unsaved work."
+    },
+    {
+      "id": "agent-desktop-dismiss-all-notifications",
+      "decision": "ask",
+      "command": "agent-desktop dismiss-all-notifications",
+      "reason": "Clears every desktop notification before the owner reads it."
+    },
+    {
+      "id": "agent-desktop-notification-action",
+      "decision": "ask",
+      "command": "agent-desktop notification-action",
+      "reason": "Runs a notification's action button, such as reply, accept, or delete, in another app."
     }
   ]
 }

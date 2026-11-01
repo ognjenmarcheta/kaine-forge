@@ -157,9 +157,30 @@ function scanCommands(command, shell) {
   return segments;
 }
 
+/** agent-desktop global options that take a value; the CLI accepts them before the subcommand. */
+const AGENT_DESKTOP_VALUED = [
+  "--session",
+  "--agent-id",
+  "--trace",
+  "--screenshot",
+  "-w",
+  "--wait-for",
+  "--wait-for-gone",
+  "--wait-timeout"
+];
+
 /** @param {string[]} tokens @returns {string[]} */
 function normalizeCommand(tokens) {
   const [executable, ...args] = tokens;
+  if (executable === "agent-desktop") {
+    // Move leading global options after the subcommand, so a command rule still matches its
+    // prefix and a flag rule such as --headed still sees the option.
+    let index = 0;
+    while (args[index]?.startsWith("-")) {
+      index += AGENT_DESKTOP_VALUED.includes(args[index]) && args[index + 1] !== undefined ? 2 : 1;
+    }
+    return [executable, ...args.slice(index), ...args.slice(0, index)];
+  }
   if (executable !== "pnpm" && executable !== "git" && executable !== "but") return tokens;
   const valued =
     executable === "pnpm"
@@ -209,7 +230,9 @@ function hasFlag(tokens, flag) {
         ? ["-b", "--body", "-F", "--body-file", "-R", "--repo"]
         : tokens[0] === "but"
           ? ["-m", "--message", "-F", "--file"]
-          : [];
+          : tokens[0] === "agent-desktop"
+            ? AGENT_DESKTOP_VALUED
+            : [];
   for (let index = 1; index < tokens.length; index++) {
     if (tokens[index] === "--") break;
     if (valued.includes(tokens[index])) index++;
