@@ -11,14 +11,18 @@ import { Drawer } from "expo-router/drawer";
 import { useState } from "react";
 import { View } from "react-native";
 
+import { ConfirmModal } from "../../src/components/confirm-modal";
 import { ThemeOptions } from "../../src/components/theme-options";
 import { useApplyOrganizationTheme } from "../../src/hooks/use-apply-organization-theme";
 import { useAuth } from "../../src/hooks/use-auth";
 import { useOrganization } from "../../src/hooks/use-organization";
+import { useSignOut } from "../../src/hooks/use-sync";
 import { useTranslation } from "../../src/hooks/use-translation";
 
 function DrawerContent(props: DrawerContentComponentProps) {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
+  const { signOut, countPendingChanges } = useSignOut();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const { language, setLanguage, t } = useTranslation();
   const { organizations, activeOrganizationId, setActiveOrganization } = useOrganization();
   const organizationsVisible = useFeatureFlag(FEATURE_FLAGS.ORGANIZATIONS_VISIBLE);
@@ -81,10 +85,32 @@ function DrawerContent(props: DrawerContentComponentProps) {
             {t("error.generic")}
           </Text>
         ) : null}
-        <Button appearance="ghost" onPress={() => void logout().catch(() => setError(true))}>
+        <Button
+          appearance="ghost"
+          onPress={() => {
+            // Signing out deletes changes not yet synced, in every Organization: ask first.
+            void countPendingChanges().then((pending) => {
+              if (pending > 0) setConfirmSignOut(true);
+              else void signOut().catch(() => setError(true));
+            });
+          }}
+        >
           {t("auth.logout")}
         </Button>
       </View>
+      <ConfirmModal
+        cancelLabel={t("button.cancel")}
+        confirmLabel={t("sync.signOut.confirm")}
+        confirmingLabel={t("common.loadingShort")}
+        isOpen={confirmSignOut}
+        message={t("sync.signOut.message")}
+        title={t("sync.signOut.title")}
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          void signOut().catch(() => setError(true));
+        }}
+      />
     </DrawerContentScrollView>
   );
 }

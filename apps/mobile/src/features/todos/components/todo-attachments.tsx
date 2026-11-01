@@ -5,16 +5,21 @@ import { useState } from "react";
 import { Linking, View } from "react-native";
 
 import { ConfirmModal } from "../../../components/confirm-modal";
-import { useDeleteMobileFileMutation } from "../../../graphql/generated/react-query";
+import {
+  GetMobileTodoAttachmentLinksDocument,
+  useDeleteMobileFileMutation,
+  type GetMobileTodoAttachmentLinksQuery,
+  type GetMobileTodoAttachmentLinksQueryVariables
+} from "../../../graphql/generated/react-query";
 import { useFileUpload } from "../../../hooks/use-file-upload";
 import { useTranslation } from "../../../hooks/use-translation";
+import { useGraphqlFetcher } from "../../../lib/graphql-codegen-fetcher";
 
 interface Attachment {
   id: string;
   originalName: string;
   mimeType: string;
   sizeBytes: number;
-  downloadUrl?: string | null;
 }
 
 interface TodoAttachmentsProps {
@@ -28,6 +33,11 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deleteFileMutation = useDeleteMobileFileMutation();
+  // Signed links expire, so sync never stores them: each download asks for a fresh one.
+  const fetchLinks = useGraphqlFetcher<
+    GetMobileTodoAttachmentLinksQuery,
+    GetMobileTodoAttachmentLinksQueryVariables
+  >(GetMobileTodoAttachmentLinksDocument);
 
   const uploader = useFileUpload({
     entityType: "todo",
@@ -74,10 +84,12 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
   }
 
   async function handleDownload(file: Attachment) {
-    if (!file.downloadUrl) return;
     setError(null);
     try {
-      await Linking.openURL(file.downloadUrl);
+      const { files } = await fetchLinks({ todoId });
+      const url = files.items.find((item) => item.id === file.id)?.downloadUrl;
+      if (!url) throw new Error("no download link");
+      await Linking.openURL(url);
     } catch {
       setError(t("todos.attachments.error.downloadFailed"));
     }
@@ -126,17 +138,15 @@ export function TodoAttachments({ todoId, attachments, onChanged }: TodoAttachme
             </Text>
           </View>
           <View className="flex-row gap-2">
-            {file.downloadUrl ? (
-              <Button
-                appearance="ghost"
-                spacing="compact"
-                onPress={() => {
-                  void handleDownload(file);
-                }}
-              >
-                {t("todos.attachments.download")}
-              </Button>
-            ) : null}
+            <Button
+              appearance="ghost"
+              spacing="compact"
+              onPress={() => {
+                void handleDownload(file);
+              }}
+            >
+              {t("todos.attachments.download")}
+            </Button>
             <Button
               appearance="ghost"
               spacing="compact"

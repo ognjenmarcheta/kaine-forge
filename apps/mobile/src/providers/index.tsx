@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AuthProvider } from "./auth.provider";
 import { OrganizationProvider } from "./organization.provider";
 import { QueryProvider } from "./query.provider";
+import { SyncProvider } from "./sync.provider";
 import { ThemeProvider } from "./theme.provider";
 import { TranslationProvider } from "./translation.provider";
 
@@ -16,7 +17,9 @@ export function AppProviders({ children }: AppProvidersProps) {
       <ThemeProvider>
         <QueryProvider>
           <AuthProvider>
-            <OrganizationProvider>{children}</OrganizationProvider>
+            <OrganizationProvider>
+              <SyncProvider>{children}</SyncProvider>
+            </OrganizationProvider>
           </AuthProvider>
         </QueryProvider>
       </ThemeProvider>
