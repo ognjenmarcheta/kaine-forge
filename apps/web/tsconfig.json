@@ -1,6 +1,8 @@
 {
   "extends": "../../packages/config/typescript/tsconfig.react.json",
   "compilerOptions": {
+    // DOM.AsyncIterable: sign-out lists the device databases in OPFS (src/lib/sync-storage.ts).
+    "lib": ["ES2022", "DOM", "DOM.AsyncIterable"],
     "types": ["vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],

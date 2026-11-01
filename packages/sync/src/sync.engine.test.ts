@@ -1,8 +1,14 @@
+import {
+  createSQLiteCorePersistenceAdapter,
+  type PersistedCollectionPersistence,
+  type SQLiteDriver
+} from "@tanstack/db-sqlite-persistence-core";
 import type {
   LeaderElection,
   OnlineDetector,
   StorageAdapter
 } from "@tanstack/offline-transactions";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSyncEngine, type SyncEngine } from "./sync.engine";
@@ -166,6 +172,73 @@ function controlledOnline(): OnlineDetector & { set: (online: boolean) => void }
   };
 }
 
+/**
+ * Device storage over Node's built-in SQLite, standing in for the browser's
+ * OPFS database. Like the browser's worker, it runs one operation at a time.
+ * `idle` waits until no storage call is in flight, as a page that closes
+ * after its writes have finished.
+ */
+function deviceStorage(): {
+  persistence: PersistedCollectionPersistence;
+  idle: () => Promise<void>;
+} {
+  const db = new DatabaseSync(":memory:");
+  // SAFETY: the persistence adapter binds only SQLite values: text, numbers, null, and bytes.
+  const bind = (params: ReadonlyArray<unknown> = []) => params as SQLInputValue[];
+
+  function connection(depth: number): SQLiteDriver {
+    const direct: SQLiteDriver = {
+      exec: async (sql) => {
+        db.exec(sql);
+      },
+      // SAFETY: each caller names the row shape its own SELECT returns.
+      query: async <T>(sql: string, params?: ReadonlyArray<unknown>) =>
+        db.prepare(sql).all(...bind(params)) as T[],
+      run: async (sql, params) => {
+        db.prepare(sql).run(...bind(params));
+      },
+      async transaction(fn) {
+        const savepoint = `sp${String(depth)}`;
+        db.exec(depth === 0 ? "BEGIN" : `SAVEPOINT ${savepoint}`);
+        try {
+          const result = await fn(connection(depth + 1));
+          db.exec(depth === 0 ? "COMMIT" : `RELEASE ${savepoint}`);
+          return result;
+        } catch (error) {
+          db.exec(depth === 0 ? "ROLLBACK" : `ROLLBACK TO ${savepoint}`);
+          throw error;
+        }
+      }
+    };
+    return direct;
+  }
+
+  // Top-level calls queue; a transaction's own calls run inside it.
+  const inner = connection(0);
+  let queue: Promise<unknown> = Promise.resolve();
+  function serial<T>(run: () => Promise<T>): Promise<T> {
+    const result = queue.then(run, run);
+    queue = result.catch(() => undefined);
+    return result;
+  }
+  const driver: SQLiteDriver = {
+    exec: (sql) => serial(() => inner.exec(sql)),
+    query: <T>(sql: string, params?: ReadonlyArray<unknown>) =>
+      serial(() => inner.query<T>(sql, params)),
+    run: (sql, params) => serial(() => inner.run(sql, params)),
+    transaction: (fn) => serial(() => inner.transaction(fn))
+  };
+  async function idle() {
+    let last: Promise<unknown>;
+    do {
+      last = queue;
+      await last;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } while (last !== queue);
+  }
+  return { persistence: { adapter: createSQLiteCorePersistenceAdapter({ driver }) }, idle };
+}
+
 const alwaysLeader: LeaderElection = {
   requestLeadership: async () => true,
   releaseLeadership: () => undefined,
@@ -177,7 +250,8 @@ const engines: SyncEngine[] = [];
 
 function start(
   server: ReturnType<typeof createFakeServer>,
-  onRejected?: (r: SyncRejection) => void
+  onRejected?: (r: SyncRejection) => void,
+  persistence?: PersistedCollectionPersistence
 ) {
   const online = controlledOnline();
   const engine = createSyncEngine({
@@ -185,7 +259,8 @@ function start(
     storage: memoryStorage(),
     onlineDetector: online,
     leaderElection: alwaysLeader,
-    ...(onRejected ? { onRejected } : {})
+    ...(onRejected ? { onRejected } : {}),
+    ...(persistence ? { persistence } : {})
   });
   engines.push(engine);
   return { engine, online };
@@ -368,5 +443,66 @@ describe("createSyncEngine", () => {
 
     await vi.waitFor(() => expect(server.todos.has(id)).toBe(true), { timeout: 5_000 });
     await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+  });
+});
+
+describe("createSyncEngine with device storage", () => {
+  it("shows stored rows before any pull, then pulls only the changes after the stored cursor", async () => {
+    const { persistence, idle } = deviceStorage();
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "First", description: null, noteId: null } });
+    const first = start(server, undefined, persistence).engine;
+    await first.ready;
+    await idle();
+    first.dispose();
+
+    server.apply({ todoCreate: { id: "t2", title: "Second", description: null, noteId: null } });
+    const cursors: Array<string | null> = [];
+    const pullOnce = server.transport.pull;
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.transport.pull = async (cursor) => {
+      cursors.push(cursor);
+      await released;
+      return pullOnce(cursor);
+    };
+    const second = start(server, undefined, persistence).engine;
+
+    await vi.waitFor(() => expect(second.todos.isReady()).toBe(true));
+    expect(titles(second)).toEqual(["First"]);
+    release();
+    await second.ready;
+
+    expect(titles(second)).toEqual(["First", "Second"]);
+    expect(cursors).toHaveLength(1);
+    expect(cursors).not.toContain(null);
+  });
+
+  it("rebuilds the stored rows in full when the server asks for a reset", async () => {
+    const { persistence, idle } = deviceStorage();
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "Kept", description: null, noteId: null } });
+    server.apply({ todoCreate: { id: "t2", title: "Gone", description: null, noteId: null } });
+    const first = start(server, undefined, persistence).engine;
+    await first.ready;
+    await idle();
+    first.dispose();
+    // The server lost t2 without a Tombstone the client can still read.
+    server.todos.delete("t2");
+    server.state.reset = true;
+
+    const second = start(server, undefined, persistence).engine;
+    await second.ready;
+    server.state.reset = false;
+    expect(titles(second)).toEqual(["Kept"]);
+    await idle();
+    second.dispose();
+
+    server.state.online = false;
+    const third = start(server, undefined, persistence).engine;
+    await third.ready;
+    expect(titles(third)).toEqual(["Kept"]);
   });
 });

@@ -6,6 +6,7 @@ import { useAuth } from "../hooks/use-auth";
 import { useOrganization } from "../hooks/use-organization";
 import { useTranslation } from "../hooks/use-translation";
 import { createGraphqlClient } from "../lib/graphql-client";
+import { openDeviceStorage } from "../lib/sync-storage";
 import { createSyncTransport } from "../lib/sync-transport";
 
 /** The sync engine of the signed-in User's Active Organization, or null without one. */
@@ -13,8 +14,8 @@ export const SyncContext = createContext<SyncEngine | null>(null);
 
 /**
  * One sync engine per (User, Active Organization). A switch disposes the old
- * engine; its Outbox stays on the device under its own name and resumes when
- * the User returns to that Organization.
+ * engine; its Outbox and stored rows stay on the device under their own names
+ * and resume when the User returns to that Organization.
  */
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
@@ -32,21 +33,33 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setCurrent(null);
       return;
     }
-    const { storage, leaderElection } = browserSyncStores({
-      userId,
-      organizationId: activeOrganizationId
-    });
-    const next = createSyncEngine({
-      transport: createSyncTransport(createGraphqlClient(latest.current.session)),
-      storage,
-      ...(leaderElection ? { leaderElection } : {}),
-      onRejected: ({ code }) => {
-        toast.error(latest.current.t(`sync.rejected.${code}`));
+    const organizationId = activeOrganizationId;
+    const opening = new AbortController();
+    let started: SyncEngine | null = null;
+    let closeStorage: (() => Promise<void>) | null = null;
+    void (async () => {
+      const device = await openDeviceStorage({ userId, organizationId }, opening.signal);
+      if (opening.signal.aborted) {
+        await device?.close();
+        return;
       }
-    });
-    setCurrent({ scope, engine: next });
+      closeStorage = device?.close ?? null;
+      const { storage, leaderElection } = browserSyncStores({ userId, organizationId });
+      started = createSyncEngine({
+        transport: createSyncTransport(createGraphqlClient(latest.current.session)),
+        storage,
+        ...(leaderElection ? { leaderElection } : {}),
+        ...(device ? { persistence: device.persistence } : {}),
+        onRejected: ({ code }) => {
+          toast.error(latest.current.t(`sync.rejected.${code}`));
+        }
+      });
+      setCurrent({ scope, engine: started });
+    })();
     return () => {
-      next.dispose();
+      opening.abort();
+      started?.dispose();
+      void closeStorage?.();
     };
   }, [scope, userId, activeOrganizationId]);
 

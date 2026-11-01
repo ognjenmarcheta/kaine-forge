@@ -2,6 +2,7 @@ import { browserSyncStorePrefix, type SyncEngine, type SyncStatus } from "@repo/
 import { useCallback, useContext, useSyncExternalStore } from "react";
 
 import { useAuth } from "./use-auth";
+import { deleteDeviceStorage } from "../lib/sync-storage";
 import { SyncContext } from "../providers/sync.provider";
 
 /** The Active Organization's sync engine, or null while none runs (signed out, no Organization). */
@@ -78,6 +79,7 @@ export function useSignOut(): {
     for (const name of await browserSyncStores(userId).catch(() => [])) {
       indexedDB.deleteDatabase(name);
     }
+    await deleteDeviceStorage(userId).catch(() => undefined);
   }, [engine, logout, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;

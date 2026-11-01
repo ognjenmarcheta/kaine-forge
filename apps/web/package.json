@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "catalog:",
+    "@journeyapps/wa-sqlite": "catalog:",
     "@marsidev/react-turnstile": "1.6.3",
     "@paddle/paddle-js": "catalog:",
     "@repo/auth": "workspace:*",
@@ -30,6 +31,7 @@
     "@repo/todos": "workspace:*",
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@tanstack/browser-db-sqlite-persistence": "catalog:",
     "@tanstack/react-db": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-devtools": "^5.104.5",

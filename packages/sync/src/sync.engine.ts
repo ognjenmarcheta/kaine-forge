@@ -3,8 +3,14 @@ import {
   type Collection,
   type PendingMutation,
   type SyncAppliedReceipt,
+  type SyncConfig,
+  type SyncMetadataApi,
   type Transaction
 } from "@tanstack/db";
+import {
+  persistedCollectionOptions,
+  type PersistedCollectionPersistence
+} from "@tanstack/db-sqlite-persistence-core";
 import {
   BroadcastChannelLeader,
   IndexedDBAdapter,
@@ -31,9 +37,10 @@ import { SyncAuthError, SyncRequestError, toSyncMutation, type SyncEntity } from
 
 /** How often a client pulls without a poke: realtime events reach one API process only. */
 const PULL_INTERVAL_MS = 60_000;
-// Numbers each engine's collections: a mounted live query requires a collection
-// id to keep naming one collection, so a new engine after an Organization
-// switch must not reuse the old engine's ids.
+/** Raise when a stored row's shape changes: older stored rows are then dropped and pulled again. */
+const SYNC_SCHEMA_VERSION = 1;
+/** The collection metadata key that keeps the pull cursor beside the stored rows. */
+const CURSOR_KEY = "syncCursor";
 let engineCount = 0;
 
 export interface SyncEngineOptions {
@@ -48,9 +55,19 @@ export interface SyncEngineOptions {
   pullIntervalMs?: number;
   /** A Pending Change the server refused; it was already rolled back. */
   onRejected?: (rejection: SyncRejection) => void;
+  /**
+   * Device storage for the synced rows, for the same User and Organization as
+   * the Outbox. Without it the rows live in memory and every start pulls them all.
+   */
+  persistence?: PersistedCollectionPersistence;
 }
 
 export interface SyncEngine {
+  /**
+   * Unique per engine. A live query keys on it: collection ids repeat across
+   * engines, and a mounted query must never reuse an id for another collection.
+   */
+  id: string;
   todos: Collection<SyncTodo, string>;
   notes: Collection<SyncNote, string>;
   /** Resolves once the Outbox is loaded and the first pull settled, whether or not it succeeded. */
@@ -86,26 +103,46 @@ interface SyncHandle<TRow extends { id: string }> {
   commit: () => SyncAppliedReceipt;
   truncate: () => void;
   markReady: () => void;
+  metadata?: SyncMetadataApi<string> | undefined;
 }
 
 /** One synced collection: its sync run's handle, and the keys in its synced state. */
 interface SyncTarget<TRow extends { id: string }> {
   handle: SyncHandle<TRow> | null;
   keys: Set<string>;
+  /** Resolves when the collection starts its sync run, after stored rows load. */
+  started: Promise<void>;
+  start: () => void;
+}
+
+function syncTarget<TRow extends { id: string }>(): SyncTarget<TRow> {
+  let start: () => void = () => undefined;
+  const started = new Promise<void>((resolve) => {
+    start = resolve;
+  });
+  return { handle: null, keys: new Set(), started, start };
+}
+
+/** The pull cursor stored beside a collection's rows, if any. */
+function storedCursor<TRow extends { id: string }>(target: SyncTarget<TRow>): string | null {
+  const value = target.handle?.metadata?.collection.get(CURSOR_KEY);
+  return typeof value === "string" ? value : null;
 }
 
 /**
  * Writes one page's rows and deletions into a collection's synced state. It
- * never awaits the commit: during a push, sync commits wait for the push.
+ * never awaits the commit: during a push, sync commits wait for the push. A
+ * stored collection also stores the page's cursor in the same commit, so its
+ * rows and cursor never disagree.
  */
 function applyRows<TRow extends { id: string }>(
   target: SyncTarget<TRow>,
-  values: TRow[],
-  deletedIds: string[],
-  reset: boolean
+  page: { values: TRow[]; deletedIds: string[]; cursor: string | null },
+  { reset, stored }: { reset: boolean; stored: boolean }
 ): void {
   const { handle, keys } = target;
-  if (!handle || (!reset && values.length === 0 && deletedIds.length === 0)) return;
+  const { values, deletedIds, cursor } = page;
+  if (!handle || (!reset && !stored && values.length === 0 && deletedIds.length === 0)) return;
 
   handle.begin();
   if (reset) {
@@ -119,6 +156,7 @@ function applyRows<TRow extends { id: string }>(
   for (const id of deletedIds) {
     if (keys.delete(id)) handle.write({ type: "delete", key: id });
   }
+  if (stored && cursor !== null) handle.metadata?.collection.set(CURSOR_KEY, cursor);
   void handle.commit();
 }
 
@@ -130,9 +168,10 @@ function applyRows<TRow extends { id: string }>(
  */
 export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const { transport } = options;
+  const stored = options.persistence !== undefined;
   // The synced keys tell an insert from an update.
-  const todoTarget: SyncTarget<SyncTodo> = { handle: null, keys: new Set() };
-  const noteTarget: SyncTarget<SyncNote> = { handle: null, keys: new Set() };
+  const todoTarget = syncTarget<SyncTodo>();
+  const noteTarget = syncTarget<SyncNote>();
   let cursor: string | null = null;
   let pulling = false;
   let pullFailed = false;
@@ -143,40 +182,52 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   let disposed = false;
   let status: SyncStatus = { state: "syncing", pending: 0 };
   const listeners = new Set<(status: SyncStatus) => void>();
-  const instance = ++engineCount;
+  const id = `sync-engine:${String(++engineCount)}`;
 
-  function register<TRow extends { id: string }>(
-    target: SyncTarget<TRow>,
-    handle: SyncHandle<TRow>
-  ): () => void {
-    target.handle = handle;
-    return () => {
-      target.handle = null;
+  /**
+   * A collection fed by the pull. Stored, its rows load from the device
+   * before its sync run starts, and its pull cursor is stored beside them.
+   */
+  function synced<TRow extends { id: string }>(
+    collectionId: string,
+    target: SyncTarget<TRow>
+  ): Collection<TRow, string> {
+    const config = {
+      id: collectionId,
+      getKey: (row: TRow) => row.id,
+      startSync: true,
+      gcTime: 0,
+      sync: {
+        rowUpdateMode: "full" as const,
+        sync: ({
+          begin,
+          write,
+          commit,
+          truncate,
+          markReady,
+          metadata
+        }: Parameters<SyncConfig<TRow, string>["sync"]>[0]) => {
+          target.handle = { begin, write, commit, truncate, markReady, metadata };
+          target.start();
+          return () => {
+            target.handle = null;
+          };
+        }
+      }
     };
+    return options.persistence
+      ? createCollection(
+          persistedCollectionOptions<TRow, string>({
+            ...config,
+            persistence: options.persistence,
+            schemaVersion: SYNC_SCHEMA_VERSION
+          })
+        )
+      : createCollection<TRow, string>(config);
   }
 
-  const todos = createCollection<SyncTodo, string>({
-    id: `todos:${String(instance)}`,
-    getKey: (todo) => todo.id,
-    startSync: true,
-    gcTime: 0,
-    sync: {
-      rowUpdateMode: "full",
-      sync: ({ begin, write, commit, truncate, markReady }) =>
-        register(todoTarget, { begin, write, commit, truncate, markReady })
-    }
-  });
-  const notes = createCollection<SyncNote, string>({
-    id: `notes:${String(instance)}`,
-    getKey: (note) => note.id,
-    startSync: true,
-    gcTime: 0,
-    sync: {
-      rowUpdateMode: "full",
-      sync: ({ begin, write, commit, truncate, markReady }) =>
-        register(noteTarget, { begin, write, commit, truncate, markReady })
-    }
-  });
+  const todos = synced("todos", todoTarget);
+  const notes = synced("notes", noteTarget);
 
   function entityOf(collectionId: string): SyncEntity {
     if (collectionId === todos.id) return "TODO";
@@ -192,9 +243,37 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   function apply(page: SyncPullPage, reset: boolean): void {
     const deletedIds = (entity: SyncEntity) =>
-      page.deleted.filter((deletion) => deletion.entity === entity).map(({ id }) => id);
-    applyRows(todoTarget, page.todos, deletedIds("TODO"), reset);
-    applyRows(noteTarget, page.notes, deletedIds("NOTE"), reset);
+      page.deleted.filter((deletion) => deletion.entity === entity).map((deletion) => deletion.id);
+    const mode = { reset, stored };
+    applyRows(
+      todoTarget,
+      { values: page.todos, deletedIds: deletedIds("TODO"), cursor: page.cursor },
+      mode
+    );
+    applyRows(
+      noteTarget,
+      { values: page.notes, deletedIds: deletedIds("NOTE"), cursor: page.cursor },
+      mode
+    );
+  }
+
+  /**
+   * Resumes from the cursor stored with the rows. Both collections store it in
+   * their own commits; when they disagree (a stop between the two), or rows
+   * were stored without one, the first pull rebuilds them in full.
+   */
+  async function restore(): Promise<void> {
+    if (!stored) return;
+    await Promise.all([todoTarget.started, noteTarget.started]);
+    const todoCursor = storedCursor(todoTarget);
+    if (todoCursor !== null && todoCursor === storedCursor(noteTarget)) {
+      cursor = todoCursor;
+      // The stored rows are the state at that cursor: show them before the pull.
+      todoTarget.handle?.markReady();
+      noteTarget.handle?.markReady();
+      return;
+    }
+    resetPending = true;
   }
 
   async function drain(): Promise<void> {
@@ -352,7 +431,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     for (const listener of listeners) listener(status);
   }
 
-  const initialized = executor.waitForInit();
+  const initialized = Promise.all([executor.waitForInit(), restore()]).then(() => undefined);
   const ready = initialized
     .then(() => pull())
     .catch(() => undefined)
@@ -421,6 +500,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   }
 
   return {
+    id,
     todos,
     notes,
     ready,
@@ -471,8 +551,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       for (const subscription of keepAlive) subscription.unsubscribe();
       executor.dispose();
       listeners.clear();
-      void todos.cleanup();
-      void notes.cleanup();
+      // A screen may still read the old engine's rows during an Organization
+      // switch; its live query rebuilds against the new engine.
+      void todos.cleanup({ dependents: true });
+      void notes.cleanup({ dependents: true });
     }
   };
 }

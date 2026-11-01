@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@tanstack/db": "catalog:",
+    "@tanstack/db-sqlite-persistence-core": "catalog:",
     "@tanstack/offline-transactions": "catalog:"
   }
 }

@@ -79,8 +79,15 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     });
   }
 
-  const liveNotes = useLiveQuery(() => (enabled ? engine?.notes : null));
-  const liveTodos = useLiveQuery(() => (enabled ? engine?.todos : null));
+  // Keyed by engine: after an Organization switch the new engine reuses the collection ids.
+  const liveNotes = useLiveQuery({
+    queryKey: ["notes", engine?.id ?? "none", enabled],
+    query: (q) => (enabled && engine ? q.from({ note: engine.notes }) : null)
+  });
+  const liveTodos = useLiveQuery({
+    queryKey: ["todos", engine?.id ?? "none", enabled],
+    query: (q) => (enabled && engine ? q.from({ todo: engine.todos }) : null)
+  });
   const ready = liveNotes.isReady;
   const all = [...(liveNotes.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const lowerPhrase = phrase.toLowerCase();
