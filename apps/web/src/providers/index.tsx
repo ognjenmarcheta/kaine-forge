@@ -7,6 +7,7 @@ import { QueryProvider } from "./query.provider";
 import { SyncProvider } from "./sync.provider";
 import { ThemeProvider } from "./theme.provider";
 import { TranslationProvider } from "./translation.provider";
+import { AppUpdatePrompt } from "../components/app-update-prompt";
 import { useTranslation } from "../hooks/use-translation";
 
 interface AppProvidersProps {
@@ -29,6 +30,8 @@ export function AppProviders({ children }: AppProvidersProps) {
               <SyncProvider>{children}</SyncProvider>
             </OrganizationProvider>
             <AppToaster />
+            {/* The desktop shell loads this build from disk and keeps no service worker. */}
+            {"__TAURI_INTERNALS__" in window ? null : <AppUpdatePrompt />}
           </AuthProvider>
         </QueryProvider>
       </ThemeProvider>

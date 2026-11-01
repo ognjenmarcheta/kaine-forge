@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
@@ -17,7 +18,26 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir: workspaceRoot,
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      // A service worker keeps the app shell, so the app starts with no network
+      // (ADR 0020). It precaches the build, answers navigations with index.html,
+      // and never caches the API. The app registers it (AppUpdatePrompt), except
+      // in the desktop shell, which loads this same build from disk.
+      VitePWA({
+        injectRegister: false,
+        registerType: "prompt",
+        manifest: false,
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2,wasm}"],
+          navigateFallback: "/index.html",
+          navigateFallbackDenylist: [/^\/api\//, /^\/graphql/],
+          // The device database's SQLite WebAssembly is about 1.1 MB.
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
+        }
+      })
+    ],
     resolve: {
       alias: {
         "@repo/ui/styles/globals.css": path.join(

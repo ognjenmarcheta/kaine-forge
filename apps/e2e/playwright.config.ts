@@ -28,7 +28,10 @@ export default defineConfig({
     : [["list"]],
   use: {
     baseURL: "http://127.0.0.1:3010",
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
+    // The production build registers a service worker, which would answer
+    // requests before page.route mocks see them. Specs that test it allow it.
+    serviceWorkers: "block"
   },
   projects: [
     {
