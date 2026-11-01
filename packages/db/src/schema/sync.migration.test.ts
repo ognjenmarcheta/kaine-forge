@@ -231,15 +231,10 @@ describe("sync triggers on a schema built by drizzle-kit push", () => {
   beforeAll(async () => {
     database = await createTestDatabase();
     // What a pushed schema lacks: push applies the tables, never a migration's
-    // functions and triggers.
+    // functions and triggers. CASCADE drops every synced table's triggers too.
     await database.client.exec(`
-      DROP TRIGGER "todos_sync_version" ON "todos";
-      DROP TRIGGER "notes_sync_version" ON "notes";
-      DROP TRIGGER "todos_sync_tombstone" ON "todos";
-      DROP TRIGGER "notes_sync_tombstone" ON "notes";
-      DROP TRIGGER "files_sync_todo_version" ON "files";
       DROP FUNCTION "sync_stamp_version"(), "sync_record_tombstone"(), "sync_next_version"(uuid),
-        "sync_touch_attachment_todos"();
+        "sync_touch_attachment_todos"() CASCADE;
       INSERT INTO users (id, email, name) VALUES ('${USER_ID}', 'owner@example.test', 'Owner');
       INSERT INTO organizations (id, name, slug) VALUES ('${ORG_ID}', 'Org', 'org');
       INSERT INTO todos (title, user_id, organization_id) VALUES
