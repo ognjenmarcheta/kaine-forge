@@ -58,6 +58,10 @@ export async function createPostgresTestDatabase(adminUrl: string): Promise<Post
     pool,
     db,
     close: async () => {
+      // pool.end() resolves before every socket has closed, and DROP ... FORCE
+      // then terminates the backend; the pool re-emits that error, and with no
+      // listener it surfaces as an unhandled error in the test run.
+      pool.on("error", () => undefined);
       await pool.end();
       await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
       await admin.end();

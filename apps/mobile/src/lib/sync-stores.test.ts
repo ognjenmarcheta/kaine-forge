@@ -55,7 +55,7 @@ it("finds every Outbox key of one User, in any Organization, for a sign-out", as
   await createAsyncStorageOutbox({ userId: "u1", organizationId: "o1" }).set("tx:1", "a");
   await createAsyncStorageOutbox({ userId: "u1", organizationId: "o2" }).set("tx:2", "b");
   await createAsyncStorageOutbox({ userId: "u2", organizationId: "o1" }).set("tx:3", "c");
-  store.set("kaine.organization.active", "o1");
+  store.set("organization.active", "o1");
 
   expect((await userOutboxKeys("u1")).sort()).toEqual([
     "kaine-sync:u1:o1:tx:1",
