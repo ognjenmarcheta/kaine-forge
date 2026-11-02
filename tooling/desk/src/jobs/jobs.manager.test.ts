@@ -216,7 +216,9 @@ describe("the scorecard job", () => {
   });
 
   it("wraps the agent's summary in the commit body at commitlint's 100 characters", async () => {
-    const summary = `Full fan-out run: ${"all five probes returned and every dimension is scored ".repeat(4)}`;
+    const words = "all five probes returned and every dimension is scored ".repeat(4).trim();
+    // A nested list item keeps its level, and a word longer than a line is split.
+    const summary = `Full fan-out run.\n  - ${words}\n${"x".repeat(150)}`;
     const h = harness({
       ...success,
       result: { ...success.result, structured: { ...RESULT, summary } }
@@ -228,9 +230,11 @@ describe("the scorecard job", () => {
 
     const files = await createJobStore(path.join(root, "state")).filesDir(id);
     const message = await readFile(path.join(files, "commit-message.txt"), "utf8");
-    const body = message.split("\n").slice(2);
+    const body = message.trimEnd().split("\n").slice(2);
     expect(Math.max(...body.map((line) => line.length))).toBeLessThanOrEqual(100);
-    expect(body.join(" ").replace(/\s+/g, " ").trim()).toBe(summary.trim());
+    expect(body[1]?.startsWith("  - all five")).toBe(true);
+    expect(body[2]?.startsWith("    ")).toBe(true);
+    expect(body.join("").replace(/\s+/g, "")).toBe(summary.replace(/\s+/g, ""));
   });
 
   it("refuses an issue the run did not propose", async () => {
