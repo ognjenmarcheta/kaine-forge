@@ -10,9 +10,11 @@ import {
   readObjectPrefix,
   resolvePublicAssetConfig,
   resolveStorageConfig,
+  uploadObjectStream,
   type PublicAssetConfig,
   type StorageConfig
 } from "@repo/storage";
+import type { Readable } from "node:stream";
 
 import { STORAGE_CONFIG } from "./storage.definition";
 
@@ -57,6 +59,8 @@ export interface ObjectStore {
     contentType: string,
     cacheControl?: string
   ) => Promise<void>;
+  /** Writes a stream of unknown length; a failed stream leaves no object. */
+  putStream: (ref: ObjectRef, body: Readable, contentType: string) => Promise<void>;
   /** Up to `limit` objects of the private bucket under `prefix`, last modified before `before`. */
   listBefore: (prefix: string, before: Date, limit: number) => Promise<ObjectRef[]>;
   /** Settles in bounded time; rejects when the delete fails. */
@@ -117,6 +121,8 @@ export const s3ObjectStore: ObjectStore = {
   get: ({ bucket, key }) => getObjectBytes(client(), bucket, key),
   put: ({ bucket, key }, body, contentType, cacheControl) =>
     putObject(client(), bucket, key, body, { contentType, cacheControl }),
+  putStream: ({ bucket, key }, body, contentType) =>
+    uploadObjectStream(client(), bucket, key, body, { contentType }),
   async listBefore(prefix, before, limit) {
     const { bucket } = config();
     const keys = await listObjectKeysBefore(client(), bucket, prefix, before, limit);
