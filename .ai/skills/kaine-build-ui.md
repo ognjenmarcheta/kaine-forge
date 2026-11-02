@@ -16,6 +16,8 @@ Ship a screen that does its task, follows the active theme, and passes the UI ru
 2. The active theme's `DESIGN.md` (`DESIGN.md` at the root for the default theme).
 3. `CONTEXT.md` for the names of domain concepts on the screen.
 
+The agent desk can add a `@repo/ui` component as a **component job** (ADR 0021): it plans first, waits for the owner's approval, then writes only the component, its test, the package index, a lab specimen (`tooling/desk-ui/src/lab/specimens/`), and `DESIGN_SYSTEM.md`.
+
 ## Steps
 
 1. **Name the task.** Write one line: who uses the screen, to do what, how often. Pick the structure from it: table, list with dividers, split view, form, or dashboard (LAYOUT-1).
@@ -28,6 +30,8 @@ Ship a screen that does its task, follows the active theme, and passes the UI ru
 ## Reference-image mode
 
 Use this mode when the request gives a screenshot, a mockup, or a brand book to recreate. The goal is a 1:1 match wherever the MUST rules allow it. Work in this order; do not start with code.
+
+The agent desk runs this mode for a lab screen as a **screen job** (ADR 0021): the owner uploads the reference in the Lab view, the job's own lab server sets `LAB_URL`, the builder may write only its screen folder, and the engine runs the checks and `lab:diff` before the owner's gate.
 
 1. **Frame the reference.** Find the app's rectangle in the image. Set the screen frame (`width`, `height`) to the app's own size. When the image has a backdrop, a browser window, or a device around the app, set `referenceCrop` to that rectangle in image pixels (the lab's "Align reference" panel finds it).
 2. **Write the visual spec** in the notes file before any code. Measure from the enlarged reference (click it in the compare view); do not guess.

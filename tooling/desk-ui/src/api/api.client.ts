@@ -22,6 +22,8 @@ import {
   lessonReportSchema,
   logResponseSchema,
   runStatsSchema,
+  jobListSchema,
+  jobStateSchema,
   scorecardViewSchema,
   type ActionRequestInput,
   type ActionResponse,
@@ -44,6 +46,9 @@ import {
   type LessonIssueDraft,
   type LessonReport,
   type LogResponse,
+  type JobActionRequest,
+  type JobStartRequest,
+  type JobState,
   type RunStats,
   type ScorecardView
 } from "@repo/desk/contracts";
@@ -84,6 +89,7 @@ const WRITE_HEADERS: Readonly<Record<string, string>> = {
 };
 
 const sessionReplySchema = z.object({ ok: z.literal(true) });
+const jobActionReplySchema = z.object({ job: jobStateSchema.nullable() });
 
 export interface DeskApi {
   readonly exchangeSession: (token: string) => Promise<void>;
@@ -93,8 +99,12 @@ export interface DeskApi {
   readonly stats: () => Promise<RunStats>;
   /** Problems seen in several issues, from `lessons.jsonl`. */
   readonly lessons: () => Promise<LessonReport>;
-  /** The monorepo health scorecard from the checkout's ledger. */
-  readonly scorecard: () => Promise<ScorecardView>;
+  /** The monorepo health scorecard from the checkout's ledger, or from a job's worktree. */
+  readonly scorecard: (jobId?: number) => Promise<ScorecardView>;
+  readonly jobs: () => Promise<JobState[]>;
+  readonly startJob: (request: JobStartRequest) => Promise<JobState>;
+  /** The job after the action, or `null` once it was removed. */
+  readonly jobAction: (jobId: number, action: JobActionRequest) => Promise<JobState | null>;
   /** Mark a lesson handled. A second promote replaces the note. */
   readonly lessonPromote: (key: string, note: string | null) => Promise<LessonReport>;
   /** Make a promoted lesson a candidate again. */
@@ -245,7 +255,15 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     health: () => getJson("/api/health", healthReportSchema),
     stats: () => getJson("/api/stats", runStatsSchema),
     lessons: () => getJson("/api/lessons", lessonReportSchema),
-    scorecard: () => getJson("/api/scorecard", scorecardViewSchema),
+    scorecard: (jobId) =>
+      getJson(
+        jobId === undefined ? "/api/scorecard" : `/api/scorecard?job=${String(jobId)}`,
+        scorecardViewSchema
+      ),
+    jobs: () => getJson("/api/jobs", jobListSchema),
+    startJob: (request) => postJson("/api/jobs", request, jobStateSchema),
+    jobAction: async (jobId, action) =>
+      (await postJson(`/api/jobs/${String(jobId)}/actions`, action, jobActionReplySchema)).job,
     lessonPromote: (key, note) =>
       postJson("/api/lessons/promote", note === null ? { key } : { key, note }, lessonReportSchema),
     lessonUnpromote: (key) => postJson("/api/lessons/unpromote", { key }, lessonReportSchema),

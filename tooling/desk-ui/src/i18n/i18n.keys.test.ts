@@ -8,6 +8,11 @@ import {
   DEFINITION_SOURCES,
   HEALTH_FIXES,
   INTAKE_RECOMMENDATIONS,
+  COMPONENT_LAYERS,
+  JOB_KINDS,
+  JOB_STAGES,
+  JOB_STATUSES,
+  JOB_STOP_REASONS,
   ISSUE_SECTIONS,
   FLOW_NODE_IDS,
   LOOP_KINDS,
@@ -160,7 +165,24 @@ describe("desk translations", () => {
       "desk.scorecard.mode.": SCORECARD_MODES,
       "desk.scorecard.delta.": ["up", "down", "held"],
       "desk.scorecard.sort.": SORTS,
-      "desk.scorecard.findings.show.": FINDING_FILTERS
+      "desk.scorecard.findings.show.": FINDING_FILTERS,
+      "desk.job.title.": JOB_KINDS,
+      "desk.job.start.title.": JOB_KINDS,
+      "desk.job.start.description.": JOB_KINDS,
+      "desk.job.stage.": JOB_STAGES,
+      "desk.job.status.": JOB_STATUSES,
+      "desk.job.stop.": JOB_STOP_REASONS,
+      "desk.job.stepState.": ["done", "current", "todo"],
+      "desk.job.start.component.layer.": COMPONENT_LAYERS,
+      "desk.job.auditReview.severity.": ["must", "should", "could"],
+      "desk.job.": [
+        "cancel",
+        "remove",
+        "cancelConfirm.title",
+        "cancelConfirm.text",
+        "removeConfirm.title",
+        "removeConfirm.text"
+      ]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

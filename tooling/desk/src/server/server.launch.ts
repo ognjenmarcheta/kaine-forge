@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 
 import { createAgentProcess } from "../agents/agent.process";
 import { createHostRunners } from "../agents/agent.runners";
@@ -30,6 +31,7 @@ import {
 import { repoFingerprint } from "../engine/harness.fingerprint";
 import { recoverInterrupted } from "../engine/pipeline.recovery";
 import { createPipelineRunner } from "../engine/pipeline.runner";
+import { worktreeDirFor } from "../engine/pipeline.stage.setup";
 import { diffAgainstBase, createGitPort, tryGit } from "../git";
 import { createGhClient } from "../github/github.gh";
 import { AGENT_LABELS, LABEL_DEFINITIONS } from "../github/github.labels";
@@ -39,6 +41,7 @@ import { buildWorkerImage } from "../isolation/docker.admin";
 import { dockerDoctorChecks } from "../isolation/docker.doctor";
 import { createDockerIsolation } from "../isolation/isolation.docker";
 import { containerCleanupFor } from "../isolation/isolation.select";
+import { createJobManager, createJobStore, type JobManager } from "../jobs";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { createDefinitionWrites, type DefinitionWrites } from "../registry/registry.write";
@@ -64,8 +67,10 @@ export interface DeskRuntime {
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** `maxPrRounds` of the config. */
   readonly prRoundLimit?: number | undefined;
-  /** The monorepo health scorecard of the checkout. */
-  readonly scorecard?: (() => Promise<ScorecardView>) | undefined;
+  /** The monorepo health scorecard of the checkout, or of another checkout (a job worktree). */
+  readonly scorecard?: ((checkout?: string) => Promise<ScorecardView>) | undefined;
+  /** Desk jobs: scorecard runs started from the desk. */
+  readonly jobs?: JobManager | undefined;
   /** `lessons.jsonl` of the desk state, aggregated against the repository's instructions now. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. */
@@ -137,6 +142,19 @@ export const createDefaultDeskRuntime =
       owner: config.owner,
       currentRepo: () => repoFingerprint(location.repoRoot)
     });
+    const jobs = createJobManager({
+      store: createJobStore(location.stateRoot),
+      exec,
+      git: createGitPort(exec),
+      github,
+      runner: runners.claude,
+      clock: systemClock,
+      repoRoot: location.repoRoot,
+      // Beside the issue worktrees: the folder of `KAINE-<n>` is the folder of `KAINE-job-<n>`.
+      worktreesDir: path.dirname(worktreeDirFor({ config, location }, 1)),
+      base: config.baseBranch
+    });
+    await jobs.recover();
     const runner = createPipelineRunner({
       exec,
       git: createGitPort(exec),
@@ -170,13 +188,14 @@ export const createDefaultDeskRuntime =
       },
       readRuns: () => readRunRecords(location.stateRoot),
       prRoundLimit: config.maxPrRounds,
-      scorecard: async () => {
+      scorecard: async (checkout) => {
         const remote = await tryGit(exec, location.repoRoot, ["remote", "get-url", "origin"]);
         return readScorecard({
-          repoRoot: location.repoRoot,
+          repoRoot: checkout ?? location.repoRoot,
           remote: remote.ok ? remote.stdout.trim() : null
         });
       },
+      jobs,
       lessons: lessonDesk.report,
       lessonActions: lessonDesk.actions,
       readDefinitions: () => readDefinitionViews({ repoRoot: location.repoRoot, config }),
@@ -232,7 +251,10 @@ export const createDefaultDeskRuntime =
         return (await diffAgainstBase(exec, state.worktreePath, state.baseSha)).diffHash;
       },
       uiDir: await ensureUiBuilt({ exec, repoRoot: location.repoRoot, print }),
-      dispose: () => notifier.settled()
+      dispose: async () => {
+        await notifier.settled();
+        await jobs.close();
+      }
     };
   };
 
@@ -318,6 +340,7 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       readRuns: runtime.readRuns,
       prRoundLimit: runtime.prRoundLimit,
       scorecard: runtime.scorecard,
+      jobs: runtime.jobs,
       lessons: runtime.lessons,
       lessonActions: runtime.lessonActions,
       readDefinitions: runtime.readDefinitions,

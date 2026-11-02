@@ -27,6 +27,10 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   stats: unexpected("stats"),
   lessons: unexpected("lessons"),
   scorecard: unexpected("scorecard"),
+  // The provider loads the jobs with the issues. Most tests want none.
+  jobs: () => Promise.resolve([]),
+  startJob: unexpected("startJob"),
+  jobAction: unexpected("jobAction"),
   lessonPromote: unexpected("lessonPromote"),
   lessonUnpromote: unexpected("lessonUnpromote"),
   lessonIssuePreview: unexpected("lessonIssuePreview"),
