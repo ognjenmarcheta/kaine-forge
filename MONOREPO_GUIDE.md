@@ -365,7 +365,7 @@ Todos and Notes work offline on web and desktop, and Todos on mobile (mobile has
 - **Tests.** Engine behavior has unit tests in `@repo/sync` and `apps/web/src/lib/sync.testing.ts`, with a fake server. Playwright blocks service workers by default, so `web-offline-start.e2e.ts` and `web-offline-sync.e2e.ts` allow them and run only against the production build (`E2E_SERVE_BUILD=true`, as CI runs them).
 - **Large Organizations.** A first pull loads the newest 500 Todos and Notes. "Load more" past the local rows loads older ones with `engine.loadOlder`, online only. Search sees only the rows on the device.
 - **Note bodies.** A body edit sends `baseBody`, and the server merges edits of different lines. Edits of the same lines are refused with `CONFLICT`, and the web app lets the second writer keep theirs or the current body.
-- **Limits.** Change events reach one API process, so other replicas rely on the pull interval (#802).
+- **Realtime events.** The pubsub (`apps/api/src/pubsub.ts`) sends every event to the other API replicas through Postgres LISTEN/NOTIFY on the `api_pubsub` channel (`pubsub.replicas.ts`). LISTEN needs a session connection, so `DATABASE_URL` must not point at a transaction-mode pooler. While the listener reconnects, clients catch up on their pull interval.
 
 ## 14. Desktop Rules
 

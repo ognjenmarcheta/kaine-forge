@@ -50,6 +50,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
+    "@types/pg": "catalog:",
     "@types/ws": "^8.18.2",
     "pino": "catalog:",
     "vitest": "catalog:"
