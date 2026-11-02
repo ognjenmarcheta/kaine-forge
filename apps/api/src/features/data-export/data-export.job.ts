@@ -8,9 +8,9 @@ import { and, eq, inArray } from "drizzle-orm";
 import {
   collectOrganizationExport,
   collectUserExport,
-  DataExportTooLargeError,
   zipArchive,
-  type ArchiveFiles
+  type ArchiveFiles,
+  type ArchiveStream
 } from "./data-export.archive";
 import { DATA_EXPORT_CONFIG } from "./data-export.definition";
 import type { ObjectStore } from "../storage/attachment.store";
@@ -19,11 +19,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface DataExportJobDeps {
   db: Database;
-  store: Pick<ObjectStore, "delete" | "place" | "put">;
+  store: Pick<ObjectStore, "delete" | "place" | "putStream">;
   /** How long a ready archive stays downloadable. */
   archiveTtlMs: number;
   /** Cap on the archive's JSON before compression. */
   maxArchiveBytes?: number;
+  /** Rows read per query. */
+  pageSize?: number;
   /** Web app origin for the email's link to the export section. */
   webAppUrl: string;
   /** Queues one email through the job runner (#703 templates). */
@@ -40,7 +42,7 @@ function archiveKey(row: DataExportRow): string {
     : `${DATA_EXPORT_CONFIG.userKeyPrefix}/${row.userId ?? "deleted"}/${row.id}.zip`;
 }
 
-async function collect(db: Database, row: DataExportRow): Promise<ArchiveFiles> {
+async function collect(db: Database, row: DataExportRow, pageSize: number): Promise<ArchiveFiles> {
   const subject = row.kind === "user" ? row.userId : row.organizationId;
 
   if (!subject) {
@@ -49,8 +51,8 @@ async function collect(db: Database, row: DataExportRow): Promise<ArchiveFiles> 
 
   const files =
     row.kind === "user"
-      ? await collectUserExport(db, subject)
-      : await collectOrganizationExport(db, subject);
+      ? await collectUserExport(db, subject, pageSize)
+      : await collectOrganizationExport(db, subject, pageSize);
 
   return {
     "export.json": { id: row.id, kind: row.kind, createdAt: row.createdAt },
@@ -59,8 +61,8 @@ async function collect(db: Database, row: DataExportRow): Promise<ArchiveFiles> 
 }
 
 /**
- * Builds one export: it collects the rows, writes one zip to the private
- * bucket, marks the export ready with its expiry, and emails the requester.
+ * Builds one export: it streams the rows, a page at a time, as one zip to the
+ * private bucket, marks the export ready with its expiry, and emails the requester.
  * A failure marks the export failed and is not rethrown, so the job does not
  * retry. An export that is no longer pending or running is left alone.
  */
@@ -69,6 +71,7 @@ export function createDataExportJobHandler({
   store,
   archiveTtlMs,
   maxArchiveBytes = DATA_EXPORT_CONFIG.maxArchiveBytes,
+  pageSize = DATA_EXPORT_CONFIG.pageSize,
   webAppUrl,
   sendEmail,
   logger,
@@ -91,11 +94,15 @@ export function createDataExportJobHandler({
     }
 
     const ref = store.place(archiveKey(row));
+    let archive: ArchiveStream | undefined;
     let stored = false;
 
     try {
-      const archive = await zipArchive(await collect(db, row), maxArchiveBytes);
-      await store.put(ref, archive, DATA_EXPORT_CONFIG.archiveContentType);
+      archive = zipArchive(await collect(db, row, pageSize), {
+        maxJsonBytes: maxArchiveBytes,
+        maxZipBytes: DATA_EXPORT_CONFIG.maxZipBytes
+      });
+      await store.putStream(ref, archive.stream, DATA_EXPORT_CONFIG.archiveContentType);
       stored = true;
       const completedAt = now();
       const expiresAt = new Date(completedAt.getTime() + archiveTtlMs);
@@ -105,7 +112,7 @@ export function createDataExportJobHandler({
           status: "ready",
           bucket: ref.bucket,
           key: ref.key,
-          sizeBytes: archive.byteLength,
+          sizeBytes: archive.sizeBytes(),
           completedAt,
           expiresAt,
           updatedAt: completedAt
@@ -129,7 +136,7 @@ export function createDataExportJobHandler({
         .update(dataExportsTable)
         .set({
           status: "failed",
-          failureReason: error instanceof DataExportTooLargeError ? "too_large" : "error",
+          failureReason: archive?.tooLarge() ? "too_large" : "error",
           completedAt: failedAt,
           updatedAt: failedAt
         })
