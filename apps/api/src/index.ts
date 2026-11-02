@@ -46,7 +46,8 @@ const { resolveAttachmentSweepConfig } = await import("./features/storage/storag
 const { setNotificationDispatcher } = await import("@repo/auth/notifications");
 const { createNotificationDelivery } =
   await import("./features/notifications/notifications.delivery");
-const { pubsub } = await import("./pubsub");
+const { pubsub, replicaEvents } = await import("./pubsub");
+const { startReplicaEvents } = await import("./pubsub.replicas");
 const { setWebhookDeliveryQueue } = await import("./features/webhooks/webhooks.dispatch");
 const { purgeExpiredAuthRows, startHousekeeping } =
   await import("./features/housekeeping/housekeeping.sweep");
@@ -93,8 +94,10 @@ try {
 }
 stopBackgroundWork.push(() => jobQueue.stop());
 
+stopBackgroundWork.push(startReplicaEvents({ target: replicaEvents, pool, logger }));
+
 // Auth actions in this process hand their Notification events to this
-// delivery; the in-process pubsub streams them, so delivery stays here.
+// delivery; the pubsub streams them to every replica.
 setNotificationDispatcher(
   createNotificationDelivery({
     db,

@@ -150,5 +150,5 @@ A product that does not want offline sync removes it in one change:
   - Mobile now needs a dev build for the UUID polyfill; Expo Go cannot run the app.
   - A first pull loads the newest 500 rows of each list; older rows need the network, and search sees only the rows on the device.
   - Two edits of the same Note lines conflict and the second writer chooses; Todo fields stay last-write-wins.
-  - Pubsub pokes reach one API process, so clients also pull on a slow interval.
+  - Pubsub pokes reach every API replica through Postgres LISTEN/NOTIFY (#802). Clients still pull on a slow interval, which covers a listener that is reconnecting.
   - Two persistence paths on desktop and web (OPFS in browsers, Tauri SQL in the desktop shell) need tests on each.
