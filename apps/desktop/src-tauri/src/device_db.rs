@@ -10,6 +10,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
+use rusqlite::hooks::{AuthAction, Authorization};
 use rusqlite::types::{Value, ValueRef};
 use rusqlite::{params_from_iter, Connection};
 use serde::Serialize;
@@ -106,6 +107,17 @@ impl DeviceDatabases {
     }
     fs::create_dir_all(&self.dir).map_err(message)?;
     let connection = Connection::open(self.dir.join(name)).map_err(message)?;
+    // The SQL comes from the webview: no statement may reach a file outside the
+    // directory. SQLite reports both ATTACH and VACUUM INTO as an attach.
+    connection
+      .authorizer(Some(|context: rusqlite::hooks::AuthContext<'_>| {
+        if matches!(context.action, AuthAction::Attach { .. }) {
+          Authorization::Deny
+        } else {
+          Authorization::Allow
+        }
+      }))
+      .map_err(message)?;
     open.insert(name.to_owned(), connection);
     Ok(())
   }
@@ -183,10 +195,29 @@ mod tests {
   use super::*;
   use serde_json::json;
 
-  fn databases(test: &str) -> DeviceDatabases {
+  /// The device databases of one test, in a directory removed when the test ends.
+  struct Scratch(DeviceDatabases);
+
+  impl std::ops::Deref for Scratch {
+    type Target = DeviceDatabases;
+
+    fn deref(&self) -> &DeviceDatabases {
+      &self.0
+    }
+  }
+
+  impl Drop for Scratch {
+    fn drop(&mut self) {
+      // Closed first: an open file cannot be removed on every OS.
+      self.0.lock().clear();
+      let _ = fs::remove_dir_all(&self.0.dir);
+    }
+  }
+
+  fn databases(test: &str) -> Scratch {
     let dir = std::env::temp_dir().join(format!("kaine-device-db-{}-{test}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
-    DeviceDatabases::new(dir)
+    Scratch(DeviceDatabases::new(dir))
   }
 
   fn count(databases: &DeviceDatabases, name: &str) -> Json {
@@ -262,6 +293,24 @@ mod tests {
     for name in ["../a.db", "dir/a.db", ".a.db", "a.sqlite"] {
       assert!(databases.open(name).is_err(), "{name}");
     }
+  }
+
+  #[test]
+  fn refuses_sql_that_writes_a_file_outside_its_directory() {
+    let databases = databases("attach");
+    databases.open("a.db").unwrap();
+    let outside =
+      std::env::temp_dir().join(format!("kaine-device-db-{}-outside.db", std::process::id()));
+    let _ = fs::remove_file(&outside);
+    let path = outside.display().to_string().replace('\'', "''");
+
+    for sql in [
+      format!("ATTACH DATABASE '{path}' AS outside"),
+      format!("VACUUM INTO '{path}'"),
+    ] {
+      assert!(databases.execute("a.db", &sql, &[]).is_err(), "{sql}");
+    }
+    assert!(!outside.exists());
   }
 
   #[test]

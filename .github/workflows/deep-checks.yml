@@ -98,4 +98,6 @@ jobs:
 
       - name: Test desktop Rust
         # The device databases (src/device_db.rs) are the only Rust logic with tests.
-        run: cargo test --lib --manifest-path apps/desktop/src-tauri/Cargo.toml
+        # Run from src-tauri, so Cargo reads its .cargo/config.toml and reuses the cached target dir.
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --lib --locked
