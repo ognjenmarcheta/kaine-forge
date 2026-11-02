@@ -182,6 +182,78 @@ const uiExportNames = async (repoRoot: string): Promise<Set<string>> => {
   return new Set(sources.flatMap(exportedNames));
 };
 
+/** commitlint's `body-max-line-length`. */
+const COMMIT_BODY_WIDTH = 100;
+
+/**
+ * Wrap each line at word breaks to `width`, keeping its leading spaces and its list marker's
+ * indent. A word longer than a row is split, so no row passes `width`.
+ */
+const wrapLines = (text: string, width: number): string =>
+  text
+    .split("\n")
+    .map((line) => {
+      if (line.length <= width) return line;
+      const lead = /^\s*/.exec(line)?.[0] ?? "";
+      const marker = /^(?:[-*]|\d+\.)\s+/.exec(line.slice(lead.length))?.[0] ?? "";
+      const indent = lead + " ".repeat(marker.length);
+      const rows: string[] = [];
+      let row = lead;
+      for (const word of line
+        .slice(lead.length)
+        .split(" ")
+        .filter((entry) => entry !== "")) {
+        let rest = word;
+        while (rest !== "") {
+          const empty = row.trim() === "";
+          const start = empty ? row : `${row} `;
+          const room = Math.max(1, width - start.length);
+          if (rest.length <= room) {
+            row = start + rest;
+            rest = "";
+          } else if (!empty) {
+            rows.push(row);
+            row = indent;
+          } else {
+            rows.push(start + rest.slice(0, room));
+            row = indent;
+            rest = rest.slice(room);
+          }
+        }
+      }
+      if (row.trim() !== "") rows.push(row);
+      return rows.join("\n");
+    })
+    .join("\n");
+
+/**
+ * The labels `.github/repo-setup.json` gives the repository, or `null` when the file is missing,
+ * unreadable, or has no label list. An empty list means the repository has no labels.
+ */
+const repositoryLabels = async (checkout: string): Promise<ReadonlySet<string> | null> => {
+  try {
+    const setup: unknown = JSON.parse(
+      await readFile(path.join(checkout, ".github", "repo-setup.json"), "utf8")
+    );
+    if (typeof setup !== "object" || setup === null || !("labels" in setup)) return null;
+    if (!Array.isArray(setup.labels)) return null;
+    return new Set(
+      setup.labels.flatMap((entry: unknown) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        "name" in entry &&
+        typeof entry.name === "string"
+          ? [entry.name]
+          : typeof entry === "string"
+            ? [entry]
+            : []
+      )
+    );
+  } catch {
+    return null;
+  }
+};
+
 /** The job with its lab server's port, on the kind's own record. */
 const withPort = (job: JobState, port: number | null): JobState => ({
   ...job,
@@ -410,7 +482,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         head,
         date: today(),
         note: state.input.note,
-        feedback: state.feedback
+        feedback: state.feedback,
+        labels: [...((await repositoryLabels(worktree)) ?? [])]
       }),
       schema: scorecardJobResultSchema,
       signal
@@ -640,7 +713,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         referencePath: reference === undefined ? null : path.join(references, reference),
         labUrl: lab.labUrl,
         note: state.input.note,
-        feedback: state.feedback
+        feedback: state.feedback,
+        labels: [...((await repositoryLabels(worktree)) ?? [])]
       }),
       schema: auditJobResultSchema,
       env: { LAB_URL: lab.labUrl },
@@ -664,13 +738,27 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     proposed: readonly ProposedIssue[]
   ): Promise<JobState> => {
     let next = state;
+    const known = await repositoryLabels(worktreeOf(state));
     for (const issue of proposed.filter((entry) => state.approvedIssues.includes(entry.slug))) {
       if (next.filedIssues.some((filed) => filed.slug === issue.slug)) continue;
       const created = await deps.github.createIssue({ title: issue.title, body: issue.body });
       next = { ...next, filedIssues: [...next.filedIssues, { slug: issue.slug, ...created }] };
-      if (issue.labels.length > 0) {
+      // `gh` sets no label when one is unknown, so only known labels are sent. Without the
+      // repository's label list, none is known.
+      const labels = issue.labels.filter((label) => known?.has(label) === true);
+      const unknown = issue.labels.filter((label) => !labels.includes(label));
+      if (unknown.length > 0) {
+        next = record(
+          next,
+          "ship",
+          known === null
+            ? `#${created.number}: labels not set, .github/repo-setup.json has no label list: ${unknown.join(", ")}.`
+            : `#${created.number}: not a label here: ${unknown.join(", ")}.`
+        );
+      }
+      if (labels.length > 0) {
         const argv = ["gh", "issue", "edit", String(created.number)];
-        for (const label of issue.labels) argv.push("--add-label", label);
+        for (const label of labels) argv.push("--add-label", label);
         const labelled = await deps.exec({ argv, cwd: deps.repoRoot, timeoutMs: 60_000 });
         if (labelled.code !== 0) {
           next = record(
@@ -704,7 +792,12 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     if (branch === null) throw new JobStop("failed", "The job has no branch to ship.");
     const files = await deps.store.filesDir(state.id);
     const messageFile = path.join(files, "commit-message.txt");
-    await writeFile(messageFile, `${change.pr.title}\n\n${change.commitBody}\n`, "utf8");
+    // commitlint refuses body lines over 100 characters, and the body is the agent's prose.
+    await writeFile(
+      messageFile,
+      `${change.pr.title}\n\n${wrapLines(change.commitBody, COMMIT_BODY_WIDTH)}\n`,
+      "utf8"
+    );
     const staged = await stageFiles(deps.exec, worktree, change.paths);
     if (!staged.ok) throw new JobStop("failed", `git add failed:\n${staged.log}`);
     const status = await deps.git.statusPorcelain(worktree);

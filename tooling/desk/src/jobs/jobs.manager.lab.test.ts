@@ -261,6 +261,8 @@ describe("the audit job", () => {
     ]);
     expect(h.github.createdPullRequests).toEqual([]);
     expect(h.calls().some((call) => call.startsWith("git push"))).toBe(false);
+    // This checkout has no .github/repo-setup.json, so no label is known and none is sent.
+    expect(h.calls().some((call) => call.startsWith("gh issue edit"))).toBe(false);
     expect(h.stopped).toEqual([job.id]);
     expect(await h.jobs.get(job.id)).toMatchObject({ status: "done" });
   });

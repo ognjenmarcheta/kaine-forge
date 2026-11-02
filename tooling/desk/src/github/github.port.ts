@@ -4,7 +4,7 @@ import { createIssue, fetchIssueSnapshot } from "./github.issue";
 import { labelCreateArgv } from "./github.labels";
 import { fetchPullRequestFeedback } from "./github.pr-feedback";
 import {
-  addPullRequestLabelArgv,
+  addPullRequestLabel,
   createPullRequest,
   findPullRequest,
   viewPullRequest
@@ -64,9 +64,7 @@ export const createGitHubPort = ({ exec, cwd }: GitHubPortOptions): GitHubPort =
     createPullRequest: (request) => createPullRequest(gh, request),
     viewPullRequest: (pr) => viewPullRequest(gh, pr),
     fetchPullRequestFeedback: (pr, headSha) => fetchPullRequestFeedback(gh, pr, headSha),
-    addPullRequestLabel: async (pr, label) => {
-      await gh.text(addPullRequestLabelArgv(pr, label));
-    },
+    addPullRequestLabel: (pr, label) => addPullRequestLabel(gh, pr, label),
     // The body goes through stdin: no shell, no temporary file, no length limit of argv.
     editIssueBody: async (issueNumber, body) => {
       await gh.text(["issue", "edit", String(issueNumber), "--body-file", "-"], body);
