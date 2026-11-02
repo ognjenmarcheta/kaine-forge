@@ -45,6 +45,16 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   const [draftMap, setDraftMap] = useState<ReadonlyMap<string, NoteDraft>>(new Map());
   const drafts: Record<string, NoteDraft> = Object.fromEntries(draftMap);
   const draftsRef = useRef(draftMap);
+  /**
+   * The saved id a new Note's draft moved to, until the page leaves "new". The
+   * route promotes the draft and then navigates; in between, the page still
+   * names it NEW_NOTE, so edits must reach the moved draft and no empty draft
+   * may take its place.
+   */
+  const promoted = useRef<string | null>(null);
+  function keyOf(key: string, all: ReadonlyMap<string, NoteDraft>): string {
+    return key === NEW_NOTE && !all.has(NEW_NOTE) && promoted.current ? promoted.current : key;
+  }
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
@@ -75,8 +85,9 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   }
   function patchDraft(key: string, patch: Partial<NoteDraft>) {
     changeDrafts((current) => {
-      const draft = current.get(key);
-      return draft ? withDraft(current, key, { ...draft, ...patch }) : current;
+      const target = keyOf(key, current);
+      const draft = current.get(target);
+      return draft ? withDraft(current, target, { ...draft, ...patch }) : current;
     });
   }
 
@@ -120,7 +131,7 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     },
     refetch: () => engine?.pull().catch(() => undefined)
   };
-  const selectedDraft = selected ? draftMap.get(selected) : undefined;
+  const selectedDraft = selected ? draftMap.get(keyOf(selected, draftMap)) : undefined;
   const serverId = selectedDraft?.serverId ?? (selected === NEW_NOTE ? null : selected);
   const savedNote = serverId ? all.find((note) => note.id === serverId) : undefined;
   const note: NoteDetail | null = savedNote
@@ -140,8 +151,9 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   };
 
   useEffect(() => {
+    if (selected !== NEW_NOTE) promoted.current = null;
     if (!selected) return;
-    const current = draftsRef.current.get(selected);
+    const current = draftsRef.current.get(keyOf(selected, draftsRef.current));
     if (selected === NEW_NOTE && !current) {
       changeDrafts((all) => withDraft(all, NEW_NOTE, createNoteDraft()));
     } else if (savedNote && current?.status !== "saving") {
@@ -185,7 +197,8 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
       client.invalidateQueries({ queryKey: countKey })
     ]);
   }
-  async function save(key: string) {
+  async function save(requested: string) {
+    const key = keyOf(requested, draftsRef.current);
     const submitted = draftsRef.current.get(key);
     if (!enabled || !engine || !submitted || !canSaveNote(submitted) || locks.current.has(key))
       return;
@@ -267,11 +280,11 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
     /** Whether the sync engine runs. It starts after the device database opens; a write before it would be lost. */
     ready: engine !== null,
     promoteNew: () => {
-      const draft = draftsRef.current.get(NEW_NOTE);
-      if (!draft?.serverId || draft.status === "saving") return;
-      const savedId = draft.serverId;
       changeDrafts((all) => {
-        const next = withDraft(all, savedId, draft);
+        const draft = all.get(NEW_NOTE);
+        if (!draft?.serverId || draft.status === "saving") return all;
+        promoted.current = draft.serverId;
+        const next = withDraft(all, draft.serverId, draft);
         next.delete(NEW_NOTE);
         return next;
       });
