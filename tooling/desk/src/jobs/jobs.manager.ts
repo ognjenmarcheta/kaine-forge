@@ -182,6 +182,55 @@ const uiExportNames = async (repoRoot: string): Promise<Set<string>> => {
   return new Set(sources.flatMap(exportedNames));
 };
 
+/** commitlint's `body-max-line-length`. */
+const COMMIT_BODY_WIDTH = 100;
+
+/** Wrap each line at word breaks to `width`, keeping its list marker's indent. */
+const wrapLines = (text: string, width: number): string =>
+  text
+    .split("\n")
+    .map((line) => {
+      if (line.length <= width) return line;
+      const indent = /^(\s*(?:[-*]|\d+\.)\s+)/.exec(line)?.[1]?.replace(/\S/g, " ") ?? "";
+      const rows: string[] = [];
+      let row = "";
+      for (const word of line.split(" ")) {
+        if (row !== "" && row.length + 1 + word.length > width) {
+          rows.push(row);
+          row = `${indent}${word}`;
+        } else {
+          row = row === "" ? word : `${row} ${word}`;
+        }
+      }
+      return [...rows, row].join("\n");
+    })
+    .join("\n");
+
+/** The labels `.github/repo-setup.json` gives the repository, or none when it has no file. */
+const repositoryLabels = async (checkout: string): Promise<ReadonlySet<string>> => {
+  try {
+    const setup: unknown = JSON.parse(
+      await readFile(path.join(checkout, ".github", "repo-setup.json"), "utf8")
+    );
+    if (typeof setup !== "object" || setup === null || !("labels" in setup)) return new Set();
+    const labels = Array.isArray(setup.labels) ? setup.labels : [];
+    return new Set(
+      labels.flatMap((entry: unknown) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        "name" in entry &&
+        typeof entry.name === "string"
+          ? [entry.name]
+          : typeof entry === "string"
+            ? [entry]
+            : []
+      )
+    );
+  } catch {
+    return new Set();
+  }
+};
+
 /** The job with its lab server's port, on the kind's own record. */
 const withPort = (job: JobState, port: number | null): JobState => ({
   ...job,
@@ -410,7 +459,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         head,
         date: today(),
         note: state.input.note,
-        feedback: state.feedback
+        feedback: state.feedback,
+        labels: [...(await repositoryLabels(worktree))]
       }),
       schema: scorecardJobResultSchema,
       signal
@@ -640,7 +690,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         referencePath: reference === undefined ? null : path.join(references, reference),
         labUrl: lab.labUrl,
         note: state.input.note,
-        feedback: state.feedback
+        feedback: state.feedback,
+        labels: [...(await repositoryLabels(worktree))]
       }),
       schema: auditJobResultSchema,
       env: { LAB_URL: lab.labUrl },
@@ -664,13 +715,21 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     proposed: readonly ProposedIssue[]
   ): Promise<JobState> => {
     let next = state;
+    const known = await repositoryLabels(worktreeOf(state));
     for (const issue of proposed.filter((entry) => state.approvedIssues.includes(entry.slug))) {
       if (next.filedIssues.some((filed) => filed.slug === issue.slug)) continue;
       const created = await deps.github.createIssue({ title: issue.title, body: issue.body });
       next = { ...next, filedIssues: [...next.filedIssues, { slug: issue.slug, ...created }] };
-      if (issue.labels.length > 0) {
+      // `gh` sets no label when one is unknown, so an unknown label is dropped and named.
+      const labels =
+        known.size === 0 ? issue.labels : issue.labels.filter((label) => known.has(label));
+      const unknown = issue.labels.filter((label) => !labels.includes(label));
+      if (unknown.length > 0) {
+        next = record(next, "ship", `#${created.number}: not a label here: ${unknown.join(", ")}.`);
+      }
+      if (labels.length > 0) {
         const argv = ["gh", "issue", "edit", String(created.number)];
-        for (const label of issue.labels) argv.push("--add-label", label);
+        for (const label of labels) argv.push("--add-label", label);
         const labelled = await deps.exec({ argv, cwd: deps.repoRoot, timeoutMs: 60_000 });
         if (labelled.code !== 0) {
           next = record(
@@ -704,7 +763,12 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     if (branch === null) throw new JobStop("failed", "The job has no branch to ship.");
     const files = await deps.store.filesDir(state.id);
     const messageFile = path.join(files, "commit-message.txt");
-    await writeFile(messageFile, `${change.pr.title}\n\n${change.commitBody}\n`, "utf8");
+    // commitlint refuses body lines over 100 characters, and the body is the agent's prose.
+    await writeFile(
+      messageFile,
+      `${change.pr.title}\n\n${wrapLines(change.commitBody, COMMIT_BODY_WIDTH)}\n`,
+      "utf8"
+    );
     const staged = await stageFiles(deps.exec, worktree, change.paths);
     if (!staged.ok) throw new JobStop("failed", `git add failed:\n${staged.log}`);
     const status = await deps.git.statusPorcelain(worktree);
