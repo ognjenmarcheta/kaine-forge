@@ -6,7 +6,9 @@ import {
   PutObjectCommand,
   S3Client
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { Readable } from "node:stream";
 
 import type { StorageConfig, PresignedUploadResult, PresignedDownloadResult } from "./storage.type";
 
@@ -164,6 +166,24 @@ export async function putObject(
       CacheControl: options.cacheControl
     })
   );
+}
+
+/**
+ * Writes a stream of unknown length as one object, by multipart upload. It
+ * buffers at most a few parts, whatever the object's size. When the stream or
+ * a part fails, the multipart upload is aborted, so no object is left.
+ */
+export async function uploadObjectStream(
+  client: S3Client,
+  bucket: string,
+  key: string,
+  body: Readable,
+  options: { contentType: string }
+): Promise<void> {
+  await new Upload({
+    client,
+    params: { Bucket: bucket, Key: key, Body: body, ContentType: options.contentType }
+  }).done();
 }
 
 /** Keys under `prefix` last modified before `before`, at most `limit` of them. */

@@ -1,3 +1,5 @@
+import { buffer } from "node:stream/consumers";
+
 import type { ObjectRef, ObjectStore } from "./attachment.store";
 
 interface StoredObject {
@@ -36,6 +38,9 @@ export function createMemoryObjectStore(bucket = "memory") {
         lastModified: new Date(),
         ...(cacheControl ? { cacheControl } : {})
       });
+    },
+    putStream: async (ref, body, contentType) => {
+      await store.put(ref, await buffer(body), contentType);
     },
     listBefore: async (prefix, before, limit) =>
       [...objects.entries()]
