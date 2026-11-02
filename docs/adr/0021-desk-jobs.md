@@ -68,6 +68,16 @@ Added with the fourth job kind. Flow: setup → audit → gate → file.
 
 Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen and component: $10 and 60 minutes; audit: $5 and 30 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
 
+### Tracking
+
+Added so the owner can score, report, fix, and track scorecard work in the desk.
+
+- **Source labels.** The scorecard and audit jobs add `source:scorecard` and `source:audit` to the issues they file, creating the label with `--force` first. The ledger PR gets `source:scorecard`. An issue run's new PR gets its issue's `source:*` labels, so the fix carries its origin too.
+- **Write-back.** Ship writes each filed issue's number on its finding in the run the job appended, re-renders, and commits. The ledger then links finding to issue without a lookup by title.
+- **Live tracking.** The desk stores nothing about GitHub's state. `GET /api/scorecard/tracking` reads the issues the ledger names, the issues the scorecard jobs filed, and the issues labelled `source:scorecard` in one GraphQL call (once per issue when GitHub refuses the whole call), with each issue's closing PRs and its desk run, cached 60 s. An issue counts as solved when it is closed and a merged PR closed it; the merge date is the solved date.
+- **Backfill.** `POST /api/scorecard/backfill` adds `source:scorecard` to tracked issues without it, only with `confirm: true` and only for issues the tracking lists without the label.
+- **Storage.** No database: GitHub and the ledger are the source of truth, and the desk's own state stays in files. Issue #852 names the triggers and the two upgrade paths (SQLite through `node:sqlite`, or an opt-in deployed store).
+
 ## Consequences
 
 - The desk can run a scorecard end to end, with the owner deciding what is saved and filed.

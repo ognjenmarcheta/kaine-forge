@@ -1219,6 +1219,15 @@ developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents
   - **Run scorecard** starts a scorecard job (see "Jobs" below). While one is open, the page links
     to it instead. `?view=scorecard&job=<n>` is the preview of a job's ledger, read from its
     worktree.
+  - **Tracking.** The page reads the scorecard's issues live from GitHub (cached a minute;
+    **Refresh** reads again): the issues the ledger names, the ones scorecard jobs filed, and
+    every issue labelled `source:scorecard`. **Recently solved** lists the findings whose issue a
+    merged PR closed, newest merge first, with the dimension's score in the last run before the
+    merge and the first run after it. In **Findings**, the issue cell shows the issue, its PR,
+    and its desk run, and an open issue without a run offers **Fix with desk** (the Board's
+    Start). **Sort** orders the findings by severity, recently solved, recently opened,
+    dimension, or state. **Label N older issues** adds `source:scorecard` to tracked issues
+    without it, after a preview you confirm.
 - **Lab.** The UI lab (`?view=lab`): every `@repo/ui` component under every theme, the component
   options, the chart primitives, and the recreated screens with their compare view. Its pages are
   `#/…` routes on that address (`?view=lab#/charts`). The lab calls no desk API, so it opens

@@ -3,7 +3,8 @@ import {
   type ScorecardFinding,
   type ScorecardFlowLayout,
   type ScorecardRun,
-  type ScorecardView as ScorecardData
+  type ScorecardView as ScorecardData,
+  type TrackedIssue
 } from "@repo/desk/contracts";
 import {
   Button,
@@ -27,19 +28,24 @@ import {
   BAND_TONE,
   DISPOSITION_TONE,
   FINDING_FILTERS,
+  FINDING_SORTS,
   SORTS,
   bandOf,
   dimensionRows,
   findingsView,
   isProposed,
+  issueOf,
   scoredCount,
   shortCommit,
   sortRows,
   summaryOf,
   type DimensionRow,
   type FindingFilter,
-  type Sort
+  type FindingSort,
+  type Sort,
+  type Tracking
 } from "./scorecard.model";
+import { IssueCell, RecentlySolved, TrackingBar, useScorecardTracking } from "./scorecard.tracking";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { openJobOf } from "../jobs/job.model";
@@ -541,10 +547,12 @@ function History({
 
 function FindingRow({
   finding,
-  repository
+  repository,
+  tracked
 }: {
   readonly finding: ScorecardFinding;
   readonly repository: string | null;
+  readonly tracked: TrackedIssue | null;
 }) {
   const t = useT();
   return (
@@ -564,7 +572,9 @@ function FindingRow({
         </StatusChip>
       </td>
       <td>
-        {finding.issue === undefined ? (
+        {tracked !== null ? (
+          <IssueCell issue={tracked} />
+        ) : finding.issue === undefined ? (
           <span className="desk-muted">{t("desk.scorecard.findings.noIssue")}</span>
         ) : (
           <External href={githubLink(repository, `issues/${finding.issue}`)}>
@@ -579,6 +589,9 @@ function FindingRow({
 
 const ALL_DIMENSIONS = "all";
 
+const isFindingSort = (value: string): value is FindingSort =>
+  FINDING_SORTS.some((option) => option === value);
+
 /** Proper names and numbers, the same in every language. */
 const DIMENSION_OPTIONS = SCORECARD_DIMENSIONS.map((name, position) => ({
   value: String(position + 1),
@@ -589,20 +602,25 @@ const runLabel = (run: ScorecardRun): string => `${run.date} · ${shortCommit(ru
 
 function Findings({
   run,
-  repository
+  repository,
+  tracking
 }: {
   readonly run: ScorecardRun;
   readonly repository: string | null;
+  readonly tracking: Tracking;
 }) {
   const t = useT();
   const id = useId();
   const [filter, setFilter] = useState<FindingFilter>("open");
+  const [sort, setSort] = useState<FindingSort>("rank");
   const [search, setSearch] = useState("");
   const [dimension, setDimension] = useState<string>(ALL_DIMENSIONS);
   const view = findingsView(run, {
     filter,
     search,
-    dimension: dimension === ALL_DIMENSIONS ? null : Number(dimension)
+    dimension: dimension === ALL_DIMENSIONS ? null : Number(dimension),
+    sort,
+    tracking
   });
   return (
     <Card className="desk-panel">
@@ -644,6 +662,24 @@ function Findings({
             </SelectContent>
           </Select>
         </div>
+        <div className="desk-field">
+          <Label htmlFor={`${id}-sort`}>{t("desk.scorecard.findings.sort")}</Label>
+          <Select
+            value={sort}
+            onValueChange={(value) => setSort(isFindingSort(value) ? value : "rank")}
+          >
+            <SelectTrigger id={`${id}-sort`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FINDING_SORTS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {t(`desk.scorecard.findings.sortBy.${option}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <p className="desk-muted" role="status">
         {t("desk.scorecard.findings.count", { shown: view.rows.length, total: view.total })}
@@ -669,7 +705,12 @@ function Findings({
             </thead>
             <tbody>
               {view.rows.map((finding) => (
-                <FindingRow key={finding.slug} finding={finding} repository={repository} />
+                <FindingRow
+                  key={finding.slug}
+                  finding={finding}
+                  repository={repository}
+                  tracked={issueOf(finding, tracking)}
+                />
               ))}
             </tbody>
           </table>
@@ -770,6 +811,7 @@ function Diagrams({ flows }: { readonly flows: readonly ScorecardFlowLayout[] })
 
 function Report({ data }: { readonly data: Extract<ScorecardData, { state: "ready" }> }) {
   const t = useT();
+  const tracking = useScorecardTracking();
   const [selected, setSelected] = useState(data.runs.length - 1);
   const [sort, setSort] = useState<Sort>("number");
   const id = useId();
@@ -800,10 +842,12 @@ function Report({ data }: { readonly data: Extract<ScorecardData, { state: "read
           </Select>
         </div>
       </div>
+      <TrackingBar tracking={tracking.tracking} reload={tracking.reload} />
+      <RecentlySolved runs={data.runs} issues={tracking.issues} />
       <Summary runs={data.runs} index={index} />
       <Trend runs={data.runs} selected={index} />
       <DimensionsTable rows={rows} sort={sort} onSort={setSort} />
-      <Findings key={index} run={run} repository={data.repository} />
+      <Findings key={index} run={run} repository={data.repository} tracking={tracking.issues} />
       <Calibration notes={data.calibration[shortCommit(run.commit)] ?? []} />
       <History runs={data.runs} index={index} />
       <Diagrams flows={data.flows} />
