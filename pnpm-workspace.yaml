@@ -153,6 +153,9 @@ overrides:
   # GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj, GHSA-3pfx-gxff-vg76 (fixed 1.7.2). Above solid-js's
   # ~1.6.8: no solid-js 1.9 accepts 1.7 yet, and nothing here runs Solid (a better-auth peer).
   "solid-js>seroval": "^1.7.2"
+  # GHSA-fc89-m4rj-8472 (fixed 1.7.5); the floor also skips GHSA-6rwj-6h6r-xmch (1.7.0-1.7.3).
+  # Above solid-js's ~1.6.8 for the same reason as seroval above.
+  "solid-js>seroval-plugins": "^1.7.5"
   source-map-js: "^1.2.2" # GHSA-68fv-2mgg-jv7q via @vitest/coverage-v8>magicast
   compression: "^1.8.2" # GHSA-vc2v-76pw-4v95 via expo>@expo/cli
   # GHSA-mrhx-c7xc-m3w5 has no fixed zod 3.x. @expo/cli 55 asks for zod ^3.25.76 but
