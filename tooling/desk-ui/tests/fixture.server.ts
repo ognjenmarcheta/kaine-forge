@@ -29,6 +29,7 @@ import {
   scenarioBoard,
   scenarioLessons,
   scenarioRuns,
+  scenarioScorecard,
   issueUrl,
   intakeStoppedIssue,
   draftArtifact,
@@ -448,6 +449,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
           }),
         lessons: lessons.report,
         lessonActions: lessons.actions,
+        scorecard: () => Promise.resolve(scenarioScorecard()),
         health: () =>
           Promise.resolve({
             ok: false,

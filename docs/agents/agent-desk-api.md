@@ -53,6 +53,7 @@ import only Zod, so a browser can use them.
 | GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues (with `flowId`) and PRs. Cached 60 s.          |
 | GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.  |
 | GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues. |
+| GET    | `/api/scorecard`                 | `ScorecardView`: the scorecard ledger, `missing`, `invalid`, or `ready`.  |
 | POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.          |
 | POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.      |
 | GET    | `/api/lessons/issue-preview?key` | `LessonIssueDraft`: the exact `{ key, title, body, digest }` to send.     |

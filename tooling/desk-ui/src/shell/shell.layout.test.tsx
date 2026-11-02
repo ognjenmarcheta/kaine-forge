@@ -67,6 +67,8 @@ describe("Shell", () => {
       "Flows",
       "Agents",
       "Health",
+      "Scorecard",
+      "Lab",
       "Runs"
     ]);
   });
@@ -109,6 +111,16 @@ describe("Shell", () => {
     } finally {
       scheme.restore();
     }
+  });
+
+  it("wears the default theme for an unknown stored name and keeps a new choice", async () => {
+    window.localStorage.setItem("kaine-desk-theme-name", "retired-theme");
+    renderDesk(<DeskApp />, fakeApi());
+    await screen.findByRole("button", { name: "Preferences" });
+    expect(document.documentElement.dataset["theme"]).toBe("byte-forge");
+    await choose("Moss");
+    expect(document.documentElement.dataset["theme"]).toBe("moss");
+    expect(window.localStorage.getItem("kaine-desk-theme-name")).toBe("moss");
   });
 
   it("switches the language from the same menu", async () => {

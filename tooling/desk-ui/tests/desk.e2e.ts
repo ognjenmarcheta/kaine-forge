@@ -893,6 +893,67 @@ test("turns a lesson into an issue only after a yes to the exact preview", async
   await expect(page.getByRole("table", { name: "Lesson candidates" })).toHaveCount(0);
 });
 
+test("shows the scorecard: the change, a dimension's reasons, and the fixed findings on request", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=scorecard");
+  await expect(page.getByRole("heading", { name: "Monorepo health", level: 1 })).toBeVisible();
+  const overall = page.getByRole("group", { name: "Overall" });
+  await expect(overall).toContainText("7.7");
+  await expect(overall).toContainText("down 0.3");
+
+  const dimensions = page.locator(".desk-panel", {
+    has: page.getByRole("heading", { name: "Dimensions" })
+  });
+  await expect(dimensions.getByRole("row")).toHaveCount(11);
+  await dimensions.getByRole("button", { name: "Weakest first" }).click();
+  const first = dimensions.getByRole("button", { name: /Testing & Coverage/ });
+  await first.click();
+  await expect(first).toHaveAttribute("aria-expanded", "true");
+  await expect(dimensions.getByText("list 4 is kept by hand")).toBeVisible();
+
+  await expect(page.getByText("Showing 1 of 2")).toBeVisible();
+  await expect(page.getByText("Proposed", { exact: true })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Show findings" })
+    .getByRole("button", { name: "Fixed" })
+    .click();
+  await expect(page.getByRole("link", { name: "#840" })).toHaveAttribute(
+    "href",
+    "https://github.com/owner/repo/issues/840"
+  );
+
+  // The theme follows the preference on every view.
+  await page.getByRole("button", { name: "Preferences" }).click();
+  await page
+    .getByRole("dialog", { name: "Preferences" })
+    .getByRole("button", { name: "Moss" })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "moss");
+});
+
+test("opens the UI lab in the desk, moves between its pages, and serves its frame page alone", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=lab");
+  await expect(page.getByRole("link", { name: "Lab" })).toHaveAttribute("aria-current", "page");
+  const lab = page.getByRole("navigation", { name: "Lab" });
+  await expect(lab.getByRole("link", { name: "Components" })).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
+  await lab.getByRole("link", { name: "Charts" }).click();
+  await expect(page).toHaveURL(/\?view=lab#\/charts$/);
+  await expect(page.getByText("Hover, pin, and switch data")).toBeVisible();
+
+  // The frame page is the lab alone: no desk shell, and it publishes its screens for the scripts.
+  await page.goto("/lab-frame.html#/screens");
+  await page.waitForFunction(() => window.labScreens !== undefined);
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+});
+
 test("offers a command to copy, and repairs the Docker image after a confirmation", async ({
   page,
   desk
@@ -1118,7 +1179,14 @@ test("fits a phone screen without sideways scrolling, with a one-row header", as
   ]) {
     expect((await target.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   }
-  for (const path of ["", "?issue=102", "?issue=103", "?view=health", "?view=stats"]) {
+  for (const path of [
+    "",
+    "?issue=102",
+    "?issue=103",
+    "?view=health",
+    "?view=scorecard",
+    "?view=stats"
+  ]) {
     await page.goto(`/${path}`);
     await expect(page.locator("main")).toBeVisible();
     const overflow = await page.evaluate(
@@ -1159,6 +1227,7 @@ test("on a 390 px phone each view fits its loaded content, with 44 px targets on
       expect(page.getByRole("heading", { name: "What a run gets" })).toBeVisible(),
     "?view=agents": () =>
       expect(page.getByRole("heading", { name: "Release notes", level: 2 })).toBeVisible(),
+    "?view=scorecard": () => expect(page.getByRole("heading", { name: "Findings" })).toBeVisible(),
     "?view=stats": () =>
       expect(page.getByRole("heading", { name: "Promoted lessons" })).toBeVisible()
   };

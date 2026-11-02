@@ -26,6 +26,7 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   healthFix: unexpected("healthFix"),
   stats: unexpected("stats"),
   lessons: unexpected("lessons"),
+  scorecard: unexpected("scorecard"),
   lessonPromote: unexpected("lessonPromote"),
   lessonUnpromote: unexpected("lessonUnpromote"),
   lessonIssuePreview: unexpected("lessonIssuePreview"),

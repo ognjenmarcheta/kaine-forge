@@ -29,6 +29,21 @@ describe("DeskApp session states", () => {
     expect(await screen.findByRole("button", { name: "Try again" })).toBeTruthy();
   });
 
+  it("opens the lab without a desk server, because the lab calls no desk API", async () => {
+    window.history.replaceState(null, "", "?view=lab#/charts");
+    try {
+      renderDesk(
+        <DeskApp />,
+        fakeApi({ issues: () => Promise.reject(new DeskApiError("network", 0, null)) })
+      );
+      const lab = await screen.findByRole("navigation", { name: "Lab" });
+      expect(lab.querySelector('[aria-current="page"]')?.textContent).toBe("Charts");
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("shows the board once the issues load", async () => {
     renderDesk(
       <DeskApp />,

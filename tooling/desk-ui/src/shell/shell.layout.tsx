@@ -1,3 +1,4 @@
+import { themes } from "@repo/theme";
 import { SUPPORTED_LANGUAGES } from "@repo/translation";
 import {
   Button,
@@ -19,7 +20,7 @@ import {
   useYourTurn
 } from "./shell.notify";
 import { CommandPalette, rememberIssue } from "./shell.palette";
-import { THEMES, useNotifyPreference, useTheme } from "./shell.preferences";
+import { THEMES, useNotifyPreference, useTheme, useThemeName } from "./shell.preferences";
 import { RouteLink, useRouter } from "./shell.router";
 import { useFlushUndoOnPageHide } from "./shell.undo";
 import { useLanguage, useT } from "../i18n/i18n.t";
@@ -104,6 +105,7 @@ function Preferences({
   const id = useId();
   const { language, setLanguage } = useLanguage();
   const [theme, setTheme] = useTheme();
+  const [themeName, setThemeName] = useThemeName();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -170,6 +172,14 @@ function Preferences({
             options={THEMES}
             name={(entry) => t(`desk.prefs.appearance.${entry}`)}
             onChange={setTheme}
+          />
+          <h2 className="desk-prefs__title">{t("desk.prefs.theme")}</h2>
+          <Segmented
+            label={t("desk.prefs.theme")}
+            value={themeName}
+            options={themes.map((entry) => entry.name)}
+            name={(entry) => themes.find((item) => item.name === entry)?.label ?? entry}
+            onChange={setThemeName}
           />
           <h2 className="desk-prefs__title">{t("desk.prefs.language")}</h2>
           <Segmented
@@ -274,6 +284,18 @@ export function Shell({ children }: { readonly children: ReactNode }) {
                 aria-current={route.view === "health" ? "page" : undefined}
               >
                 {t("desk.nav.health")}
+              </RouteLink>
+              <RouteLink
+                to={{ view: "scorecard" }}
+                aria-current={route.view === "scorecard" ? "page" : undefined}
+              >
+                {t("desk.nav.scorecard")}
+              </RouteLink>
+              <RouteLink
+                to={{ view: "lab" }}
+                aria-current={route.view === "lab" ? "page" : undefined}
+              >
+                {t("desk.nav.lab")}
               </RouteLink>
               <RouteLink
                 to={{ view: "stats" }}

@@ -16,6 +16,8 @@ import {
   PLAN_RISKS,
   PROVIDERS,
   RUN_FAILURE_KINDS,
+  SCORECARD_DISPOSITIONS,
+  SCORECARD_MODES,
   STAGES,
   STEP_KINDS
 } from "@repo/desk/contracts";
@@ -27,6 +29,7 @@ import { BACK_KINDS } from "../flows/flows.model";
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
 import { TRACE_FILTERS } from "../issue/issue.trace";
+import { BANDS, FINDING_FILTERS, SORTS } from "../scorecard/scorecard.model";
 import { THEMES } from "../shell/shell.preferences";
 import { CHIP_STATES } from "../status/status.model";
 
@@ -151,7 +154,13 @@ describe("desk translations", () => {
       "desk.flows.kind.": [...STEP_KINDS, "setup"],
       "desk.flows.commandSet.": ["loop", "ship", "custom"],
       "desk.flows.commandSetAbout.": ["loop", "ship", "custom"],
-      "desk.flows.edge.": [...BACK_KINDS, ...BACK_KINDS.map((kind) => `${kind}Name`)]
+      "desk.flows.edge.": [...BACK_KINDS, ...BACK_KINDS.map((kind) => `${kind}Name`)],
+      "desk.scorecard.band.": BANDS,
+      "desk.scorecard.disposition.": SCORECARD_DISPOSITIONS,
+      "desk.scorecard.mode.": SCORECARD_MODES,
+      "desk.scorecard.delta.": ["up", "down", "held"],
+      "desk.scorecard.sort.": SORTS,
+      "desk.scorecard.findings.show.": FINDING_FILTERS
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))
