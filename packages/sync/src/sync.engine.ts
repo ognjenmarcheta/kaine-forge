@@ -34,7 +34,13 @@ import type {
   SyncTodoPatch,
   SyncTransport
 } from "./sync.type";
-import { SyncAuthError, SyncRequestError, toSyncMutation, type SyncEntity } from "./sync.util";
+import {
+  SyncAuthError,
+  SyncNetworkError,
+  SyncRequestError,
+  toSyncMutation,
+  type SyncEntity
+} from "./sync.util";
 
 /** How often a client pulls without a poke: realtime events reach one API process only. */
 const PULL_INTERVAL_MS = 60_000;
@@ -101,6 +107,8 @@ export interface SyncEngine {
   loadOlder: (list: SyncList) => Promise<void>;
   /** Drops this device's Pending Changes for the engine's scope, for a sign-out. */
   clearLocalData: () => Promise<void>;
+  /** Pulls and sends waiting changes now, without waiting for the next retry. */
+  retry: () => void;
   getStatus: () => SyncStatus;
   subscribeStatus: (listener: (status: SyncStatus) => void) => () => void;
   dispose: () => void;
@@ -182,6 +190,11 @@ function applyRows<TRow extends { id: string }>(
   return handle.commit();
 }
 
+/** How a failed request shows in the status: no response, or any other failure. */
+function failureOf(error: unknown): "unreachable" | "error" {
+  return error instanceof SyncNetworkError ? "unreachable" : "error";
+}
+
 /**
  * Offline sync for one User in one Organization: Todo and Note collections
  * fed by `syncPull`, and an Outbox that replays local changes through
@@ -195,7 +208,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const noteTarget = syncTarget<SyncNote>();
   let cursor: string | null = null;
   let pulling = false;
-  let pullFailed = false;
+  // The last failed request's kind, until a pull succeeds.
+  let failure: "unreachable" | "error" | null = null;
   // A reset the server asked for, kept until its full pull applies: a failed
   // pull in between must not lose it.
   let resetPending = false;
@@ -345,10 +359,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         cursor = page.cursor;
         if (!page.hasMore) break;
       }
-      pullFailed = false;
+      failure = null;
       signedOut = false;
     } catch (error) {
-      pullFailed = true;
+      failure = failureOf(error);
       if (error instanceof SyncAuthError) signedOut = true;
       throw error;
     } finally {
@@ -410,6 +424,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         });
         throw new NonRetriableError(error.message);
       }
+      // This change retries, so sync is failing; a refused request threw above.
+      failure = failureOf(error);
       throw error;
     } finally {
       queueMicrotask(publish);
@@ -479,15 +495,12 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   function computeStatus(): SyncStatus {
     const pending = executor.getPendingCount();
+    // A failed request wins over Syncing: waiting changes must not hide it.
     const state = signedOut
       ? "signedOut"
       : !executor.isOnline()
         ? "offline"
-        : pulling || pending > 0
-          ? "syncing"
-          : pullFailed
-            ? "error"
-            : "online";
+        : (failure ?? (pulling || pending > 0 ? "syncing" : "online"));
     return { state, pending, older: [...older.keys()].sort() };
   }
 
@@ -516,9 +529,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       publish();
     });
 
+  // A pull publishes as it starts, so a reconnect shows Syncing, not a moment of Online.
   const unsubscribeOnline = executor.getOnlineDetector().subscribe(() => {
-    publish();
     if (executor.isOnline()) void pull().catch(() => undefined);
+    else publish();
   });
   const interval = setInterval(() => {
     void pull().catch(() => undefined);
@@ -656,6 +670,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       await initialized;
       await executor.clearOutbox();
       publish();
+    },
+    retry() {
+      failure = null;
+      // The Outbox drops its backoff and sends at once, and the online listener pulls.
+      executor.getOnlineDetector().notifyOnline();
     },
     getStatus: () => status,
     subscribeStatus(listener) {

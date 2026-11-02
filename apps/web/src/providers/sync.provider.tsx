@@ -1,4 +1,9 @@
-import { browserSyncStores, createSyncEngine, type SyncEngine } from "@repo/sync";
+import {
+  browserSyncStores,
+  createBrowserOnlineDetector,
+  createSyncEngine,
+  type SyncEngine
+} from "@repo/sync";
 import { createContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -53,6 +58,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       started = createSyncEngine({
         transport: createSyncTransport(createGraphqlClient(latest.current.session)),
         storage,
+        // TanStack's default detector counts a visible tab as online, so it never shows Offline.
+        onlineDetector: createBrowserOnlineDetector(window),
         ...(leaderElection ? { leaderElection } : {}),
         ...(device ? { persistence: device.persistence } : {}),
         onRejected: ({ code, id, change }) => {

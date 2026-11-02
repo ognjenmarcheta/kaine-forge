@@ -11,6 +11,9 @@ const TODOS_DESCRIPTION_LABEL = /^(Description|todos\.form\.descriptionPlacehold
 const TODOS_TITLE_LABEL = /^(Title|todos\.form\.titlePlaceholder)$/;
 const TODOS_DELETE_CONFIRM_NAME = /^(Delete todo|todos\.deleteConfirmTitle)$/;
 const BUTTON_DELETE_NAME = /^(Delete|button\.delete)$/;
+const SYNC_STATUS_NAME = /^(Sync status|sync\.status\.label)$/;
+const OFFLINE = /^(Offline – saving on this device|sync\.status\.offline)$/;
+const ONLINE = /^(Online|sync\.status\.online)$/;
 const REJECTED_DELETED =
   /^(A change was not saved: the item was deleted\.|sync\.rejected\.NOT_FOUND)$/;
 
@@ -99,6 +102,8 @@ test("offline changes reach another device, edits of other fields survive, and a
       await navigator.serviceWorker.ready;
     });
     await context.setOffline(true);
+    // A visible tab with no network is offline, not a failing sync.
+    await expect(page.getByRole("status", { name: SYNC_STATUS_NAME })).toHaveText(OFFLINE);
     await addTodo(page, created);
     // Completing sends only `completed`, so the other device's rename must survive it.
     await page.getByRole("checkbox", { name: kept }).check();
@@ -123,6 +128,7 @@ test("offline changes reach another device, edits of other fields survive, and a
     await expect(page.getByRole("checkbox", { name: doomed })).toHaveCount(0);
     await expect(page.getByRole("checkbox", { name: created })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: renamed })).toBeChecked();
+    await expect(page.getByRole("status", { name: SYNC_STATUS_NAME })).toHaveText(ONLINE);
 
     // The other device gets the offline changes from the server.
     await expect(other.getByRole("checkbox", { name: created })).toBeVisible();

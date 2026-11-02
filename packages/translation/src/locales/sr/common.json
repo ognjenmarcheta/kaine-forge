@@ -60,6 +60,8 @@
   "sync.status.offline": "Van mreže – čuva se na ovom uređaju",
   "sync.status.syncing": "Sinhronizacija",
   "sync.status.error": "Sinhronizacija nije uspela – pokušava se ponovo",
+  "sync.status.unreachable": "Server nije dostupan – pokušava se ponovo",
+  "sync.status.retry": "Pokušaj ponovo",
   "sync.status.signedOut": "Prijavite se da biste sinhronizovali izmene",
   "sync.status.pending": "Izmene na čekanju",
   "sync.rejected.NOT_FOUND": "Izmena nije sačuvana: stavka je obrisana.",

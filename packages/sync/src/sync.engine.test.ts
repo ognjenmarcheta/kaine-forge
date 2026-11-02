@@ -21,7 +21,7 @@ import type {
   SyncTodo,
   SyncTransport
 } from "./sync.type";
-import { SyncAuthError, SyncRequestError } from "./sync.util";
+import { SyncAuthError, SyncNetworkError, SyncRequestError } from "./sync.util";
 
 /** A server with the protocol's rules: one version per change, Tombstones, replayed keys. */
 function createFakeServer() {
@@ -34,7 +34,10 @@ function createFakeServer() {
   const receipts = new Map<string, SyncMutationOutcome[]>();
   const pushes: Array<{ idempotencyKey: string; mutations: SyncMutation[] }> = [];
   const state = {
+    // False: no response, as the app's transport reports a failed fetch.
     online: true,
+    // True: the server answers with an error.
+    failing: false,
     signedIn: true,
     reject: new Set<string>(),
     // Each pull with a cursor answers resetRequired while this is set.
@@ -46,7 +49,8 @@ function createFakeServer() {
   const stamp = "2026-10-31T00:00:00.000Z";
 
   function guard() {
-    if (!state.online) throw new TypeError("Failed to fetch");
+    if (!state.online) throw new SyncNetworkError("Failed to fetch");
+    if (state.failing) throw new Error("server error");
     if (!state.signedIn) throw new SyncAuthError("authentication required");
   }
 
@@ -588,6 +592,62 @@ describe("createSyncEngine", () => {
     online.notifyOnline();
 
     await vi.waitFor(() => expect(server.todos.has(id)).toBe(true), { timeout: 5_000 });
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
+  });
+});
+
+describe("createSyncEngine status", () => {
+  it.each([
+    { device: false, server: { online: false, failing: false }, state: "offline" },
+    { device: true, server: { online: false, failing: false }, state: "unreachable" },
+    { device: true, server: { online: true, failing: true }, state: "error" }
+  ])(
+    "shows $state when the device online is $device and the server is $server",
+    async ({ device, server: serverState, state }) => {
+      const server = createFakeServer();
+      const { engine, online } = start(server);
+      await engine.ready;
+      Object.assign(server.state, serverState);
+      online.set(device);
+
+      await engine.pull().catch(() => undefined);
+
+      expect(engine.getStatus()).toEqual({ state, pending: 0, older: [] });
+    }
+  );
+
+  it("shows a failing push instead of Syncing while its change waits", async () => {
+    const server = createFakeServer();
+    const { engine } = start(server);
+    await engine.ready;
+    server.state.online = false;
+
+    await engine.createTodo({ title: "Waiting" });
+
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "unreachable", pending: 1, older: [] })
+    );
+  });
+
+  it("retries at once on request, before the Outbox's backoff, and shows the failure again if it fails", async () => {
+    const server = createFakeServer();
+    const { engine } = start(server);
+    await engine.ready;
+    server.state.online = false;
+    const id = await engine.createTodo({ title: "Waiting" });
+    await vi.waitFor(() => expect(engine.getStatus().state).toBe("unreachable"));
+
+    engine.retry();
+    expect(engine.getStatus().state).toBe("syncing");
+    await vi.waitFor(() => expect(engine.getStatus().state).toBe("unreachable"));
+
+    server.state.online = true;
+    engine.retry();
+
+    // The first automatic retry waits at least 1 s.
+    await vi.waitFor(() => expect(server.todos.has(id)).toBe(true), { timeout: 500 });
     await vi.waitFor(() =>
       expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
     );

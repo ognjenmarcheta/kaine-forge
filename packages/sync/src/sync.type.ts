@@ -106,7 +106,7 @@ export interface SyncTransport {
  * - `error`: the last pull failed while the device looked online.
  * - `signedOut`: the session expired; Pending Changes wait for a new sign-in.
  */
-export type SyncState = "online" | "offline" | "syncing" | "error" | "signedOut";
+export type SyncState = "online" | "offline" | "syncing" | "unreachable" | "error" | "signedOut";
 
 export interface SyncStatus {
   state: SyncState;
