@@ -176,7 +176,8 @@ export function useTodos(
       locks.current.delete("create");
     }
     if (!written) return false;
-    setDraft(EMPTY_DRAFT);
+    // Text typed while the Outbox stored this Todo is the next one: keep it.
+    setDraft((current) => (current === input ? EMPTY_DRAFT : current));
     setNotice("todos.created");
     return true;
   }

@@ -41,6 +41,7 @@ kaine-forge/
     persistence/   Zustand storage adapters (sync/async)
     query/         shared React Query keys and cache helpers
     storage/       S3-compatible storage helpers
+    sync/          offline sync engine for Todos and Notes (TanStack DB, ADR 0020)
     todos/         shared Todo workflow and attachment helpers
     translation/   i18next config and locale files
     ui/            React DOM design-system primitives and composed UI
@@ -334,6 +335,7 @@ Mobile shell:
 
 - Zustand is for client UI state such as sidebar, theme, and local app preferences.
 - React Query is for server state. Do not duplicate server data in Zustand.
+- Todos and Notes are the exception: they live in the sync engine's collections, not in React Query (see Offline sync below).
 - Web/desktop persistence uses localStorage.
 - Mobile persistence uses the mobile storage adapter chosen by the app.
 
@@ -350,6 +352,18 @@ Provider order:
   </ThemeProvider>
 </TranslationProvider>
 ```
+
+### Offline sync (ADR 0020)
+
+Todos and Notes work offline on web and desktop, and Todos on mobile (mobile has no Notes). Every other screen needs the network. Use the terms **Sync Version**, **Tombstone**, **Pending Change**, and **Outbox** from `CONTEXT.md`.
+
+- **Server.** `apps/api/src/features/sync` serves `syncPull` and `syncPush`. A trigger stamps every insert and update with the **Organization**'s next **Sync Version**, and an `AFTER DELETE` trigger writes a **Tombstone**. `drizzle-kit push` skips a migration's custom SQL, so `packages/db/src/sync.triggers.ts` installs the same triggers after `db:push`. `syncPush` replays each change through the feature's own module functions, so validation, permissions, and Organization scoping stay in one place. A new synced entity is one entry in `SYNCED_TABLES` and one in `MUTATIONS` in `sync.module.ts`; `pnpm create:feature <name> --sync` adds the server side, and the client wiring stays manual.
+- **Client.** `createSyncEngine` from `@repo/sync` runs one engine per (User, Active Organization); the app's sync provider creates it. Screens read `engine.todos` and `engine.notes` through `useLiveQuery`, keyed on `engine.id`, and write only through the engine methods. Writes show at once and resolve once the **Outbox** stores them. They never wait for the server.
+- **Conflicts.** The server applies **Pending Changes** in arrival order, and an update patches only the fields it changed. A delete wins: an update of a deleted row is refused with `NOT_FOUND`. A refused change rolls back on the client and shows a `sync.rejected.*` toast. Send state, never a flip: an offline update sets `completed`, it never calls `toggleTodo`. Use no device clocks for order.
+- **Device storage.** The **Outbox** is IndexedDB on web and desktop, and AsyncStorage on mobile. Synced rows are SQLite, one database per User and Organization, named `ks-<user hash>-<organization hash>.db`: OPFS through wa-sqlite on web (shared by tabs), the shell's own commands on desktop (`apps/desktop/src-tauri/src/device_db.rs`, one connection per file, because `tauri-plugin-sql` splits a transaction across its pool), and `expo-sqlite` on mobile. Signing out deletes that User's databases, and starting sync deletes other Users' databases. Deletion is best effort: a file that stays is deleted at the next try. Where a device cannot store rows, they stay in memory and sync still works.
+- **App shell.** The web production build registers a service worker (`vite-plugin-pwa`), so the app starts with no network. The dev server and the desktop shell never register it.
+- **Tests.** Engine behavior has unit tests in `@repo/sync` and `apps/web/src/lib/sync.testing.ts`, with a fake server. Playwright blocks service workers by default, so `web-offline-start.e2e.ts` and `web-offline-sync.e2e.ts` allow them and run only against the production build (`E2E_SERVE_BUILD=true`, as CI runs them).
+- **Limits.** The first pull loads every Todo and Note of the Organization (#800). Two offline edits of the same Note body keep the later one (#801). Change events reach one API process, so other replicas rely on the pull interval (#802).
 
 ## 14. Desktop Rules
 
