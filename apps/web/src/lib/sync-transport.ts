@@ -1,4 +1,4 @@
-import { SyncAuthError, SyncRequestError, type SyncTransport } from "@repo/sync";
+import { SyncAuthError, SyncNetworkError, SyncRequestError, type SyncTransport } from "@repo/sync";
 import { ClientError, type GraphQLClient } from "graphql-request";
 
 import {
@@ -20,13 +20,21 @@ const AUTH_MESSAGES = new Set([
   "organization not accessible"
 ]);
 
+/** A proxy's answer when the API behind it does not respond. */
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
 /**
  * Turns a failed request into what the sync engine acts on: a session
  * problem pauses the Outbox, a refused request drops it, and anything else
- * (no network, a server error) retries.
+ * retries. No response at all (fetch rejects with a TypeError) or a gateway
+ * error means the server cannot be reached; the status says so.
  */
 function classify(error: unknown): unknown {
+  if (error instanceof TypeError) return new SyncNetworkError(error.message);
   if (!(error instanceof ClientError)) return error;
+  if (GATEWAY_STATUSES.has(error.response.status)) {
+    return new SyncNetworkError(`server responded ${String(error.response.status)}`);
+  }
   if (error.response.status === 401) return new SyncAuthError("authentication required");
   for (const graphqlError of error.response.errors ?? []) {
     if (AUTH_MESSAGES.has(graphqlError.message)) return new SyncAuthError(graphqlError.message);
