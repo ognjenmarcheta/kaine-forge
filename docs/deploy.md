@@ -29,6 +29,27 @@ Use one of these two sources. Do not mix them for one app.
 
 - **Image tag.** Pull `ghcr.io/<owner>/<repo>-<app>:<version>`. For a reproducible deploy, pin the digest from the GitHub Release notes: `ghcr.io/<owner>/<repo>-<app>@sha256:<digest>`. Use this source when your platform runs a prebuilt image.
 - **`release/<app>` branch.** Point your platform at `release/api` or `release/web` and let it build `Dockerfile.api` or `Dockerfile.web` on each push. The branch moves only when that app is affected. Use this source when your platform builds from Git, or when you need web build arguments that the published image does not set (see below).
+- **Release image (opt-in).** Set `DEPLOY_SOURCE` as below, and point your platform at `ghcr.io/<owner>/<repo>-<app>:release`. The Release workflow builds the image on GitHub, so your server only pulls it and restarts.
+
+## Deploy source
+
+The repository variable `DEPLOY_SOURCE` chooses who builds each deploy.
+
+- **`git` or unset (the default).** Your platform builds `release/<app>` on each push. You need no registry, and this mode costs nothing, even for a private repository. The build runs on your server. A dependency change drops the layer cache there, so a deploy after a `pnpm-lock.yaml` change can take many minutes and loads the server that serves your users.
+- **`image`.** For each app whose `release/<app>` branch moves, the Release workflow's `deploy-images` job builds `Dockerfile.<app>` with the GitHub Actions layer cache. It scans the image with the same Trivy gate, pushes it as `ghcr.io/<owner>/<repo>-<app>:sha-<7-character SHA>` and `:release`, and calls the app's deploy webhook. Your server only pulls the image and restarts it.
+
+To use `image`:
+
+1. Set the variable: `gh variable set DEPLOY_SOURCE --body image`.
+2. Let one Release run push the images. Then choose the package visibility on GitHub (the package's settings, then "Change visibility"):
+   - **Public:** your platform pulls with no credentials. A public package is free. The image holds your code and the build-time `VITE_*` values, which every browser downloads anyway; runtime secrets stay in your platform's environment.
+   - **Private:** give your platform a token with `read:packages`. GitHub's documentation says Container registry storage and bandwidth are currently free, with at least a month's notice before that changes. Check GitHub's billing page before you rely on it.
+3. Point each app at `ghcr.io/<owner>/<repo>-<app>:release`, with the runtime environment unchanged.
+4. Store each app's deploy hook URL as a repository secret named `DEPLOY_WEBHOOK_<APP>`, for example `DEPLOY_WEBHOOK_API` and `DEPLOY_WEBHOOK_WEB`. The job sends it a plain `POST`. Without the secret, the job only pushes, and your platform pulls `:release` on its own schedule.
+
+To roll back, point the app at an earlier `sha-*` tag and deploy, or rerun the deploy job of an earlier Release run. To leave `image` mode, point the apps back at `release/<app>` and unset the variable.
+
+On Dokploy, for example, set the application's source to "Docker", with the image `ghcr.io/<owner>/<repo>-api:release` and no registry for a public package, and copy the "Deploy Webhook" URL from its Deployments tab into `DEPLOY_WEBHOOK_API`.
 
 ## Runtime environment
 
