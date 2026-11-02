@@ -431,6 +431,18 @@ describe("sync tenancy", () => {
     });
   });
 
+  it("keeps a windowed first pull inside the active organization", async () => {
+    const result = await runAs(
+      fixture.orgA,
+      "{ syncPull(window: 1) { todos { id } notes { id } older { list } } }"
+    );
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      syncPull: { todos: [{ id: fixture.todoA }], notes: [{ id: fixture.noteA }], older: [] }
+    });
+  });
+
   it("refuses to push into another organization's rows and leaves them untouched", async () => {
     const { eq } = await import("drizzle-orm");
     const foreign = await todoB();

@@ -23,7 +23,7 @@ import { createSyncTransport } from "../lib/sync-transport";
 export interface SyncContextValue {
   /** The engine of the signed-in User's Active Organization, or null without one. */
   engine: SyncEngine | null;
-  /** The last change the server refused; the engine already rolled it back. */
+  /** The last change the server refused; the engine rolls it back right after. */
   rejection: SyncRejection | null;
   dismissRejection: () => void;
 }

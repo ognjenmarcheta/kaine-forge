@@ -31,12 +31,46 @@ const openDatabases = new Map<string, () => Promise<void>>();
 /** How many sign-outs deleted each User's storage: an open asked for before one is undone. */
 const deletions = new Map<string, number>();
 
-/** Removes every OPFS file whose name `match` selects: a database and its journal files. */
-async function removeFiles(match: (name: string) => boolean): Promise<void> {
-  const root = await navigator.storage.getDirectory();
-  for await (const name of root.keys()) {
-    if (match(name)) await root.removeEntry(name).catch(() => undefined);
+/** Set once this browser stores a device database, so a later OPFS failure is not read as "nothing stored". */
+const STORED_KEY = "kaine-sync:stored";
+
+function markStored(): void {
+  try {
+    localStorage.setItem(STORED_KEY, "1");
+  } catch {
+    // Without it, a later OPFS failure reads as nothing stored.
   }
+}
+
+function everStored(): boolean {
+  try {
+    return localStorage.getItem(STORED_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Removes every OPFS file whose name `match` selects: a database and its
+ * journal files. Resolves false when a file stays, or when OPFS cannot be
+ * reached in a browser that stored a database before.
+ */
+async function removeFiles(match: (name: string) => boolean): Promise<boolean> {
+  let root: FileSystemDirectoryHandle;
+  try {
+    root = await navigator.storage.getDirectory();
+  } catch {
+    return !everStored();
+  }
+  let removed = true;
+  for await (const name of root.keys()) {
+    if (match(name)) {
+      await root.removeEntry(name).catch(() => {
+        removed = false;
+      });
+    }
+  }
+  return removed;
 }
 
 /**
@@ -63,6 +97,7 @@ async function openBrowserDatabase(
     if (!signal.aborted) console.warn("Synced rows stay in memory: no device storage.", error);
     return null;
   }
+  markStored();
   const coordinator = new BrowserCollectionCoordinator({ dbName: databaseName });
   return {
     persistence: createBrowserWASQLitePersistence({ database, coordinator }),
@@ -82,11 +117,11 @@ async function openDatabase(
   return openDesktopDatabase(databaseName);
 }
 
-/** Deletes the databases whose names `match` selects. */
-async function removeDatabases(match: (name: string) => boolean): Promise<void> {
+/** Deletes the databases whose names `match` selects; resolves false when one stays. */
+async function removeDatabases(match: (name: string) => boolean): Promise<boolean> {
   if (!inDesktopShell) return removeFiles(match);
   const { deleteDesktopDatabases } = await import("./sync-desktop-storage");
-  await deleteDesktopDatabases(match);
+  return deleteDesktopDatabases(match);
 }
 
 /**
@@ -124,15 +159,16 @@ export async function openDeviceStorage(
 /**
  * Closes this tab's device databases of a User and deletes all of them, for a
  * sign-out. A database another tab still holds stays until that tab closes it.
+ * Resolves false when one stays; the next deletion tries it again.
  */
-export async function deleteDeviceStorage(userId: string): Promise<void> {
+export async function deleteDeviceStorage(userId: string): Promise<boolean> {
   // Counted at once, so an open the provider asked for earlier undoes itself.
   deletions.set(userId, (deletions.get(userId) ?? 0) + 1);
   const prefix = await deviceDatabasePrefix(userId);
   await Promise.all(
     [...openDatabases].filter(([name]) => name.startsWith(prefix)).map(([, close]) => close())
   );
-  await removeDatabases((name) => name.startsWith(prefix));
+  return removeDatabases((name) => name.startsWith(prefix));
 }
 
 /**

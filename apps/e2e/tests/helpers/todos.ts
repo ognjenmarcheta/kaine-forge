@@ -239,7 +239,8 @@ export async function mockTodos(page: Page) {
                     deleted: [...deleted.map((id) => ({ entity: "TODO", id })), ...shared.deleted],
                     cursor: String(++pulls),
                     hasMore: false,
-                    resetRequired: false
+                    resetRequired: false,
+                    older: []
                   }
                 }
               }

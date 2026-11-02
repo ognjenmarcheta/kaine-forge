@@ -2,6 +2,7 @@ import { browserSyncStores, createSyncEngine, type SyncEngine } from "@repo/sync
 import { createContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { NoteConflictDialog, type NoteConflict } from "../components/sync-note-conflict";
 import { useAuth } from "../hooks/use-auth";
 import { useOrganization } from "../hooks/use-organization";
 import { useTranslation } from "../hooks/use-translation";
@@ -22,6 +23,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const { activeOrganizationId } = useOrganization();
   const { t } = useTranslation();
   const [current, setCurrent] = useState<{ scope: string; engine: SyncEngine } | null>(null);
+  // Each refused Note body edit waits here until its writer chooses: none is dropped.
+  const [conflicts, setConflicts] = useState<Array<NoteConflict & { scope: string }>>([]);
   const userId = session?.user.id ?? null;
   const scope = userId && activeOrganizationId ? `${userId}:${activeOrganizationId}` : null;
   // Read when an engine starts, so a session refresh does not restart it.
@@ -52,7 +55,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         storage,
         ...(leaderElection ? { leaderElection } : {}),
         ...(device ? { persistence: device.persistence } : {}),
-        onRejected: ({ code }) => {
+        onRejected: ({ code, id, change }) => {
+          const body = "noteUpdate" in change ? change.noteUpdate.body : undefined;
+          const note = started?.notes.get(id);
+          // Another device changed the same lines: the writer chooses, nothing is lost.
+          if (code === "CONFLICT" && body !== undefined && note) {
+            const conflict = { scope, id, title: note.title, mine: body ?? "" };
+            setConflicts((waiting) => [...waiting, conflict]);
+            return;
+          }
           toast.error(latest.current.t(`sync.rejected.${code}`));
         }
       });
@@ -68,5 +79,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Right after a switch the effect has not run yet: the previous scope's
   // engine must never reach the new Organization's screens.
   const engine = current?.scope === scope ? current.engine : null;
-  return <SyncContext.Provider value={engine}>{children}</SyncContext.Provider>;
+  const shownConflict = conflicts.find((conflict) => conflict.scope === scope) ?? null;
+  const settle = (settled: NoteConflict) =>
+    setConflicts((waiting) => waiting.filter((conflict) => conflict !== settled));
+  return (
+    <SyncContext.Provider value={engine}>
+      {children}
+      <NoteConflictDialog
+        engine={engine}
+        conflict={shownConflict}
+        onKeepCurrent={settle}
+        onKeepMine={(conflict) => {
+          settle(conflict);
+          const { id, mine } = conflict;
+          // Sent again from the current body, so the server applies it as it is.
+          engine?.updateNote(id, { body: mine.length > 0 ? mine : null }).catch(() => {
+            toast.error(t("sync.rejected.NOT_FOUND"));
+          });
+        }}
+      />
+    </SyncContext.Provider>
+  );
 }

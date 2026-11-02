@@ -3,7 +3,10 @@ import { ClientError, type GraphQLClient } from "graphql-request";
 
 import {
   SyncPullDocument,
+  SyncPullOlderDocument,
   SyncPushDocument,
+  type SyncPullOlderQuery,
+  type SyncPullOlderQueryVariables,
   type SyncPullQuery,
   type SyncPullQueryVariables,
   type SyncPushMutation,
@@ -36,13 +39,24 @@ function classify(error: unknown): unknown {
 
 export function createSyncTransport(client: GraphQLClient): SyncTransport {
   return {
-    async pull(cursor) {
+    async pull(cursor, window) {
       try {
         const { syncPull } = await client.request<SyncPullQuery, SyncPullQueryVariables>(
           String(SyncPullDocument),
-          { cursor }
+          { cursor, ...(window === undefined ? {} : { window }) }
         );
         return syncPull;
+      } catch (error) {
+        throw classify(error);
+      }
+    },
+    async pullOlder(after) {
+      try {
+        const { syncPullOlder } = await client.request<
+          SyncPullOlderQuery,
+          SyncPullOlderQueryVariables
+        >(String(SyncPullOlderDocument), { after });
+        return syncPullOlder;
       } catch (error) {
         throw classify(error);
       }

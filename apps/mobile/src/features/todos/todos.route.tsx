@@ -10,6 +10,7 @@ import { TODO_DEFINITION } from "./todos.definition";
 import type { TodoDraft, TodoItem } from "./todos.type";
 import { ConfirmModal } from "../../components/confirm-modal";
 import { ScreenContainer } from "../../components/screen-container";
+import { useOlderRows } from "../../hooks/use-older-rows";
 import { useOrganization } from "../../hooks/use-organization";
 import { useSyncEngine, useSyncRejection, useSyncStatus } from "../../hooks/use-sync";
 import { useTranslation } from "../../hooks/use-translation";
@@ -78,6 +79,7 @@ export function TodosRoute() {
     });
   }, [activeOrganizationId, invalidateTodos, engine]);
 
+  const older = useOlderRows("todos");
   const todos = useMemo(
     () => [...(live.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [live.data]
@@ -209,6 +211,7 @@ export function TodosRoute() {
       {!isLoading ? (
         <TodoList
           items={todos}
+          older={older}
           onAttachmentChanged={() => {
             void invalidateTodos();
           }}

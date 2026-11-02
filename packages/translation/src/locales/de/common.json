@@ -69,5 +69,13 @@
   "sync.rejected.PLAN_LIMIT_REACHED": "Eine Änderung wurde nicht gespeichert: Das Limit Ihres Tarifs ist erreicht.",
   "sync.signOut.title": "Mit nicht synchronisierten Änderungen abmelden?",
   "sync.signOut.message": "Einige Änderungen auf diesem Gerät sind noch nicht synchronisiert. Beim Abmelden werden sie gelöscht.",
-  "sync.signOut.confirm": "Trotzdem abmelden"
+  "sync.signOut.confirm": "Trotzdem abmelden",
+  "sync.conflict.title": "Diese Notiz wurde auf einem anderen Gerät geändert",
+  "sync.conflict.message": "Sie und jemand anderes haben dieselben Zeilen dieser Notiz geändert. Wählen Sie die Version, die bleiben soll.",
+  "sync.conflict.mine": "Ihre Version",
+  "sync.conflict.current": "Aktuelle Version",
+  "sync.conflict.keepMine": "Meine behalten",
+  "sync.conflict.keepCurrent": "Aktuelle behalten",
+  "sync.older.offline": "Ältere Einträge brauchen eine Verbindung.",
+  "sync.signOut.cleanupFailed": "Einige Ihrer Daten sind noch auf diesem Gerät. Die nächste Abmeldung hier versucht, sie zu entfernen."
 }

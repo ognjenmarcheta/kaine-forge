@@ -9,25 +9,37 @@ import {
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import { and, asc, eq, gt, lte, type AnyColumn } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { SYNC_CONFIG } from "./sync.config";
+import { mergeText } from "./sync.merge";
 import type {
   SyncDeletion,
   SyncedRows,
   SyncMutationInput,
+  SyncOlder,
   SyncPullArgs,
+  SyncPullOlderArgs,
   SyncPullPayload,
   SyncPushInput,
   SyncPushPayload
 } from "./sync.type";
 import {
+  decodeOlderCursor,
   decodeSyncCursor,
+  encodeOlderCursor,
   encodeSyncCursor,
   ensureIdempotencyKey,
   ensureUuid,
   rejectionCode
 } from "./sync.util";
-import { createScopedData, type OrganizationOwnedTable, type ScopedData } from "../../context.data";
+import {
+  createScopedData,
+  type Connection,
+  type OrganizationOwnedTable,
+  type PageOrder,
+  type ScopedData
+} from "../../context.data";
 import type { NoteModuleDeps, Notes } from "../notes/notes.module";
 import type { Todos } from "../todos/todos.module";
 
@@ -62,8 +74,14 @@ export interface SyncModuleDeps {
  * Version order; a push applies an Outbox batch once per idempotency key.
  */
 export interface Sync {
-  /** A malformed or foreign cursor throws `invalid cursor`. */
+  /**
+   * A malformed or foreign cursor throws `invalid cursor`. A first pull with a
+   * `window` returns only the newest rows of each list, and `older` names
+   * where the rest continue; every later change of any row still follows.
+   */
   pull: (args: SyncPullArgs) => Promise<SyncPullPayload>;
+  /** The next older rows of one list, from a `SyncOlder` cursor. */
+  pullOlder: (args: SyncPullOlderArgs) => Promise<SyncPullPayload>;
   /**
    * Applies the mutations in order, each in its own savepoint, through each
    * entity's own module. A mutation a module refuses is REJECTED and the
@@ -76,8 +94,12 @@ export interface Sync {
 
 const APPLIED: SyncMutationOutcome = { status: "APPLIED", code: null };
 
-/** A table a pull reads: its rows carry a Sync Version. */
-type SyncedTable = OrganizationOwnedTable & { syncVersion: AnyColumn };
+/** A table a pull reads: its rows carry a Sync Version, and its lists page newest first. */
+type SyncedTable = OrganizationOwnedTable & {
+  syncVersion: AnyColumn;
+  id: AnyPgColumn;
+  createdAt: AnyPgColumn;
+};
 
 /** The table behind each SyncedRows field. */
 const SYNCED_TABLES = {
@@ -111,8 +133,27 @@ const RESET: SyncPullPayload = {
   deleted: [],
   cursor: null,
   hasMore: false,
-  resetRequired: true
+  resetRequired: true,
+  older: []
 };
+
+/** The order the clients list rows in, so older rows load below the ones shown. */
+function newestFirst(table: SyncedTable, limits: PageOrder["limits"]): PageOrder {
+  return { orderBy: table.createdAt, direction: "desc", limits };
+}
+
+/** A page of one list's rows as pull changes, and where its older rows continue. */
+function listPage(
+  field: keyof SyncedRows,
+  page: Connection<SyncedRow>
+): { changes: Change[]; older: SyncOlder[] } {
+  const { hasNextPage, endCursor } = page.pageInfo;
+  return {
+    changes: page.items.map((row) => ({ syncVersion: row.syncVersion, field, row })),
+    older:
+      hasNextPage && endCursor ? [{ list: field, after: encodeOlderCursor(field, endCursor) }] : []
+  };
+}
 
 function deletionEntity(entity: SyncTombstone["entity"]): SyncDeletion["entity"] {
   // SAFETY: toUpperCase maps a sync_entity value to exactly its Uppercase<> form.
@@ -185,9 +226,23 @@ const MUTATIONS: MutationHandlers = {
     await ensureNotDeleted(data, "note", ensureUuid(id));
     await notes.create({ id, title, body: body ?? null });
   },
-  async noteUpdate({ id, ...fields }, { notes }) {
-    await notes.update(ensureUuid(id), {
-      ...("body" in fields ? { body: fields.body ?? null } : {}),
+  async noteUpdate({ id, baseBody, ...fields }, { notes }, data) {
+    const noteId = ensureUuid(id);
+    let body = fields.body ?? null;
+    if ("body" in fields && baseBody !== undefined) {
+      // Locked until the push commits, so a concurrent push merges into this result.
+      const [current] = await data
+        .selectFrom(notesTable, eq(notesTable.id, noteId))
+        .for("update")
+        .limit(1);
+      if (current) {
+        const merged = mergeText(baseBody ?? "", current.body ?? "", body ?? "");
+        if (merged === null) throw new Error("note body conflict");
+        body = merged.length > 0 ? merged : null;
+      }
+    }
+    await notes.update(noteId, {
+      ...("body" in fields ? { body } : {}),
       ...(typeof fields.title === "string" ? { title: fields.title } : {})
     });
   },
@@ -232,7 +287,8 @@ export function createSync({
   createWriters
 }: SyncModuleDeps): Sync {
   return {
-    async pull({ cursor, first }) {
+    async pull(args) {
+      const { cursor, first } = args;
       const { organizationId } = data.stamp();
       const position = cursor == null ? null : decodeSyncCursor(cursor, organizationId);
       const [state] = await data.selectFrom(organizationSyncVersionsTable).limit(1);
@@ -247,6 +303,29 @@ export function createSync({
           (state?.prunedThrough ?? 0) > Math.max(position.version, position.floor))
       ) {
         return RESET;
+      }
+
+      if (!position && args.window != null) {
+        // Only the newest rows now: any row's later change still follows from `head`.
+        const lists = await Promise.all(
+          SYNCED_FIELDS.map(async (field) => {
+            const table = SYNCED_TABLES[field];
+            const page: Connection<SyncedRow> = await data.page(
+              table,
+              { first: args.window },
+              newestFirst(table, SYNC_CONFIG.window)
+            );
+            return listPage(field, page);
+          })
+        );
+        return {
+          ...rowsByField(lists.flatMap((list) => list.changes)),
+          deleted: [],
+          cursor: encodeSyncCursor(organizationId, { version: head, floor: head }),
+          hasMore: false,
+          resetRequired: false,
+          older: lists.flatMap((list) => list.older)
+        };
       }
 
       const after = position?.version ?? 0;
@@ -289,7 +368,30 @@ export function createSync({
         deleted: page.flatMap((change) => ("deleted" in change ? [change.deleted] : [])),
         cursor: encodeSyncCursor(organizationId, { version, floor }),
         hasMore,
-        resetRequired: false
+        resetRequired: false,
+        older: []
+      };
+    },
+
+    async pullOlder({ after, first }) {
+      // The session first: a request without one learns nothing about the cursor.
+      requireOrganizationScope();
+      const { list, after: pageCursor } = decodeOlderCursor(after, SYNCED_FIELDS);
+      const table = SYNCED_TABLES[list];
+      // The page cursor names its table and Organization: a foreign one is refused.
+      const page: Connection<SyncedRow> = await data.page(
+        table,
+        { first, after: pageCursor },
+        newestFirst(table, SYNC_CONFIG.older)
+      );
+      const older = listPage(list, page);
+      return {
+        ...rowsByField(older.changes),
+        deleted: [],
+        cursor: null,
+        hasMore: false,
+        resetRequired: false,
+        older: older.older
       };
     },
 

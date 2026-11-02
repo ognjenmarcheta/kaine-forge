@@ -69,5 +69,13 @@
   "sync.rejected.PLAN_LIMIT_REACHED": "A change was not saved: your plan's limit is reached.",
   "sync.signOut.title": "Sign out with unsynced changes?",
   "sync.signOut.message": "Some changes on this device are not synced yet. Signing out deletes them.",
-  "sync.signOut.confirm": "Sign out anyway"
+  "sync.signOut.confirm": "Sign out anyway",
+  "sync.conflict.title": "This note changed on another device",
+  "sync.conflict.message": "You and someone else changed the same lines of this note. Choose the version to keep.",
+  "sync.conflict.mine": "Your version",
+  "sync.conflict.current": "Current version",
+  "sync.conflict.keepMine": "Keep mine",
+  "sync.conflict.keepCurrent": "Keep current",
+  "sync.older.offline": "Older items need a connection.",
+  "sync.signOut.cleanupFailed": "Some of your data is still on this device. The next sign-out here tries to remove it."
 }

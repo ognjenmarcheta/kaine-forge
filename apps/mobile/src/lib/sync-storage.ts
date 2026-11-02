@@ -20,18 +20,25 @@ async function deviceDatabasePrefix(userId: string): Promise<string> {
   return `${DEVICE_DATABASE_PREFIX}${await namePart(userId)}-`;
 }
 
-async function registeredDatabases(): Promise<string[]> {
+/** The registered database names, or null when the list on the device cannot be read. */
+async function readRegistry(): Promise<string[] | null> {
   let stored: unknown;
   try {
     stored = JSON.parse((await AsyncStorage.getItem(REGISTRY_KEY)) ?? "[]");
-  } catch (error) {
-    // Unreadable text names no database: start the list again rather than stop sync.
-    console.warn("The device database list could not be read; starting it again.", error);
-    return [];
+  } catch {
+    return null;
   }
   return Array.isArray(stored)
     ? stored.filter((name): name is string => typeof name === "string")
-    : [];
+    : null;
+}
+
+async function registeredDatabases(): Promise<string[]> {
+  const names = await readRegistry();
+  // Unreadable text names no database: start the list again rather than stop sync.
+  if (names === null)
+    console.warn("The device database list could not be read; starting it again.");
+  return names ?? [];
 }
 
 async function writeRegistry(names: Iterable<string>): Promise<void> {
@@ -91,10 +98,15 @@ export function openDeviceStorage(scope: {
   });
 }
 
-/** Closes and deletes the registered device databases that `match` selects. */
-function deleteDatabases(match: (name: string) => boolean): Promise<void> {
+/**
+ * Closes and deletes the registered device databases that `match` selects.
+ * Resolves false when one stays: it stays registered, so a later deletion tries again.
+ */
+function deleteDatabases(match: (name: string) => boolean): Promise<boolean> {
   return serial(async () => {
-    const registered = await registeredDatabases();
+    const registered = await readRegistry();
+    // Nothing it names can be deleted, and writing it again would lose those names.
+    if (registered === null) return false;
     const deleted = new Set<string>();
     for (const name of registered.filter(match)) {
       await openDatabases.get(name)?.();
@@ -105,16 +117,18 @@ function deleteDatabases(match: (name: string) => boolean): Promise<void> {
         // Kept in the registry, so a later deletion tries again.
       }
     }
-    await writeRegistry(registered.filter((name) => !deleted.has(name)));
+    const left = registered.filter((name) => !deleted.has(name));
+    await writeRegistry(left);
+    return !left.some(match);
   });
 }
 
-/** Closes and deletes every device database of a User, for a sign-out. */
-export async function deleteDeviceStorage(userId: string): Promise<void> {
+/** Closes and deletes every device database of a User, for a sign-out; false when one stays. */
+export async function deleteDeviceStorage(userId: string): Promise<boolean> {
   // Counted at once, so an open the provider asked for earlier is cancelled.
   deletions.set(userId, (deletions.get(userId) ?? 0) + 1);
   const prefix = await deviceDatabasePrefix(userId);
-  await deleteDatabases((name) => name.startsWith(prefix));
+  return deleteDatabases((name) => name.startsWith(prefix));
 }
 
 /**
