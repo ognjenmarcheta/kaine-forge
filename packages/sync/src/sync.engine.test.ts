@@ -36,8 +36,10 @@ function createFakeServer() {
   const state = {
     // False: no response, as the app's transport reports a failed fetch.
     online: true,
-    // True: the server answers with an error.
+    // True: the server answers every request with an error.
     failing: false,
+    // True: the server answers pushes with an error and pulls as usual.
+    pushFailing: false,
     signedIn: true,
     reject: new Set<string>(),
     // Each pull with a cursor answers resetRequired while this is set.
@@ -177,6 +179,7 @@ function createFakeServer() {
     },
     async push(idempotencyKey, mutations) {
       guard();
+      if (state.pushFailing) throw new Error("push unavailable");
       if (state.refuseRequest) throw new SyncRequestError("invalid idempotency key");
       pushes.push({ idempotencyKey, mutations });
       const stored = receipts.get(idempotencyKey);
@@ -629,6 +632,19 @@ describe("createSyncEngine status", () => {
     await vi.waitFor(() =>
       expect(engine.getStatus()).toEqual({ state: "unreachable", pending: 1, older: [] })
     );
+  });
+
+  it("keeps showing a failing push after a pull succeeds", async () => {
+    const server = createFakeServer();
+    const { engine } = start(server);
+    await engine.ready;
+    server.state.pushFailing = true;
+    await engine.createTodo({ title: "Waiting" });
+    await vi.waitFor(() => expect(engine.getStatus().state).toBe("error"));
+
+    await engine.pull();
+
+    expect(engine.getStatus()).toEqual({ state: "error", pending: 1, older: [] });
   });
 
   it("retries at once on request, before the Outbox's backoff, and shows the failure again if it fails", async () => {

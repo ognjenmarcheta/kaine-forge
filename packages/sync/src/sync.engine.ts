@@ -208,8 +208,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const noteTarget = syncTarget<SyncNote>();
   let cursor: string | null = null;
   let pulling = false;
-  // The last failed request's kind, until a pull succeeds.
-  let failure: "unreachable" | "error" | null = null;
+  // Each kind of request clears only its own failure: a pull that works says
+  // nothing about a push that still fails.
+  let pullFailure: "unreachable" | "error" | null = null;
+  let pushFailure: "unreachable" | "error" | null = null;
   // A reset the server asked for, kept until its full pull applies: a failed
   // pull in between must not lose it.
   let resetPending = false;
@@ -359,10 +361,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         cursor = page.cursor;
         if (!page.hasMore) break;
       }
-      failure = null;
+      pullFailure = null;
       signedOut = false;
     } catch (error) {
-      failure = failureOf(error);
+      pullFailure = failureOf(error);
       if (error instanceof SyncAuthError) signedOut = true;
       throw error;
     } finally {
@@ -425,11 +427,12 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         throw new NonRetriableError(error.message);
       }
       // This change retries, so sync is failing; a refused request threw above.
-      failure = failureOf(error);
+      pushFailure = failureOf(error);
       throw error;
     } finally {
       queueMicrotask(publish);
     }
+    pushFailure = null;
     signedOut = false;
     // Hold the optimistic rows until the server's rows are in the collection,
     // so nothing flickers. A failed pull retries the push: its key replays it.
@@ -495,7 +498,14 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   function computeStatus(): SyncStatus {
     const pending = executor.getPendingCount();
-    // A failed request wins over Syncing: waiting changes must not hide it.
+    // A failed request wins over Syncing: waiting changes must not hide it. A
+    // push failure counts while its change waits; no response outranks an error.
+    const failures = [pullFailure, pending > 0 ? pushFailure : null];
+    const failure = failures.includes("unreachable")
+      ? "unreachable"
+      : failures.includes("error")
+        ? "error"
+        : null;
     const state = signedOut
       ? "signedOut"
       : !executor.isOnline()
@@ -672,7 +682,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       publish();
     },
     retry() {
-      failure = null;
+      pullFailure = null;
+      pushFailure = null;
       // The Outbox drops its backoff and sends at once, and the online listener pulls.
       executor.getOnlineDetector().notifyOnline();
     },
