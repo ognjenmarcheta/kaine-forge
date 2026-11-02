@@ -5,6 +5,14 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_apps:
+        description: >-
+          Image deploys only (DEPLOY_SOURCE=image): apps to build and deploy at
+          HEAD even when their release branch did not move, for example api,web.
+          Use it for the first images, a redeploy, or a build a failed run lost.
+        required: false
+        default: ""
 
 concurrency:
   # Queue, never cancel: release:apps pushes release/<app> branches sequentially.
@@ -26,8 +34,9 @@ jobs:
     timeout-minutes: 60
     outputs:
       images: ${{ steps.images.outputs.matrix }}
-      # Apps whose release/<app> branch this run moved, as a JSON array.
-      apps: ${{ steps.release-apps.outputs.apps }}
+      # Apps whose image deploys build, as a JSON array: the release branches
+      # this run moved, plus any a manual run names in deploy_apps.
+      apps: ${{ steps.deploy-apps.outputs.apps }}
     services:
       postgres:
         image: postgres:17
@@ -101,6 +110,33 @@ jobs:
         env:
           # checkout authenticates origin; push uses the job token (contents: write).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A manual run may name apps to build at HEAD whose release branch did
+      # not move. Only at the tip of main: an older HEAD would deploy old code.
+      - name: List apps for image deploys
+        id: deploy-apps
+        env:
+          MOVED: ${{ steps.release-apps.outputs.apps }}
+          REQUESTED: ${{ inputs.deploy_apps }}
+        run: |
+          set -euo pipefail
+          at_tip=false
+          [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] && at_tip=true
+          # shellcheck disable=SC2016 # Node, not the shell, expands the JS template literals.
+          AT_TIP="$at_tip" node -e '
+            const fs = require("node:fs");
+            const apps = new Set(JSON.parse(process.env.MOVED || "[]"));
+            const requested = (process.env.REQUESTED || "").split(",").map((app) => app.trim()).filter(Boolean);
+            for (const app of requested) {
+              if (!/^[a-z0-9-]+$/.test(app) || !fs.existsSync(`Dockerfile.${app}`)) {
+                console.error(`deploy_apps: no Dockerfile.${app}`);
+                process.exit(1);
+              }
+              if (process.env.AT_TIP === "true") apps.add(app);
+              else console.log(`deploy_apps: HEAD is behind origin/main, so ${app} is left to the newer run`);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `apps=${JSON.stringify([...apps])}\n`);
+          '
 
       # changesets/action v2 pairs with Changesets CLI v3 (inputs were renamed in
       # v2). Tag push and GitHub releases stay in the explicit steps below, which
@@ -280,7 +316,10 @@ jobs:
   # tag, and calls the app's deploy webhook when its secret is set.
   deploy-images:
     name: Deploy Image (${{ matrix.app }})
+    # !cancelled(): a later release step that fails (versioning, tags) must not
+    # strand an app whose branch already moved; a rerun would not move it again.
     if: >-
+      !cancelled() &&
       vars.DEPLOY_SOURCE == 'image' &&
       needs.release.outputs.apps != '' &&
       needs.release.outputs.apps != '[]' &&

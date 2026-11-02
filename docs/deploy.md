@@ -41,13 +41,13 @@ The repository variable `DEPLOY_SOURCE` chooses who builds each deploy.
 To use `image`:
 
 1. Set the variable: `gh variable set DEPLOY_SOURCE --body image`.
-2. Let one Release run push the images. Then choose the package visibility on GitHub (the package's settings, then "Change visibility"):
+2. Build the first images. Turning on the variable builds nothing by itself: the job builds only apps whose release branch moves. Run the Release workflow by hand with `deploy_apps` set to your apps: `gh workflow run release.yml -f deploy_apps=api,web`. Then choose the package visibility on GitHub (the package's settings, then "Change visibility"):
    - **Public:** your platform pulls with no credentials. A public package is free. The image holds your code and the build-time `VITE_*` values, which every browser downloads anyway; runtime secrets stay in your platform's environment.
    - **Private:** give your platform a token with `read:packages`. GitHub's documentation says Container registry storage and bandwidth are currently free, with at least a month's notice before that changes. Check GitHub's billing page before you rely on it.
-3. Point each app at `ghcr.io/<owner>/<repo>-<app>:release`, with the runtime environment unchanged.
+3. Confirm that each `:release` tag exists, for example `docker buildx imagetools inspect ghcr.io/<owner>/<repo>-api:release`. Only then point each app at `ghcr.io/<owner>/<repo>-<app>:release`, with the runtime environment unchanged.
 4. Store each app's deploy hook URL as a repository secret named `DEPLOY_WEBHOOK_<APP>`, for example `DEPLOY_WEBHOOK_API` and `DEPLOY_WEBHOOK_WEB`. The job sends it a plain `POST`. Without the secret, the job only pushes, and your platform pulls `:release` on its own schedule. The `deploy-images` job names each secret explicitly; when you add a deployable app, add its secret to the job's `WEBHOOK` expression.
 
-To roll back, point the app at an earlier `sha-*` tag and deploy, or rerun the deploy job of an earlier Release run. To leave `image` mode, point the apps back at `release/<app>` and unset the variable.
+To roll back, point the app at an earlier `sha-*` tag and deploy, or rerun the deploy job of an earlier Release run. To redeploy the current code, or to build an image that a failed run did not, run the workflow again with `deploy_apps`. To leave `image` mode, point the apps back at `release/<app>` and unset the variable.
 
 On Dokploy, for example, set the application's source to "Docker", with the image `ghcr.io/<owner>/<repo>-api:release` and no registry for a public package, and copy the "Deploy Webhook" URL from its Deployments tab into `DEPLOY_WEBHOOK_API`.
 
