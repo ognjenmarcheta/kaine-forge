@@ -1049,6 +1049,7 @@
   "desk.agents.outputAbout.intake": "Proverava novi zadatak pre početka toka. Tok ga ne može koristiti kao korak.",
   "desk.agents.provider.claude": "Claude",
   "desk.agents.provider.codex": "Codex",
+  "desk.agents.provider.opencode": "OpenCode",
   "desk.agents.presetAbout.read-only": "Čita repozitorijum. Ne može da menja datoteke.",
   "desk.agents.presetAbout.edit-code": "Menja datoteke u radnom stablu.",
   "desk.agents.presetAbout.run-checks": "Čita repozitorijum i pokreće komande provere iz plana.",

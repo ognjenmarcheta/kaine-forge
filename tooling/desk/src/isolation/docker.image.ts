@@ -18,12 +18,19 @@ export const IMAGE_REPOSITORY = "kaine-desk-worker";
 
 /**
  * Versions in the image. The Claude and Codex versions are the ones the Phase 2
- * spike verified. A bump is a deliberate edit here, then a rebuild.
+ * spike verified; OpenCode is the version its stream fixtures were recorded with.
+ * A bump is a deliberate edit here, then a rebuild.
  */
 export const PINNED = {
   nodeImage: "node:24-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20",
   claude: "2.1.282",
-  codex: "0.147.0"
+  codex: "0.147.0",
+  opencode: "2.2.5",
+  /** SHA-256 of `opencode-linux-<arch>.tar.gz` in the GitHub release, so the build trusts no download. */
+  opencodeSha256: {
+    amd64: "09f44302c10fd036912f59c81fd1aef5df45dd06f649197f9dfc9bbe2a79614e",
+    arm64: "5a528f42caf576c6cdece6a191eb273d3db54effa5518e0402684d8f8026aeb6"
+  }
 } as const;
 
 const DOCKERFILE = "desk.Dockerfile";
@@ -97,7 +104,10 @@ export const readImageContext = async (repoRoot: string): Promise<ImageContext> 
     NODE_IMAGE: PINNED.nodeImage,
     PNPM_VERSION: pnpm,
     CLAUDE_VERSION: PINNED.claude,
-    CODEX_VERSION: PINNED.codex
+    CODEX_VERSION: PINNED.codex,
+    OPENCODE_VERSION: PINNED.opencode,
+    OPENCODE_SHA256_AMD64: PINNED.opencodeSha256.amd64,
+    OPENCODE_SHA256_ARM64: PINNED.opencodeSha256.arm64
   };
   const hash = imageHash(files, buildArgs);
   return { files, buildArgs, hash, tag: imageTagFor(hash) };

@@ -4,13 +4,17 @@ import path from "node:path";
 // Credential files of each provider CLI. The auth volume keeps one copy per
 // provider. A run copies it into its own state folder and the CLI refreshes
 // the copy there. `syncBack` returns a refreshed token to the auth volume.
+// OpenCode keeps its login in a database, so its file is the JSON of
+// `opencode auth export`, which `desk-entry.mjs` imports and exports.
 export const SEED_FILES = {
   claude: [".credentials.json", ".claude.json"],
-  codex: ["auth.json"]
+  codex: ["auth.json"],
+  opencode: ["credentials.json"]
 };
 export const REFRESHABLE_FILES = {
   claude: [".credentials.json"],
-  codex: ["auth.json"]
+  codex: ["auth.json"],
+  opencode: ["credentials.json"]
 };
 
 export function validCredentials(provider, text) {
@@ -24,6 +28,8 @@ export function validCredentials(provider, text) {
     }
     if (provider === "codex")
       return typeof value === "object" && value !== null && !Array.isArray(value);
+    // An empty export means no login: never let it replace a stored one.
+    if (provider === "opencode") return Array.isArray(value) && value.length > 0;
   } catch {
     /* Not JSON: not a credential file. */
   }

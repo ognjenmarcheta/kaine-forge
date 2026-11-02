@@ -258,6 +258,28 @@ describe("resolveCapabilities", () => {
       resolve({ preset: "edit-code", mcp: [], skills: [] }, { provider: "codex" }).sandbox
     ).toBe("codex-workspace-write");
   });
+
+  it("gives OpenCode the Claude rule lists on the host, but no MCP server", () => {
+    const options = { provider: "opencode" as const };
+    const reviewer = resolve(
+      { preset: "read-only", mcp: ["serena"], skills: ["kaine-review"] },
+      options
+    );
+    const claude = resolve({ preset: "read-only", mcp: ["serena"], skills: ["kaine-review"] });
+    expect(reviewer).toMatchObject({
+      sandbox: "host",
+      mcp: [],
+      tools: claude.tools,
+      notes: expect.arrayContaining([
+        "OpenCode: the desk's permission rules, no MCP, no OS sandbox"
+      ])
+    });
+    expect(reviewer.removed.map((entry) => [entry.kind, entry.name])).toEqual([["mcp", "serena"]]);
+    expect(toAgentPermissions(reviewer)).toEqual({
+      allow: claude.tools.allow,
+      disallow: claude.tools.deny
+    });
+  });
 });
 
 describe("the built-in agents", () => {

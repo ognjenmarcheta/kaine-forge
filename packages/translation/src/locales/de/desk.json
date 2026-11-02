@@ -1049,6 +1049,7 @@
   "desk.agents.outputAbout.intake": "Prüft ein neues Issue, bevor ein Ablauf beginnt. Ein Ablauf kann ihn nicht als Schritt verwenden.",
   "desk.agents.provider.claude": "Claude",
   "desk.agents.provider.codex": "Codex",
+  "desk.agents.provider.opencode": "OpenCode",
   "desk.agents.presetAbout.read-only": "Liest das Repository. Er kann keine Dateien ändern.",
   "desk.agents.presetAbout.edit-code": "Ändert Dateien im Worktree.",
   "desk.agents.presetAbout.run-checks": "Liest das Repository und führt die Prüfbefehle des Plans aus.",

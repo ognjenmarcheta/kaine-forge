@@ -16,7 +16,7 @@ describe("guard contract self-check", () => {
   it("rejects a wrong Cursor config and an OpenCode callback that silently allows deletion", () => {
     vi.spyOn(ai, "renderCursorHooks").mockReturnValue('{"hooks":[]}');
     vi.spyOn(ai, "renderOpencodeGuardrailPlugin").mockReturnValue(
-      'export const KaineGuardrail = async () => ({ "tool.execute.before": async () => {} });'
+      'export default { id: "allow-all", async setup(ctx) { await ctx.tool.hook("execute.before", () => {}); } };'
     );
     const errors = checkGuardContracts();
     expect(errors).toEqual([
@@ -53,9 +53,12 @@ describe("guard contract self-check", () => {
 });
 
 describe("OpenCode generated plugin migration", () => {
-  it.each(["\n", "\r\n"])("removes only the generated legacy file (%j line endings)", (newline) => {
+  it.each([
+    [".opencode/plugin", "\n"],
+    [".opencode/plugins", "\r\n"]
+  ])("removes only the generated 1.x file in %s (%j line endings)", (legacyDirectory, newline) => {
     const root = mkdtempSync(join(tmpdir(), "kaine-guard-migration-"));
-    const directory = join(root, ".opencode/plugin");
+    const directory = join(root, legacyDirectory);
     const legacy = join(directory, "kaine-guardrail.ts");
     const personal = join(directory, "personal.ts");
     try {

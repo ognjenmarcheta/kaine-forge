@@ -793,24 +793,23 @@ export const claudePermissionEntries = (rules: GuardRule[]): { ask: string[]; de
   return { ask: entriesFor("ask"), deny: entriesFor("deny") };
 };
 
+export type OpencodePermissionRule = {
+  action: "shell";
+  resource: string;
+  effect: GuardRule["decision"];
+};
+
 /**
- * OpenCode `permission.bash` globs for the same command-only rules. OpenCode
- * matches parsed commands with `*` wildcards and lets the last matching rule
- * win, so the exact/trailing pair mirrors the Claude form and no catch-all is
- * emitted. Flag rules stay with the guardrail plugin.
- * Contract: https://opencode.ai/docs/permissions/
+ * OpenCode 2.x `permissions` rules for the same command-only rules. A shell
+ * resource that ends in ` *` also matches the bare command, so one rule covers
+ * both forms. The last matching rule wins, so no catch-all is emitted. Flag
+ * rules stay with the guardrail plugin.
+ * Contract: https://opencode.ai/v2/docs/permissions
  */
-export const opencodePermissionEntries = (
-  rules: GuardRule[]
-): Record<string, GuardRule["decision"]> =>
-  Object.fromEntries(
-    rules
-      .filter((rule) => rule.flag === undefined)
-      .flatMap((rule) => [
-        [rule.command, rule.decision],
-        [`${rule.command} *`, rule.decision]
-      ])
-  );
+export const opencodePermissionEntries = (rules: GuardRule[]): OpencodePermissionRule[] =>
+  rules
+    .filter((rule) => rule.flag === undefined)
+    .map((rule) => ({ action: "shell", resource: `${rule.command} *`, effect: rule.decision }));
 
 /**
  * The human-readable half of the policy. Reaches every agent through AGENTS.md,
@@ -1053,31 +1052,32 @@ export const renderCursorSkill = renderClaudeSkill;
 export const renderGrokSkill = renderClaudeSkill;
 export const renderGrokAgentDefinition = renderClaudeAgentDefinition;
 
-/** Claude tool names that unlock each OpenCode permission an allowlist can deny. */
+/** Claude tool names that unlock each OpenCode permission action an allowlist can deny. */
 const OPENCODE_AGENT_PERMISSION_TOOLS = {
   edit: ["Edit", "Write", "NotebookEdit"],
-  bash: ["Bash"],
+  shell: ["Bash"],
   webfetch: ["WebFetch"],
   websearch: ["WebSearch"],
-  task: ["Agent", "Task"]
+  subagent: ["Agent", "Task"]
 } as const;
 
 /**
- * OpenCode agents take `mode` and `permission` instead of Claude's `model`
- * and `tools`. Omitting `model` makes a subagent use its caller's model,
- * which matches `model: inherit`. Contract: https://opencode.ai/docs/agents/
+ * OpenCode 2.x agents take `mode` and a `permissions` rule list instead of
+ * Claude's `model` and `tools`. Omitting `model` makes a subagent use its
+ * caller's model, which matches `model: inherit`.
+ * Contract: https://opencode.ai/v2/docs/agents
  */
 export const renderOpencodeAgentDefinition = (definition: AgentDefinition): string => {
   const { tools } = definition;
   const denied = tools
     ? Object.entries(OPENCODE_AGENT_PERMISSION_TOOLS)
         .filter(([, unlocking]) => !unlocking.some((tool) => tools.includes(tool)))
-        .map(([permission]) => `  ${permission}: deny`)
+        .flatMap(([action]) => [`  - action: ${action}`, '    resource: "*"', "    effect: deny"])
     : [];
   const frontmatter = [
     `description: ${JSON.stringify(definition.description)}`,
     "mode: subagent",
-    ...(denied.length > 0 ? ["permission:", ...denied] : [])
+    ...(denied.length > 0 ? ["permissions:", ...denied] : [])
   ];
   const body = definition.body.endsWith("\n") ? definition.body : `${definition.body}\n`;
   return `---\n${frontmatter.join("\n")}\n---\n${body}`;
@@ -1515,23 +1515,26 @@ export const renderCursorHooks = (): string =>
 
 /**
  * OpenCode has no JSON hook format; a `PreToolUse` block there is silently
- * ignored. Its equivalent is a plugin listening on `tool.execute.before`, so
- * this renders one that reuses the shared matcher rather than restating the
- * policy. The community compatibility wrapper is deliberately avoided: a
- * third-party dependency inside the guardrail is a worse trade than 20 lines.
+ * ignored. Its equivalent is a plugin hook on `execute.before`, so this renders
+ * one that reuses the shared matcher rather than restating the policy. The
+ * community compatibility wrapper is deliberately avoided: a third-party
+ * dependency inside the guardrail is a worse trade than 20 lines.
+ * `@opencode/plugin` is supplied by the OpenCode host at runtime.
  */
 export const renderOpencodeGuardrailPlugin = (): string =>
   `// ${GEN_NOTICE}
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { Plugin } from "@opencode/plugin";
+
 import {
   guardedCommandMessage,
   loadGuardedCommandRules,
   matchGuardedCommand
-} from "../../.ai/hooks/guarded-command.mjs";
+} from "../../../.ai/hooks/guarded-command.mjs";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 const readRules = () => {
   try {
@@ -1542,16 +1545,23 @@ const readRules = () => {
   }
 };
 
-// Contract: https://opencode.ai/docs/plugins/
-export const KaineGuardrail = async () => ({
-    "tool.execute.before": async (
-      input: { tool: string },
-      output: { args: { command?: unknown } }
-    ) => {
-      if (input.tool !== "bash" || typeof output.args.command !== "string") {
+// Contract: https://opencode.ai/v2/docs/build/plugins/server
+export default Plugin.define({
+  id: "kaine.guardrail",
+  async setup(ctx) {
+    await ctx.tool.hook("execute.before", (event) => {
+      // OpenCode 2.x runs a model's \`bash\` call as its \`shell\` tool.
+      const { input } = event;
+      if (
+        (event.tool !== "shell" && event.tool !== "bash") ||
+        typeof input !== "object" ||
+        input === null ||
+        !("command" in input) ||
+        typeof input.command !== "string"
+      ) {
         return;
       }
-      const rule = matchGuardedCommand(output.args.command, readRules());
+      const rule = matchGuardedCommand(input.command, readRules());
       // This callback blocks by throwing; ask rules retain the advisory policy.
       if (rule && rule.decision === "deny") {
         throw new Error(guardedCommandMessage(rule));
@@ -1559,31 +1569,42 @@ export const KaineGuardrail = async () => ({
       if (rule) {
         console.warn(guardedCommandMessage(rule));
       }
-    }
+    });
+  }
 });
 `;
 
+/** Generated OpenCode 1.x plugin files; 2.x would still try to load them. */
+const LEGACY_OPENCODE_GUARDRAILS = [
+  join(".opencode", "plugin", "kaine-guardrail.ts"),
+  join(".opencode", "plugins", "kaine-guardrail.ts")
+];
+
 export const removeLegacyOpencodeGuardrail = (repoRoot: string): boolean => {
-  const legacy = join(repoRoot, ".opencode", "plugin", "kaine-guardrail.ts");
-  if (
-    !existsSync(legacy) ||
-    readFileSync(legacy, "utf8").split(/\r?\n/, 1)[0] !== `// ${GEN_NOTICE}`
-  ) {
-    return false;
+  let removed = false;
+  for (const file of LEGACY_OPENCODE_GUARDRAILS) {
+    const legacy = join(repoRoot, file);
+    if (
+      existsSync(legacy) &&
+      readFileSync(legacy, "utf8").split(/\r?\n/, 1)[0] === `// ${GEN_NOTICE}`
+    ) {
+      rmSync(legacy);
+      removed = true;
+    }
   }
-  rmSync(legacy);
-  return true;
+  return removed;
 };
 
-/** OpenCode's 5000 ms default is shorter than a first-run `npx -y` or `uvx --from git+` fetch. */
+/** Covers a first-run `npx -y` or `uvx --from git+` fetch. */
 const OPENCODE_MCP_TIMEOUT_MS = 30_000;
 
+/** Contract: https://opencode.ai/v2/docs/mcp-servers */
 export const renderOpencodeConfig = (source: McpSource): string => {
-  const mcp: Record<string, unknown> = {};
+  const servers: Record<string, unknown> = {};
 
   for (const [name, server] of Object.entries(source.mcpServers)) {
     if (server.url) {
-      mcp[name] = { type: "remote", url: server.url, enabled: true };
+      servers[name] = { type: "remote", url: server.url, disabled: false };
       continue;
     }
     // validateMcpServers rejects a server with neither field before install renders it.
@@ -1591,17 +1612,22 @@ export const renderOpencodeConfig = (source: McpSource): string => {
       continue;
     }
 
-    mcp[name] = {
+    servers[name] = {
       type: "local",
       command: [server.command, ...(server.args ?? [])],
-      enabled: true,
-      timeout: OPENCODE_MCP_TIMEOUT_MS,
+      disabled: false,
+      // Only the tool list: a tool call keeps OpenCode's own, much longer, limit.
+      timeout: { catalog: OPENCODE_MCP_TIMEOUT_MS },
       ...(server.env ? { environment: server.env } : {})
     };
   }
 
-  const permission = { bash: opencodePermissionEntries(readPermissionsSource()) };
-  return `${JSON.stringify({ $schema: "https://opencode.ai/config.json", permission, mcp }, null, 2)}\n`;
+  const permissions = opencodePermissionEntries(readPermissionsSource());
+  return `${JSON.stringify(
+    { $schema: "https://opencode.ai/config.json", permissions, mcp: { servers } },
+    null,
+    2
+  )}\n`;
 };
 
 export const writeGenerated = (
