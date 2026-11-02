@@ -31,16 +31,27 @@ async function browserSyncStores(userId: string): Promise<string[]> {
   );
 }
 
+/** How long a blocked deletion waits for the connection that blocks it to close. */
+const BLOCKED_DELETE_MS = 3000;
+
 /**
- * Deletes one Outbox store; resolves false when the browser refuses. A store
- * still open in this tab is deleted once its engine closes it.
+ * Deletes one Outbox store; resolves false when the browser refuses or the
+ * store stays open. This tab's engine closes its store a moment after the
+ * sign-out; another tab can keep it open.
  */
 function deleteStore(name: string): Promise<boolean> {
   return new Promise((resolve) => {
+    let blocked: ReturnType<typeof setTimeout> | undefined;
+    const settle = (deleted: boolean) => {
+      clearTimeout(blocked);
+      resolve(deleted);
+    };
     const request = indexedDB.deleteDatabase(name);
-    request.onsuccess = () => resolve(true);
-    request.onblocked = () => resolve(true);
-    request.onerror = () => resolve(false);
+    request.onsuccess = () => settle(true);
+    request.onerror = () => settle(false);
+    request.onblocked = () => {
+      blocked = setTimeout(() => settle(false), BLOCKED_DELETE_MS);
+    };
   });
 }
 
@@ -91,13 +102,14 @@ export function useSignOut(): {
     await logout();
     if (!userId) return;
     await engine?.clearLocalData().catch(() => undefined);
-    const stores = await browserSyncStores(userId).catch(() => []);
+    // Stores it cannot list may still hold data: that counts as a failed deletion.
+    const stores = await browserSyncStores(userId).catch(() => null);
     const deleted = await Promise.all([
-      ...stores.map(deleteStore),
+      ...(stores ?? []).map(deleteStore),
       deleteDeviceStorage(userId).catch(() => false)
     ]);
     // The sign-out stands either way; what stays is deleted at the next try.
-    if (deleted.includes(false)) toast.warning(t("sync.signOut.cleanupFailed"));
+    if (stores === null || deleted.includes(false)) toast.warning(t("sync.signOut.cleanupFailed"));
   }, [engine, logout, t, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;

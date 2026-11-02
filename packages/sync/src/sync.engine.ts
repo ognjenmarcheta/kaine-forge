@@ -58,7 +58,7 @@ export interface SyncEngineOptions {
   onlineDetector?: OnlineDetector;
   leaderElection?: LeaderElection;
   pullIntervalMs?: number;
-  /** A Pending Change the server refused; it was already rolled back. */
+  /** A Pending Change the server refused; it rolls back right after this call. */
   onRejected?: (rejection: SyncRejection) => void;
   /**
    * Device storage for the synced rows, for the same User and Organization as

@@ -116,7 +116,7 @@ export interface SyncStatus {
   older: SyncList[];
 }
 
-/** A Pending Change the server refused. The client already rolled it back. */
+/** A Pending Change the server refused. The engine rolls it back right after reporting it. */
 export interface SyncRejection {
   entity: "TODO" | "NOTE";
   id: string;

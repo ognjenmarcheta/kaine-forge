@@ -77,5 +77,5 @@
   "sync.conflict.keepMine": "Keep mine",
   "sync.conflict.keepCurrent": "Keep current",
   "sync.older.offline": "Older items need a connection.",
-  "sync.signOut.cleanupFailed": "Some of your data could not be removed from this device. It is removed at the next sign-out or app start."
+  "sync.signOut.cleanupFailed": "Some of your data is still on this device. The next sign-out here tries to remove it."
 }

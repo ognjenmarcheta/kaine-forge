@@ -77,5 +77,5 @@
   "sync.conflict.keepMine": "Meine behalten",
   "sync.conflict.keepCurrent": "Aktuelle behalten",
   "sync.older.offline": "Ältere Einträge brauchen eine Verbindung.",
-  "sync.signOut.cleanupFailed": "Einige Ihrer Daten konnten nicht von diesem Gerät entfernt werden. Sie werden beim nächsten Abmelden oder App-Start entfernt."
+  "sync.signOut.cleanupFailed": "Einige Ihrer Daten sind noch auf diesem Gerät. Die nächste Abmeldung hier versucht, sie zu entfernen."
 }

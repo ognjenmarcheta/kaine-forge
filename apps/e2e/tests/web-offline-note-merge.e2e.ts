@@ -5,6 +5,8 @@ import { signIn, signUp } from "./helpers/auth";
 const NOTES_CREATE = /^(New note|notes\.create)$/;
 const CONFLICT_TITLE = /^(This note changed on another device|sync\.conflict\.title)$/;
 const KEEP_MINE = /^(Keep mine|sync\.conflict\.keepMine)$/;
+const MINE = /^(Your version|sync\.conflict\.mine)$/;
+const CURRENT = /^(Current version|sync\.conflict\.current)$/;
 const BASE = ["one", "two", "three", "four", "five"];
 
 function body(page: Page) {
@@ -81,6 +83,13 @@ test("merges offline edits of different lines of one Note, and lets the second w
 
     const conflict = other.getByRole("dialog", { name: CONFLICT_TITLE });
     await expect(conflict).toBeVisible();
+    // The writer sees their refused text beside the other device's, not the same text twice.
+    await expect(conflict.getByLabel(MINE)).toHaveValue(
+      ["ONE", "two", "three from the phone", "four", "FIVE"].join("\n")
+    );
+    await expect(conflict.getByLabel(CURRENT)).toHaveValue(
+      ["ONE", "two", "three from the laptop", "four", "FIVE"].join("\n")
+    );
     await conflict.getByRole("button", { name: KEEP_MINE }).click();
     await expect(conflict).toBeHidden();
 

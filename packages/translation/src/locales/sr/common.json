@@ -77,5 +77,5 @@
   "sync.conflict.keepMine": "Zadrži moju",
   "sync.conflict.keepCurrent": "Zadrži trenutnu",
   "sync.older.offline": "Za starije stavke potrebna je veza.",
-  "sync.signOut.cleanupFailed": "Neki vaši podaci nisu uklonjeni sa ovog uređaja. Uklanjaju se pri sledećoj odjavi ili pokretanju aplikacije."
+  "sync.signOut.cleanupFailed": "Neki vaši podaci su još na ovom uređaju. Sledeća odjava ovde pokušava da ih ukloni."
 }

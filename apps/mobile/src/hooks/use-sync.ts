@@ -48,10 +48,13 @@ export function useSignOut(): {
     await logout();
     if (!userId) return;
     await engine?.clearLocalData().catch(() => undefined);
-    const outboxDeleted = await AsyncStorage.multiRemove(await userOutboxKeys(userId)).then(
-      () => true,
-      () => false
-    );
+    // A failed lookup is a failed deletion too; the device databases are deleted either way.
+    const outboxDeleted = await userOutboxKeys(userId)
+      .then((keys) => AsyncStorage.multiRemove(keys))
+      .then(
+        () => true,
+        () => false
+      );
     const databasesDeleted = await deleteDeviceStorage(userId).catch(() => false);
     // The sign-out stands either way; what stays is deleted at the next try.
     if (!outboxDeleted || !databasesDeleted) Alert.alert(t("sync.signOut.cleanupFailed"));

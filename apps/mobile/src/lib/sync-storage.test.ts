@@ -83,6 +83,13 @@ it("reports a database it could not delete and keeps it listed for the next try"
   expect(registry()).toEqual([]);
 });
 
+it("reports a failed deletion and keeps a database list it cannot read", async () => {
+  store.set("kaine-sync:databases", "{not json");
+
+  await expect(deleteDeviceStorage("u1")).resolves.toBe(false);
+  expect(store.get("kaine-sync:databases")).toBe("{not json");
+});
+
 it("deletes every other User's databases when a User starts sync", async () => {
   await openDeviceStorage({ userId: "u1", organizationId: "o1" });
   await openDeviceStorage({ userId: "u2", organizationId: "o1" });

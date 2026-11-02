@@ -20,18 +20,25 @@ async function deviceDatabasePrefix(userId: string): Promise<string> {
   return `${DEVICE_DATABASE_PREFIX}${await namePart(userId)}-`;
 }
 
-async function registeredDatabases(): Promise<string[]> {
+/** The registered database names, or null when the list on the device cannot be read. */
+async function readRegistry(): Promise<string[] | null> {
   let stored: unknown;
   try {
     stored = JSON.parse((await AsyncStorage.getItem(REGISTRY_KEY)) ?? "[]");
-  } catch (error) {
-    // Unreadable text names no database: start the list again rather than stop sync.
-    console.warn("The device database list could not be read; starting it again.", error);
-    return [];
+  } catch {
+    return null;
   }
   return Array.isArray(stored)
     ? stored.filter((name): name is string => typeof name === "string")
-    : [];
+    : null;
+}
+
+async function registeredDatabases(): Promise<string[]> {
+  const names = await readRegistry();
+  // Unreadable text names no database: start the list again rather than stop sync.
+  if (names === null)
+    console.warn("The device database list could not be read; starting it again.");
+  return names ?? [];
 }
 
 async function writeRegistry(names: Iterable<string>): Promise<void> {
@@ -97,7 +104,9 @@ export function openDeviceStorage(scope: {
  */
 function deleteDatabases(match: (name: string) => boolean): Promise<boolean> {
   return serial(async () => {
-    const registered = await registeredDatabases();
+    const registered = await readRegistry();
+    // Nothing it names can be deleted, and writing it again would lose those names.
+    if (registered === null) return false;
     const deleted = new Set<string>();
     for (const name of registered.filter(match)) {
       await openDatabases.get(name)?.();

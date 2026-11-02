@@ -23,7 +23,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const { activeOrganizationId } = useOrganization();
   const { t } = useTranslation();
   const [current, setCurrent] = useState<{ scope: string; engine: SyncEngine } | null>(null);
-  const [conflict, setConflict] = useState<(NoteConflict & { scope: string }) | null>(null);
+  // Each refused Note body edit waits here until its writer chooses: none is dropped.
+  const [conflicts, setConflicts] = useState<Array<NoteConflict & { scope: string }>>([]);
   const userId = session?.user.id ?? null;
   const scope = userId && activeOrganizationId ? `${userId}:${activeOrganizationId}` : null;
   // Read when an engine starts, so a session refresh does not restart it.
@@ -59,13 +60,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           const note = started?.notes.get(id);
           // Another device changed the same lines: the writer chooses, nothing is lost.
           if (code === "CONFLICT" && body !== undefined && note) {
-            setConflict({
-              scope,
-              id,
-              title: note.title,
-              mine: body ?? "",
-              current: note.body ?? ""
-            });
+            const conflict = { scope, id, title: note.title, mine: body ?? "" };
+            setConflicts((waiting) => [...waiting, conflict]);
             return;
           }
           toast.error(latest.current.t(`sync.rejected.${code}`));
@@ -83,15 +79,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Right after a switch the effect has not run yet: the previous scope's
   // engine must never reach the new Organization's screens.
   const engine = current?.scope === scope ? current.engine : null;
-  const shownConflict = conflict?.scope === scope ? conflict : null;
+  const shownConflict = conflicts.find((conflict) => conflict.scope === scope) ?? null;
+  const settle = (settled: NoteConflict) =>
+    setConflicts((waiting) => waiting.filter((conflict) => conflict !== settled));
   return (
     <SyncContext.Provider value={engine}>
       {children}
       <NoteConflictDialog
+        engine={engine}
         conflict={shownConflict}
-        onKeepCurrent={() => setConflict(null)}
-        onKeepMine={({ id, mine }) => {
-          setConflict(null);
+        onKeepCurrent={settle}
+        onKeepMine={(conflict) => {
+          settle(conflict);
+          const { id, mine } = conflict;
           // Sent again from the current body, so the server applies it as it is.
           engine?.updateNote(id, { body: mine.length > 0 ? mine : null }).catch(() => {
             toast.error(t("sync.rejected.NOT_FOUND"));
