@@ -40,7 +40,7 @@ const RESULT: ScorecardJobResult = {
   proposedIssues: ["ui-lab-gap", "adr-index-drift"].map((slug) => ({
     slug,
     title: `docs: ${slug}`,
-    labels: ["type:docs"],
+    labels: ["type:docs", "type:bug"],
     body: `## Outcome\n\n${slug}`
   })),
   openQuestions: [],
@@ -78,7 +78,8 @@ const harness = (outcome: AgentRunOutcome<unknown>, options: HarnessOptions = {}
       [LEDGER]: LEDGER_TEXT,
       ".ai/permissions.json": JSON.stringify({ rules: [] }),
       ".ai/mcp.json": JSON.stringify({ mcpServers: { serena: {} } }),
-      ".ai/skills/kaine-scorecard.md": "---\nname: kaine-scorecard\n---\n"
+      ".ai/skills/kaine-scorecard.md": "---\nname: kaine-scorecard\n---\n",
+      ".github/repo-setup.json": JSON.stringify({ labels: [{ name: "type:docs" }] })
     }
   });
   const exec = fakeExec([
@@ -197,7 +198,10 @@ describe("the scorecard job", () => {
     await h.jobs.settled(id);
 
     expect(h.github.createdIssues.map((issue) => issue.title)).toEqual(["docs: adr-index-drift"]);
-    expect(h.calls()).toContain("gh issue edit 501 --add-label type:docs");
+    // `type:bug` is not a label of this repository: it is dropped, not sent.
+    expect(h.calls().filter((call) => call.startsWith("gh issue edit"))).toEqual([
+      "gh issue edit 501 --add-label type:docs"
+    ]);
     expect(h.github.createdPullRequests).toMatchObject([
       { base: "main", head: "KAINE-chore-scorecard-2026-11-02-job-1", draft: true }
     ]);
@@ -209,6 +213,28 @@ describe("the scorecard job", () => {
       status: "done",
       filedIssues: [{ slug: "adr-index-drift" }]
     });
+  });
+
+  it("wraps the agent's summary in the commit body at commitlint's 100 characters", async () => {
+    const words = "all five probes returned and every dimension is scored ".repeat(4).trim();
+    // A nested list item keeps its level, and a word longer than a line is split.
+    const summary = `Full fan-out run.\n  - ${words}\n${"x".repeat(150)}`;
+    const h = harness({
+      ...success,
+      result: { ...success.result, structured: { ...RESULT, summary } }
+    });
+    const id = await startScorecard(h);
+
+    await h.jobs.act(id, { action: "approve", issues: [], confirm: true });
+    await h.jobs.settled(id);
+
+    const files = await createJobStore(path.join(root, "state")).filesDir(id);
+    const message = await readFile(path.join(files, "commit-message.txt"), "utf8");
+    const body = message.trimEnd().split("\n").slice(2);
+    expect(Math.max(...body.map((line) => line.length))).toBeLessThanOrEqual(100);
+    expect(body[1]?.startsWith("  - all five")).toBe(true);
+    expect(body[2]?.startsWith("    ")).toBe(true);
+    expect(body.join("").replace(/\s+/g, "")).toBe(summary.replace(/\s+/g, ""));
   });
 
   it("refuses an issue the run did not propose", async () => {
