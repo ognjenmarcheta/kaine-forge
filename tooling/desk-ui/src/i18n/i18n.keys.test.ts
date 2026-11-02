@@ -8,6 +8,7 @@ import {
   DEFINITION_SOURCES,
   HEALTH_FIXES,
   INTAKE_RECOMMENDATIONS,
+  COMPONENT_LAYERS,
   JOB_KINDS,
   JOB_STAGES,
   JOB_STATUSES,
@@ -172,6 +173,8 @@ describe("desk translations", () => {
       "desk.job.status.": JOB_STATUSES,
       "desk.job.stop.": JOB_STOP_REASONS,
       "desk.job.stepState.": ["done", "current", "todo"],
+      "desk.job.start.component.layer.": COMPONENT_LAYERS,
+      "desk.job.auditReview.severity.": ["must", "should", "could"],
       "desk.job.": [
         "cancel",
         "remove",

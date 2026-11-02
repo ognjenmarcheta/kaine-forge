@@ -1282,8 +1282,9 @@ because the CSP blocks those.
 ### Jobs
 
 A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). There are
-two kinds: the **scorecard job** and the **screen job**. A job's page is `?job=<n>`; the Board
-lists jobs in a **Jobs** card.
+four kinds: the **scorecard job**, and the lab's **screen job**, **component job**, and **audit
+job**. A job's page is `?job=<n>`; the Board lists jobs in a **Jobs** card. One job of each kind
+runs at a time.
 
 - **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model
   (Opus by default), a budget in dollars, and a time limit (defaults $15 and 60 minutes). One
@@ -1325,6 +1326,32 @@ The **screen job** recreates a reference image as a lab screen:
   diff percent, the deviations, and the open questions. **Approve…** asks once more, then commits
   only the screen folder, pushes, opens a draft PR, and stops the lab server. **Send back** builds
   again with your note.
+
+The **component job** adds one `@repo/ui` component, with a plan you approve first:
+
+- **Start.** **Build component** in the Lab view asks for the export name (`RatingStars`), the
+  layer (primitive or composed), and what the component is for, then the model and limits
+  (defaults $10 and 60 minutes). The desk refuses a name that `@repo/ui` already has.
+- **Plan.** One Claude run follows `kaine-build-ui` and writes nothing. The job waits for you with
+  the props and variants, what the component builds on, what the tests prove, and the open
+  questions. **Approve the plan and build** starts the build; **Send back** plans again.
+- **Build and checks.** In the job's lab server, one Claude run builds the plan with `kaine-test`
+  and the Playwright browser. It may write only the component, its test, the `@repo/ui` index, its
+  lab specimen (`#/specimens/<file>`), and `DESIGN_SYSTEM.md`. The engine then runs the component's
+  test, eslint, both typechecks, and `ui:check`; a failure goes back to the builder on **Continue**.
+- **Your review.** The job page links to the specimen. **Approve…** asks once more, then writes
+  the changeset, commits only those files, pushes, and opens a draft PR.
+
+The **audit job** checks one lab screen and files the findings you tick:
+
+- **Start.** **Audit screen** in the Lab view asks for a lab screen id, then the note, model, and
+  limits (defaults $5 and 30 minutes).
+- **Audit.** In the job's lab server, one Claude run follows `kaine-audit-ui` with the Playwright
+  browser, in reference mode when your checkout has the screen's reference image. It writes
+  nothing.
+- **Your review.** The job page links to the screen (its compare view in reference mode) and lists
+  the findings with their rule IDs and severity. Tick the ones to file. **Approve…** asks once more,
+  then files exactly those as issues. Nothing is pushed.
 
 ### Dev flow
 

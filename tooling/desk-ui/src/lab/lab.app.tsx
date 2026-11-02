@@ -5,6 +5,7 @@ import { CompareView } from "./lab.compare";
 import { LabGallery } from "./lab.gallery";
 import type { LabCatalog, LabScreen } from "./lab.registry";
 import { ScreensIndex } from "./lab.screens";
+import { SpecimenView, SpecimensIndex } from "./lab.specimens";
 
 function useHashRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.slice(1) || "/");
@@ -53,19 +54,22 @@ export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const [, view = "", id = "", mode = ""] = route.split("/");
   const screen = catalog.screens.find((entry) => entry.id === id);
   const failure = catalog.failures.find((entry) => entry.id === id);
+  const specimen = catalog.specimens.find((entry) => entry.id === id);
 
   if (view === "charts") return <ChartsPage catalog={catalog} />;
   if (view === "options") return <LabGallery catalog={catalog} page="options" />;
   if (view === "screens" && !id) return <ScreensIndex catalog={catalog} />;
+  if (view === "specimens" && !id) return <SpecimensIndex catalog={catalog} />;
+  if (specimen && view === "specimens") return <SpecimenView mode={mode} specimen={specimen} />;
   if (screen && view === "screens") return <ScreenView mode={mode} screen={screen} />;
   if (screen && view === "compare") {
     // The route sets the starting mode, so a new route starts a new view.
     return <CompareView key={route} catalog={catalog} screen={screen} view={mode} />;
   }
-  if (failure && (view === "screens" || view === "compare")) {
+  if (failure && (view === "screens" || view === "compare" || view === "specimens")) {
     return (
       <main className="grid gap-ds-100 p-ds-300 text-ds-text">
-        <h1 className="m-0 text-heading-sm">{`Screen ${failure.id} did not load`}</h1>
+        <h1 className="m-0 text-heading-sm">{`${failure.id} did not load`}</h1>
         <pre className="m-0 whitespace-pre-wrap text-body-sm text-ds-text-danger">
           {failure.message}
         </pre>

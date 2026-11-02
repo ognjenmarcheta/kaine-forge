@@ -2,7 +2,7 @@ import type { JobActionRequest, JobState, ProposedIssue } from "@repo/desk/contr
 import { Button, Card, Checkbox, Label, Modal, Textarea } from "@repo/ui";
 import { useEffect, useId, useState } from "react";
 
-import { JOB_STEPS, JOB_TONE, compareUrlOf, stepStates } from "./job.model";
+import { JOB_STEPS, JOB_TONE, previewUrlOf, stepStates } from "./job.model";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useLanguage, useT } from "../i18n/i18n.t";
@@ -58,10 +58,13 @@ function Steps({ job }: { readonly job: JobState }) {
 
 function IssueChoice({
   issue,
+  detail,
   checked,
   onChange
 }: {
   readonly issue: ProposedIssue;
+  /** The line under the title. Default: the slug and the labels. */
+  readonly detail?: string;
   readonly checked: boolean;
   readonly onChange: (checked: boolean) => void;
 }) {
@@ -74,7 +77,11 @@ function IssueChoice({
         <Label htmlFor={id}>{issue.title}</Label>
       </div>
       <p className="desk-muted">
-        <code>{issue.slug}</code> {issue.labels.join(", ")}
+        {detail ?? (
+          <>
+            <code>{issue.slug}</code> {issue.labels.join(", ")}
+          </>
+        )}
       </p>
       <details>
         <summary>{t("desk.job.review.body")}</summary>
@@ -84,16 +91,133 @@ function IssueChoice({
   );
 }
 
-/** The gate: the preview, the open questions, the issues to tick, and approve or send back. */
-function Review({ job }: { readonly job: JobState }) {
+/** A titled list, left out when it has no items. */
+function TextList({ title, items }: { readonly title: string; readonly items: readonly string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <h3>{title}</h3>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** The live page in the job's lab server, or why it is not there. */
+function PreviewLink({ job, label }: { readonly job: JobState; readonly label: string }) {
+  const t = useT();
+  const url = previewUrlOf(job);
+  return (
+    <p>
+      {url === null ? (
+        <span className="desk-muted">{t("desk.job.screenReview.noServer")}</span>
+      ) : (
+        <a href={url} target="_blank" rel="noreferrer">
+          {label}
+        </a>
+      )}
+    </p>
+  );
+}
+
+/**
+ * A gate's actions: approve (after a confirmation, when it pushes or files), or send back with
+ * a note.
+ */
+function GateActions({
+  job,
+  approveLabel,
+  issues = [],
+  confirm,
+  sendBackLabel
+}: {
+  readonly job: JobState;
+  readonly approveLabel: string;
+  /** The ticked issues to file. */
+  readonly issues?: readonly string[];
+  /** The confirmation's words, or `null` when approving starts only the next step. */
+  readonly confirm: {
+    readonly title: string;
+    readonly text: string;
+    readonly label: string;
+  } | null;
+  readonly sendBackLabel: string;
+}) {
   const t = useT();
   const id = useId();
   const action = useJobAction(job.id);
-  const result = job.result;
-  const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState(false);
-  if (result === null) return null;
+  const approve = (): void =>
+    void action.run({ action: "approve", issues: [...issues], confirm: true });
+  return (
+    <>
+      <div className="desk-job-actions">
+        <Button
+          disabled={action.pending}
+          onClick={() => (confirm === null ? approve() : setConfirming(true))}
+        >
+          {approveLabel}
+        </Button>
+      </div>
+      <div className="desk-field">
+        <Label htmlFor={`${id}-note`}>{sendBackLabel}</Label>
+        <Textarea
+          id={`${id}-note`}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </div>
+      <Button
+        appearance="subtle"
+        disabled={action.pending || note.trim() === ""}
+        onClick={() => {
+          void action.run({ action: "send-back", note: note.trim() });
+          setNote("");
+        }}
+      >
+        {t("desk.job.review.sendBack")}
+      </Button>
+      {action.error !== null && (
+        <p className="desk-field__error" role="alert">
+          {action.error}
+        </p>
+      )}
+      {confirm !== null && (
+        <Modal
+          open={confirming}
+          onOpenChange={setConfirming}
+          title={confirm.title}
+          description={confirm.text}
+          closeButtonLabel={t("desk.common.close")}
+          size="sm"
+          actions={[
+            {
+              appearance: "subtle",
+              label: t("desk.common.back"),
+              onClick: () => setConfirming(false)
+            },
+            {
+              appearance: "default",
+              label: confirm.label,
+              onClick: () => {
+                setConfirming(false);
+                approve();
+              }
+            }
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+/** Tick issues by slug. */
+function useTicked() {
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
   const toggle = (slug: string, on: boolean): void =>
     setTicked((was) => {
       const next = new Set(was);
@@ -101,6 +225,15 @@ function Review({ job }: { readonly job: JobState }) {
       else next.delete(slug);
       return next;
     });
+  return { ticked, toggle };
+}
+
+/** The gate: the preview, the open questions, the issues to tick, and approve or send back. */
+function Review({ job }: { readonly job: JobState }) {
+  const t = useT();
+  const result = job.result;
+  const { ticked, toggle } = useTicked();
+  if (result === null) return null;
   return (
     <Card className="desk-panel">
       <h2>{t("desk.job.review.title")}</h2>
@@ -110,16 +243,7 @@ function Review({ job }: { readonly job: JobState }) {
           {t("desk.job.review.preview")}
         </RouteLink>
       </p>
-      {result.openQuestions.length > 0 && (
-        <>
-          <h3>{t("desk.job.review.questions")}</h3>
-          <ul>
-            {result.openQuestions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
-        </>
-      )}
+      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
       <h3>{t("desk.job.review.issues", { count: result.proposedIssues.length })}</h3>
       {result.proposedIssues.length === 0 ? (
         <Muted>{t("desk.job.review.noIssues")}</Muted>
@@ -135,56 +259,16 @@ function Review({ job }: { readonly job: JobState }) {
           ))}
         </ul>
       )}
-      <div className="desk-job-actions">
-        <Button disabled={action.pending} onClick={() => setConfirming(true)}>
-          {t("desk.job.review.approve")}
-        </Button>
-      </div>
-      <div className="desk-field">
-        <Label htmlFor={`${id}-note`}>{t("desk.job.review.sendBackNote")}</Label>
-        <Textarea
-          id={`${id}-note`}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-      </div>
-      <Button
-        appearance="subtle"
-        disabled={action.pending || note.trim() === ""}
-        onClick={() => {
-          void action.run({ action: "send-back", note: note.trim() });
-          setNote("");
+      <GateActions
+        job={job}
+        approveLabel={t("desk.job.review.approve")}
+        issues={[...ticked]}
+        confirm={{
+          title: t("desk.job.review.confirmTitle"),
+          text: t("desk.job.review.confirmText", { count: ticked.size }),
+          label: t("desk.job.review.confirm")
         }}
-      >
-        {t("desk.job.review.sendBack")}
-      </Button>
-      {action.error !== null && (
-        <p className="desk-field__error" role="alert">
-          {action.error}
-        </p>
-      )}
-      <Modal
-        open={confirming}
-        onOpenChange={setConfirming}
-        title={t("desk.job.review.confirmTitle")}
-        description={t("desk.job.review.confirmText", { count: ticked.size })}
-        closeButtonLabel={t("desk.common.close")}
-        size="sm"
-        actions={[
-          {
-            appearance: "subtle",
-            label: t("desk.common.back"),
-            onClick: () => setConfirming(false)
-          },
-          {
-            appearance: "default",
-            label: t("desk.job.review.confirm"),
-            onClick: () => {
-              setConfirming(false);
-              void action.run({ action: "approve", issues: [...ticked], confirm: true });
-            }
-          }
-        ]}
+        sendBackLabel={t("desk.job.review.sendBackNote")}
       />
     </Card>
   );
@@ -193,13 +277,8 @@ function Review({ job }: { readonly job: JobState }) {
 /** The screen gate: the compare view in the job's lab server, the diff, and approve or send back. */
 function ScreenReview({ job }: { readonly job: JobState }) {
   const t = useT();
-  const id = useId();
-  const action = useJobAction(job.id);
   const result = job.screen?.result ?? null;
-  const [note, setNote] = useState("");
-  const [confirming, setConfirming] = useState(false);
   if (result === null) return null;
-  const compare = compareUrlOf(job);
   const diff = job.screen?.diffPercent ?? null;
   return (
     <Card className="desk-panel">
@@ -210,88 +289,128 @@ function ScreenReview({ job }: { readonly job: JobState }) {
           ? t("desk.job.screenReview.noDiff")
           : t("desk.job.screenReview.diff", { value: diff })}
       </p>
-      <p>
-        {compare === null ? (
-          <span className="desk-muted">{t("desk.job.screenReview.noServer")}</span>
-        ) : (
-          <a href={compare} target="_blank" rel="noreferrer">
-            {t("desk.job.screenReview.compare")}
-          </a>
-        )}
-      </p>
-      {result.deviations.length > 0 && (
-        <>
-          <h3>{t("desk.job.screenReview.deviations")}</h3>
-          <ul>
-            {result.deviations.map((entry) => (
-              <li key={entry}>{entry}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      {result.openQuestions.length > 0 && (
-        <>
-          <h3>{t("desk.job.review.questions")}</h3>
-          <ul>
-            {result.openQuestions.map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      <div className="desk-job-actions">
-        <Button disabled={action.pending} onClick={() => setConfirming(true)}>
-          {t("desk.job.review.approve")}
-        </Button>
-      </div>
-      <div className="desk-field">
-        <Label htmlFor={`${id}-note`}>{t("desk.job.screenReview.sendBackNote")}</Label>
-        <Textarea
-          id={`${id}-note`}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-      </div>
-      <Button
-        appearance="subtle"
-        disabled={action.pending || note.trim() === ""}
-        onClick={() => {
-          void action.run({ action: "send-back", note: note.trim() });
-          setNote("");
+      <PreviewLink job={job} label={t("desk.job.screenReview.compare")} />
+      <TextList title={t("desk.job.screenReview.deviations")} items={result.deviations} />
+      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
+      <GateActions
+        job={job}
+        approveLabel={t("desk.job.review.approve")}
+        confirm={{
+          title: t("desk.job.screenReview.confirmTitle"),
+          text: t("desk.job.screenReview.confirmText"),
+          label: t("desk.job.screenReview.confirm")
         }}
-      >
-        {t("desk.job.review.sendBack")}
-      </Button>
-      {action.error !== null && (
-        <p className="desk-field__error" role="alert">
-          {action.error}
-        </p>
-      )}
-      <Modal
-        open={confirming}
-        onOpenChange={setConfirming}
-        title={t("desk.job.screenReview.confirmTitle")}
-        description={t("desk.job.screenReview.confirmText")}
-        closeButtonLabel={t("desk.common.close")}
-        size="sm"
-        actions={[
-          {
-            appearance: "subtle",
-            label: t("desk.common.back"),
-            onClick: () => setConfirming(false)
-          },
-          {
-            appearance: "default",
-            label: t("desk.job.screenReview.confirm"),
-            onClick: () => {
-              setConfirming(false);
-              void action.run({ action: "approve", issues: [], confirm: true });
-            }
-          }
-        ]}
+        sendBackLabel={t("desk.job.screenReview.sendBackNote")}
       />
     </Card>
   );
+}
+
+/** The plan gate: what the component will export and build on. Approve starts the build. */
+function PlanReview({ job }: { readonly job: JobState }) {
+  const t = useT();
+  const plan = job.component?.plan ?? null;
+  if (plan === null) return null;
+  return (
+    <Card className="desk-panel">
+      <h2>{t("desk.job.planReview.title")}</h2>
+      <p className="desk-job-text">{plan.summary}</p>
+      <TextList title={t("desk.job.planReview.api")} items={plan.api} />
+      <TextList title={t("desk.job.planReview.reuse")} items={plan.reuse} />
+      <TextList title={t("desk.job.planReview.tests")} items={plan.tests} />
+      <TextList title={t("desk.job.review.questions")} items={plan.openQuestions} />
+      <GateActions
+        job={job}
+        approveLabel={t("desk.job.planReview.approve")}
+        confirm={null}
+        sendBackLabel={t("desk.job.planReview.sendBackNote")}
+      />
+    </Card>
+  );
+}
+
+/** The component gate: the specimen in the job's lab server, and approve or send back. */
+function ComponentReview({ job }: { readonly job: JobState }) {
+  const t = useT();
+  const result = job.component?.result ?? null;
+  if (result === null) return null;
+  return (
+    <Card className="desk-panel">
+      <h2>{t("desk.job.componentReview.title")}</h2>
+      <p className="desk-job-text">{result.summary}</p>
+      <PreviewLink job={job} label={t("desk.job.componentReview.preview")} />
+      <TextList title={t("desk.job.componentReview.deviations")} items={result.deviations} />
+      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
+      <GateActions
+        job={job}
+        approveLabel={t("desk.job.review.approve")}
+        confirm={{
+          title: t("desk.job.componentReview.confirmTitle"),
+          text: t("desk.job.componentReview.confirmText"),
+          label: t("desk.job.screenReview.confirm")
+        }}
+        sendBackLabel={t("desk.job.screenReview.sendBackNote")}
+      />
+    </Card>
+  );
+}
+
+/** The audit gate: the findings to tick, the audited screen, and file or send back. */
+function AuditReview({ job }: { readonly job: JobState }) {
+  const t = useT();
+  const result = job.audit?.result ?? null;
+  const { ticked, toggle } = useTicked();
+  if (result === null) return null;
+  return (
+    <Card className="desk-panel">
+      <h2>{t("desk.job.auditReview.title")}</h2>
+      <p className="desk-job-text">{result.summary}</p>
+      <p>
+        {result.matchPercent === null
+          ? t("desk.job.auditReview.noReference")
+          : t("desk.job.auditReview.match", { value: result.matchPercent })}
+      </p>
+      <PreviewLink job={job} label={t("desk.job.auditReview.preview")} />
+      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
+      <h3>{t("desk.job.auditReview.findings", { count: result.findings.length })}</h3>
+      {result.findings.length === 0 ? (
+        <Muted>{t("desk.job.auditReview.noFindings")}</Muted>
+      ) : (
+        <ul className="desk-job-issues">
+          {result.findings.map((finding) => (
+            <IssueChoice
+              key={finding.slug}
+              issue={finding}
+              detail={`${finding.ruleId} · ${t(`desk.job.auditReview.severity.${finding.severity}`)}`}
+              checked={ticked.has(finding.slug)}
+              onChange={(on) => toggle(finding.slug, on)}
+            />
+          ))}
+        </ul>
+      )}
+      <GateActions
+        job={job}
+        approveLabel={t("desk.job.review.approve")}
+        issues={[...ticked]}
+        confirm={{
+          title: t("desk.job.auditReview.confirmTitle"),
+          text: t("desk.job.auditReview.confirmText", { count: ticked.size }),
+          label: t("desk.job.auditReview.confirm")
+        }}
+        sendBackLabel={t("desk.job.auditReview.sendBackNote")}
+      />
+    </Card>
+  );
+}
+
+/** The gate the job waits at. */
+function Gate({ job }: { readonly job: JobState }) {
+  if (job.kind === "screen") return <ScreenReview job={job} />;
+  if (job.kind === "component") {
+    return job.stage === "plan" ? <PlanReview job={job} /> : <ComponentReview job={job} />;
+  }
+  if (job.kind === "audit") return <AuditReview job={job} />;
+  return <Review job={job} />;
 }
 
 function Stopped({ job }: { readonly job: JobState }) {
@@ -389,8 +508,7 @@ export function JobView({ jobId }: { readonly jobId: number }) {
         )}
       </Card>
       {job.status === "needs-you" && <Stopped job={job} />}
-      {job.status === "waiting" &&
-        (job.kind === "screen" ? <ScreenReview job={job} /> : <Review job={job} />)}
+      {job.status === "waiting" && <Gate job={job} />}
       {job.status === "done" && <Done job={job} />}
       <Card className="desk-panel">
         <h2>{t("desk.job.history")}</h2>

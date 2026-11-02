@@ -16,6 +16,8 @@ Ship a screen that does its task, follows the active theme, and passes the UI ru
 2. The active theme's `DESIGN.md` (`DESIGN.md` at the root for the default theme).
 3. `CONTEXT.md` for the names of domain concepts on the screen.
 
+The agent desk can add a `@repo/ui` component as a **component job** (ADR 0021): it plans first, waits for the owner's approval, then writes only the component, its test, the package index, a lab specimen (`tooling/desk-ui/src/lab/specimens/`), and `DESIGN_SYSTEM.md`.
+
 ## Steps
 
 1. **Name the task.** Write one line: who uses the screen, to do what, how often. Pick the structure from it: table, list with dividers, split view, form, or dashboard (LAYOUT-1).

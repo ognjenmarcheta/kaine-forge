@@ -105,7 +105,9 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "organizations.json:organizations.permission.group.webhook",
     "navigation.json:navigation.commandMenu.shortcutMac",
     "storage.json:storage.status",
-    "todos.json:todos.ai.promptLabel"
+    "todos.json:todos.ai.promptLabel",
+    // Agent desk: a lab job's link holds only placeholders.
+    "desk.json:desk.job.openLabJob"
   ],
   sr: [
     // Billing: Plan names are product names, shown as they are in every language.
@@ -176,7 +178,10 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "navigation.json:navigation.commandMenu.shortcutMac",
     "navigation.json:navigation.commandMenu.shortcutOther",
     "storage.json:storage.status",
-    "todos.json:todos.ai.promptLabel"
+    "todos.json:todos.ai.promptLabel",
+    // Agent desk: a lab job's link holds only placeholders; "Plan" is the Serbian word.
+    "desk.json:desk.job.openLabJob",
+    "desk.json:desk.job.stage.plan"
   ]
 };
 

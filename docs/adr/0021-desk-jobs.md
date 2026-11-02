@@ -39,6 +39,24 @@ Added with the second job kind. Flow: setup → build → check → review gate 
 - **Check.** The engine runs the lab tests, eslint on the folder, the desk UI typecheck, and `ui:check`. A failure stops the job and hands the output to the builder on **Continue**. Then the engine runs `lab:diff --json` for the gate.
 - **Gate and ship.** The owner opens the compare view, reads the diff percent and the deviations, and approves or sends back. Approve commits only the screen folder, pushes, opens a draft PR labelled `release:skip-changeset`, and stops the lab server. The reference image never leaves the machine.
 
+### The component job
+
+Added with the third job kind. Flow: setup → plan → plan gate → build → check → review gate → ship.
+
+- **Start.** **Build component** in the Lab view takes the export name (`RatingStars`), the layer (`primitives` or `composed`), and what the component is for. The desk refuses a name that `@repo/ui` already has.
+- **Plan.** One Claude run follows `kaine-build-ui` and returns the props and variants, what the component builds on, and what its tests prove. It writes nothing. At the **plan gate** the owner approves the plan or sends it back; approve starts the build and needs no second confirmation, because nothing leaves the machine.
+- **Build.** One Claude run builds the approved plan with `kaine-build-ui` and `kaine-test`, in the job's lab server with the Playwright browser. It may write exactly five paths: the component, its test, `packages/ui/src/index.ts`, its lab specimen (`tooling/desk-ui/src/lab/specimens/<file>.specimen.tsx`, which the lab finds by file name), and `DESIGN_SYSTEM.md`. It runs only the `@repo/ui` test, lint, and typecheck, the desk UI typecheck, `ui:check`, and `theme:check`.
+- **Check.** The engine checks that the component, its test, and its specimen exist, then runs the component's test, eslint on its files, both typechecks, and `ui:check`. A failure goes back to the builder on **Continue**.
+- **Gate and ship.** The owner opens the specimen in the job's lab server, reads the differences from the plan, and approves or sends back. Approve writes the changeset (`"@repo/ui": minor`), commits only the job's paths, pushes, opens a draft PR (without `release:skip-changeset`, because a package changes), and stops the lab server.
+
+### The audit job
+
+Added with the fourth job kind. Flow: setup → audit → gate → file.
+
+- **Start.** **Audit screen** in the Lab view takes the id of a lab screen that the checkout has.
+- **Audit.** The engine copies the owner's local reference image of that screen, when there is one, into the worktree and starts the lab server. One Claude run follows `kaine-audit-ui` (in reference mode when the image is there) and `kaine-write-issue`, with the Playwright browser. It writes nothing and runs only `lab:diff`, `lab:shots`, and `ui:check`. It returns each finding with its rule ID and severity, as the issue to file.
+- **Gate.** The owner opens the screen (its compare view in reference mode), ticks the findings to file, and approves (with a confirmation) or sends back. Approve files exactly the ticked findings through the desk's GitHub port and stops the lab server. An audit pushes nothing: its local branch goes when the owner removes the job.
+
 ### Trust boundary
 
 - **The agent never holds a GitHub token.** The engine runs every `gh` read and every GitHub write. The scorer's deny list keeps the whole desk policy floor (`gh`, installs, servers, WebFetch, protected paths, skills outside its list).
@@ -48,7 +66,7 @@ Added with the second job kind. Flow: setup → build → check → review gate 
 
 ### Limits
 
-Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen: $10 and 60 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
+Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen and component: $10 and 60 minutes; audit: $5 and 30 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
 
 ## Consequences
 
@@ -56,7 +74,7 @@ Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 a
 - Jobs reuse the runner, the worktree bootstrap, the GitHub port, the ship helpers, and the live event stream; they do not reuse the issue pipeline's state machine, which is issue-bound.
 - Job worktrees sit beside issue worktrees as `KAINE-job-<n>` and stay until the owner removes the job.
 - The Board's "Your turn" count and the tab title count issues only; jobs show in their own card on the Board.
-- Later job kinds (component, audit) add their flow, skills, command allowlist, and limits, and reuse the screen job's lab server and browser.
+- The lab jobs (screen, component, audit) share the lab server and the browser; each kind has its own flow, skills, command allowlist, write paths, and limits.
 
 ## Alternatives considered
 

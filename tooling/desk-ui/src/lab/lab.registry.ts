@@ -30,20 +30,34 @@ export interface LabCrop {
   height: number;
 }
 
+/**
+ * One `@repo/ui` component shown alone, each variant and state, under the default theme. Each
+ * lives in src/specimens/<id>.specimen.tsx and registers itself by file name. A component job
+ * writes one, so its gate can show the new component.
+ */
+export interface LabSpecimen {
+  /** The component's file name, such as "rating-stars". */
+  id: string;
+  title: string;
+  Component: ComponentType;
+}
+
 // Each screen loads on its own, so a screen another session is still writing, or one that
 // fails to compile, shows as a failure in the gallery instead of blanking the whole lab.
 // A screen file that is still being written can load without its `screen` export.
 const loaders = import.meta.glob<{ screen?: LabScreen }>("./screens/*/*.screen.tsx");
+const specimenLoaders = import.meta.glob<{ specimen?: LabSpecimen }>("./specimens/*.specimen.tsx");
 
-/** A screen whose module failed to load, by folder name. */
+/** A screen or specimen whose module failed to load, by its id. */
 export interface LabScreenFailure {
   id: string;
   message: string;
 }
 
-/** Every screen that loaded, the themes to offer, and the screens that failed. */
+/** Every screen and specimen that loaded, the themes to offer, and the modules that failed. */
 export interface LabCatalog {
   screens: readonly LabScreen[];
+  specimens: readonly LabSpecimen[];
   /** The registered themes, then each lab theme once. */
   themes: readonly ThemeDefinition[];
   failures: readonly LabScreenFailure[];
@@ -53,30 +67,48 @@ const registered = new Set<string>(themes.map((theme) => theme.name));
 const byId = (a: { id: string }, b: { id: string }): number =>
   a.id.localeCompare(b.id, undefined, { numeric: true });
 
-export async function loadLabCatalog(): Promise<LabCatalog> {
-  const entries = Object.entries(loaders);
+/** Load each module on its own: the ones that export `key`, and the ones that failed. */
+async function loadEach<T, K extends string>(
+  modules: Record<string, () => Promise<Partial<Record<K, T>>>>,
+  key: K,
+  idOf: (path: string) => string
+): Promise<{ loaded: T[]; failures: LabScreenFailure[] }> {
+  const entries = Object.entries(modules);
   const results = await Promise.allSettled(entries.map(([, load]) => load()));
-  const screens: LabScreen[] = [];
+  const loaded: T[] = [];
   const failures: LabScreenFailure[] = [];
-
   results.forEach((result, index) => {
-    if (result.status === "fulfilled" && result.value.screen) {
-      screens.push(result.value.screen);
+    const value = result.status === "fulfilled" ? result.value[key] : undefined;
+    if (value !== undefined) {
+      loaded.push(value);
       return;
     }
     const path = entries[index]?.[0] ?? "";
     failures.push({
-      id: /screens\/([^/]+)\//.exec(path)?.[1] ?? path,
+      id: idOf(path),
       message:
         result.status === "fulfilled"
-          ? "The file exports no `screen`."
+          ? `The file exports no \`${key}\`.`
           : result.reason instanceof Error
             ? result.reason.message
             : String(result.reason)
     });
   });
-  screens.sort(byId);
-  failures.sort(byId);
+  return { loaded, failures };
+}
+
+export async function loadLabCatalog(): Promise<LabCatalog> {
+  const [screenModules, specimenModules] = await Promise.all([
+    loadEach(loaders, "screen", (path) => /screens\/([^/]+)\//.exec(path)?.[1] ?? path),
+    loadEach(
+      specimenLoaders,
+      "specimen",
+      (path) => /specimens\/([^/]+)\.specimen\.tsx$/.exec(path)?.[1] ?? path
+    )
+  ]);
+  const screens = screenModules.loaded.sort(byId);
+  const specimens = specimenModules.loaded.sort(byId);
+  const failures = [...screenModules.failures, ...specimenModules.failures].sort(byId);
 
   const labThemes = screens
     .map((screen) => screen.theme)
@@ -84,7 +116,7 @@ export async function loadLabCatalog(): Promise<LabCatalog> {
       (theme, index, all) =>
         !registered.has(theme.name) && all.findIndex((other) => other.name === theme.name) === index
     );
-  return { screens, themes: [...themes, ...labThemes], failures };
+  return { screens, specimens, themes: [...themes, ...labThemes], failures };
 }
 
 let installed: CSSStyleSheet | null = null;

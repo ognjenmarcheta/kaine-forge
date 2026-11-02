@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
@@ -9,10 +10,14 @@ import { buildRunSettings } from "../agents/permissions";
 import {
   JOB_DEFAULT_MODEL,
   JOB_LIMITS,
+  auditJobResultSchema,
+  componentJobResultSchema,
+  componentPlanSchema,
   jobStateSchema,
   scorecardJobResultSchema,
   screenJobResultSchema,
   type JobActionRequest,
+  type ProposedIssue,
   type JobStage,
   type JobStartRequest,
   type JobState,
@@ -22,8 +27,23 @@ import { commitStaged, pushBranch, stageFiles, tryGit, type GitPort } from "../g
 import type { Clock, Exec, GitHubPort } from "../ports";
 import { SCORECARD_LEDGER_PATH } from "../scorecard";
 import { createWorktree, removeWorktree } from "../worktree";
-import { createLabServers, type LabServers } from "./jobs.devserver";
-import { JOB_MCP, JOB_SKILLS, jobPermissions, screenFolder } from "./jobs.permissions";
+import { auditPrompt } from "./jobs.audit";
+import {
+  componentBuildPrompt,
+  componentChangeset,
+  componentChecks,
+  componentPlanPrompt,
+  componentPullRequest
+} from "./jobs.component";
+import { createLabServers, type LabServer, type LabServers } from "./jobs.devserver";
+import {
+  JOB_MCP,
+  JOB_SKILLS,
+  componentFileName,
+  componentFiles,
+  jobPermissions,
+  screenFolder
+} from "./jobs.permissions";
 import {
   appendScorecardRun,
   ledgerRun,
@@ -129,6 +149,35 @@ const activityOf = (event: AgentEvent): string | null => {
   return target === undefined ? event.tool : `${event.tool}: ${target}`.slice(0, 160);
 };
 
+/** Where the lab serves reference images from, relative to a worktree (gitignored). */
+const REFERENCES_DIR = path.join("tooling", "desk-ui", "public", "references");
+
+/** The step a gate's send-back, or a stop at the gate, runs again. */
+const AGAIN: Readonly<Record<JobState["kind"], JobStage>> = {
+  scorecard: "score",
+  screen: "build",
+  component: "build",
+  audit: "audit"
+};
+const againOf = (kind: JobState["kind"]): JobStage => AGAIN[kind];
+
+/** The branch name's slug: `KAINE-<type>-<slug>`. An audit's branch is never pushed. */
+const branchSlugOf = (state: JobState): string => {
+  const { screen, component, audit } = state.input;
+  if (screen !== undefined) return `lab-${screen.id}-job-${state.id}`;
+  if (component !== undefined) return `ui-${componentFileName(component.name)}-job-${state.id}`;
+  if (audit !== undefined) return `audit-${audit.screenId}-job-${state.id}`;
+  return `scorecard-${state.createdAt.slice(0, 10)}-job-${state.id}`;
+};
+
+/** The job with its lab server's port, on the kind's own record. */
+const withPort = (job: JobState, port: number | null): JobState => ({
+  ...job,
+  screen: job.screen && { ...job.screen, port },
+  component: job.component && { ...job.component, port },
+  audit: job.audit && { ...job.audit, port }
+});
+
 export const createJobManager = (deps: JobManagerDeps): JobManager => {
   const labServers = deps.labServers ?? createLabServers();
   const running = new Map<number, { controller: AbortController; done: Promise<void> }>();
@@ -178,11 +227,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         repoDir: deps.repoRoot,
         input: {
           issue: null,
-          type: state.kind === "screen" ? "feat" : "chore",
-          slug:
-            state.kind === "screen" && state.input.screen !== undefined
-              ? `lab-${state.input.screen.id}-job-${state.id}`
-              : `scorecard-${state.createdAt.slice(0, 10)}-job-${state.id}`,
+          type: state.kind === "screen" || state.kind === "component" ? "feat" : "chore",
+          slug: branchSlugOf(state),
           base: deps.base,
           worktreeDir,
           agents: ["claude"],
@@ -202,6 +248,19 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       const reference = state.input.screen.reference;
       const bytes = await readFile(path.join(await deps.store.filesDir(state.id), reference));
       await writeReference(created.worktreePath, reference, bytes);
+    }
+    if (state.input.audit !== undefined) {
+      // The owner's local reference, when there is one, lets the auditor work in reference mode.
+      const source = path.join(deps.repoRoot, REFERENCES_DIR);
+      const id = state.input.audit.screenId;
+      const files = existsSync(source) ? await readdir(source) : [];
+      for (const file of files.filter((entry) => entry.startsWith(`${id}.`))) {
+        await mkdir(path.join(created.worktreePath, REFERENCES_DIR), { recursive: true });
+        await copyFile(
+          path.join(source, file),
+          path.join(created.worktreePath, REFERENCES_DIR, file)
+        );
+      }
     }
     return record(
       { ...state, branch: created.branch, worktree: created.worktreePath },
@@ -243,6 +302,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       readonly prompt: string;
       readonly schema: z.ZodType<T>;
       readonly env?: Readonly<Record<string, string>>;
+      /** The paths this step may write, relative to the worktree. */
+      readonly writes?: readonly string[];
       readonly signal: AbortSignal;
     }
   ): Promise<{ readonly structured: T; readonly costUsd: number }> => {
@@ -289,7 +350,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       outputSchema: z.toJSONSchema(run.schema, { target: "draft-7", io: "output" }),
       parse: run.schema,
       cwd: worktree,
-      permissions: jobPermissions(profile, state.kind, state.input.screen?.id),
+      permissions: jobPermissions(profile, state.kind, run.writes),
       settingsPath,
       mcpConfigPath: profile.mcp.length > 0 ? mcpConfig : undefined,
       receiptsPath,
@@ -383,11 +444,12 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     return screen;
   };
 
-  /** Build the screen in the job's lab server, then run the engine's checks and measure the diff. */
-  const build = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
-    const worktree = worktreeOf(state);
-    const screen = screenOf(state);
-    const lab = await labServers.ensure(state.id, worktree);
+  /** The job's lab server, and a check that ends the step when the job was cancelled meanwhile. */
+  const labFor = async (
+    state: JobState,
+    signal: AbortSignal
+  ): Promise<{ readonly lab: LabServer; readonly cancelled: () => Promise<void> }> => {
+    const lab = await labServers.ensure(state.id, worktreeOf(state));
     const cancelled = async (): Promise<void> => {
       if (!signal.aborted) return;
       // A cancel that came while the server started: it stops nothing that starts after it.
@@ -395,15 +457,41 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       throw new JobStop("failed", "The job was cancelled.");
     };
     await cancelled();
+    return { lab, cancelled };
+  };
+
+  /**
+   * Run the engine's checks of a build. A failure goes back to the builder as feedback, so
+   * Continue builds again with it, and stops the job.
+   */
+  const runChecks = async (
+    state: JobState,
+    checks: readonly (readonly string[])[],
+    env: Readonly<Record<string, string>>,
+    cancelled: () => Promise<void>
+  ): Promise<void> => {
+    const worktree = worktreeOf(state);
+    for (const argv of checks) {
+      const checked = await deps.exec({ argv, cwd: worktree, env, timeoutMs: CHECK_TIMEOUT_MS });
+      if (checked.code !== 0) {
+        const output = `${checked.stdout}\n${checked.stderr}`.trim().slice(-CHECK_OUTPUT_CHARS);
+        await cancelled();
+        await save({
+          ...state,
+          feedback: [...state.feedback, `The desk check \`${argv.join(" ")}\` failed:\n${output}`]
+        });
+        throw new JobStop("failed", `${argv.join(" ")} failed:\n${output}`);
+      }
+    }
+  };
+
+  /** Build the screen in the job's lab server, then run the engine's checks and measure the diff. */
+  const build = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
+    const worktree = worktreeOf(state);
+    const screen = screenOf(state);
+    const { lab, cancelled } = await labFor(state, signal);
     const env = { LAB_URL: lab.labUrl };
-    const referencePath = path.join(
-      worktree,
-      "tooling",
-      "desk-ui",
-      "public",
-      "references",
-      screen.reference
-    );
+    const referencePath = path.join(worktree, REFERENCES_DIR, screen.reference);
     const outcome = await runAgent(state, "build", {
       prompt: screenPrompt({
         screen,
@@ -414,6 +502,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       }),
       schema: screenJobResultSchema,
       env,
+      writes: [`${screenFolder(screen.id)}/**`],
       signal
     });
     let next = record(
@@ -427,19 +516,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
     await cancelled();
     next = await save(next);
-    for (const argv of screenChecks(screen.id)) {
-      const checked = await deps.exec({ argv, cwd: worktree, env, timeoutMs: CHECK_TIMEOUT_MS });
-      if (checked.code !== 0) {
-        const output = `${checked.stdout}\n${checked.stderr}`.trim().slice(-CHECK_OUTPUT_CHARS);
-        // The failure goes back to the builder: Continue builds again with it.
-        await cancelled();
-        await save({
-          ...next,
-          feedback: [...next.feedback, `The desk check \`${argv.join(" ")}\` failed:\n${output}`]
-        });
-        throw new JobStop("failed", `${argv.join(" ")} failed:\n${output}`);
-      }
-    }
+    await runChecks(next, screenChecks(screen.id), env, cancelled);
     const measured = await deps.exec({
       argv: ["pnpm", "lab:diff", screen.id, "--json"],
       cwd: worktree,
@@ -456,71 +533,126 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
   };
 
-  /** Commit the screen folder, push, and open the draft PR. The reference stays local. */
-  const shipScreen = async (state: JobState): Promise<JobState> => {
-    const worktree = worktreeOf(state);
-    const screen = screenOf(state);
-    const result = state.screen?.result ?? null;
-    if (result === null || state.branch === null) {
-      throw new JobStop("failed", "The job has no result to ship.");
-    }
-    let next = state;
-    if (next.pr === null) {
-      const files = await deps.store.filesDir(state.id);
-      const pr = screenPullRequest(screen, result, state.screen?.diffPercent ?? null);
-      const messageFile = path.join(files, "commit-message.txt");
-      await writeFile(messageFile, `${pr.title}\n\n${result.summary}\n`, "utf8");
-      const folder = screenFolder(screen.id);
-      const staged = await stageFiles(deps.exec, worktree, [folder]);
-      if (!staged.ok) throw new JobStop("failed", `git add failed:\n${staged.log}`);
-      const status = await deps.git.statusPorcelain(worktree);
-      if (status.includes(folder)) {
-        const committed = await commitStaged(deps.exec, worktree, messageFile, SHIP_TIMEOUT_MS);
-        if (!committed.ok) throw new JobStop("failed", `git commit failed:\n${committed.log}`);
-      }
-      const pushed = await pushBranch(deps.exec, worktree, next.branch ?? "", SHIP_TIMEOUT_MS);
-      if (!pushed.ok) throw new JobStop("failed", `git push failed:\n${pushed.log}`);
-      const bodyFile = path.join(files, "pr-body.md");
-      await writeFile(bodyFile, `${pr.body}\n`, "utf8");
-      const opened = await deps.github.createPullRequest({
-        base: deps.base,
-        head: next.branch ?? "",
-        title: pr.title,
-        bodyFile,
-        draft: true
-      });
-      next = { ...next, pr: opened };
-      try {
-        // A lab screen never ships to a product: the PR needs no changeset.
-        await deps.github.addPullRequestLabel(opened.number, "release:skip-changeset");
-      } catch (error) {
-        next = record(next, "ship", `PR label not set (${message(error)}).`);
-      }
-    }
-    await labServers.stop(state.id);
+  const componentOf = (state: JobState) => {
+    const component = state.input.component;
+    if (component === undefined) throw new JobStop("failed", "The job has no component.");
+    return component;
+  };
+
+  /** Plan the component without writing anything. The owner approves the plan at its gate. */
+  const plan = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
+    const component = componentOf(state);
+    const outcome = await runAgent(state, "plan", {
+      prompt: componentPlanPrompt({ component, note: state.input.note, feedback: state.feedback }),
+      schema: componentPlanSchema,
+      signal
+    });
     return record(
       {
-        ...next,
-        status: "done",
-        stop: null,
-        screen: next.screen && { ...next.screen, port: null }
+        ...state,
+        spentUsd: state.spentUsd + outcome.costUsd,
+        component: { plan: outcome.structured, planApproved: false, result: null, port: null }
       },
-      "done",
-      `Opened ${next.pr?.url ?? "the PR"}.`
+      "plan",
+      `Planned ${component.name}; waiting for your approval.`
     );
   };
 
-  const ship = async (state: JobState): Promise<JobState> => {
+  /** Build the approved plan in the job's lab server, then run the engine's checks. */
+  const buildComponent = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
     const worktree = worktreeOf(state);
-    const result = state.result;
-    if (result === null || state.branch === null) {
-      throw new JobStop("failed", "The job has no result to ship.");
+    const component = componentOf(state);
+    const approved = state.component?.plan ?? null;
+    if (approved === null || state.component?.planApproved !== true) {
+      throw new JobStop("failed", "The job has no approved plan.");
     }
+    const { lab, cancelled } = await labFor(state, signal);
+    const env = { LAB_URL: lab.labUrl };
+    const outcome = await runAgent(state, "build", {
+      prompt: componentBuildPrompt({
+        component,
+        plan: approved,
+        labUrl: lab.labUrl,
+        note: state.input.note,
+        feedback: state.feedback
+      }),
+      schema: componentJobResultSchema,
+      env,
+      writes: componentFiles(component),
+      signal
+    });
+    let next = record(
+      {
+        ...state,
+        spentUsd: state.spentUsd + outcome.costUsd,
+        component: {
+          plan: approved,
+          planApproved: true,
+          result: outcome.structured,
+          port: lab.port
+        }
+      },
+      "check",
+      "Built; the desk runs the checks."
+    );
+    await cancelled();
+    next = await save(next);
+    const [source, test, , specimen] = componentFiles(component);
+    const missing = [source, test, specimen].filter(
+      (entry) => entry !== undefined && !existsSync(path.join(worktree, entry))
+    );
+    if (missing.length > 0) {
+      await save({
+        ...next,
+        feedback: [...next.feedback, `The build wrote no ${missing.join(", ")}.`]
+      });
+      throw new JobStop("failed", `The build wrote no ${missing.join(", ")}.`);
+    }
+    await runChecks(next, componentChecks(component), env, cancelled);
+    return record(next, "review", "Checks passed; the specimen is ready for your review.");
+  };
+
+  /** Audit the lab screen in the job's lab server. The auditor writes nothing. */
+  const audit = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
+    const worktree = worktreeOf(state);
+    const spec = state.input.audit;
+    if (spec === undefined) throw new JobStop("failed", "The job has no screen to audit.");
+    const { lab, cancelled } = await labFor(state, signal);
+    const references = path.join(worktree, REFERENCES_DIR);
+    const reference = existsSync(references)
+      ? (await readdir(references)).find((entry) => entry.startsWith(`${spec.screenId}.`))
+      : undefined;
+    const outcome = await runAgent(state, "audit", {
+      prompt: auditPrompt({
+        audit: spec,
+        referencePath: reference === undefined ? null : path.join(references, reference),
+        labUrl: lab.labUrl,
+        note: state.input.note,
+        feedback: state.feedback
+      }),
+      schema: auditJobResultSchema,
+      env: { LAB_URL: lab.labUrl },
+      signal
+    });
+    await cancelled();
+    return record(
+      {
+        ...state,
+        spentUsd: state.spentUsd + outcome.costUsd,
+        audit: { result: outcome.structured, port: lab.port }
+      },
+      "review",
+      `Audited ${spec.screenId}: ${outcome.structured.findings.length} findings.`
+    );
+  };
+
+  /** File the ticked issues one by one, saved after each, so a retry never files one twice. */
+  const fileIssues = async (
+    state: JobState,
+    proposed: readonly ProposedIssue[]
+  ): Promise<JobState> => {
     let next = state;
-    // Filed one by one and saved after each, so a retry never files an issue twice.
-    for (const issue of result.proposedIssues.filter((entry) =>
-      state.approvedIssues.includes(entry.slug)
-    )) {
+    for (const issue of proposed.filter((entry) => state.approvedIssues.includes(entry.slug))) {
       if (next.filedIssues.some((filed) => filed.slug === issue.slug)) continue;
       const created = await deps.github.createIssue({ title: issue.title, body: issue.body });
       next = { ...next, filedIssues: [...next.filedIssues, { slug: issue.slug, ...created }] };
@@ -538,42 +670,128 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       }
       next = await save(record(next, "ship", `Filed #${created.number} (${issue.slug}).`));
     }
+    return next;
+  };
 
-    if (next.pr === null) {
-      const files = await deps.store.filesDir(state.id);
-      const pr = scorecardPullRequest(result.run, result, next.filedIssues);
-      const messageFile = path.join(files, "commit-message.txt");
-      await writeFile(messageFile, `${pr.title}\n\n${result.summary}\n`, "utf8");
-      const staged = await stageFiles(deps.exec, worktree, [SCORECARD_LEDGER_PATH]);
-      if (!staged.ok) throw new JobStop("failed", `git add failed:\n${staged.log}`);
-      const status = await deps.git.statusPorcelain(worktree);
-      if (status.includes(SCORECARD_LEDGER_PATH)) {
-        const committed = await commitStaged(deps.exec, worktree, messageFile, SHIP_TIMEOUT_MS);
-        if (!committed.ok) throw new JobStop("failed", `git commit failed:\n${committed.log}`);
-      }
-      const pushed = await pushBranch(deps.exec, worktree, next.branch ?? "", SHIP_TIMEOUT_MS);
-      if (!pushed.ok) throw new JobStop("failed", `git push failed:\n${pushed.log}`);
-      const bodyFile = path.join(files, "pr-body.md");
-      await writeFile(bodyFile, `${pr.body}\n`, "utf8");
-      const opened = await deps.github.createPullRequest({
-        base: deps.base,
-        head: next.branch ?? "",
-        title: pr.title,
-        bodyFile,
-        draft: true
-      });
-      next = { ...next, pr: opened };
+  /**
+   * Commit `paths`, push the branch, and open the draft PR, once: a retry after the PR opened
+   * skips this. `skipChangeset` labels a PR whose files are not a package.
+   */
+  const shipBranch = async (
+    state: JobState,
+    change: {
+      readonly paths: readonly string[];
+      readonly pr: { readonly title: string; readonly body: string };
+      readonly commitBody: string;
+      readonly skipChangeset: boolean;
+    }
+  ): Promise<JobState> => {
+    if (state.pr !== null) return state;
+    const worktree = worktreeOf(state);
+    const branch = state.branch;
+    if (branch === null) throw new JobStop("failed", "The job has no branch to ship.");
+    const files = await deps.store.filesDir(state.id);
+    const messageFile = path.join(files, "commit-message.txt");
+    await writeFile(messageFile, `${change.pr.title}\n\n${change.commitBody}\n`, "utf8");
+    const staged = await stageFiles(deps.exec, worktree, change.paths);
+    if (!staged.ok) throw new JobStop("failed", `git add failed:\n${staged.log}`);
+    const status = await deps.git.statusPorcelain(worktree);
+    if (change.paths.some((entry) => status.includes(entry))) {
+      const committed = await commitStaged(deps.exec, worktree, messageFile, SHIP_TIMEOUT_MS);
+      if (!committed.ok) throw new JobStop("failed", `git commit failed:\n${committed.log}`);
+    }
+    const pushed = await pushBranch(deps.exec, worktree, branch, SHIP_TIMEOUT_MS);
+    if (!pushed.ok) throw new JobStop("failed", `git push failed:\n${pushed.log}`);
+    const bodyFile = path.join(files, "pr-body.md");
+    await writeFile(bodyFile, `${change.pr.body}\n`, "utf8");
+    const opened = await deps.github.createPullRequest({
+      base: deps.base,
+      head: branch,
+      title: change.pr.title,
+      bodyFile,
+      draft: true
+    });
+    let next: JobState = { ...state, pr: opened };
+    if (change.skipChangeset) {
       try {
-        // The ledger is not a package: the PR needs no changeset.
         await deps.github.addPullRequestLabel(opened.number, "release:skip-changeset");
       } catch (error) {
         next = record(next, "ship", `PR label not set (${message(error)}).`);
       }
     }
-    return record(
-      { ...next, status: "done", stop: null },
+    return next;
+  };
+
+  const finished = (state: JobState): JobState =>
+    record(
+      { ...state, status: "done", stop: null },
       "done",
-      `Opened ${next.pr?.url ?? "the PR"}.`
+      state.pr === null ? "Filed the ticked issues." : `Opened ${state.pr.url}.`
+    );
+
+  /** Commit the screen folder, push, and open the draft PR. The reference stays local. */
+  const shipScreen = async (state: JobState): Promise<JobState> => {
+    const screen = screenOf(state);
+    const result = state.screen?.result ?? null;
+    if (result === null) throw new JobStop("failed", "The job has no result to ship.");
+    const next = await shipBranch(state, {
+      paths: [screenFolder(screen.id)],
+      pr: screenPullRequest(screen, result, state.screen?.diffPercent ?? null),
+      commitBody: result.summary,
+      // A lab screen never ships to a product: the PR needs no changeset.
+      skipChangeset: true
+    });
+    await labServers.stop(state.id);
+    return finished({ ...next, screen: next.screen && { ...next.screen, port: null } });
+  };
+
+  /** Write the changeset, commit the component's files, push, and open the draft PR. */
+  const shipComponent = async (state: JobState): Promise<JobState> => {
+    const component = componentOf(state);
+    const approved = state.component?.plan ?? null;
+    const result = state.component?.result ?? null;
+    if (approved === null || result === null) {
+      throw new JobStop("failed", "The job has no result to ship.");
+    }
+    const changeset = componentChangeset(component, result);
+    const changesetFile = path.join(worktreeOf(state), changeset.path);
+    await mkdir(path.dirname(changesetFile), { recursive: true });
+    await writeFile(changesetFile, changeset.text, "utf8");
+    const written = componentFiles(component).filter((entry) =>
+      existsSync(path.join(worktreeOf(state), entry))
+    );
+    const next = await shipBranch(state, {
+      paths: [...written, changeset.path],
+      pr: componentPullRequest(component, approved, result),
+      commitBody: result.summary,
+      skipChangeset: false
+    });
+    await labServers.stop(state.id);
+    return finished({ ...next, component: next.component && { ...next.component, port: null } });
+  };
+
+  /** File the ticked findings. An audit pushes nothing. */
+  const shipAudit = async (state: JobState): Promise<JobState> => {
+    const result = state.audit?.result ?? null;
+    if (result === null) throw new JobStop("failed", "The job has no findings to file.");
+    const next = await fileIssues(state, result.findings);
+    await labServers.stop(state.id);
+    return finished({ ...next, audit: next.audit && { ...next.audit, port: null } });
+  };
+
+  /** File the ticked issues, then commit and push the ledger and open the draft PR. */
+  const ship = async (state: JobState): Promise<JobState> => {
+    const result = state.result;
+    if (result === null) throw new JobStop("failed", "The job has no result to ship.");
+    const filed = await fileIssues(state, result.proposedIssues);
+    return finished(
+      await shipBranch(filed, {
+        paths: [SCORECARD_LEDGER_PATH],
+        pr: scorecardPullRequest(result.run, result, filed.filedIssues),
+        commitBody: result.summary,
+        // The ledger is not a package: the PR needs no changeset.
+        skipChangeset: true
+      })
     );
   };
 
@@ -592,19 +810,32 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       try {
         state = await step({ ...state, status: "running", stage, stop: null });
         if (stage === "setup") state = await step(await setup(state));
+        const signal = controller.signal;
+        const gate = async (next: JobState): Promise<void> => {
+          await step({ ...next, status: "waiting" });
+        };
         if (state.kind === "screen") {
           if (stage === "setup" || stage === "build" || stage === "check") {
-            state = await step(await build(state, controller.signal));
-            await step({ ...state, status: "waiting", stage: "review" });
-            return;
-          }
-          if (stage === "ship") await step(await shipScreen(state));
+            await gate(await build(state, signal));
+          } else if (stage === "ship") await step(await shipScreen(state));
+          return;
+        }
+        if (state.kind === "component") {
+          // Two gates: the plan before anything is written, then the built component.
+          if (stage === "setup" || stage === "plan") await gate(await plan(state, signal));
+          else if (stage === "build" || stage === "check") {
+            await gate(await buildComponent(state, signal));
+          } else if (stage === "ship") await step(await shipComponent(state));
+          return;
+        }
+        if (state.kind === "audit") {
+          if (stage === "setup" || stage === "audit") await gate(await audit(state, signal));
+          else if (stage === "ship") await step(await shipAudit(state));
           return;
         }
         if (stage === "setup" || stage === "sweep") state = await step(await sweep(state));
         if (stage === "setup" || stage === "sweep" || stage === "score") {
-          state = await step(await score(state, controller.signal));
-          await step({ ...state, status: "waiting", stage: "review" });
+          await gate(await score(state, signal));
           return;
         }
         if (stage === "ship") await step(await ship(state));
@@ -648,6 +879,24 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       const limits = JOB_LIMITS[request.kind];
       const now = deps.clock.now().toISOString();
       const id = await deps.store.nextId();
+      if (request.component !== undefined) {
+        const file = componentFileName(request.component.name);
+        const existing = ["primitives", "composed"].filter((layer) =>
+          existsSync(path.join(deps.repoRoot, "packages/ui/src/components", layer, `${file}.tsx`))
+        );
+        if (existing.length > 0) {
+          throw new JobRefusal(
+            "bad-request",
+            `@repo/ui already has ${file}.tsx in ${existing.join(", ")}. Pick another name.`
+          );
+        }
+      }
+      if (
+        request.audit !== undefined &&
+        !existsSync(path.join(deps.repoRoot, screenFolder(request.audit.screenId)))
+      ) {
+        throw new JobRefusal("bad-request", `There is no lab screen ${request.audit.screenId}.`);
+      }
       let screen: JobState["input"]["screen"];
       if (request.screen !== undefined) {
         const { reference, ...spec } = request.screen;
@@ -672,7 +921,9 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           model: request.model ?? JOB_DEFAULT_MODEL,
           budgetUsd: request.budgetUsd ?? limits.costUsd,
           minutes: request.minutes ?? limits.minutes,
-          ...(screen === undefined ? {} : { screen })
+          ...(screen === undefined ? {} : { screen }),
+          ...(request.component === undefined ? {} : { component: request.component }),
+          ...(request.audit === undefined ? {} : { audit: request.audit })
         },
         status: "running",
         stage: "setup",
@@ -684,6 +935,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         history: [],
         result: null,
         screen: request.kind === "screen" ? { result: null, diffPercent: null, port: null } : null,
+        component:
+          request.kind === "component"
+            ? { plan: null, planApproved: false, result: null, port: null }
+            : null,
+        audit: request.kind === "audit" ? { result: null, port: null } : null,
         approvedIssues: [],
         filedIssues: [],
         pr: null
@@ -699,7 +955,26 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           if (state.status !== "waiting") {
             throw new JobRefusal("invalid-transition", "Only a job at its gate can be approved.");
           }
-          const known = new Set(state.result?.proposedIssues.map((issue) => issue.slug));
+          if (state.kind === "component" && state.stage === "plan") {
+            // The plan gate: the build starts, and writes only what the plan named.
+            await save(
+              record(
+                {
+                  ...state,
+                  component: state.component && { ...state.component, planApproved: true }
+                },
+                "plan",
+                "Plan approved."
+              )
+            );
+            runFrom(id, "build");
+            return deps.store.read(id);
+          }
+          const proposed =
+            state.kind === "audit"
+              ? (state.audit?.result?.findings ?? [])
+              : (state.result?.proposedIssues ?? []);
+          const known = new Set(proposed.map((issue) => issue.slug));
           const unknown = action.issues.filter((slug) => !known.has(slug));
           if (unknown.length > 0) {
             throw new JobRefusal(
@@ -719,9 +994,13 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
             throw new JobRefusal("invalid-transition", "Only a job at its gate can be sent back.");
           }
           await save(
-            record({ ...state, feedback: [...state.feedback, action.note] }, "review", "Sent back.")
+            record(
+              { ...state, feedback: [...state.feedback, action.note] },
+              state.stage,
+              "Sent back."
+            )
           );
-          runFrom(id, state.kind === "screen" ? "build" : "score");
+          runFrom(id, state.stage === "plan" ? "plan" : againOf(state.kind));
           return deps.store.read(id);
         }
         case "continue": {
@@ -730,9 +1009,12 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
             throw new JobRefusal("invalid-transition", "Only a stopped job can continue.");
           }
           // A stop during the gate's ship resumes the ship; anything earlier runs its step again.
-          const again: JobStage = state.kind === "screen" ? "build" : "score";
           const from: JobStage =
-            state.stage === "done" ? "ship" : state.stage === "review" ? again : state.stage;
+            state.stage === "done"
+              ? "ship"
+              : state.stage === "review"
+                ? againOf(state.kind)
+                : state.stage;
           runFrom(id, from);
           return deps.store.read(id);
         }
@@ -773,15 +1055,18 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     },
     recover: async () => {
       for (const job of await deps.store.list()) {
-        if (job.kind === "screen" && job.status === "waiting" && job.worktree !== null) {
+        if (
+          job.kind !== "scorecard" &&
+          job.status === "waiting" &&
+          job.stage === "review" &&
+          job.worktree !== null
+        ) {
           // The owner reviews in the job's lab server, which did not outlive the desk.
           const worktree = job.worktree;
           void labServers
             .ensure(job.id, worktree)
-            .then((lab) =>
-              save({ ...job, screen: job.screen && { ...job.screen, port: lab.port } })
-            )
-            .catch(() => save({ ...job, screen: job.screen && { ...job.screen, port: null } }));
+            .then((lab) => save(withPort(job, lab.port)))
+            .catch(() => save(withPort(job, null)));
           continue;
         }
         if (job.status !== "running") continue;

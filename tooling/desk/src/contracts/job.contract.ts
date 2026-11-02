@@ -8,7 +8,7 @@ import { scorecardRunSchema } from "./scorecard.contract";
  * for the owner before anything leaves the machine. See ADR 0021.
  */
 
-export const JOB_KINDS = ["scorecard", "screen"] as const;
+export const JOB_KINDS = ["scorecard", "screen", "component", "audit"] as const;
 export const jobKindSchema = z.enum(JOB_KINDS);
 export type JobKind = z.infer<typeof jobKindSchema>;
 
@@ -16,7 +16,9 @@ export type JobKind = z.infer<typeof jobKindSchema>;
 export const JOB_STAGES = [
   "setup",
   "sweep",
+  "plan",
   "score",
+  "audit",
   "build",
   "check",
   "review",
@@ -42,7 +44,9 @@ export type JobStopReason = z.infer<typeof jobStopReasonSchema>;
 /** The default cost and time limit of each kind. The owner may change them per job. */
 export const JOB_LIMITS: Readonly<Record<JobKind, { costUsd: number; minutes: number }>> = {
   scorecard: { costUsd: 15, minutes: 60 },
-  screen: { costUsd: 10, minutes: 60 }
+  screen: { costUsd: 10, minutes: 60 },
+  component: { costUsd: 10, minutes: 60 },
+  audit: { costUsd: 5, minutes: 30 }
 };
 
 /** A lab screen id: the reference number and a short name, as `tooling/desk-ui/src/lab/screens` asks. */
@@ -73,6 +77,27 @@ export const screenSpecSchema = z
   .strict();
 export type ScreenSpec = z.infer<typeof screenSpecSchema>;
 
+/** A new `@repo/ui` component's export name, such as `RatingStars`. */
+export const UI_COMPONENT_NAME = /^[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)*$/;
+
+/** The `@repo/ui` folders a component job may add to. */
+export const COMPONENT_LAYERS = ["primitives", "composed"] as const;
+
+/** What a component job adds: one `@repo/ui` component in one layer. */
+export const componentSpecSchema = z
+  .object({
+    name: z.string().regex(UI_COMPONENT_NAME).max(40),
+    layer: z.enum(COMPONENT_LAYERS)
+  })
+  .strict();
+export type ComponentSpec = z.infer<typeof componentSpecSchema>;
+
+/** What an audit job checks: one lab screen. */
+export const auditSpecSchema = z
+  .object({ screenId: z.string().regex(LAB_SCREEN_ID).max(60) })
+  .strict();
+export type AuditSpec = z.infer<typeof auditSpecSchema>;
+
 /** The Claude model a job uses unless the owner picks another one. */
 export const JOB_DEFAULT_MODEL = "opus";
 
@@ -86,7 +111,11 @@ export const jobInputSchema = z
     budgetUsd: z.number().positive().max(200),
     minutes: z.number().int().positive().max(240),
     /** Set for a screen job. */
-    screen: screenSpecSchema.optional()
+    screen: screenSpecSchema.optional(),
+    /** Set for a component job. */
+    component: componentSpecSchema.optional(),
+    /** Set for an audit job. */
+    audit: auditSpecSchema.optional()
   })
   .strict();
 export type JobInput = z.infer<typeof jobInputSchema>;
@@ -136,6 +165,57 @@ export const screenJobResultSchema = z
   .strict();
 export type ScreenJobResult = z.infer<typeof screenJobResultSchema>;
 
+/** What the component planner returns. The owner approves it before anything is written. */
+export const componentPlanSchema = z
+  .object({
+    summary: z.string().min(1),
+    /** The props and variants, one line each, as the component will export them. */
+    api: z.array(z.string().min(1)).max(30),
+    /** The existing components and tokens it builds on. */
+    reuse: z.array(z.string().min(1)).max(20),
+    /** What the tests will prove. */
+    tests: z.array(z.string().min(1)).max(20),
+    openQuestions: z.array(z.string().min(1)).max(10),
+    plainLanguage: z.string().min(1)
+  })
+  .strict();
+export type ComponentPlan = z.infer<typeof componentPlanSchema>;
+
+/** What the component builder returns after it wrote the files. */
+export const componentJobResultSchema = z
+  .object({
+    summary: z.string().min(1),
+    /** Where the build differs from the approved plan, and why. */
+    deviations: z.array(z.string().min(1)).max(20),
+    openQuestions: z.array(z.string().min(1)).max(10),
+    plainLanguage: z.string().min(1)
+  })
+  .strict();
+export type ComponentJobResult = z.infer<typeof componentJobResultSchema>;
+
+/** One audit finding, as the issue the desk files when the owner ticks it. */
+export const auditFindingSchema = proposedIssueSchema
+  .extend({
+    /** The guideline or WCAG rule, such as `COLOR-1` or `WCAG 1.4.3`. */
+    ruleId: z.string().min(1).max(40),
+    severity: z.enum(["must", "should", "could"])
+  })
+  .strict();
+export type AuditFinding = z.infer<typeof auditFindingSchema>;
+
+/** What the auditor returns. It changes no file. */
+export const auditJobResultSchema = z
+  .object({
+    summary: z.string().min(1),
+    /** In reference mode, how closely the screen matches its image, in percent. */
+    matchPercent: z.number().min(0).max(100).nullable(),
+    findings: z.array(auditFindingSchema).max(30),
+    openQuestions: z.array(z.string().min(1)).max(10),
+    plainLanguage: z.string().min(1)
+  })
+  .strict();
+export type AuditJobResult = z.infer<typeof auditJobResultSchema>;
+
 export const jobHistoryEntrySchema = z
   .object({
     at: z.iso.datetime({ offset: true }),
@@ -180,6 +260,27 @@ export const jobStateSchema = z
       .strict()
       .nullable()
       .default(null),
+    /** A component job's approved plan, its build result, and its live lab server. */
+    component: z
+      .object({
+        plan: componentPlanSchema.nullable(),
+        /** Set once the owner approved the plan at the plan gate. */
+        planApproved: z.boolean(),
+        result: componentJobResultSchema.nullable(),
+        port: z.number().int().positive().nullable()
+      })
+      .strict()
+      .nullable()
+      .default(null),
+    /** An audit job's findings and its live lab server. */
+    audit: z
+      .object({
+        result: auditJobResultSchema.nullable(),
+        port: z.number().int().positive().nullable()
+      })
+      .strict()
+      .nullable()
+      .default(null),
     /** The issues the owner ticked at the gate. Kept so a retried ship files the same ones. */
     approvedIssues: z.array(z.string()).default([]),
     filedIssues: z.array(filedIssueSchema),
@@ -215,18 +316,31 @@ export const jobStartRequestSchema = z
           .strict()
       })
       .strict()
-      .optional()
+      .optional(),
+    component: componentSpecSchema.optional(),
+    audit: auditSpecSchema.optional()
   })
   .strict()
   .refine((request) => (request.kind === "screen") === (request.screen !== undefined), {
     message: "A screen job needs a screen, and only a screen job takes one",
     path: ["screen"]
+  })
+  .refine((request) => (request.kind === "component") === (request.component !== undefined), {
+    message: "A component job needs a component, and only a component job takes one",
+    path: ["component"]
+  })
+  .refine((request) => (request.kind === "audit") === (request.audit !== undefined), {
+    message: "An audit job needs a screen to audit, and only an audit job takes one",
+    path: ["audit"]
   });
 export type JobStartRequest = z.infer<typeof jobStartRequestSchema>;
 
 /** `POST /api/jobs/:id/actions`. */
 export const jobActionRequestSchema = z.discriminatedUnion("action", [
-  /** File the ticked issues (by slug), then commit, push, and open the draft PR. */
+  /**
+   * At a plan gate: build. At the last gate: file the ticked issues (by slug), then commit,
+   * push, and open the draft PR (an audit job only files).
+   */
   z
     .object({
       action: z.literal("approve"),

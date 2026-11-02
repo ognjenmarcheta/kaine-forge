@@ -1,7 +1,9 @@
 import {
+  COMPONENT_LAYERS,
   JOB_DEFAULT_MODEL,
   JOB_LIMITS,
   LAB_SCREEN_ID,
+  UI_COMPONENT_NAME,
   MAX_REFERENCE_BYTES,
   REFERENCE_TYPES,
   type JobKind,
@@ -63,7 +65,12 @@ export function JobStartDialog({
   const [width, setWidth] = useState("1440");
   const [height, setHeight] = useState("900");
   const [file, setFile] = useState<File | null>(null);
+  const [componentName, setComponentName] = useState("");
+  const [layer, setLayer] = useState<(typeof COMPONENT_LAYERS)[number]>("composed");
+  const [auditScreen, setAuditScreen] = useState("");
   const isScreen = kind === "screen";
+  const isComponent = kind === "component";
+  const isAudit = kind === "audit";
   const fileProblem =
     file === null
       ? null
@@ -87,6 +94,11 @@ export function JobStartDialog({
 
   const budgetValue = Number(budget);
   const minutesValue = Number(minutes);
+  const kindValid =
+    screenValid &&
+    // The planner works from the note: for a component it says what the component is for.
+    (!isComponent || (UI_COMPONENT_NAME.test(componentName) && note.trim() !== "")) &&
+    (!isAudit || LAB_SCREEN_ID.test(auditScreen));
   const valid =
     Number.isFinite(budgetValue) &&
     budgetValue > 0 &&
@@ -95,7 +107,7 @@ export function JobStartDialog({
     minutesValue > 0 &&
     minutesValue <= 240 &&
     model.trim() !== "" &&
-    screenValid;
+    kindValid;
 
   const start = async (): Promise<void> => {
     setPending(true);
@@ -108,6 +120,8 @@ export function JobStartDialog({
         budgetUsd: budgetValue,
         minutes: minutesValue
       };
+      if (isComponent) request.component = { name: componentName, layer };
+      if (isAudit) request.audit = { screenId: auditScreen };
       if (isScreen && file !== null && isReferenceType(file.type)) {
         request.screen = {
           id: screenId,
@@ -219,8 +233,50 @@ export function JobStartDialog({
           </div>
         </>
       )}
+      {isComponent && (
+        <div className="desk-job-limits">
+          <div className="desk-field">
+            <Label htmlFor={`${id}-component`}>{t("desk.job.start.component.name")}</Label>
+            <Input
+              id={`${id}-component`}
+              value={componentName}
+              aria-describedby={`${id}-component-help`}
+              onChange={(event) => setComponentName(event.target.value.trim())}
+            />
+            <p id={`${id}-component-help`} className="desk-muted">
+              {t("desk.job.start.component.nameHelp")}
+            </p>
+          </div>
+          <div className="desk-field">
+            <span className="desk-muted">{t("desk.job.start.component.layer")}</span>
+            <Segmented
+              label={t("desk.job.start.component.layer")}
+              value={layer}
+              options={COMPONENT_LAYERS}
+              name={(entry) => t(`desk.job.start.component.layer.${entry}`)}
+              onChange={setLayer}
+            />
+          </div>
+        </div>
+      )}
+      {isAudit && (
+        <div className="desk-field">
+          <Label htmlFor={`${id}-audit`}>{t("desk.job.start.audit.screen")}</Label>
+          <Input
+            id={`${id}-audit`}
+            value={auditScreen}
+            aria-describedby={`${id}-audit-help`}
+            onChange={(event) => setAuditScreen(event.target.value.trim())}
+          />
+          <p id={`${id}-audit-help`} className="desk-muted">
+            {t("desk.job.start.audit.screenHelp")}
+          </p>
+        </div>
+      )}
       <div className="desk-field">
-        <Label htmlFor={`${id}-note`}>{t("desk.job.start.note")}</Label>
+        <Label htmlFor={`${id}-note`}>
+          {t(isComponent ? "desk.job.start.component.purpose" : "desk.job.start.note")}
+        </Label>
         <Textarea
           id={`${id}-note`}
           value={note}
