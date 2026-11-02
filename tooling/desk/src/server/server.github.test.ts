@@ -26,6 +26,20 @@ const WORK: OpenWork = {
   pulls: []
 };
 
+const OPEN_PULL: OpenWork["pulls"][number] = {
+  number: 51,
+  title: "fix: something",
+  url: "https://github.com/o/r/pull/51",
+  isDraft: true,
+  headRefName: "KAINE-5-fix-something",
+  headRefOid: "a".repeat(40),
+  author: { login: "octo-owner" },
+  updatedAt: "2026-10-13T09:00:00Z",
+  statusCheckRollup: [],
+  reviewDecision: "",
+  labels: []
+};
+
 /** Logs in once per test: the launch token works one time. */
 const get = async (path: string): Promise<GithubLists> => {
   if (harness === null) throw new Error("no harness");
@@ -66,6 +80,22 @@ describe("GET /api/github", () => {
       reason: "gh issue list failed (exit 4): not logged in"
     });
     expect(await get("/api/github")).toMatchObject({ ok: true });
+  });
+
+  it("reads each desk PR that left the open list, so a merge moves its issue without a click", async () => {
+    const openWork = vi.fn(() =>
+      Promise.resolve({ ...WORK, pulls: [{ ...OPEN_PULL, number: 51 }] })
+    );
+    harness = await createHarness({ openWork });
+    await harness.seed(4, { stage: "pr-open", status: "waiting", prNumber: 50 });
+    await harness.seed(5, { stage: "pr-open", status: "waiting", prNumber: 51 });
+    await harness.seed(6, { stage: "shipped", status: "done", prNumber: 52 });
+
+    await get("/api/github");
+    await get("/api/github");
+
+    // #50 left the list; #51 is still open; #52's issue is already done. The cached list asks nothing.
+    expect(harness.runner.refreshPr.mock.calls).toEqual([[4]]);
   });
 
   it("says so when the desk has no GitHub access", async () => {

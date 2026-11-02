@@ -1103,6 +1103,15 @@ main:focus {
   overflow-wrap: anywhere;
 }
 
+/* A desk PR's last check and its actions: check now, or send to a fix round. */
+.desk-pulls__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  font: var(--ds-font-body-small);
+}
+
 .desk-pulls__meta code {
   overflow-wrap: anywhere;
 }

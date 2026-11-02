@@ -173,6 +173,9 @@ describe("desk translations", () => {
       "desk.job.status.": JOB_STATUSES,
       "desk.job.stop.": JOB_STOP_REASONS,
       "desk.job.stepState.": ["done", "current", "todo"],
+      "desk.pulls.ci.": ["passing", "failing", "running", "none"],
+      "desk.pulls.review.": ["approved", "changes-requested", "required"],
+      "desk.board.side.doneSort.": ["recent", "number"],
       "desk.job.start.component.layer.": COMPONENT_LAYERS,
       "desk.job.auditReview.severity.": ["must", "should", "could"],
       "desk.job.": [

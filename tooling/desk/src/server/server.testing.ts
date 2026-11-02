@@ -60,6 +60,7 @@ export interface FakeRunner extends ServerRunner {
   readonly remove: ReturnType<typeof vi.fn<ServerRunner["remove"]>>;
   readonly ship: ReturnType<typeof vi.fn<ServerRunner["ship"]>>;
   readonly refreshPr: ReturnType<typeof vi.fn<ServerRunner["refreshPr"]>>;
+  readonly checkPr: ReturnType<typeof vi.fn<ServerRunner["checkPr"]>>;
   readonly feedbackFromPr: ReturnType<typeof vi.fn<ServerRunner["feedbackFromPr"]>>;
   readonly draft: ReturnType<typeof vi.fn<ServerRunner["draft"]>>;
   readonly applyDraft: ReturnType<typeof vi.fn<ServerRunner["applyDraft"]>>;
@@ -81,6 +82,7 @@ export const makeFakeRunner = (): FakeRunner => {
     ),
     ship: vi.fn<ServerRunner["ship"]>((issue) => done(issue)),
     refreshPr: vi.fn<ServerRunner["refreshPr"]>((issue) => done(issue)),
+    checkPr: vi.fn<ServerRunner["checkPr"]>((issue) => done(issue)),
     feedbackFromPr: vi.fn<ServerRunner["feedbackFromPr"]>((issue) => done(issue)),
     draft: vi.fn<ServerRunner["draft"]>((issue) => done(issue)),
     applyDraft: vi.fn<ServerRunner["applyDraft"]>((issue) => done(issue)),

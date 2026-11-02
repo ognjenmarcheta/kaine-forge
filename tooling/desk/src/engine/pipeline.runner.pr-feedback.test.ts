@@ -298,6 +298,38 @@ describe("feedback from the PR refuses and changes nothing", () => {
     expect(e.github.feedbackReads.length > 0).toBe(reads);
   });
 
+  it("check-pr keeps what a round would read and changes no stage", async () => {
+    const e = await seeded();
+    e.github.setPullRequestFeedback({
+      ...TRUSTED,
+      conversationComments: [
+        {
+          id: 5,
+          user: { login: "coderabbitai[bot]", type: "Bot" },
+          body: "Rename the helper.",
+          created_at: "2026-10-07T10:00:00Z",
+          author_association: "NONE",
+          html_url: `${PR_URL}#issuecomment-5`
+        }
+      ]
+    });
+
+    const result = await e.pipeline.checkPr(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    const state = await stateOf(e);
+    expect(state).toMatchObject({ stage: "pr-open", status: "waiting" });
+    // The owner's review and CodeRabbit (a default review bot) count; the stranger does not.
+    expect(state.prCheck).toMatchObject({
+      headSha: FAKE_BASE_SHA,
+      failingChecks: ["check"],
+      comments: 2,
+      authors: ["octo-owner", "coderabbitai[bot]"],
+      skipped: ["stranger (NONE)"]
+    });
+    expect(e.runner.requests).toEqual([]);
+  });
+
   it("is an invalid transition outside pr-open", async () => {
     const e = await seeded({ stage: "pr-review" });
     const before = await readFile(e.store.statePath(ISSUE), "utf8");

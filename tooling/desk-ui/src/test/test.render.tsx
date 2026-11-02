@@ -121,6 +121,7 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     needsYouReason: null,
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
+    mergedAt: state.mergedAt ?? null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: state.history.at(-1)?.at ?? null,
     progress: flow.nodes.map((node) => node.status),

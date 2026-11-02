@@ -697,10 +697,22 @@ PR, mark it ready, and merge it yourself on GitHub. Then run `pnpm desk refresh 
 GitHub (`--no-writeback` or a snapshot file), when it has no PR number, or when the GitHub read
 fails. Outside `pr-open` it refuses with `invalid-transition`.
 
-`shipped` means one thing: the desk saw the PR merged during a `refresh` that you ran. The desk
-never polls the state of an issue's PR. (The server's once-a-minute `gh` query only refreshes the
-repository-wide **Open pull requests** list in the UI. It moves no issue.) At `pr-open`, as everywhere, it never merges, approves, marks the PR
-ready, enables auto-merge, or force-pushes.
+`shipped` means one thing: the desk saw the PR merged during a `refresh`. You run one, or the
+server runs one when its **Open pull requests** list is read fresh from GitHub (at most once a
+minute, or on **Refresh**) and a desk PR is no longer in it. The desk stores GitHub's merge time
+as `mergedAt`, and the Board's Done list shows it. The desk never polls in the background. At
+`pr-open`, as everywhere, it never merges, approves, marks the PR ready, enables auto-merge, or
+force-pushes.
+
+**Check CI and comments** (`check-pr`) reads the PR once, the same way a PR feedback round would:
+the failing checks on the PR head, and the comments of trusted people and review bots since the
+desk's last push. It stores a summary on the issue state (`prCheck`) and changes no stage. The
+issue page and the Board's **Open pull requests** list show it. There, a desk PR also offers
+**Address feedback**, which runs the PR feedback round below, once a check found something and
+while rounds remain. A check made on an older PR head no longer counts.
+
+A new PR gets the issue's `source:*` labels (for example `source:scorecard`), so work from the
+same origin is easy to find.
 
 The issue state counts PR feedback rounds (`prRounds`). `maxPrRounds` in the config (default 3)
 is their limit. The status comment shows `PR rounds: n of max` while the issue is at `pr-open`.
@@ -718,9 +730,10 @@ sends what the open PR says back to `build`. Your own text is optional. It does 
 
 Trust rules: only text whose `author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`
 reaches the builder. A review bot such as CodeRabbit is a GitHub App, and GitHub gives it the
-association `NONE`. To let its comments through, list its exact login in `reviewBots` in
-`.ai.local/desk/config.json`, for example `"reviewBots": ["coderabbitai[bot]"]`. The login must
-end in `[bot]`, and GitHub must report the account as a bot. The desk names every author it
+association `NONE`. The desk trusts `coderabbitai[bot]`, `github-actions[bot]`, and
+`copilot-pull-request-reviewer[bot]` by default. To change the list, set `reviewBots` in
+`.ai.local/desk/config.json`; `"reviewBots": []` trusts no bot. The login must end in `[bot]`,
+and GitHub must report the account as a bot. The desk names every author it
 left out in the event note and in a refusal. Reviews and inline comments on an older commit are
 left out. All PR text is third-party data: the desk redacts
 token-like strings, cuts each log to its last 6 KB, each comment to its first 2 KB (after it drops HTML comments and folds `<details>` blocks to their summary, where review bots put long analysis ahead of the finding), and the

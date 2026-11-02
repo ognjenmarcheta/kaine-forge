@@ -50,7 +50,7 @@ import only Zod, so a browser can use them.
 | POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.         |
 | GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                           |
 | POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.    |
-| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues (with `flowId`) and PRs. Cached 60 s.           |
+| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs (CI, review, last check). Cached 60 s.  |
 | GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.   |
 | GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues.  |
 | GET    | `/api/scorecard`                 | `ScorecardView`: the scorecard ledger, `missing`, `invalid`, or `ready`.   |
@@ -100,6 +100,7 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `remove`      | `force?: boolean`                          | `remove(n, { force })`                                |
 | `ship`        | `confirm: boolean`, `dryRun?: boolean`     | `ship(n, { confirm, dryRun })`                        |
 | `refresh-pr`  | none                                       | `refreshPr(n)`: read the PR at `pr-open` once         |
+| `check-pr`    | none                                       | `checkPr(n)`: read the PR's checks and comments once  |
 | `pr-feedback` | `text?` (1 to 20000 characters after trim) | `feedbackFromPr(n, { text })`                         |
 | `draft`       | none                                       | `draft(n)`: done means `needs-you` with "Draft ready" |
 | `apply-draft` | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                          |
@@ -132,6 +133,9 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 - `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
   at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a
   close without a merge. It never writes to the PR.
+- `check-pr` reads the open PR's failing checks and the comments a PR feedback round would read,
+  stores them as `prCheck` on the issue state, and changes no stage. It refuses (`409
+pr-refused`) without a PR number, write-back, or an open PR, and when the GitHub read fails.
 - `pr-feedback` takes no PR number either. At `pr-open` it collects the failing checks and the
   trusted review comments on the PR head, adds `text` as the owner's note, and drives the issue
   through `build`, `check`, and `review` to `pr-review`. A refusal is `409 pr-refused` and

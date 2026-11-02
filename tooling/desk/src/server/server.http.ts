@@ -454,6 +454,21 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
   // One `gh` round trip per minute at most. The board marks follow the store on every request.
   let openWorkCache: { readonly at: number; readonly work: OpenWork } | null = null;
   let openWorkInflight: Promise<OpenWork> | null = null;
+  /**
+   * A desk PR that left the open list was merged or closed. Each fresh list asks the runner to
+   * read it once, so the issue moves to done (with its merge date) without the owner's click.
+   * A refusal (the issue is not at its PR wait, or is busy) changes nothing.
+   */
+  const noticeClosedPulls = async (work: OpenWork): Promise<void> => {
+    const open = new Set(work.pulls.map((pull) => pull.number));
+    for (const entry of await deps.store.list()) {
+      const state = entry.result.status === "ok" ? entry.result.state : null;
+      const pr = state?.prNumber ?? null;
+      if (state === null || state.status === "done" || pr === null || open.has(pr)) continue;
+      await deps.runner.refreshPr(entry.issueNumber).catch(() => undefined);
+    }
+  };
+
   const githubLists = async (refresh: boolean): Promise<GithubLists> => {
     const fetchedAt = clock.now();
     if (deps.openWork === undefined) {
@@ -475,6 +490,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         });
         work = await openWorkInflight;
         openWorkCache = { at: fetchedAt.getTime(), work };
+        await noticeClosedPulls(work);
       }
       const at = new Date(openWorkCache?.at ?? fetchedAt.getTime()).toISOString();
       return toGithubLists(

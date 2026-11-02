@@ -78,7 +78,11 @@ import {
   readSnapshotFile
 } from "../github/github.snapshot-file";
 import { renderStatusComment } from "../github/github.status-comment";
-import { TRUSTED_ASSOCIATIONS, type IssueSnapshot } from "../github/github.types";
+import {
+  SOURCE_LABEL_PREFIX,
+  TRUSTED_ASSOCIATIONS,
+  type IssueSnapshot
+} from "../github/github.types";
 import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
 import { resolveFlowSnapshot } from "../registry/registry.snapshot";
 import { shipAdmission, type ShipIntent } from "../ship/ship.admission";
@@ -162,6 +166,11 @@ export interface PipelineRunner {
    * never polls, and it never merges, approves, or marks the PR ready.
    */
   readonly refreshPr: (issue: number) => Promise<PipelineResult>;
+  /**
+   * Read the open PR's failing checks and the comments a PR feedback round would read, and keep
+   * a summary on the state. It changes no stage and never writes to the PR.
+   */
+  readonly checkPr: (issue: number) => Promise<PipelineResult>;
   /**
    * At `pr-open`: collect the failing checks and the trusted reviews and comments on the PR
    * head, add the owner's own text, and send it all to `build`. Then drive to `pr-review`.
@@ -1169,11 +1178,19 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         });
         return { kind: "settled" };
       }
-      case "shipped":
+      case "shipped": {
+        // A new PR carries the issue's origin (`source:scorecard`, `source:audit`), so it shows
+        // with that work. A label that fails to apply does not fail the ship.
+        const sourceLabels = result.updated
+          ? []
+          : await copySourceLabels(session.state.issueNumber, result.prNumber);
         await applyOutcome(session, shipStage, {
           kind: "complete",
           event: result.updated ? "pr-updated" : "pr-opened",
-          note: result.prUrl,
+          note:
+            sourceLabels.length === 0
+              ? result.prUrl
+              : `${result.prUrl} (labels: ${sourceLabels.join(", ")})`,
           patch: {
             prUrl: result.prUrl,
             prNumber: result.prNumber,
@@ -1183,6 +1200,21 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           }
         });
         return { kind: "settled" };
+      }
+    }
+  };
+
+  /** Add the issue's `source:*` labels to its new PR. Returns the labels it added. */
+  const copySourceLabels = async (issue: number, prNumber: number): Promise<string[]> => {
+    if (deps.noWriteback === true || noWriteback.has(issue)) return [];
+    try {
+      const labels = (await github.fetchIssue(issue)).labels.filter((label) =>
+        label.startsWith(SOURCE_LABEL_PREFIX)
+      );
+      for (const label of labels) await github.addPullRequestLabel(prNumber, label);
+      return labels;
+    } catch {
+      return [];
     }
   };
 
@@ -1240,9 +1272,66 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         const waiting = session.state.stage;
         const moved = move(session, { type: "pr-closed", merged });
         if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
+        if (merged) merge(session, { mergedAt: pr.mergedAt ?? stamp() });
         await record(session, waiting, merged ? "pr-merged" : "pr-closed", pr.url);
         await finishMove(session, null);
         return stopped(session.state);
+      },
+      { needsState: true }
+    );
+
+  const checkPr: PipelineRunner["checkPr"] = (issue) =>
+    withLease(
+      issue,
+      async (loaded): Promise<PipelineResult> => {
+        const session = requireSession(loaded);
+        const refuse = (reason: string): PipelineResult =>
+          refused("pr-refused", `${reason} Nothing was changed.`, session.state);
+        if (deps.noWriteback === true || noWriteback.has(issue)) {
+          return refuse(`#${issue} reads nothing from GitHub (no write-back or a snapshot file).`);
+        }
+        const prNumber = session.state.prNumber ?? null;
+        if (prNumber === null) return refuse(`#${issue} has no pull request number.`);
+        let pr: PullRequestView;
+        let raw: PullRequestFeedbackRaw;
+        try {
+          pr = await github.viewPullRequest(prNumber);
+          if (pr.state !== "OPEN") {
+            return refuse(`PR #${prNumber} is ${pr.state.toLowerCase()}. Run refresh.`);
+          }
+          raw = await github.fetchPullRequestFeedback(prNumber, pr.headRefOid);
+        } catch (error) {
+          return refuse(`GitHub read failed: ${message(error)}.`);
+        }
+        // The same reading as a PR feedback round, so the check says what a round would get.
+        const since =
+          [...session.state.history]
+            .reverse()
+            .find((entry) => entry.event === "pr-opened" || entry.event === "pr-updated")?.at ??
+          null;
+        const selected = selectPrFeedback(raw, {
+          headSha: pr.headRefOid,
+          since,
+          trusted: TRUSTED_ASSOCIATIONS,
+          trustedBots: config.reviewBots
+        });
+        merge(session, {
+          prCheck: {
+            at: stamp(),
+            headSha: pr.headRefOid,
+            failingChecks: selected.failingChecks.map((check) => check.name),
+            comments: selected.comments.length,
+            authors: [...new Set(selected.comments.map((comment) => comment.author))],
+            skipped: [...selected.skipped]
+          }
+        });
+        await save(session);
+        return {
+          outcome: "stopped",
+          stop: "gate",
+          state: session.state,
+          message: `PR #${prNumber}: ${selected.failingChecks.length} failing checks, ${selected.comments.length} comments.`
+        };
       },
       { needsState: true }
     );
@@ -1556,6 +1645,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     continueFrom,
     ship,
     refreshPr,
+    checkPr,
     feedbackFromPr,
     draft,
     applyDraft,
