@@ -8,6 +8,7 @@ import { FlowsView } from "./flows/flows.view";
 import { HealthView } from "./health/health.view";
 import { useT } from "./i18n/i18n.t";
 import { IssueView } from "./issue/issue.view";
+import { JobView } from "./jobs/job.view";
 import { LabView } from "./lab/lab.view";
 import { ScorecardView } from "./scorecard/scorecard.view";
 import { Shell } from "./shell/shell.layout";
@@ -57,7 +58,9 @@ function Routes() {
     case "stats":
       return <StatsView />;
     case "scorecard":
-      return <ScorecardView />;
+      return <ScorecardView key={route.jobId ?? 0} jobId={route.jobId} />;
+    case "job":
+      return <JobView key={route.jobId} jobId={route.jobId} />;
     case "lab":
       return <LabView />;
     case "issue":

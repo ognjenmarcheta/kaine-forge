@@ -1203,6 +1203,9 @@ developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents
     tint of its band), and the workspace, CI, and authored diagrams, folded.
   - A checkout without the ledger says how to create it. A ledger that does not parse shows the
     reason. **Load again** reads the file again.
+  - **Run scorecard** starts a scorecard job (see "Jobs" below). While one is open, the page links
+    to it instead. `?view=scorecard&job=<n>` is the preview of a job's ledger, read from its
+    worktree.
 - **Lab.** The UI lab (`?view=lab`): every `@repo/ui` component under every theme, the component
   options, the chart primitives, and the recreated screens with their compare view. Its pages are
   `#/…` routes on that address (`?view=lab#/charts`). The lab calls no desk API, so it opens
@@ -1275,6 +1278,33 @@ samples, issue bodies) is shown as text, never as markup. The strings are in the
 namespace of `packages/translation`. Colors, spaces, and fonts are `--ds-*` tokens only,
 including the React Flow variables. Bars and lines are SVG attributes, never style attributes,
 because the CSP blocks those.
+
+### Jobs
+
+A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). The first
+kind is the **scorecard job**. Its page is `?job=<n>`; the Board lists jobs in a **Jobs** card.
+
+- **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model
+  (Opus by default), a budget in dollars, and a time limit (defaults $15 and 60 minutes). One
+  scorecard job runs at a time.
+- **Steps.** Setup makes a worktree `KAINE-job-<n>` on a branch `KAINE-chore-scorecard-<date>-job-<n>`
+  from `origin/<baseBranch>`, with the same install and AI setup as an issue worktree. Checks: the
+  engine runs `pnpm boundaries`, `knip`, `audit`, `ai:doctor --strict`, and the `gh` reads (CI
+  runs, code scanning, Dependabot, rulesets, issues, open PRs, the latest coverage totals) and
+  writes them to `.ai.local/desk-job/sweep.json`. Score: one Claude run follows `kaine-scorecard`,
+  fans out `kaine-explorer` subagents, and returns the run and the proposed issues; the engine
+  writes the ledger (date, commit, mode, agent, and overall are the engine's) and renders it.
+- **What the agent may do.** Read, the job's skills, read-only git, Serena reads, and subagents.
+  Subagents inherit the same rules. No shell, no `gh`, no token, no web: the engine reads and
+  writes GitHub.
+- **Your review.** The job waits for you: the preview link, the open questions, and the proposed
+  issues with their bodies. Tick the issues to file. **Approve…** asks once more, then files the
+  ticked issues, commits and pushes the ledger, and opens a draft PR labelled
+  `release:skip-changeset`. **Send back** reruns the scorer with your note.
+- **Stops.** A failed step, the budget (Claude's `--max-budget-usd`, subagents included), the time
+  limit, or a desk restart stops the job as **Needs you** with the reason. **Continue** runs the
+  stopped step again. **Cancel job** stops it; **Remove job** deletes it and its worktree (a pushed
+  branch and an open PR stay on GitHub).
 
 ### Dev flow
 

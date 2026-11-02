@@ -18,6 +18,7 @@ import { StartDialog } from "./board.start-dialog";
 import { TurnInbox } from "./board.turn";
 import { ApproveBatchDialog } from "../gates/gate.confirm";
 import { useT } from "../i18n/i18n.t";
+import { JobsList } from "../jobs/jobs.side";
 import { Segmented } from "../shell/shell.layout";
 import { useNow } from "../shell/shell.now";
 import { usePaletteActions } from "../shell/shell.palette";
@@ -346,6 +347,7 @@ export function BoardView() {
                 now={now}
               />
               <aside className="desk-side" aria-label={t("desk.board.side.label")}>
+                <JobsList />
                 <RunningList issues={groups.running} now={now} />
                 <SidePullRequests />
                 <DoneList issues={groups.done} />

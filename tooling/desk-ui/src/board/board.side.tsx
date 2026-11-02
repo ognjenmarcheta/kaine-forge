@@ -18,7 +18,7 @@ const titleOf = (t: Translate, summary: IssueSummary): string =>
     title: summary.readable ? (summary.title ?? t("desk.issue.untitled")) : ""
   }).trim();
 
-function SideCard({
+export function SideCard({
   title,
   count,
   children,

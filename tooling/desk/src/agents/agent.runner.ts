@@ -23,8 +23,11 @@ export interface AgentPermissions {
   readonly sandbox?: SandboxMode | undefined;
 }
 
+/** A pipeline role, or `scorer` for a desk job's agent. */
+export type AgentRole = DeskRole | "scorer";
+
 export interface AgentRunRequest<T> {
-  readonly role: DeskRole;
+  readonly role: AgentRole;
   readonly provider: Provider;
   readonly model?: string | undefined;
   readonly prompt: string;
@@ -45,6 +48,11 @@ export interface AgentRunRequest<T> {
   /** The receipt hook appends executed tool calls here. */
   readonly receiptsPath?: string | undefined;
   readonly timeoutMs: number;
+  /**
+   * Claude `--max-budget-usd`: the CLI stops the run once it has spent this much, subagents
+   * included, and ends with the `error_max_budget_usd` result. Only desk jobs set it.
+   */
+  readonly maxBudgetUsd?: number | undefined;
   /** Skills the role must use. */
   readonly skills: readonly string[];
   readonly skillMode: SkillMode;
@@ -141,6 +149,8 @@ export interface AgentRunPartial {
   readonly trace: readonly AgentEvent[];
   readonly sessionId: string | null;
   readonly denials: readonly AgentDenial[];
+  /** What a run that ended with a result line cost, such as a run that hit its budget. */
+  readonly costUsd?: number | undefined;
 }
 
 export type AgentRunOutcome<T> =

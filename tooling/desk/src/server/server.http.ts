@@ -13,6 +13,8 @@ import {
   lessonIssueRequestSchema,
   lessonPromoteRequestSchema,
   lessonUnpromoteRequestSchema,
+  jobActionRequestSchema,
+  jobStartRequestSchema,
   sessionRequestSchema,
   type ActionName,
   type ActionResponse,
@@ -59,6 +61,7 @@ import {
 import { createStaticHandler, type StaticHandler } from "./server.static";
 import { createStoreWatcher } from "./server.watch";
 import { toGithubLists, type OpenWork } from "../github/github.lists";
+import { JobRefusal, type JobManager } from "../jobs";
 import { DEFAULT_FLOW_ID } from "../registry/registry.snapshot";
 import type {
   Definition,
@@ -92,8 +95,13 @@ export interface DeskServerDeps {
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** `maxPrRounds` of the config, for the issue summaries. Absent: the default. */
   readonly prRoundLimit?: number | undefined;
-  /** The monorepo health scorecard, for `GET /api/scorecard`. Absent: the ledger is missing. */
-  readonly scorecard?: (() => Promise<ScorecardView>) | undefined;
+  /**
+   * The monorepo health scorecard, for `GET /api/scorecard`. With `checkout`, the ledger of that
+   * checkout (a scorecard job's worktree). Absent: the ledger is missing.
+   */
+  readonly scorecard?: ((checkout?: string) => Promise<ScorecardView>) | undefined;
+  /** Desk jobs, for `/api/jobs`. Absent: the list is empty and the other job routes answer `404`. */
+  readonly jobs?: JobManager | undefined;
   /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. Absent: those routes answer `404`. */
@@ -157,6 +165,7 @@ type Route =
         | "github"
         | "stats"
         | "scorecard"
+        | "jobs"
         | "lessons"
         | "lesson-promote"
         | "lesson-unpromote"
@@ -174,6 +183,7 @@ type Route =
       readonly id: string;
     }
   | { readonly kind: "issue" | "log" | "actions"; readonly issueNumber: number }
+  | { readonly kind: "job" | "job-actions"; readonly jobId: number }
   | { readonly kind: "artifact"; readonly issueNumber: number; readonly artifact: string };
 
 const parseRoute = (pathname: string): Route => {
@@ -185,6 +195,14 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
   if (segments.length === 2 && resource === "stats") return { kind: "stats" };
   if (segments.length === 2 && resource === "scorecard") return { kind: "scorecard" };
+  if (resource === "jobs") {
+    if (segments.length === 2) return { kind: "jobs" };
+    if (id === undefined || !ISSUE_NUMBER.test(id)) return { kind: "unknown" };
+    if (segments.length === 3) return { kind: "job", jobId: Number(id) };
+    if (segments.length === 4 && sub === "actions")
+      return { kind: "job-actions", jobId: Number(id) };
+    return { kind: "unknown" };
+  }
   if (segments.length === 2 && resource === "lessons") return { kind: "lessons" };
   if (segments.length === 3 && resource === "lessons") {
     if (id === "promote") return { kind: "lesson-promote" };
@@ -226,6 +244,9 @@ const METHODS_OF: Readonly<Record<Route["kind"], readonly Method[]>> = {
   github: ["GET"],
   stats: ["GET"],
   scorecard: ["GET"],
+  jobs: ["GET", "POST"],
+  job: ["GET"],
+  "job-actions": ["POST"],
   lessons: ["GET"],
   "lesson-promote": ["POST"],
   "lesson-unpromote": ["POST"],
@@ -397,6 +418,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     onChanged: publish,
     onRemoved: (issueNumber) => hub.broadcast({ type: "issue-removed", issueNumber })
   });
+  const unsubscribeJobs = deps.jobs?.subscribe((event) => hub.broadcast(event));
   hub.onActivity((active) => {
     if (!active) watcher.stop();
   });
@@ -636,6 +658,23 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     }
   };
 
+  // --- jobs -----------------------------------------------------------------
+
+  const requireJobs = (): JobManager => {
+    if (deps.jobs === undefined) throw new HttpError("not-found", "This desk runs no jobs.");
+    return deps.jobs;
+  };
+
+  /** A job refusal as the API's error envelope. */
+  const jobCall = async <T>(call: () => Promise<T>): Promise<T> => {
+    try {
+      return await call();
+    } catch (error) {
+      if (!(error instanceof JobRefusal)) throw error;
+      throw new HttpError(error.code === "unknown-job" ? "not-found" : error.code, error.message);
+    }
+  };
+
   // --- lessons --------------------------------------------------------------
 
   const requireLessonActions = (): LessonActions => {
@@ -748,11 +787,44 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         return;
       }
       case "scorecard": {
-        const view: ScorecardView = (await deps.scorecard?.()) ?? {
+        const job = url.searchParams.get("job");
+        let checkout: string | undefined;
+        if (job !== null) {
+          if (!ISSUE_NUMBER.test(job)) throw new HttpError("bad-request", "job must be a job id");
+          const state = await requireJobs().get(Number(job));
+          if (state?.worktree === null || state?.worktree === undefined) {
+            throw new HttpError("not-found", `Job ${job} has no worktree.`);
+          }
+          checkout = state.worktree;
+        }
+        const view: ScorecardView = (await deps.scorecard?.(checkout)) ?? {
           state: "missing",
           ledgerPath: SCORECARD_LEDGER_PATH
         };
         sendJson(response, 200, view);
+        return;
+      }
+      case "jobs":
+        if (request.method === "POST") {
+          const parsed = jobStartRequestSchema.safeParse(await readJsonBody(request, maxBodyBytes));
+          if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+          sendJson(response, 201, await jobCall(() => requireJobs().start(parsed.data)));
+          return;
+        }
+        // A desk without jobs lists none, as the runs and lessons do.
+        sendJson(response, 200, deps.jobs === undefined ? [] : await deps.jobs.list());
+        return;
+      case "job": {
+        const state = await requireJobs().get(found.jobId);
+        if (state === null) throw new HttpError("not-found", `Job ${found.jobId} does not exist.`);
+        sendJson(response, 200, state);
+        return;
+      }
+      case "job-actions": {
+        const parsed = jobActionRequestSchema.safeParse(await readJsonBody(request, maxBodyBytes));
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        const state = await jobCall(() => requireJobs().act(found.jobId, parsed.data));
+        sendJson(response, 200, { job: state });
         return;
       }
       case "lessons": {
@@ -919,6 +991,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     closing ??= (async () => {
       unsubscribe();
       watcher.stop();
+      unsubscribeJobs?.();
       hub.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

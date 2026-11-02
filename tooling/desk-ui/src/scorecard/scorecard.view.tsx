@@ -42,9 +42,12 @@ import {
 } from "./scorecard.model";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
+import { openJobOf } from "../jobs/job.model";
+import { JobStartDialog } from "../jobs/job.start-dialog";
 import { formatCount } from "../shell/shell.format";
 import { Segmented } from "../shell/shell.layout";
 import { usePaletteActions } from "../shell/shell.palette";
+import { RouteLink } from "../shell/shell.router";
 import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 import { sparkPoints } from "../stats/stats.model";
@@ -819,9 +822,11 @@ const ledgerHint = (t: Translate, path: string): string => t("desk.scorecard.mis
  * The monorepo health scorecard from the ledger in the checkout: the selected run's scores and
  * their change, the trend, the open findings, and the run's notes. Read-only.
  */
-export function ScorecardView() {
+export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }) {
   const t = useT();
-  const { api } = useDesk();
+  const { api, state } = useDesk();
+  const [starting, setStarting] = useState(false);
+  const openJob = openJobOf(state.jobs, "scorecard");
   const [data, setData] = useState<ScorecardData | null>(null);
   const [error, setError] = useState<Failure | null>(null);
   const [loading, setLoading] = useState(false);
@@ -829,7 +834,7 @@ export function ScorecardView() {
   const load = useCallback((): void => {
     setLoading(true);
     api
-      .scorecard()
+      .scorecard(jobId)
       .then((loaded) => {
         setData(loaded);
         setError(null);
@@ -839,7 +844,7 @@ export function ScorecardView() {
         setError({ code: converted.code, detail: converted.detail });
       })
       .finally(() => setLoading(false));
-  }, [api]);
+  }, [api, jobId]);
 
   useEffect(load, [load]);
   usePaletteActions([{ id: "scorecard-refresh", label: t("desk.scorecard.refresh"), run: load }]);
@@ -851,10 +856,34 @@ export function ScorecardView() {
           <h1>{t("desk.scorecard.title")}</h1>
           <p className="desk-muted">{t("desk.scorecard.intro")}</p>
         </div>
-        <Button appearance="subtle" onClick={load} disabled={loading}>
-          {t("desk.scorecard.refresh")}
-        </Button>
+        <div className="desk-job-actions">
+          <Button appearance="subtle" onClick={load} disabled={loading}>
+            {t("desk.scorecard.refresh")}
+          </Button>
+          {jobId === undefined && openJob === null && (
+            <Button onClick={() => setStarting(true)}>{t("desk.job.start.scorecard")}</Button>
+          )}
+        </div>
       </div>
+      {jobId !== undefined && (
+        <p className="desk-job-banner" role="note">
+          {t("desk.job.preview", { id: jobId })}{" "}
+          <RouteLink to={{ view: "job", jobId }}>
+            {t("desk.job.backToJob", { id: jobId })}
+          </RouteLink>
+        </p>
+      )}
+      {jobId === undefined && openJob !== null && (
+        <p className="desk-job-banner" role="note">
+          <RouteLink to={{ view: "job", jobId: openJob.id }}>
+            {t("desk.job.openJob", {
+              id: openJob.id,
+              status: t(`desk.job.status.${openJob.status}`)
+            })}
+          </RouteLink>
+        </p>
+      )}
+      <JobStartDialog kind="scorecard" open={starting} onOpenChange={setStarting} />
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {loading && data === null && (
         <Card className="desk-panel">
