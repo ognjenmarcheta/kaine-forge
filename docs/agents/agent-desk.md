@@ -1281,8 +1281,9 @@ because the CSP blocks those.
 
 ### Jobs
 
-A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). The first
-kind is the **scorecard job**. Its page is `?job=<n>`; the Board lists jobs in a **Jobs** card.
+A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). There are
+two kinds: the **scorecard job** and the **screen job**. A job's page is `?job=<n>`; the Board
+lists jobs in a **Jobs** card.
 
 - **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model
   (Opus by default), a budget in dollars, and a time limit (defaults $15 and 60 minutes). One
@@ -1305,6 +1306,25 @@ kind is the **scorecard job**. Its page is `?job=<n>`; the Board lists jobs in a
   limit, or a desk restart stops the job as **Needs you** with the reason. **Continue** runs the
   stopped step again. **Cancel job** stops it; **Remove job** deletes it and its worktree (a pushed
   branch and an open PR stay on GitHub).
+
+The **screen job** recreates a reference image as a lab screen:
+
+- **Start.** **Recreate screen** in the Lab view asks for the screen id (`10-medspa`), the title,
+  the reference image (PNG, JPEG, or WebP, at most 10 MB), the frame size, and the mode, then the
+  note, model, and limits (defaults $10 and 60 minutes). One screen job runs at a time.
+- **Steps.** Setup makes the worktree on `KAINE-feat-lab-<id>-job-<n>` and copies the reference
+  into its `tooling/desk-ui/public/references/`. Build: the engine starts a lab server for the job
+  on a free port, and one Claude run follows `kaine-build-ui` with the Playwright browser,
+  `lab:diff`, and `lab:shots`. Checks: the engine runs the lab tests, eslint on the screen folder,
+  the desk UI typecheck, and `ui:check`, then `lab:diff` for the gate. A failed check stops the job;
+  **Continue** hands the output to the builder.
+- **What the agent may do.** The scorecard job's rights, plus: write only
+  `tooling/desk-ui/src/lab/screens/<id>/`, run the lab and desk UI check commands, and use the
+  Playwright browser. No `gh`, no installs, no other files.
+- **Your review.** The job page links to the compare view on the job's lab server and shows the
+  diff percent, the deviations, and the open questions. **Approve…** asks once more, then commits
+  only the screen folder, pushes, opens a draft PR, and stops the lab server. **Send back** builds
+  again with your note.
 
 ### Dev flow
 

@@ -8,12 +8,21 @@ import { scorecardRunSchema } from "./scorecard.contract";
  * for the owner before anything leaves the machine. See ADR 0021.
  */
 
-export const JOB_KINDS = ["scorecard"] as const;
+export const JOB_KINDS = ["scorecard", "screen"] as const;
 export const jobKindSchema = z.enum(JOB_KINDS);
 export type JobKind = z.infer<typeof jobKindSchema>;
 
 /** The steps of a job, in order. A step the kind does not have is skipped. */
-export const JOB_STAGES = ["setup", "sweep", "score", "review", "ship", "done"] as const;
+export const JOB_STAGES = [
+  "setup",
+  "sweep",
+  "score",
+  "build",
+  "check",
+  "review",
+  "ship",
+  "done"
+] as const;
 export const jobStageSchema = z.enum(JOB_STAGES);
 export type JobStage = z.infer<typeof jobStageSchema>;
 
@@ -32,8 +41,37 @@ export type JobStopReason = z.infer<typeof jobStopReasonSchema>;
 
 /** The default cost and time limit of each kind. The owner may change them per job. */
 export const JOB_LIMITS: Readonly<Record<JobKind, { costUsd: number; minutes: number }>> = {
-  scorecard: { costUsd: 15, minutes: 60 }
+  scorecard: { costUsd: 15, minutes: 60 },
+  screen: { costUsd: 10, minutes: 60 }
 };
+
+/** A lab screen id: the reference number and a short name, as `tooling/desk-ui/src/lab/screens` asks. */
+export const LAB_SCREEN_ID = /^\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** The image types a reference may have, by their file extension. */
+export const REFERENCE_TYPES = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp"
+} as const;
+export const referenceTypeSchema = z.enum(["image/png", "image/jpeg", "image/webp"]);
+
+/** The largest reference image a screen job takes. */
+export const MAX_REFERENCE_BYTES = 10 * 1024 * 1024;
+
+/** What a screen job recreates: a lab screen with its frame and reference. */
+export const screenSpecSchema = z
+  .object({
+    id: z.string().regex(LAB_SCREEN_ID).max(60),
+    title: z.string().min(1).max(80),
+    mode: z.enum(["light", "dark"]),
+    width: z.number().int().min(320).max(3840),
+    height: z.number().int().min(320).max(3840),
+    /** The reference's file name in `tooling/desk-ui/public/references/`. */
+    reference: z.string().regex(/^\d{2}-[a-z0-9-]+\.(?:png|jpg|webp)$/)
+  })
+  .strict();
+export type ScreenSpec = z.infer<typeof screenSpecSchema>;
 
 /** The Claude model a job uses unless the owner picks another one. */
 export const JOB_DEFAULT_MODEL = "opus";
@@ -46,7 +84,9 @@ export const jobInputSchema = z
     note: z.string().max(2000),
     model: z.string().regex(MODEL_PATTERN).max(80),
     budgetUsd: z.number().positive().max(200),
-    minutes: z.number().int().positive().max(240)
+    minutes: z.number().int().positive().max(240),
+    /** Set for a screen job. */
+    screen: screenSpecSchema.optional()
   })
   .strict();
 export type JobInput = z.infer<typeof jobInputSchema>;
@@ -84,6 +124,18 @@ export const scorecardJobResultSchema = z
   .strict();
 export type ScorecardJobResult = z.infer<typeof scorecardJobResultSchema>;
 
+/** What the screen builder returns. The engine measures the diff itself. */
+export const screenJobResultSchema = z
+  .object({
+    summary: z.string().min(1),
+    /** Each rule the screen breaks on purpose to match the reference, with its rule ID. */
+    deviations: z.array(z.string().min(1)).max(40),
+    openQuestions: z.array(z.string().min(1)).max(10),
+    plainLanguage: z.string().min(1)
+  })
+  .strict();
+export type ScreenJobResult = z.infer<typeof screenJobResultSchema>;
+
 export const jobHistoryEntrySchema = z
   .object({
     at: z.iso.datetime({ offset: true }),
@@ -117,6 +169,17 @@ export const jobStateSchema = z
     feedback: z.array(z.string()).max(20),
     history: z.array(jobHistoryEntrySchema),
     result: scorecardJobResultSchema.nullable(),
+    /** A screen job's result, the share of pixels that still differ, and its live lab server. */
+    screen: z
+      .object({
+        result: screenJobResultSchema.nullable(),
+        diffPercent: z.number().min(0).max(100).nullable(),
+        /** The port of the job's lab dev server while it runs, else `null`. */
+        port: z.number().int().positive().nullable()
+      })
+      .strict()
+      .nullable()
+      .default(null),
     filedIssues: z.array(filedIssueSchema),
     pr: z.object({ number: z.number().int().positive(), url: z.string() }).strict().nullable()
   })
@@ -132,9 +195,31 @@ export const jobStartRequestSchema = z
     note: z.string().max(2000).optional(),
     model: z.string().regex(MODEL_PATTERN).max(80).optional(),
     budgetUsd: z.number().positive().max(200).optional(),
-    minutes: z.number().int().positive().max(240).optional()
+    minutes: z.number().int().positive().max(240).optional(),
+    /** A screen job's screen and its reference image, as base64. */
+    screen: screenSpecSchema
+      .omit({ reference: true })
+      .extend({
+        reference: z
+          .object({
+            mediaType: referenceTypeSchema,
+            // Base64 is four characters for three bytes.
+            dataBase64: z
+              .string()
+              .min(1)
+              .max(Math.ceil(MAX_REFERENCE_BYTES / 3) * 4)
+              .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+          })
+          .strict()
+      })
+      .strict()
+      .optional()
   })
-  .strict();
+  .strict()
+  .refine((request) => (request.kind === "screen") === (request.screen !== undefined), {
+    message: "A screen job needs a screen, and only a screen job takes one",
+    path: ["screen"]
+  });
 export type JobStartRequest = z.infer<typeof jobStartRequestSchema>;
 
 /** `POST /api/jobs/:id/actions`. */

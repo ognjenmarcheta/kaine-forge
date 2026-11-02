@@ -29,6 +29,8 @@ Ship a screen that does its task, follows the active theme, and passes the UI ru
 
 Use this mode when the request gives a screenshot, a mockup, or a brand book to recreate. The goal is a 1:1 match wherever the MUST rules allow it. Work in this order; do not start with code.
 
+The agent desk runs this mode for a lab screen as a **screen job** (ADR 0021): the owner uploads the reference in the Lab view, the job's own lab server sets `LAB_URL`, the builder may write only its screen folder, and the engine runs the checks and `lab:diff` before the owner's gate.
+
 1. **Frame the reference.** Find the app's rectangle in the image. Set the screen frame (`width`, `height`) to the app's own size. When the image has a backdrop, a browser window, or a device around the app, set `referenceCrop` to that rectangle in image pixels (the lab's "Align reference" panel finds it).
 2. **Write the visual spec** in the notes file before any code. Measure from the enlarged reference (click it in the compare view); do not guess.
    - **Theme axes:** brand and accent colors, neutral tint and temperature, how dark the dark mode is, heading and body fonts by kind (geometric sans, humanist sans, serif, mono), the largest figure or title size, corner radii, density, and depth (shadows or borders).

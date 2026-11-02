@@ -53,6 +53,11 @@ export interface AgentRunRequest<T> {
    * included, and ends with the `error_max_budget_usd` result. Only desk jobs set it.
    */
   readonly maxBudgetUsd?: number | undefined;
+  /**
+   * Extra environment for the agent and the commands it runs, on top of the allowlisted parent
+   * environment. A desk job passes its lab server address here (`LAB_URL`). Never a token.
+   */
+  readonly env?: Readonly<Record<string, string>> | undefined;
   /** Skills the role must use. */
   readonly skills: readonly string[];
   readonly skillMode: SkillMode;

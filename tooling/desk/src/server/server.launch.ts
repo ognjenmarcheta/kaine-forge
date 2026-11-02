@@ -251,7 +251,10 @@ export const createDefaultDeskRuntime =
         return (await diffAgainstBase(exec, state.worktreePath, state.baseSha)).diffHash;
       },
       uiDir: await ensureUiBuilt({ exec, repoRoot: location.repoRoot, print }),
-      dispose: () => notifier.settled()
+      dispose: async () => {
+        await notifier.settled();
+        await jobs.close();
+      }
     };
   };
 

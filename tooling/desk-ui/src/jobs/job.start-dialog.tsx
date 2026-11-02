@@ -1,12 +1,37 @@
-import { JOB_DEFAULT_MODEL, JOB_LIMITS, type JobKind } from "@repo/desk/contracts";
+import {
+  JOB_DEFAULT_MODEL,
+  JOB_LIMITS,
+  LAB_SCREEN_ID,
+  MAX_REFERENCE_BYTES,
+  REFERENCE_TYPES,
+  type JobKind,
+  type JobStartRequest
+} from "@repo/desk/contracts";
 import { Input, Label, Modal, Textarea } from "@repo/ui";
 import { useId, useState } from "react";
 
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useT } from "../i18n/i18n.t";
+import { Segmented } from "../shell/shell.layout";
 import { useRouter } from "../shell/shell.router";
 import { useDesk } from "../state/desk.provider";
+
+type ReferenceType = keyof typeof REFERENCE_TYPES;
+
+const isReferenceType = (value: string): value is ReferenceType => value in REFERENCE_TYPES;
+
+/** A file as base64, in chunks so a large image does not overflow the argument list. */
+const base64Of = async (file: File): Promise<string> => {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let start = 0; start < bytes.length; start += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000));
+  }
+  return btoa(binary);
+};
+
+const SCREEN_MODES = ["light", "dark"] as const;
 
 /**
  * Start a desk job: what to keep in mind, the model, and the limits. The limits start at the
@@ -32,6 +57,33 @@ export function JobStartDialog({
   const [minutes, setMinutes] = useState(String(limits.minutes));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [screenId, setScreenId] = useState("");
+  const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<(typeof SCREEN_MODES)[number]>("light");
+  const [width, setWidth] = useState("1440");
+  const [height, setHeight] = useState("900");
+  const [file, setFile] = useState<File | null>(null);
+  const isScreen = kind === "screen";
+  const fileProblem =
+    file === null
+      ? null
+      : !isReferenceType(file.type)
+        ? t("desk.job.start.screen.fileType")
+        : file.size > MAX_REFERENCE_BYTES
+          ? t("desk.job.start.screen.fileSize")
+          : null;
+  const size = (value: string): number | null => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 320 && parsed <= 3840 ? parsed : null;
+  };
+  const screenValid =
+    !isScreen ||
+    (LAB_SCREEN_ID.test(screenId) &&
+      title.trim() !== "" &&
+      size(width) !== null &&
+      size(height) !== null &&
+      file !== null &&
+      fileProblem === null);
 
   const budgetValue = Number(budget);
   const minutesValue = Number(minutes);
@@ -42,19 +94,31 @@ export function JobStartDialog({
     Number.isInteger(minutesValue) &&
     minutesValue > 0 &&
     minutesValue <= 240 &&
-    model.trim() !== "";
+    model.trim() !== "" &&
+    screenValid;
 
   const start = async (): Promise<void> => {
     setPending(true);
     setError(null);
     try {
-      const job = await api.startJob({
+      const request: JobStartRequest = {
         kind,
         note: note.trim(),
         model: model.trim(),
         budgetUsd: budgetValue,
         minutes: minutesValue
-      });
+      };
+      if (isScreen && file !== null && isReferenceType(file.type)) {
+        request.screen = {
+          id: screenId,
+          title: title.trim(),
+          mode,
+          width: size(width) ?? 1440,
+          height: size(height) ?? 900,
+          reference: { mediaType: file.type, dataBase64: await base64Of(file) }
+        };
+      }
+      const job = await api.startJob(request);
       onOpenChange(false);
       navigate({ view: "job", jobId: job.id });
     } catch (failure) {
@@ -89,6 +153,72 @@ export function JobStartDialog({
         }
       ]}
     >
+      {isScreen && (
+        <>
+          <div className="desk-job-limits">
+            <div className="desk-field">
+              <Label htmlFor={`${id}-screen`}>{t("desk.job.start.screen.id")}</Label>
+              <Input
+                id={`${id}-screen`}
+                value={screenId}
+                aria-describedby={`${id}-screen-help`}
+                onChange={(event) => setScreenId(event.target.value.trim())}
+              />
+              <p id={`${id}-screen-help`} className="desk-muted">
+                {t("desk.job.start.screen.idHelp")}
+              </p>
+            </div>
+            <div className="desk-field">
+              <Label htmlFor={`${id}-title`}>{t("desk.job.start.screen.title")}</Label>
+              <Input
+                id={`${id}-title`}
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="desk-field">
+            <Label htmlFor={`${id}-file`}>{t("desk.job.start.screen.reference")}</Label>
+            <Input
+              id={`${id}-file`}
+              type="file"
+              accept={Object.keys(REFERENCE_TYPES).join(",")}
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+            {fileProblem !== null && <p className="desk-field__error">{fileProblem}</p>}
+          </div>
+          <div className="desk-job-limits">
+            <div className="desk-field">
+              <Label htmlFor={`${id}-width`}>{t("desk.job.start.screen.width")}</Label>
+              <Input
+                id={`${id}-width`}
+                inputMode="numeric"
+                value={width}
+                onChange={(event) => setWidth(event.target.value)}
+              />
+            </div>
+            <div className="desk-field">
+              <Label htmlFor={`${id}-height`}>{t("desk.job.start.screen.height")}</Label>
+              <Input
+                id={`${id}-height`}
+                inputMode="numeric"
+                value={height}
+                onChange={(event) => setHeight(event.target.value)}
+              />
+            </div>
+            <div className="desk-field">
+              <span className="desk-muted">{t("desk.job.start.screen.mode")}</span>
+              <Segmented
+                label={t("desk.job.start.screen.mode")}
+                value={mode}
+                options={SCREEN_MODES}
+                name={(entry) => t(`desk.prefs.appearance.${entry}`)}
+                onChange={setMode}
+              />
+            </div>
+          </div>
+        </>
+      )}
       <div className="desk-field">
         <Label htmlFor={`${id}-note`}>{t("desk.job.start.note")}</Label>
         <Textarea

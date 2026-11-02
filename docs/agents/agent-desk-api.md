@@ -57,6 +57,7 @@ import only Zod, so a browser can use them.
 | GET    | `/api/scorecard?job`             | `ScorecardView` of a scorecard job's worktree: the preview at its gate.    |
 | GET    | `/api/jobs`                      | `JobState[]`, newest first.                                                |
 | POST   | `/api/jobs`                      | `JobState` (`201`). Body: `JobStartRequest`. `409 busy` while one is open. |
+|        |                                  | A screen job carries its reference as base64 (PNG, JPEG, WebP; 10 MB).     |
 | GET    | `/api/jobs/:id`                  | `JobState`. `404` for an unknown job.                                      |
 | POST   | `/api/jobs/:id/actions`          | `{ job }`. Body: `JobActionRequest`; approve needs `confirm: true`.        |
 | POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.           |
