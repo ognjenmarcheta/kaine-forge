@@ -1222,7 +1222,7 @@
   "desk.job.status.done": "Done",
   "desk.job.status.cancelled": "Cancelled",
   "desk.job.stop.failed": "A step failed. Read the reason, fix it, then continue.",
-  "desk.job.stop.budget": "The job spent its budget. Continue gives it the rest of the budget again; raise the budget in a new job if it needs more.",
+  "desk.job.stop.budget": "The job spent its budget. Continue runs only while budget is left; start a new job with a larger budget if it needs more.",
   "desk.job.stop.time": "The job ran out of time.",
   "desk.job.stop.interrupted": "The desk stopped while the job ran. Continue runs the step again.",
   "desk.job.continue": "Continue",

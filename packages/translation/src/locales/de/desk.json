@@ -1222,7 +1222,7 @@
   "desk.job.status.done": "Fertig",
   "desk.job.status.cancelled": "Abgebrochen",
   "desk.job.stop.failed": "Ein Schritt ist fehlgeschlagen. Lesen Sie den Grund, beheben Sie ihn und machen Sie weiter.",
-  "desk.job.stop.budget": "Der Auftrag hat sein Budget ausgegeben. Weiter gibt ihm den Rest erneut; erhöhen Sie das Budget in einem neuen Auftrag, wenn er mehr braucht.",
+  "desk.job.stop.budget": "Der Auftrag hat sein Budget ausgegeben. Weiter läuft nur, solange Budget übrig ist; starten Sie einen neuen Auftrag mit höherem Budget, wenn er mehr braucht.",
   "desk.job.stop.time": "Die Zeit des Auftrags ist abgelaufen.",
   "desk.job.stop.interrupted": "Der Desk stoppte, während der Auftrag lief. Weiter führt den Schritt erneut aus.",
   "desk.job.continue": "Weiter",
