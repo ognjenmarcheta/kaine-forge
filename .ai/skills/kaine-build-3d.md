@@ -72,7 +72,7 @@ Apply `kaine-test`. Unit-test the pure model (ids, mirroring, part budget). Test
 
 ```bash
 pnpm --filter @repo/ui-3d test
-pnpm --filter @repo/ui-lab test
+pnpm --filter @repo/desk-ui test
 pnpm ui:check
 pnpm lab:shots <screen-id>
 ```

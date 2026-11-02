@@ -85,6 +85,7 @@ describe("CommandPalette", () => {
       "AgentsG A",
       "HealthG H",
       "ScorecardG S",
+      "LabG L",
       "RunsG R"
     ]);
     expect(selected()).toContain("Start issue");

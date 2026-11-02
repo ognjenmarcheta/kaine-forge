@@ -11,6 +11,8 @@ export type Route =
   | { readonly view: "health" }
   | { readonly view: "stats" }
   | { readonly view: "scorecard" }
+  /** The UI lab. Its own pages are `#/…` routes on this address. */
+  | { readonly view: "lab" }
   | { readonly view: "issue"; readonly issueNumber: number };
 
 const POSITIVE_INTEGER = /^[1-9]\d{0,8}$/;
@@ -39,6 +41,7 @@ export function parseRoute(search: string): Route {
   if (view === "health") return { view: "health" };
   if (view === "stats") return { view: "stats" };
   if (view === "scorecard") return { view: "scorecard" };
+  if (view === "lab") return { view: "lab" };
   return { view: "board" };
 }
 
@@ -63,6 +66,8 @@ export function routeHref(route: Route): string {
       return "?view=stats";
     case "scorecard":
       return "?view=scorecard";
+    case "lab":
+      return "?view=lab";
     case "issue":
       return `?issue=${String(route.issueNumber)}`;
   }

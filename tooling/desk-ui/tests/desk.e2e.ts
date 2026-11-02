@@ -933,6 +933,27 @@ test("shows the scorecard: the change, a dimension's reasons, and the fixed find
   await expect(page.locator("html")).toHaveAttribute("data-theme", "moss");
 });
 
+test("opens the UI lab in the desk, moves between its pages, and serves its frame page alone", async ({
+  page,
+  desk
+}) => {
+  await desk.open({}, "?view=lab");
+  await expect(page.getByRole("link", { name: "Lab" })).toHaveAttribute("aria-current", "page");
+  const lab = page.getByRole("navigation", { name: "Lab" });
+  await expect(lab.getByRole("link", { name: "Components" })).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
+  await lab.getByRole("link", { name: "Charts" }).click();
+  await expect(page).toHaveURL(/\?view=lab#\/charts$/);
+  await expect(page.getByText("Hover, pin, and switch data")).toBeVisible();
+
+  // The frame page is the lab alone: no desk shell, and it publishes its screens for the scripts.
+  await page.goto("/lab-frame.html#/screens");
+  await page.waitForFunction(() => window.labScreens !== undefined);
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+});
+
 test("offers a command to copy, and repairs the Docker image after a confirmation", async ({
   page,
   desk

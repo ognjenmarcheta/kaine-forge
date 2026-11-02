@@ -12,7 +12,7 @@ import { chromium } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const base = process.env["LAB_URL"] ?? "http://localhost:5180";
+const base = process.env["LAB_URL"] ?? "http://localhost:5174/lab-frame.html";
 const out = fileURLToPath(new URL("../shots/", import.meta.url));
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const asJson = process.argv.includes("--json");
@@ -24,7 +24,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ deviceScaleFactor: 1 });
 // tsx keeps function names with an __name helper, which the page does not have.
 await page.addInitScript({ content: "window.__name = (target) => target;" });
-await page.goto(`${base}/#/`);
+await page.goto(`${base}#/`);
 await page.waitForFunction(() => window.labScreens !== undefined);
 const screens = await page.evaluate(() => window.labScreens ?? []);
 const results: { id: string; differing: number; crop: boolean }[] = [];
@@ -32,7 +32,7 @@ const results: { id: string; differing: number; crop: boolean }[] = [];
 for (const screen of screens.filter((entry) => only.length === 0 || only.includes(entry.id))) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: screen.width, height: screen.height });
-  await page.goto(`${base}/#/screens/${screen.id}/${screen.mode}`);
+  await page.goto(`${base}#/screens/${screen.id}/${screen.mode}`);
   // A dev server never goes network-idle, so wait for the load event and the lazy charts.
   await page.waitForLoadState("load");
   await page.waitForTimeout(1500);

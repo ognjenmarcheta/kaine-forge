@@ -168,6 +168,7 @@ function useEntries(): Entry[] {
       go("agents", "desk.nav.agents", "G A"),
       go("health", "desk.nav.health", "G H"),
       go("scorecard", "desk.nav.scorecard", "G S"),
+      go("lab", "desk.nav.lab", "G L"),
       go("stats", "desk.nav.stats", "G R")
     ]),
     ...entries("issues", issues.map(open))

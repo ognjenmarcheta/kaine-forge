@@ -68,6 +68,7 @@ export const GLOBAL_SHORTCUTS: readonly ShortcutHint[] = [
   { keys: ["G", "A"], labelKey: "desk.keys.goAgents" },
   { keys: ["G", "H"], labelKey: "desk.keys.goHealth" },
   { keys: ["G", "S"], labelKey: "desk.keys.goScorecard" },
+  { keys: ["G", "L"], labelKey: "desk.keys.goLab" },
   { keys: ["G", "R"], labelKey: "desk.keys.goRuns" }
 ];
 
@@ -97,7 +98,7 @@ export const keyLabel = (key: PageKey): string => ARROWS[key] ?? key.toUpperCase
 /** A `G` then one of these keys within this time goes to a page. */
 export const SEQUENCE_MS = 1200;
 
-export type GoTarget = "board" | "flows" | "agents" | "health" | "scorecard" | "stats";
+export type GoTarget = "board" | "flows" | "agents" | "health" | "scorecard" | "lab" | "stats";
 
 const GO_KEYS: Readonly<Record<string, GoTarget>> = {
   b: "board",
@@ -105,6 +106,7 @@ const GO_KEYS: Readonly<Record<string, GoTarget>> = {
   a: "agents",
   h: "health",
   s: "scorecard",
+  l: "lab",
   r: "stats"
 };
 

@@ -11,8 +11,7 @@ const domFiles = [
   "apps/desktop/src/**/*.{tsx,jsx}",
   "packages/ui/src/**/*.{tsx,jsx}",
   "packages/ui-3d/src/**/*.{tsx,jsx}",
-  "tooling/desk-ui/src/**/*.{tsx,jsx}",
-  "tooling/ui-lab/src/**/*.{tsx,jsx}"
+  "tooling/desk-ui/src/**/*.{tsx,jsx}"
 ];
 const nativeFiles = [
   "apps/mobile/app/**/*.{tsx,jsx}",
@@ -197,10 +196,11 @@ export default [
     }
   },
   {
-    // The UI lab recreates screens with fixed fixture text, so it skips the i18n rules,
+    // The UI lab recreates screens with fixed fixture text, so it skips the desk's i18n rules,
     // but it must be token-only like the product UI.
-    files: ["tooling/ui-lab/src/**/*.{tsx,jsx}"],
+    files: ["tooling/desk-ui/src/lab/**/*.{tsx,jsx}"],
     rules: {
+      "react/jsx-no-literals": "off",
       "no-restricted-syntax": ["error", ...colorTokenBans]
     }
   },

@@ -49,7 +49,9 @@ import {
   type PipelineEventSource
 } from "./server.events";
 import {
+  applyLabFrameHeaders,
   applySecurityHeaders,
+  LAB_FRAME_PATH,
   createSecurity,
   sessionCookie,
   type Security
@@ -867,6 +869,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       } else if (staticHandler === null) {
         throw new HttpError("not-found");
       } else {
+        if (url.pathname === LAB_FRAME_PATH) applyLabFrameHeaders(response);
         if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
           response.setHeader("Set-Cookie", sessionCookie(active.cookieName, active.issueSession()));
         }

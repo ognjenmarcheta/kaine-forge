@@ -68,6 +68,7 @@ describe("Shell", () => {
       "Agents",
       "Health",
       "Scorecard",
+      "Lab",
       "Runs"
     ]);
   });
