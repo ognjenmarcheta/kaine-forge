@@ -330,12 +330,19 @@ jobs:
           revision: ${{ steps.meta.outputs.revision }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # DEPLOY_WEBHOOK_API, DEPLOY_WEBHOOK_WEB, ...: the platform's deploy hook
-      # for the app, which pulls `:release` and restarts it. Without one, the
-      # platform pulls on its own schedule.
+      # DEPLOY_WEBHOOK_<APP>: the platform's deploy hook for the app, which
+      # pulls `:release` and restarts it. Without one, the platform pulls on its
+      # own schedule. Each secret is named here, not looked up by app name: a
+      # dynamic lookup hands every repository secret to the runner. A new
+      # deployable app adds its secret to this expression.
       - name: Trigger the ${{ matrix.app }} deploy
         env:
-          WEBHOOK: ${{ secrets[format('DEPLOY_WEBHOOK_{0}', matrix.app)] }}
+          WEBHOOK: >-
+            ${{
+              matrix.app == 'api' && secrets.DEPLOY_WEBHOOK_API ||
+              matrix.app == 'web' && secrets.DEPLOY_WEBHOOK_WEB ||
+              ''
+            }}
           IMAGE: ${{ steps.meta.outputs.image }}
           SHA: ${{ steps.meta.outputs.sha }}
           DIGEST: ${{ steps.push.outputs.digest }}

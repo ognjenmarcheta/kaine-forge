@@ -45,7 +45,7 @@ To use `image`:
    - **Public:** your platform pulls with no credentials. A public package is free. The image holds your code and the build-time `VITE_*` values, which every browser downloads anyway; runtime secrets stay in your platform's environment.
    - **Private:** give your platform a token with `read:packages`. GitHub's documentation says Container registry storage and bandwidth are currently free, with at least a month's notice before that changes. Check GitHub's billing page before you rely on it.
 3. Point each app at `ghcr.io/<owner>/<repo>-<app>:release`, with the runtime environment unchanged.
-4. Store each app's deploy hook URL as a repository secret named `DEPLOY_WEBHOOK_<APP>`, for example `DEPLOY_WEBHOOK_API` and `DEPLOY_WEBHOOK_WEB`. The job sends it a plain `POST`. Without the secret, the job only pushes, and your platform pulls `:release` on its own schedule.
+4. Store each app's deploy hook URL as a repository secret named `DEPLOY_WEBHOOK_<APP>`, for example `DEPLOY_WEBHOOK_API` and `DEPLOY_WEBHOOK_WEB`. The job sends it a plain `POST`. Without the secret, the job only pushes, and your platform pulls `:release` on its own schedule. The `deploy-images` job names each secret explicitly; when you add a deployable app, add its secret to the job's `WEBHOOK` expression.
 
 To roll back, point the app at an earlier `sha-*` tag and deploy, or rerun the deploy job of an earlier Release run. To leave `image` mode, point the apps back at `release/<app>` and unset the variable.
 
