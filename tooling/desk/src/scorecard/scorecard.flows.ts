@@ -7,6 +7,18 @@ import type { ScorecardFlow, ScorecardFlowLayout } from "../contracts";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/**
+ * A file through its parser, or `null` when it does not parse. A diagram skips such a file: one
+ * broken `package.json` or workflow must not hide the ledger and the other diagrams.
+ */
+const parseFile = (file: string, parse: (text: string) => unknown): unknown => {
+  try {
+    return parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+};
+
 const WORKSPACE_ROOTS = ["apps", "packages", "tooling"] as const;
 const DEPENDENCY_SECTIONS = [
   "dependencies",
@@ -29,7 +41,7 @@ const readWorkspacePackages = (repoRoot: string): WorkspacePackage[] => {
     for (const entry of readdirSync(scopeDir, { withFileTypes: true })) {
       const manifestPath = path.join(scopeDir, entry.name, "package.json");
       if (!entry.isDirectory() || !existsSync(manifestPath)) continue;
-      const manifest: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+      const manifest = parseFile(manifestPath, JSON.parse);
       if (!isRecord(manifest) || typeof manifest["name"] !== "string") continue;
       const dependencies = new Set<string>();
       for (const section of DEPENDENCY_SECTIONS) {
@@ -89,7 +101,7 @@ export const readWorkflowJobs = (workflowsDir: string): WorkflowJob[] => {
     .sort((left, right) => left.localeCompare(right));
   const jobs: WorkflowJob[] = [];
   for (const file of files) {
-    const parsed: unknown = parseYaml(readFileSync(path.join(workflowsDir, file), "utf8"));
+    const parsed = parseFile(path.join(workflowsDir, file), parseYaml);
     if (!isRecord(parsed) || !isRecord(parsed["jobs"])) continue;
     const workflow = typeof parsed["name"] === "string" ? parsed["name"] : file;
     for (const [jobKey, job] of Object.entries(parsed["jobs"])) {

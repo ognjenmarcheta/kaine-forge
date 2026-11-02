@@ -95,6 +95,25 @@ describe("readScorecard", () => {
     expect(view.flows[1]?.edges).toEqual([{ from: "ci.yml:fast", to: "ci.yml:gate" }]);
   });
 
+  it("skips a package.json or workflow that does not parse, and still shows the ledger", async () => {
+    const data = JSON.stringify({
+      schema: 1,
+      runs: [run("2026-11-02", "34ca7e4", 7.7)],
+      authoredFlows: []
+    });
+    const repoRoot = await checkout(ledger(data));
+    await mkdir(path.join(repoRoot, "packages/broken"), { recursive: true });
+    await writeFile(path.join(repoRoot, "packages/broken/package.json"), "{ not json");
+    await writeFile(path.join(repoRoot, ".github/workflows/wip.yml"), "jobs: [unclosed");
+
+    const view = await readScorecard({ repoRoot, remote: null });
+
+    if (view.state !== "ready") throw new Error(`expected a ready view, got ${view.state}`);
+    expect(view.runs).toHaveLength(1);
+    expect(view.flows[0]?.nodes.map((node) => node.id)).toEqual(["@repo/a", "@repo/b"]);
+    expect(view.flows[1]?.nodes.map((node) => node.id)).toEqual(["ci.yml:fast", "ci.yml:gate"]);
+  });
+
   it("says the ledger is missing instead of failing", async () => {
     const repoRoot = await checkout(null);
     expect(await readScorecard({ repoRoot, remote: null })).toEqual({
