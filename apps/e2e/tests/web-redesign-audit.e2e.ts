@@ -54,7 +54,8 @@ test("a Todo saved while the API cannot be reached shows at once and syncs when 
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: title, exact: true })).toBeVisible();
   const status = page.getByRole("status", { name: "Sync status", exact: true });
-  await expect(status).toContainText("Syncing");
+  // A failed push wins over Syncing, so the waiting change cannot hide it.
+  await expect(status).toContainText("Sync failed – retrying");
   await expect(status.getByLabel("Changes waiting", { exact: true })).toHaveText("1");
 
   reachable = true;
@@ -90,7 +91,8 @@ test("Note checklist changes apply at once, survive an unreachable API, and sync
   await checkbox.click();
   await expect(checkbox).toBeChecked();
   const status = page.getByRole("status", { name: "Sync status", exact: true });
-  await expect(status).toContainText("Syncing");
+  // A failed push wins over Syncing, so the waiting change cannot hide it.
+  await expect(status).toContainText("Sync failed – retrying");
 
   reachable = true;
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
