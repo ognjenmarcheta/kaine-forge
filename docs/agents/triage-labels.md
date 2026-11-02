@@ -65,6 +65,19 @@ labels. They are separate from the triage labels above.
 - The desk never adds or removes a triage label. `ready-for-agent` stays under human control.
 - Label writes are best effort. If a label is missing, the desk logs it and goes on.
 
+## Source labels
+
+`source:*` labels say where an issue or a PR came from. The agent desk owns them.
+
+| Label              | Meaning                           |
+| ------------------ | --------------------------------- |
+| `source:scorecard` | Found by a monorepo scorecard run |
+| `source:audit`     | Found by a UI audit               |
+
+- A desk job adds its source label to each issue it files, and creates the label first.
+- An issue run's new PR gets the issue's `source:*` labels.
+- They are not triage labels: `ready-for-agent` still decides what an agent may start.
+
 Create the labels once per repository. This prints the commands and changes nothing:
 
 ```bash

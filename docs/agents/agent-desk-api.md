@@ -45,44 +45,46 @@ import only Zod, so a browser can use them.
 
 ## Routes
 
-| Method | Path                             | Answer                                                                     |
-| ------ | -------------------------------- | -------------------------------------------------------------------------- |
-| POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.         |
-| GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                           |
-| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.    |
-| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs (CI, review, last check). Cached 60 s.  |
-| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.   |
-| GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues.  |
-| GET    | `/api/scorecard`                 | `ScorecardView`: the scorecard ledger, `missing`, `invalid`, or `ready`.   |
-| GET    | `/api/scorecard?job`             | `ScorecardView` of a scorecard job's worktree: the preview at its gate.    |
-| GET    | `/api/jobs`                      | `JobState[]`, newest first.                                                |
-| POST   | `/api/jobs`                      | `JobState` (`201`). Body: `JobStartRequest`. `409 busy` while one is open. |
-|        |                                  | A screen job carries its reference as base64 (PNG, JPEG, WebP; 10 MB).     |
-|        |                                  | A component job carries `component`, an audit job `audit`.                 |
-| GET    | `/api/jobs/:id`                  | `JobState`. `404` for an unknown job.                                      |
-| POST   | `/api/jobs/:id/actions`          | `{ job }`. Body: `JobActionRequest`; approve needs `confirm: true`.        |
-| POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.           |
-| POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.       |
-| GET    | `/api/lessons/issue-preview?key` | `LessonIssueDraft`: the exact `{ key, title, body, digest }` to send.      |
-| POST   | `/api/lessons/issue`             | `LessonIssueCreated`. Body: `{ key, digest, confirm: true }`. See below.   |
-| GET    | `/api/events`                    | Event stream. See "Events".                                                |
-| GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`.    |
-| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.            |
-| GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.                  |
-| GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).         |
-| POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.                  |
-| GET    | `/api/agents`                    | `AgentList`: the registry's agents, resolved. See "Agents and flows".      |
-| GET    | `/api/agents/:id`                | `AgentView`. `404 not-found` for an id the registry does not have.         |
-| GET    | `/api/flows`                     | `FlowList`: the registry's flows. See "Agents and flows".                  |
-| GET    | `/api/flows/:id`                 | `FlowView`. `404 not-found` for an id the registry does not have.          |
-| PUT    | `/api/agents/:id`                | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.           |
-| PUT    | `/api/flows/:id`                 | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.           |
-| POST   | `/api/agents/:id/clone`          | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.          |
-| POST   | `/api/flows/:id/clone`           | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.          |
-| POST   | `/api/agents/:id/promote`        | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.          |
-| POST   | `/api/flows/:id/promote`         | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.          |
-| DELETE | `/api/agents/:id`                | `DefinitionWriteResult`. Deletes a local agent only.                       |
-| DELETE | `/api/flows/:id`                 | `DefinitionWriteResult`. Deletes a local flow only.                        |
+| Method | Path                             | Answer                                                                      |
+| ------ | -------------------------------- | --------------------------------------------------------------------------- |
+| POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.          |
+| GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                            |
+| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.     |
+| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs (CI, review, last check). Cached 60 s.   |
+| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.    |
+| GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues.   |
+| GET    | `/api/scorecard`                 | `ScorecardView`: the scorecard ledger, `missing`, `invalid`, or `ready`.    |
+| GET    | `/api/scorecard?job`             | `ScorecardView` of a scorecard job's worktree: the preview at its gate.     |
+| GET    | `/api/scorecard/tracking`        | `ScorecardTracking`: the scorecard's issues and fixes. Cached 60 s.         |
+| POST   | `/api/scorecard/backfill`        | `ScorecardBackfillResult`. Body: `{ issues, confirm: true }`; tracked only. |
+| GET    | `/api/jobs`                      | `JobState[]`, newest first.                                                 |
+| POST   | `/api/jobs`                      | `JobState` (`201`). Body: `JobStartRequest`. `409 busy` while one is open.  |
+|        |                                  | A screen job carries its reference as base64 (PNG, JPEG, WebP; 10 MB).      |
+|        |                                  | A component job carries `component`, an audit job `audit`.                  |
+| GET    | `/api/jobs/:id`                  | `JobState`. `404` for an unknown job.                                       |
+| POST   | `/api/jobs/:id/actions`          | `{ job }`. Body: `JobActionRequest`; approve needs `confirm: true`.         |
+| POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.            |
+| POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.        |
+| GET    | `/api/lessons/issue-preview?key` | `LessonIssueDraft`: the exact `{ key, title, body, digest }` to send.       |
+| POST   | `/api/lessons/issue`             | `LessonIssueCreated`. Body: `{ key, digest, confirm: true }`. See below.    |
+| GET    | `/api/events`                    | Event stream. See "Events".                                                 |
+| GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`.     |
+| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.             |
+| GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.                   |
+| GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).          |
+| POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.                   |
+| GET    | `/api/agents`                    | `AgentList`: the registry's agents, resolved. See "Agents and flows".       |
+| GET    | `/api/agents/:id`                | `AgentView`. `404 not-found` for an id the registry does not have.          |
+| GET    | `/api/flows`                     | `FlowList`: the registry's flows. See "Agents and flows".                   |
+| GET    | `/api/flows/:id`                 | `FlowView`. `404 not-found` for an id the registry does not have.           |
+| PUT    | `/api/agents/:id`                | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.            |
+| PUT    | `/api/flows/:id`                 | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.            |
+| POST   | `/api/agents/:id/clone`          | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.           |
+| POST   | `/api/flows/:id/clone`           | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.           |
+| POST   | `/api/agents/:id/promote`        | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.           |
+| POST   | `/api/flows/:id/promote`         | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.           |
+| DELETE | `/api/agents/:id`                | `DefinitionWriteResult`. Deletes a local agent only.                        |
+| DELETE | `/api/flows/:id`                 | `DefinitionWriteResult`. Deletes a local flow only.                         |
 
 Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-body`,
 `ship-plan`, `issue-draft`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.

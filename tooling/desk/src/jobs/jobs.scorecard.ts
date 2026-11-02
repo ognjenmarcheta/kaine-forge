@@ -77,12 +77,8 @@ export class LedgerWriteError extends Error {
  * new heading at the end. The heading carries the short commit, which the Scorecard view keys
  * the notes by. The data block must still parse after the change.
  */
-export const appendScorecardRun = (
-  raw: string,
-  run: ScorecardRun,
-  calibration: readonly string[],
-  jobId: number
-): string => {
+/** The ledger's data block, checked against the schema, with every field it has. */
+const ledgerData = (raw: string): { readonly runs: unknown[] } & Record<string, unknown> => {
   const match = DATA_REGION.exec(raw);
   const body = match?.[2];
   if (match === null || body === undefined) {
@@ -102,16 +98,30 @@ export const appendScorecardRun = (
   if (typeof data !== "object" || data === null || !("runs" in data) || !Array.isArray(data.runs)) {
     throw new LedgerWriteError("The ledger data block has no runs.");
   }
-  // Keep every field the ledger has, including ones the schema does not know.
-  const next = { ...data, runs: [...data.runs, run] };
+  return { ...data, runs: data.runs };
+};
+
+/** The ledger text with a new data block. The block must still match the schema. */
+const withLedgerData = (raw: string, next: Record<string, unknown>): string => {
   if (!scorecardLedgerSchema.safeParse(next).success) {
-    throw new LedgerWriteError("The new run does not match the ledger schema.");
+    throw new LedgerWriteError("The new data does not match the ledger schema.");
   }
-  const withRun = raw.replace(
+  return raw.replace(
     DATA_REGION,
     (_full, start: string, _body: string, end: string) =>
       `${start}${JSON.stringify(next, null, 2)}\n${end}`
   );
+};
+
+export const appendScorecardRun = (
+  raw: string,
+  run: ScorecardRun,
+  calibration: readonly string[],
+  jobId: number
+): string => {
+  const data = ledgerData(raw);
+  // Keep every field the ledger has, including ones the schema does not know.
+  const withRun = withLedgerData(raw, { ...data, runs: [...data.runs, run] });
   const heading = `### ${run.date} — desk job ${jobId} (\`${run.commit.slice(0, 7)}\`, fan-out)`;
   const bullets = calibration.map((line) => `- ${line.replace(/\s+/g, " ").trim()}`);
   const notes = `${heading}\n\n${bullets.join("\n")}\n`;
@@ -124,6 +134,48 @@ export const appendScorecardRun = (
   if (following === -1) return `${withRun.trimEnd()}\n\n${notes}`;
   const end = lineEnd + following;
   return `${withRun.slice(0, end).trimEnd()}\n\n${notes}\n${withRun.slice(end)}`;
+};
+
+/**
+ * The ledger text with each filed issue's number on its finding, in the run the job appended
+ * (found by its date and commit). Findings the job did not file keep what they had.
+ */
+export const setFindingIssues = (
+  raw: string,
+  run: Pick<ScorecardRun, "date" | "commit">,
+  issues: ReadonlyMap<string, number>
+): string => {
+  const data = ledgerData(raw);
+  const matches = (entry: unknown): boolean =>
+    typeof entry === "object" &&
+    entry !== null &&
+    "date" in entry &&
+    "commit" in entry &&
+    entry.date === run.date &&
+    entry.commit === run.commit;
+  const index = data.runs.length - 1 - [...data.runs].reverse().findIndex(matches);
+  const target = data.runs[index];
+  if (
+    !matches(target) ||
+    typeof target !== "object" ||
+    target === null ||
+    !("findings" in target)
+  ) {
+    throw new LedgerWriteError(
+      `The ledger has no run of ${run.date} at ${run.commit.slice(0, 7)}.`
+    );
+  }
+  const findings = Array.isArray(target.findings) ? target.findings : [];
+  const runs = [...data.runs];
+  runs[index] = {
+    ...target,
+    findings: findings.map((finding: unknown) => {
+      if (typeof finding !== "object" || finding === null || !("slug" in finding)) return finding;
+      const issue = typeof finding.slug === "string" ? issues.get(finding.slug) : undefined;
+      return issue === undefined ? finding : { ...finding, issue };
+    })
+  };
+  return withLedgerData(raw, { ...data, runs });
 };
 
 /** The ledger PR's title and body. */

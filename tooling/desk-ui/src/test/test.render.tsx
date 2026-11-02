@@ -27,6 +27,10 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   stats: unexpected("stats"),
   lessons: unexpected("lessons"),
   scorecard: unexpected("scorecard"),
+  // The Scorecard view reads it beside the ledger: no tracked issue unless a test says so.
+  scorecardTracking: () =>
+    Promise.resolve({ ok: true, fetchedAt: "2026-03-01T10:00:00.000Z", issues: [] }),
+  scorecardBackfill: unexpected("scorecardBackfill"),
   // The provider loads the jobs with the issues. Most tests want none.
   jobs: () => Promise.resolve([]),
   startJob: unexpected("startJob"),
