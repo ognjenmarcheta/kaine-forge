@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ScorecardBackfillResult, TrackedIssue } from "../contracts";
-import { authenticated, createHarness, type Api, type Harness } from "./server.testing";
+import {
+  scorecardViewSchema,
+  type ScorecardBackfillResult,
+  type ScorecardView,
+  type TrackedIssue
+} from "../contracts";
+import { authenticated, createHarness, raw, type Api, type Harness } from "./server.testing";
 
 let harness: Harness | null = null;
 let api: Api | null = null;
@@ -32,6 +37,33 @@ const open = async (
   api = await authenticated(harness);
   return api;
 };
+
+describe("GET /api/scorecard", () => {
+  it("answers with the runtime's view, and only with a session", async () => {
+    const view: ScorecardView = {
+      state: "invalid",
+      ledgerPath: "docs/agents/monorepo-scorecard.md",
+      detail: "The scorecard:data JSON is invalid: Unexpected token"
+    };
+    harness = await createHarness({ scorecard: () => Promise.resolve(view) });
+    const client = await authenticated(harness);
+
+    const reply = await client.get("/api/scorecard");
+
+    expect(reply.status).toBe(200);
+    expect(scorecardViewSchema.parse(reply.json())).toEqual(view);
+    expect((await raw(harness.desk, { path: "/api/scorecard" })).status).toBe(401);
+  });
+
+  it("says the ledger is missing when the runtime has no scorecard", async () => {
+    harness = await createHarness();
+    const client = await authenticated(harness);
+    expect((await client.get("/api/scorecard")).json()).toEqual({
+      state: "missing",
+      ledgerPath: "docs/agents/monorepo-scorecard.md"
+    });
+  });
+});
 
 describe("GET /api/scorecard/tracking", () => {
   it("reads GitHub once a minute at most, and again on refresh", async () => {

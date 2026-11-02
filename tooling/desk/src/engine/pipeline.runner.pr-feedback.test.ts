@@ -137,9 +137,14 @@ describe("feedback from the PR, end to end with real git", () => {
 
     e.github.setPullRequestHead(firstHead);
     e.github.setPullRequestFeedback(feedbackOn(firstHead));
+    expect(await e.pipeline.checkPr(ISSUE)).toMatchObject({ stop: "gate" });
     const result = await e.pipeline.feedbackFromPr(ISSUE, { text: "Keep the old name exported." });
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
-    expect(e.github.feedbackReads).toEqual([[101, firstHead]]);
+    // One read for the check, one for the round.
+    expect(e.github.feedbackReads).toEqual([
+      [101, firstHead],
+      [101, firstHead]
+    ]);
 
     // The builder of the round read the owner's note and the fenced trusted text, nothing else.
     const builder = e.runner.requests.filter((run) => run.role === "builder").at(-1);
@@ -185,7 +190,9 @@ describe("feedback from the PR, end to end with real git", () => {
       stage: "pr-open",
       prNumber: 101,
       prHeadSha: secondHead,
-      commitSha: secondHead
+      commitSha: secondHead,
+      // The check read the old head, so the push drops it.
+      prCheck: null
     });
     expect(updated.history.at(-1)).toMatchObject({ stage: "ship", event: "pr-updated" });
     expect(e.github.createdPullRequests).toHaveLength(1);

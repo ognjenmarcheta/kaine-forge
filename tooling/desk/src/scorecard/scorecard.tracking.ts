@@ -75,6 +75,9 @@ const FIELDS = `fragment F on Issue {
  * is set. GraphQL refuses a declared variable the query does not use, so each is declared only
  * when its part is there.
  */
+/** How many issues the fallback reads at the same time. */
+const FALLBACK_BATCH = 5;
+
 const queryOf = (
   numbers: readonly number[],
   search: boolean,
@@ -134,10 +137,18 @@ export const fetchTrackedIssues = async (
   try {
     return await ask(numbers, true);
   } catch {
-    const each = await Promise.all(
-      numbers.map((number) => ask([number], false).catch((): RawTrackedIssue[] => []))
-    );
-    return [...(await ask([], true)), ...each.flat()];
+    const labelled = await ask([], true);
+    // A few reads at a time: the ledger grows with each run, and GitHub limits parallel calls.
+    const each: RawTrackedIssue[] = [];
+    for (let start = 0; start < numbers.length; start += FALLBACK_BATCH) {
+      const read = await Promise.all(
+        numbers
+          .slice(start, start + FALLBACK_BATCH)
+          .map((number) => ask([number], false).catch((): RawTrackedIssue[] => []))
+      );
+      each.push(...read.flat());
+    }
+    return [...labelled, ...each];
   }
 };
 

@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { githubListsSchema, type GithubLists } from "../contracts";
-import { authenticated, createHarness, type Api, type Harness } from "./server.testing";
+import {
+  authenticated,
+  createHarness,
+  deferred,
+  makeState,
+  stoppedAt,
+  type Api,
+  type Harness
+} from "./server.testing";
 import type { OpenWork } from "../github/github.lists";
 
 let harness: Harness | null = null;
@@ -96,6 +104,24 @@ describe("GET /api/github", () => {
 
     // #50 left the list; #51 is still open; #52's issue is already done. The cached list asks nothing.
     expect(harness.runner.refreshPr.mock.calls).toEqual([[4]]);
+  });
+
+  it("skips a busy issue, so the list does not wait for its action, and reads it on the next list", async () => {
+    const openWork = vi.fn(() => Promise.resolve(WORK));
+    harness = await createHarness({ openWork });
+    await harness.seed(7, { stage: "pr-open", status: "waiting", prNumber: 53 });
+    const slow = deferred<Awaited<ReturnType<typeof harness.runner.checkPr>>>();
+    harness.runner.checkPr.mockReturnValueOnce(slow.promise);
+    api = await authenticated(harness);
+    expect((await api.post("/api/issues/7/actions", { action: "check-pr" })).status).toBe(202);
+
+    await get("/api/github");
+    expect(harness.runner.refreshPr).not.toHaveBeenCalled();
+
+    slow.resolve(stoppedAt(makeState(7, { stage: "pr-open" }), "Checked"));
+    await slow.promise;
+    await get("/api/github?refresh=1");
+    expect(harness.runner.refreshPr.mock.calls).toEqual([[7]]);
   });
 
   it("says so when the desk has no GitHub access", async () => {

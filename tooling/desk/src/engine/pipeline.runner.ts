@@ -1196,7 +1196,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             prNumber: result.prNumber,
             commitSha: result.commitSha,
             prHeadSha: result.commitSha,
-            baseSha: result.baseSha
+            baseSha: result.baseSha,
+            // A check read the old head. The Board and the gate must not show it for this one.
+            prCheck: null
           }
         });
         return { kind: "settled" };

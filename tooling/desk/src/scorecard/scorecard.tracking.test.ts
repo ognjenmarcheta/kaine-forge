@@ -157,4 +157,40 @@ describe("fetchTrackedIssues", () => {
         .sort()
     ).toEqual(["name,owner", "name,owner", "q"]);
   });
+
+  it("reads the numbers alone five at a time at most, so a long ledger does not flood GitHub", async () => {
+    let inFlight = 0;
+    let most = 0;
+    const gh: GhClient = {
+      text: () => Promise.reject(new Error("unused")),
+      json: () => Promise.reject(new Error("unused")),
+      apiPages: () => Promise.reject(new Error("unused")),
+      api: async <T>(
+        schema: ZodType<T>,
+        _endpoint: string,
+        request?: { readonly body?: unknown }
+      ) => {
+        // SAFETY: the code under test sends a GraphQL body with a query and its variables.
+        const body = request?.body as { query: string };
+        inFlight += 1;
+        most = Math.max(most, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight -= 1;
+        if (body.query.includes("i99999")) throw new Error("Could not resolve to an Issue.");
+        const number = /i(\d+):/.exec(body.query)?.[1];
+        return schema.parse({
+          data: {
+            repository: number === undefined ? undefined : { [`i${number}`]: raw(Number(number)) },
+            search: body.query.includes("search(") ? { nodes: [] } : undefined
+          }
+        });
+      }
+    };
+    const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 99999];
+
+    const issues = await fetchTrackedIssues(gh, "o/r", numbers);
+
+    expect(issues.map((issue) => issue.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(most).toBe(5);
+  });
 });

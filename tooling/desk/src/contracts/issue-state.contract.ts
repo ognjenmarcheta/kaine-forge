@@ -139,7 +139,8 @@ const sharedFields = {
   /**
    * The owner's last `check-pr`: what a PR feedback round would read now. The failing checks
    * on the PR head, the comments of trusted people and review bots since the desk's last push,
-   * and the authors left out for trust. A reader treats a missing field like `null`.
+   * and the authors left out for trust. The desk's next push clears it. A reader treats a
+   * missing field like `null`.
    */
   prCheck: z
     .object({

@@ -709,7 +709,8 @@ the failing checks on the PR head, and the comments of trusted people and review
 desk's last push. It stores a summary on the issue state (`prCheck`) and changes no stage. The
 issue page and the Board's **Open pull requests** list show it. There, a desk PR also offers
 **Address feedback**, which runs the PR feedback round below, once a check found something and
-while rounds remain. A check made on an older PR head no longer counts.
+while rounds remain. A check made on an older PR head no longer counts: the desk's next push
+clears it.
 
 A new PR gets the issue's `source:*` labels (for example `source:scorecard`), so work from the
 same origin is easy to find.
