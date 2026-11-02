@@ -28,7 +28,13 @@ const check = (id: string, label: string, status: CheckStatus, detail: string): 
   detail
 });
 
-const PROVIDERS: readonly Provider[] = ["claude", "codex"];
+const PROVIDERS: readonly Provider[] = ["claude", "codex", "opencode"];
+
+/**
+ * Providers whose missing login is no warning. OpenCode is not a default provider, and it can
+ * use a forwarded API key instead of a login.
+ */
+const OPTIONAL_LOGIN: ReadonlySet<Provider> = new Set(["opencode"]);
 
 const BUILD_REMEDY = { command: "pnpm desk docker build", fix: "docker-build" } as const;
 
@@ -78,6 +84,7 @@ export const dockerDoctorChecks = async (input: DockerDoctorInput): Promise<Doct
 
   for (const provider of PROVIDERS) {
     const present = await authVolumePresent(input.docker, provider);
+    if (!present && OPTIONAL_LOGIN.has(provider)) continue;
     const login = check(
       `docker-auth-${provider}`,
       `Docker login (${provider})`,

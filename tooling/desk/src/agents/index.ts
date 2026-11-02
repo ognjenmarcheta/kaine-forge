@@ -56,6 +56,14 @@ export {
   type CodexStreamSummary
 } from "./codex.runner";
 export {
+  OpencodePolicyError,
+  buildOpencodeArgs,
+  createOpencodeRunner,
+  parseOpencodeStream,
+  type OpencodeRunnerDeps,
+  type OpencodeStreamSummary
+} from "./opencode.runner";
+export {
   FORBIDDEN_GIT_SUBCOMMANDS,
   FORBIDDEN_SCRIPTS,
   FORBIDDEN_SERENA_TOOLS,

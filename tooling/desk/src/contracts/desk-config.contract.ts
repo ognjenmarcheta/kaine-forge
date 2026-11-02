@@ -3,7 +3,7 @@ import { z } from "zod";
 import { tokenizeCommandLine } from "./command-line.contract";
 import { DEFAULT_LOOP_LIMITS } from "./pipeline.contract";
 
-export const PROVIDERS = ["claude", "codex"] as const;
+export const PROVIDERS = ["claude", "codex", "opencode"] as const;
 export const providerSchema = z.enum(PROVIDERS);
 export type Provider = z.infer<typeof providerSchema>;
 
@@ -89,7 +89,9 @@ const checksSchema = z
 export const FORWARDABLE_ENV = [
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
-  "CLAUDE_CODE_OAUTH_TOKEN"
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "OPENROUTER_API_KEY",
+  "GOOGLE_GENERATIVE_AI_API_KEY"
 ] as const;
 
 const resourcesSchema = (defaults: { memory: string; cpus: number; pidsLimit: number }) =>

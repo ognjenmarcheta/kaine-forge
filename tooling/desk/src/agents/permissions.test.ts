@@ -280,6 +280,7 @@ describe("permissionsFor (claude)", () => {
       ".cursor/**": ".cursor/rules/a.mdc",
       ".grok/**": ".grok/config.toml",
       ".opencode/**": ".opencode/a.json",
+      "opencode.json": "opencode.json",
       ".husky/**": ".husky/pre-commit",
       ".ai/hooks/**": ".ai/hooks/pre-tool-use.mjs",
       ".ai/permissions.json": ".ai/permissions.json",

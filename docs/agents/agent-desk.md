@@ -91,7 +91,8 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
   reading until Ctrl-C. `--json` prints the raw records, one per line.
 - `resume <n>`: print the command that opens an agent session by hand, for example
   `cd <worktree> && claude --resume <session id>`. It lists the builder first, then the
-  planner, with `codex resume <id>` for a Codex role. It refuses when the issue has no
+  planner, with `codex resume <id>` for a Codex role and `opencode --session <id>` for an
+  OpenCode role. It refuses when the issue has no
   worktree, the worktree is gone, or no agent has run yet. Stop every desk run for the
   issue first, and close your session before the next desk command.
 - `contract <n> | --file P [--json]`: how intake reads an issue body: the contract score, the
@@ -343,6 +344,8 @@ skills into the **capability profile** of a run. These rules always hold:
 - Codex gets no rule lists and no MCP server. Its sandbox is the whole policy
   (`Codex: sandbox only, no MCP`): `read-only`, or `workspace-write` for an `edit-code` agent.
   A Codex `change` agent stays disabled on the host.
+- OpenCode gets the same rule lists as Claude and no MCP server
+  (`OpenCode: the desk's permission rules, no MCP, no OS sandbox`). See "OpenCode".
 - The profile lists each thing the agent asked for and does not get, with the reason: for
   example `policy floor: ...`, `not installed`, or `no MCP inside the container`.
 
@@ -765,6 +768,13 @@ These facts come from real runs (claude 2.1.282, codex-cli 0.147.0).
   does not stop Codex from loading user-level skills in `~/.agents/skills`.
 - A Codex builder is disabled. The config has no opt-in field yet, so the engine passes
   `allowCodexBuilder: false`.
+- OpenCode (2.2.5): `opencode run` attaches to a shared background service unless it gets
+  `--standalone`, and that service reads its environment only when it starts. The desk's
+  config directory therefore reaches only a standalone run. A refused call ends with the tool
+  error `Permission denied: <action>`, which the parser records as a denial. Without
+  `--auto`, an `ask` is refused at once and the run never waits. With project config off,
+  OpenCode's skill tool finds no skill in `.agents/skills`, so the prompt names the files for
+  the read tool. Cache reads are reported apart from `input` tokens.
 
 ### Concurrency, leases, and recovery
 
@@ -900,7 +910,9 @@ labels in the repository, label writes fail and are logged.
 ## Doctor
 
 `desk doctor` checks Node, pnpm, git and worktree support, `gh` and its identity, the
-config file, and the `claude` and `codex` CLIs. Under a failed check it prints the command that
+config file, and the `claude` and `codex` CLIs. It checks the `opencode` CLI only when a role
+uses it: the version must be 2.2.4 or later, `opencode run --help` must list the required flags,
+and a warning names each OpenCode role that has no `models.<role>`. Under a failed check it prints the command that
 repairs it (`run: gh auth login`). It reads `claude --help` and
 `codex exec --help` and checks that each required flag exists. A missing provider
 that a role uses is an error. A provider that no role uses is a warning.
@@ -962,9 +974,43 @@ The `docker` block sets the limits of the containers. All fields are optional:
 ```
 
 `forwardEnv` lists host variables that go into the agent container by name. Only
-`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `CLAUDE_CODE_OAUTH_TOKEN` are allowed. The default is
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENROUTER_API_KEY`, and
+`GOOGLE_GENERATIVE_AI_API_KEY` are allowed. The default is
 empty: the container uses the login in the auth volume. Docker Desktop must have enough memory
 for the limits (8 GB in the VM is the minimum that was tested).
+
+## OpenCode
+
+OpenCode runs any model provider under one CLI, so one role, often the reviewer, can use a
+different model family. The desk supports OpenCode 2.2.4 or later; Docker mode pins 2.2.5.
+OpenCode 1.x is not supported. Set the provider and a model for the role:
+
+```json
+{
+  "providers": { "reviewer": "opencode" },
+  "models": { "reviewer": "anthropic/claude-haiku-4-5" }
+}
+```
+
+- The model is required, as `provider/model` or `provider/model#variant`. A run hides the user
+  config, so OpenCode has no default model.
+- The runner starts `opencode run --standalone --format json -m <model> --title desk-<role>`,
+  with `--session <id>` to resume. It does not pass `--auto`.
+- Permissions: the runner writes the run's rules to a temporary config folder
+  (`OPENCODE_CONFIG_DIR`) and sets `OPENCODE_DISABLE_PROJECT_CONFIG=1`. The user and project
+  rules do not load. The first rule denies every action. The role's allow rules follow, then its
+  deny rules, so a deny always wins. A call that no rule allows is refused, as under Claude's
+  `dontAsk`.
+- OpenCode has no structured-output flag. The prompt asks for one JSON object that matches the
+  schema, and the desk parses the last assistant message.
+- `runs.jsonl` gets the session id, tokens, cost, and turns (the number of steps).
+- Limits: no receipts (there is no hook), no MCP server, and no OS sandbox. The ref and diff
+  checks still guard the worktree.
+- Docker: the image installs the pinned release binary, checked against a pinned SHA-256, and
+  ripgrep. `pnpm desk docker login --provider opencode` runs `opencode auth login` and stores
+  `opencode auth export` in the auth volume; a run imports it. A forwarded API key needs no
+  login. The proxy allows the API hosts of `anthropic`, `openai`, `openrouter`, `google`, and
+  `opencode` (Zen) models; a model from another provider is refused before the container starts.
 
 ## Try it without GitHub
 
@@ -1301,7 +1347,8 @@ repository. In a container the agent has:
 - no network interface (`--network none`). Its only way out is a unix socket to a proxy
   container that tunnels CONNECT to the provider hosts (`api.anthropic.com`, `claude.ai`,
   `platform.claude.com`, `console.anthropic.com`, `api.openai.com`, `chatgpt.com`,
-  `auth.openai.com`, `auth0.openai.com`) on port 443. TLS stays end to end.
+  `auth.openai.com`, `auth0.openai.com`, and for OpenCode `openrouter.ai`,
+  `generativelanguage.googleapis.com`, `opencode.ai`) on port 443. TLS stays end to end.
 - no host file. The container sees only its volumes and one read-only folder of staged files.
 - no `GH_TOKEN`, no cloud credential, no SSH agent, no Docker socket. Environment variables
   are explicit, never inherited.
@@ -1323,6 +1370,7 @@ It does not protect against these, and the owner still decides on them:
 pnpm desk docker build                       # build the image (about 2 GB, a few minutes the first time)
 pnpm desk docker login --provider claude     # log in inside a container (needs a terminal)
 pnpm desk docker login --provider codex
+pnpm desk docker login --provider opencode
 pnpm desk docker doctor                      # daemon, image, logins, and the isolation probes
 pnpm desk docker status                      # desk containers, volumes, and images
 pnpm desk docker prune --issue 123           # remove the containers and volumes of one issue
@@ -1365,7 +1413,7 @@ to the host worktree as a patch, as it stays in the tree in host mode.
 
 ### Logins
 
-`pnpm desk docker login --provider claude|codex` runs the provider's own login flow in a container
+`pnpm desk docker login --provider claude|codex|opencode` runs the provider's own login flow in a container
 with a terminal. The login lands in the volume `kaine-desk-auth-<provider>`. The desk never reads
 it. An agent container mounts that volume read-only. The entry script copies the login files into
 the per-issue state volume, where the CLI works (and keeps its sessions, so `--resume` works). If

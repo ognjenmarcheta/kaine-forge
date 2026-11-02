@@ -451,3 +451,61 @@ describe("createDockerAgentRunner with Codex", () => {
     expect(outcome.ok ? "" : JSON.stringify(outcome.failure)).toContain("Only the builder");
   });
 });
+
+describe("createDockerAgentRunner with OpenCode", () => {
+  const MODEL = "anthropic/claude-haiku-4-5";
+  const answerSchema = z.object({ answer: z.string() }).strict();
+
+  it("gives the container the run's rules through the read-only input folder", async () => {
+    const { e, artifactsDir } = await prepare();
+    let stagedRules: unknown = null;
+    const { process, requests } = scriptedProcess(e.docker, {
+      lines: fixtureLines("opencode-structured.jsonl"),
+      during: async (request) => {
+        stagedRules = JSON.parse(
+          await readFile(path.join(stagingOf(request), "opencode.json"), "utf8")
+        );
+      }
+    });
+    const outcome = await runnerFor(e, artifactsDir, process).run(
+      requestFor(answerSchema, {
+        role: "builder",
+        provider: "opencode",
+        model: MODEL,
+        cwd: e.repo.dir,
+        permissions: { allow: ["Edit"], disallow: [] }
+      })
+    );
+    expect(outcome).toMatchObject({ ok: true, result: { structured: { answer: "blue" } } });
+    expect(stagedRules).toEqual({
+      permissions: [
+        { action: "*", resource: "*", effect: "deny" },
+        { action: "edit", resource: "*", effect: "allow" }
+      ]
+    });
+    const envFlags = valuesAfter(requests[0]?.argv ?? [], "--env");
+    expect(envFlags).toEqual(
+      expect.arrayContaining(["OPENCODE_CONFIG_DIR=/desk/in", "PWD=/workspace"])
+    );
+  });
+
+  it("refuses a model whose API host the container cannot reach, before any container starts", async () => {
+    const { e, artifactsDir } = await prepare();
+    const { process, requests } = scriptedProcess(e.docker, {
+      lines: fixtureLines("opencode-structured.jsonl")
+    });
+    const outcome = await runnerFor(e, artifactsDir, process).run(
+      requestFor(answerSchema, {
+        role: "builder",
+        provider: "opencode",
+        model: "ollama/llama3",
+        cwd: e.repo.dir
+      })
+    );
+    expect(requests).toHaveLength(0);
+    expect(e.docker.runs).toHaveLength(0);
+    expect(outcome.ok ? "" : JSON.stringify(outcome.failure)).toContain(
+      "not reachable from a container"
+    );
+  });
+});

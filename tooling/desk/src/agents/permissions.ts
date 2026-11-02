@@ -202,6 +202,7 @@ export const PROTECTED_EDIT_RULES: readonly string[] = [
   ".cursor/**",
   ".grok/**",
   ".opencode/**",
+  "opencode.json",
   ".husky/**",
   ".ai/hooks/**",
   ".ai/permissions.json",
