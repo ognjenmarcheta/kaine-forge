@@ -109,6 +109,22 @@ it("validates quick creation, sends the normalized Todo once, and shows it at on
   ]);
 });
 
+it("keeps text typed while the last Todo is still being stored", async () => {
+  await render();
+  await act(async () => current.setDraft({ title: "First", description: "" }));
+  let adding: Promise<boolean> = Promise.resolve(false);
+  await act(async () => {
+    adding = current.add();
+    current.setDraft({ title: "Second", description: "" });
+  });
+  await act(async () => {
+    await adding;
+  });
+
+  expect(current.rows.map((row) => row.title)).toContain("First");
+  expect(current.draft).toEqual({ title: "Second", description: "" });
+});
+
 it("keeps quick and edit drafts through searches and status changes", async () => {
   await render();
   await act(async () => {
