@@ -29,11 +29,15 @@ function ScreenView({ screen, mode }: { screen: LabScreen; mode: string }) {
 
   useEffect(() => {
     const root = document.documentElement;
+    // Inside the desk, the desk's own theme and mode come back when the screen closes.
+    const before = { theme: root.dataset["theme"], colorMode: root.dataset["colorMode"] };
     root.dataset["theme"] = screen.theme.name;
     root.dataset["colorMode"] = colorMode;
     return () => {
-      delete root.dataset["theme"];
-      delete root.dataset["colorMode"];
+      for (const [key, value] of Object.entries(before)) {
+        if (value === undefined) delete root.dataset[key];
+        else root.dataset[key] = value;
+      }
     };
   }, [colorMode, screen.theme.name]);
 

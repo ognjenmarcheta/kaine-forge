@@ -1,5 +1,7 @@
 # Lab screens
 
+The UI lab is the **Lab** view of the agent desk: `pnpm lab` starts the desk UI dev server, then open `http://localhost:5174/?view=lab`. Its pages are `#/…` routes on that address. The lab calls no desk API, so it needs no desk server. `lab-frame.html` shows the lab alone; the compare view frames it, and `lab:shots` and `lab:diff` drive it.
+
 Each folder recreates one reference image with the template's components and a theme. The lab finds a screen by its file name, so a new screen never edits a shared file. Each screen loads on its own: a screen that does not compile yet shows as "did not load" in the gallery, and the other screens keep working. `lab.registry.test.ts` still fails until every screen loads.
 
 ```text
@@ -9,7 +11,7 @@ src/screens/<id>/
   <id>.notes.md     the theme axes you read, every deviation with its rule ID, and the measured lengths
 ```
 
-`<id>` is the reference number and a short name, such as `10-medspa`. The reference image goes in `public/references/` (gitignored); never commit it.
+`<id>` is the reference number and a short name, such as `10-medspa`. The reference image goes in `tooling/desk-ui/public/references/` (gitignored); never commit it.
 
 ## Compare
 

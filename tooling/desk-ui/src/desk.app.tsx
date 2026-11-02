@@ -8,6 +8,7 @@ import { FlowsView } from "./flows/flows.view";
 import { HealthView } from "./health/health.view";
 import { useT } from "./i18n/i18n.t";
 import { IssueView } from "./issue/issue.view";
+import { LabView } from "./lab/lab.view";
 import { ScorecardView } from "./scorecard/scorecard.view";
 import { Shell } from "./shell/shell.layout";
 import { useRouter } from "./shell/shell.router";
@@ -57,6 +58,8 @@ function Routes() {
       return <StatsView />;
     case "scorecard":
       return <ScorecardView />;
+    case "lab":
+      return <LabView />;
     case "issue":
       return <IssueView key={route.issueNumber} issueNumber={route.issueNumber} />;
   }
@@ -64,5 +67,8 @@ function Routes() {
 
 export function DeskApp() {
   const { state } = useDesk();
-  return <Shell>{state.session === "ready" ? <Routes /> : <SessionGate />}</Shell>;
+  const { route } = useRouter();
+  // The lab calls no desk API, so it opens without a session: `pnpm lab` runs no desk server.
+  const open = state.session === "ready" || route.view === "lab";
+  return <Shell>{open ? <Routes /> : <SessionGate />}</Shell>;
 }

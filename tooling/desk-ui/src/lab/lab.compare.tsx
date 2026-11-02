@@ -139,7 +139,7 @@ function Recreation({ screen, colorMode }: { screen: LabScreen; colorMode: Color
   return (
     <iframe
       className="absolute inset-0 block size-full border-0 bg-ds-bg"
-      src={`#/screens/${screen.id}/${colorMode}`}
+      src={`/lab-frame.html#/screens/${screen.id}/${colorMode}`}
       title={`Recreation of ${screen.title}`}
     />
   );

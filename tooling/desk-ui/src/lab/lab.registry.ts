@@ -87,13 +87,24 @@ export async function loadLabCatalog(): Promise<LabCatalog> {
   return { screens, themes: [...themes, ...labThemes], failures };
 }
 
-/** Adds the CSS of every lab theme, so data-theme="<lab theme>" works like a registered one. */
+let installed: CSSStyleSheet | null = null;
+
+/**
+ * Adds the CSS of every lab theme, so data-theme="<lab theme>" works like a registered one. A
+ * constructed stylesheet, not a <style> element: the desk server's CSP (`style-src 'self'`)
+ * blocks inline style elements. A second call replaces the sheet.
+ */
 export function installLabThemes(catalog: LabCatalog): void {
-  const style = document.createElement("style");
-  style.dataset["labThemes"] = "";
-  style.textContent = catalog.themes
+  // jsdom has no constructed stylesheets; a test needs no theme CSS.
+  if (!("adoptedStyleSheets" in document)) return;
+  const css = catalog.themes
     .filter((theme) => !registered.has(theme.name))
     .map(emitThemeCss)
     .join("\n\n");
-  document.head.append(style);
+  const sheet = installed ?? new CSSStyleSheet();
+  sheet.replaceSync(css);
+  if (installed === null) {
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    installed = sheet;
+  }
 }

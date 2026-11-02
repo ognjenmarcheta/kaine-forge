@@ -58,5 +58,5 @@ scorecard-out/
 *.pkl
 
 # UI lab: reference images to recreate and screenshots are local only.
-tooling/ui-lab/public/references/
-tooling/ui-lab/shots/
+tooling/desk-ui/public/references/
+tooling/desk-ui/shots/

@@ -292,6 +292,12 @@ export function Shell({ children }: { readonly children: ReactNode }) {
                 {t("desk.nav.scorecard")}
               </RouteLink>
               <RouteLink
+                to={{ view: "lab" }}
+                aria-current={route.view === "lab" ? "page" : undefined}
+              >
+                {t("desk.nav.lab")}
+              </RouteLink>
+              <RouteLink
                 to={{ view: "stats" }}
                 aria-current={route.view === "stats" ? "page" : undefined}
               >

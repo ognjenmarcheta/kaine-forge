@@ -1019,8 +1019,8 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has seven views: **Board**, **Issue**, **Flows**, **Agents**, **Health**,
-**Scorecard**, and **Runs**.
+developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents**, **Health**,
+**Scorecard**, **Lab**, and **Runs**.
 
 - **Board.** The board opens on **Your turn**: the issues that wait on you, and nothing else.
   - _Needs you_ comes first (stopped issues, with the engine's reason), then _Your decisions_
@@ -1157,6 +1157,22 @@ developer tooling. It has seven views: **Board**, **Issue**, **Flows**, **Agents
     tint of its band), and the workspace, CI, and authored diagrams, folded.
   - A checkout without the ledger says how to create it. A ledger that does not parse shows the
     reason. **Load again** reads the file again.
+- **Lab.** The UI lab (`?view=lab`): every `@repo/ui` component under every theme, the component
+  options, the chart primitives, and the recreated screens with their compare view. Its pages are
+  `#/…` routes on that address (`?view=lab#/charts`). The lab calls no desk API, so it opens
+  without a session: `pnpm lab` starts only the desk UI dev server, at
+  `http://localhost:5174/?view=lab`.
+  - Each recreated screen lives in `tooling/desk-ui/src/lab/screens/<id>/`, and its reference
+    image in `tooling/desk-ui/public/references/` (gitignored). The lab finds a screen by its file
+    name. `tooling/desk-ui/src/lab/screens/README.md` has the rules.
+  - `lab-frame.html` is the lab alone, without the desk shell. The compare view shows each
+    recreation in an iframe of it, and `pnpm lab:shots` and `pnpm lab:diff` drive it (`LAB_URL`,
+    default `http://localhost:5174/lab-frame.html`). It is the one page of the desk another page
+    may frame, and only the desk itself (`frame-ancestors 'self'`); every other response keeps
+    `frame-ancestors 'none'`.
+  - Lab themes reach the page as a constructed stylesheet, because the CSP blocks a `<style>`
+    element. A screen sets its theme on `<html>` while it shows, and the desk theme comes back
+    when it closes.
 - **Runs.** `GET /api/stats` and `GET /api/lessons`.
   - **Today** is one line from the last day of `days`: agent runs, shipped issues, and the cost,
     with the issues that need you or wait for you now.
@@ -1186,13 +1202,13 @@ developer tooling. It has seven views: **Board**, **Issue**, **Flows**, **Agents
 The shell is the same on every view.
 
 - The top bar is one row at every width: the brand mark, the **Board**, **Flows**, **Agents**,
-  **Health**, **Scorecard**, and **Runs**
+  **Health**, **Scorecard**, **Lab**, and **Runs**
   pills (Board has the count of Your turn), the search, one polite "Live"/"Reconnecting" status,
   and a preferences menu. A banner shows while the connection is lost.
 - **Ctrl+K** (or **⌘K**) or **/** opens the command palette: actions of this page (for example
   **Check again** on Health and **Load again** on Runs), recent issues, Your turn, the views,
   and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **F**, **A**,
-  **H**, **S**, or **R** goes to Board, Flows, Agents, Health, Scorecard, or Runs. A single-key shortcut does nothing while you type or while a
+  **H**, **S**, **L**, or **R** goes to Board, Flows, Agents, Health, Scorecard, Lab, or Runs. A single-key shortcut does nothing while you type or while a
   dialog or a menu is open.
 - Approve, Request changes, Continue, Cancel run, and Remove wait 8 seconds before they are
   sent. A toast says what will happen and offers **Undo**; Undo sends nothing. A page that closes
