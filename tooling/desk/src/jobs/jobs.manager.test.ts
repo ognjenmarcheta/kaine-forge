@@ -238,6 +238,12 @@ describe("the scorecard job", () => {
       stop: { reason: "budget" },
       spentUsd: 12.03
     });
+
+    // Nothing is left of the $12: Continue stops again without a paid run.
+    await h.jobs.act(id, { action: "continue" });
+    await h.jobs.settled(id);
+    expect(h.requests).toHaveLength(1);
+    expect(await h.jobs.get(id)).toMatchObject({ status: "needs-you", stop: { reason: "budget" } });
   });
 
   it("files the approved issues when a stopped ship continues", async () => {

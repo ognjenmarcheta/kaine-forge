@@ -1222,7 +1222,7 @@
   "desk.job.status.done": "Gotovo",
   "desk.job.status.cancelled": "Otkazano",
   "desk.job.stop.failed": "Korak nije uspeo. Pročitajte razlog, ispravite ga, pa nastavite.",
-  "desk.job.stop.budget": "Posao je potrošio budžet. Nastavi mu ponovo daje ostatak; povećajte budžet u novom poslu ako mu treba više.",
+  "desk.job.stop.budget": "Posao je potrošio budžet. Nastavi radi samo dok ima budžeta; pokrenite novi posao sa većim budžetom ako mu treba više.",
   "desk.job.stop.time": "Poslu je isteklo vreme.",
   "desk.job.stop.interrupted": "Desk se zaustavio dok je posao radio. Nastavi ponovo pokreće korak.",
   "desk.job.continue": "Nastavi",

@@ -205,6 +205,14 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
   };
 
   const score = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
+    // The cap is per job: with nothing left, Continue starts no paid run.
+    const remaining = Math.floor((state.input.budgetUsd - state.spentUsd) * 100) / 100;
+    if (remaining < 0.01) {
+      throw new JobStop(
+        "budget",
+        `The job has spent its $${state.input.budgetUsd} budget. Start a new job with a larger budget.`
+      );
+    }
     const worktree = worktreeOf(state);
     const head = await deps.git.headSha(worktree);
     const files = await deps.store.filesDir(state.id);
@@ -230,7 +238,6 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       checkout: worktree,
       isolation: "host"
     });
-    const remaining = Math.max(0.01, state.input.budgetUsd - state.spentUsd);
     const mcpConfig = path.join(worktree, ".mcp.json");
     let lastActivity = 0;
     const outcome = await deps.runner.run({
@@ -253,7 +260,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       mcpConfigPath: profile.mcp.length > 0 ? mcpConfig : undefined,
       receiptsPath,
       timeoutMs: state.input.minutes * 60_000,
-      maxBudgetUsd: Math.round(remaining * 100) / 100,
+      maxBudgetUsd: remaining,
       skills: profile.skills,
       skillMode: "invoke",
       signal,
