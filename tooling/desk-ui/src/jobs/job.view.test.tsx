@@ -43,6 +43,7 @@ const job = (over: Partial<JobState> = {}): JobState => ({
     plainLanguage: "Plain."
   },
   screen: null,
+  approvedIssues: [],
   filedIssues: [],
   pr: null,
   ...over

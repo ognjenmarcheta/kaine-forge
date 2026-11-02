@@ -63,7 +63,14 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-const harness = (outcome: AgentRunOutcome<unknown>): Harness => {
+interface HarnessOptions {
+  /** `gh issue create` fails this many times first. */
+  readonly failIssues?: number;
+  /** Setup waits for this before it makes the worktree. */
+  readonly setupGate?: Promise<void>;
+}
+
+const harness = (outcome: AgentRunOutcome<unknown>, options: HarnessOptions = {}): Harness => {
   const repoRoot = path.join(root, "repo");
   const git = createFakeGit({
     repoRoot,
@@ -81,6 +88,14 @@ const harness = (outcome: AgentRunOutcome<unknown>): Harness => {
     { argv: ["git"], reply: ok() }
   ]);
   const github = fakeGitHub();
+  let issueFailures = options.failIssues ?? 0;
+  const githubPort = {
+    ...github,
+    createIssue: (request: Parameters<FakeGitHub["createIssue"]>[0]) =>
+      issueFailures-- > 0
+        ? Promise.reject(new Error("gh issue create failed"))
+        : github.createIssue(request)
+  };
   const requests: AgentRunRequest<unknown>[] = [];
   const runner: AgentRunner = {
     run: <T>(request: AgentRunRequest<T>) => {
@@ -94,6 +109,7 @@ const harness = (outcome: AgentRunOutcome<unknown>): Harness => {
     _deps: unknown,
     request: { readonly input: { readonly worktreeDir: string } }
   ): Promise<CreateWorktreeResult> => {
+    await options.setupGate;
     await git.port.worktreeAdd(repoRoot, {
       branch: "KAINE-chore-scorecard-2026-11-02-job-1",
       dir: request.input.worktreeDir,
@@ -111,7 +127,7 @@ const harness = (outcome: AgentRunOutcome<unknown>): Harness => {
     store: createJobStore(path.join(root, "state")),
     exec: exec.exec,
     git: git.port,
-    github,
+    github: githubPort,
     runner,
     clock: { now: () => new Date("2026-11-02T12:00:00.000Z") },
     repoRoot,
@@ -213,10 +229,45 @@ describe("the scorecard job", () => {
         exitCode: 1,
         stderrTail: ""
       },
-      partial: { trace: [], sessionId: null, denials: [] }
+      partial: { trace: [], sessionId: null, denials: [], costUsd: 12.03 }
     });
     const id = await startScorecard(h);
-    expect(await h.jobs.get(id)).toMatchObject({ status: "needs-you", stop: { reason: "budget" } });
+    // The spend counts, so Continue gets only what is left of the job's budget.
+    expect(await h.jobs.get(id)).toMatchObject({
+      status: "needs-you",
+      stop: { reason: "budget" },
+      spentUsd: 12.03
+    });
+  });
+
+  it("files the approved issues when a stopped ship continues", async () => {
+    const h = harness(success, { failIssues: 1 });
+    const id = await startScorecard(h);
+
+    await h.jobs.act(id, { action: "approve", issues: ["adr-index-drift"], confirm: true });
+    await h.jobs.settled(id);
+    expect(await h.jobs.get(id)).toMatchObject({ status: "needs-you", stage: "ship" });
+
+    await h.jobs.act(id, { action: "continue" });
+    await h.jobs.settled(id);
+    expect(h.github.createdIssues.map((issue) => issue.title)).toEqual(["docs: adr-index-drift"]);
+    expect(await h.jobs.get(id)).toMatchObject({ status: "done" });
+  });
+
+  it("answers a cancel at once and keeps it when the running step ends", async () => {
+    let release = (): void => undefined;
+    const setupGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const h = harness(success, { setupGate });
+    const job = await h.jobs.start({ kind: "scorecard" });
+
+    expect(await h.jobs.act(job.id, { action: "cancel" })).toMatchObject({ status: "cancelled" });
+    release();
+    await h.jobs.settled(job.id);
+
+    expect(await h.jobs.get(job.id)).toMatchObject({ status: "cancelled" });
+    expect(h.requests).toEqual([]);
   });
 
   it("runs one scorecard job at a time", async () => {

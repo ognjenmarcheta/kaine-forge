@@ -142,7 +142,8 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
     const partial = {
       trace: summary.events,
       sessionId: summary.sessionId,
-      denials: summary.denials
+      denials: summary.denials,
+      costUsd: summary.final?.costUsd
     };
 
     if (run.aborted) return { ok: false, failure: { kind: "aborted" }, partial };

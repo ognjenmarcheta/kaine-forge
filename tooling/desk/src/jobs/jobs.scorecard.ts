@@ -109,7 +109,16 @@ export const appendScorecardRun = (
   );
   const heading = `### ${run.date} — desk job ${jobId} (\`${run.commit.slice(0, 7)}\`, fan-out)`;
   const bullets = calibration.map((line) => `- ${line.replace(/\s+/g, " ").trim()}`);
-  return `${withRun.trimEnd()}\n\n${heading}\n\n${bullets.join("\n")}\n`;
+  const notes = `${heading}\n\n${bullets.join("\n")}\n`;
+  // The notes go at the end of `## Calibration notes`, which the Scorecard view reads up to the
+  // next `## ` heading.
+  const section = withRun.search(/^## Calibration notes\s*$/m);
+  if (section === -1) return `${withRun.trimEnd()}\n\n## Calibration notes\n\n${notes}`;
+  const lineEnd = withRun.indexOf("\n", section);
+  const following = lineEnd === -1 ? -1 : withRun.slice(lineEnd).search(/^## /m);
+  if (following === -1) return `${withRun.trimEnd()}\n\n${notes}`;
+  const end = lineEnd + following;
+  return `${withRun.slice(0, end).trimEnd()}\n\n${notes}\n${withRun.slice(end)}`;
 };
 
 /** The ledger PR's title and body. */

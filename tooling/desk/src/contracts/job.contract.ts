@@ -180,6 +180,8 @@ export const jobStateSchema = z
       .strict()
       .nullable()
       .default(null),
+    /** The issues the owner ticked at the gate. Kept so a retried ship files the same ones. */
+    approvedIssues: z.array(z.string()).default([]),
     filedIssues: z.array(filedIssueSchema),
     pr: z.object({ number: z.number().int().positive(), url: z.string() }).strict().nullable()
   })

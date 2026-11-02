@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentRunOutcome, AgentRunRequest, AgentRunner } from "../agents/agent.runner";
 import type { ScreenJobResult } from "../contracts";
@@ -52,7 +52,7 @@ const success: AgentRunOutcome<unknown> = {
   }
 };
 
-const harness = (checkReply: FakeReply = ok()): Harness => {
+const harness = (checkReply: FakeReply = ok(), waitForCancel = false): Harness => {
   const repoRoot = path.join(root, "repo");
   const git = createFakeGit({
     repoRoot,
@@ -76,6 +76,18 @@ const harness = (checkReply: FakeReply = ok()): Harness => {
   const runner: AgentRunner = {
     run: <T>(request: AgentRunRequest<T>) => {
       requests.push(request);
+      if (waitForCancel) {
+        // Like the Claude runner: the run ends only when the job is cancelled.
+        return new Promise((resolve) =>
+          request.signal?.addEventListener("abort", () =>
+            resolve({
+              ok: false,
+              failure: { kind: "aborted" },
+              partial: { trace: [], sessionId: null, denials: [] }
+            })
+          )
+        );
+      }
       // SAFETY: the fake answers every request with the screen result the test built.
       return Promise.resolve(success as AgentRunOutcome<T>);
     }
@@ -205,6 +217,29 @@ describe("the screen job", () => {
     await h.jobs.settled(id);
     expect(h.requests).toHaveLength(2);
     expect(h.requests[1]?.prompt).toContain("contrast pair fails");
+  });
+
+  it("stays cancelled and stops its lab server when cancelled during the build", async () => {
+    const h = harness(ok(), true);
+    const job = await h.jobs.start({
+      kind: "screen",
+      screen: {
+        id: "10-sample",
+        title: "Sample",
+        mode: "light",
+        width: 1280,
+        height: 800,
+        reference: { mediaType: "image/png", dataBase64: PNG.toString("base64") }
+      }
+    });
+    await vi.waitFor(() => expect(h.requests).toHaveLength(1));
+
+    await h.jobs.act(job.id, { action: "cancel" });
+    await h.jobs.settled(job.id);
+
+    expect(await h.jobs.get(job.id)).toMatchObject({ status: "cancelled" });
+    expect(h.stopped).toContain(job.id);
+    expect(h.calls()).not.toContain("pnpm lab:diff 10-sample --json");
   });
 
   it("refuses a reference that is not the image it claims to be", async () => {
