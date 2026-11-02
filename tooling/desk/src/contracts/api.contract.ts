@@ -24,6 +24,7 @@ import {
 } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
+import { jobStateSchema } from "./job.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 import { stepRoleOf, stepRoleSchema } from "./step-role.contract";
 
@@ -819,7 +820,9 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     .strict(),
   z.object({ type: z.literal("log"), entry: logEntrySchema }).strict(),
   z.object({ type: z.literal("health"), report: healthReportSchema }).strict(),
-  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict()
+  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict(),
+  z.object({ type: z.literal("job-updated"), job: jobStateSchema }).strict(),
+  z.object({ type: z.literal("job-removed"), jobId: z.number().int().positive() }).strict()
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

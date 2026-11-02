@@ -1,0 +1,42 @@
+import type { AgentPermissions } from "../agents/agent.runner";
+import { toAgentPermissions } from "../agents/capabilities.resolve";
+import { bash } from "../agents/permissions";
+import type { CapabilityProfile, JobKind } from "../contracts";
+
+/**
+ * What a job agent may do beyond a read-only desk agent. Subagents are allowed: under
+ * `dontAsk` a subagent inherits the session's allow and deny rules, so it can do no more than
+ * the job itself (checked against claude 2.1.309: a subagent's Bash call outside the allowlist
+ * is denied). Claude names the tool `Agent`; `Task` is its older name.
+ */
+export const JOB_SUBAGENT_TOOLS = ["Agent", "Task"] as const;
+
+/** The skills each job kind preloads. The engine installs exactly these in the job worktree. */
+export const JOB_SKILLS: Readonly<Record<JobKind, readonly string[]>> = {
+  scorecard: ["kaine-scorecard", "kaine-review", "kaine-write-issue"]
+};
+
+/** The MCP servers each job kind gets, when the checkout installed them. */
+export const JOB_MCP: Readonly<Record<JobKind, readonly string[]>> = {
+  scorecard: ["serena"]
+};
+
+/**
+ * Commands a job agent may run, exact as in `run-checks`. The scorecard job runs none: the
+ * engine runs the sweep, writes the ledger, and renders it.
+ */
+export const JOB_COMMANDS: Readonly<Record<JobKind, readonly string[]>> = {
+  scorecard: []
+};
+
+/**
+ * The runner permissions of a job: the read-only profile (with the whole policy floor in its
+ * deny list), plus subagents and the kind's own commands.
+ */
+export const jobPermissions = (profile: CapabilityProfile, kind: JobKind): AgentPermissions => {
+  const base = toAgentPermissions(profile);
+  return {
+    allow: [...base.allow, ...JOB_SUBAGENT_TOOLS, ...JOB_COMMANDS[kind].map(bash)],
+    disallow: base.disallow
+  };
+};

@@ -10,7 +10,10 @@ export type Route =
   | { readonly view: "agent"; readonly agentId: string | null }
   | { readonly view: "health" }
   | { readonly view: "stats" }
-  | { readonly view: "scorecard" }
+  /** With `jobId`: the preview of a scorecard job's ledger. */
+  | { readonly view: "scorecard"; readonly jobId?: number }
+  /** One desk job: a scorecard run started from the desk. */
+  | { readonly view: "job"; readonly jobId: number }
   /** The UI lab. Its own pages are `#/…` routes on this address. */
   | { readonly view: "lab" }
   | { readonly view: "issue"; readonly issueNumber: number };
@@ -24,7 +27,11 @@ export function parseRoute(search: string): Route {
   if (issue !== null && POSITIVE_INTEGER.test(issue)) {
     return { view: "issue", issueNumber: Number(issue) };
   }
+  const job = params.get("job");
   const view = params.get("view");
+  if (view === null && job !== null && POSITIVE_INTEGER.test(job)) {
+    return { view: "job", jobId: Number(job) };
+  }
   if (view === "agents") {
     if (params.has("new")) return { view: "agent", agentId: null };
     const agent = params.get("agent");
@@ -40,7 +47,11 @@ export function parseRoute(search: string): Route {
   }
   if (view === "health") return { view: "health" };
   if (view === "stats") return { view: "stats" };
-  if (view === "scorecard") return { view: "scorecard" };
+  if (view === "scorecard") {
+    return job !== null && POSITIVE_INTEGER.test(job)
+      ? { view: "scorecard", jobId: Number(job) }
+      : { view: "scorecard" };
+  }
   if (view === "lab") return { view: "lab" };
   return { view: "board" };
 }
@@ -65,7 +76,11 @@ export function routeHref(route: Route): string {
     case "stats":
       return "?view=stats";
     case "scorecard":
-      return "?view=scorecard";
+      return route.jobId === undefined
+        ? "?view=scorecard"
+        : `?view=scorecard&job=${String(route.jobId)}`;
+    case "job":
+      return `?job=${String(route.jobId)}`;
     case "lab":
       return "?view=lab";
     case "issue":

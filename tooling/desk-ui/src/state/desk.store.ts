@@ -6,6 +6,7 @@ import type {
   HealthReport,
   IssueDetail,
   IssueSummary,
+  JobState,
   LogEntry,
   ServerEvent
 } from "@repo/desk/contracts";
@@ -37,6 +38,8 @@ export interface DeskState {
   readonly connection: StreamStatus;
   readonly issues: Readonly<Record<number, IssueSummary>>;
   readonly issuesLoaded: boolean;
+  /** Desk jobs (scorecard runs), keyed by job id. */
+  readonly jobs: Readonly<Record<number, JobState>>;
   readonly details: Readonly<Record<number, DetailEntry>>;
   readonly logs: Readonly<Record<number, readonly LogEntry[]>>;
   readonly notes: Readonly<Record<number, ActionNote>>;
@@ -51,6 +54,7 @@ export const initialDeskState: DeskState = {
   connection: "connecting",
   issues: {},
   issuesLoaded: false,
+  jobs: {},
   details: {},
   logs: {},
   notes: {},
@@ -63,6 +67,7 @@ export type DeskAction =
   | { readonly type: "session"; readonly session: SessionState }
   | { readonly type: "connection"; readonly connection: StreamStatus }
   | { readonly type: "issues-loaded"; readonly issues: readonly IssueSummary[] }
+  | { readonly type: "jobs-loaded"; readonly jobs: readonly JobState[] }
   | { readonly type: "detail-loaded"; readonly entry: DetailEntry }
   | {
       readonly type: "logs-loaded";
@@ -152,6 +157,14 @@ const applyEvent = (state: DeskState, event: ServerEvent): DeskState => {
       return { ...state, health: event.report };
     case "health-fix":
       return { ...state, repair: { seq: (state.repair?.seq ?? 0) + 1, result: event.result } };
+    case "job-updated": {
+      const current = state.jobs[event.job.id];
+      // A late answer never replaces a newer event.
+      if (current !== undefined && current.updatedAt > event.job.updatedAt) return state;
+      return { ...state, jobs: { ...state.jobs, [event.job.id]: event.job } };
+    }
+    case "job-removed":
+      return { ...state, jobs: without(state.jobs, event.jobId) };
   }
 };
 
@@ -178,6 +191,15 @@ export function deskReducer(state: DeskState, action: DeskAction): DeskState {
         ),
         session: "ready"
       };
+    }
+    case "jobs-loaded": {
+      const jobs: Record<number, JobState> = {};
+      for (const incoming of action.jobs) {
+        const current = state.jobs[incoming.id];
+        jobs[incoming.id] =
+          current !== undefined && current.updatedAt > incoming.updatedAt ? current : incoming;
+      }
+      return { ...state, jobs };
     }
     case "detail-loaded":
       return {

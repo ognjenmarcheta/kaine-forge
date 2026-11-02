@@ -36,19 +36,20 @@ export const slugify = (text: string): string => {
 };
 
 export interface BranchInput {
-  readonly issue: number;
+  /** `null` for a desk job, which has no GitHub issue: `KAINE-<type>-<slug>` (AGENTS.md). */
+  readonly issue: number | null;
   readonly type: ConventionalType;
   readonly slug: string;
 }
 
 export const branchName = ({ issue, type, slug }: BranchInput): BranchName => {
-  if (!Number.isSafeInteger(issue) || issue <= 0) {
+  if (issue !== null && (!Number.isSafeInteger(issue) || issue <= 0)) {
     throw new RangeError(`Issue number must be a positive integer, got ${issue}`);
   }
   if (!SLUG_PATTERN.test(slug)) {
     throw new RangeError(`Branch slug must be lower-case words joined by hyphens, got '${slug}'`);
   }
-  const name = `KAINE-${issue}-${type}-${slug}`;
+  const name = issue === null ? `KAINE-${type}-${slug}` : `KAINE-${issue}-${type}-${slug}`;
   if (!isValidBranchName(name)) throw new RangeError(`Invalid branch name '${name}'`);
   return name;
 };
@@ -104,7 +105,7 @@ export interface BootstrapStep {
 }
 
 export interface BootstrapInput {
-  readonly issue: number;
+  readonly issue: number | null;
   readonly type: ConventionalType;
   readonly slug: string;
   /** Base branch on `origin`. */

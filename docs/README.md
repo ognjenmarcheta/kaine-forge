@@ -39,6 +39,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0011-local-agent-desk.md`](adr/0011-local-agent-desk.md): local agent desk engine, GitHub authorization, and factory retirement.
 - [`adr/0018-postgres-job-runner.md`](adr/0018-postgres-job-runner.md): pg-boss background job runner on the app's Postgres.
 - [`adr/0019-own-billing-package.md`](adr/0019-own-billing-package.md): own provider-neutral billing package for Stripe and Paddle.
+- [`adr/0021-desk-jobs.md`](adr/0021-desk-jobs.md): owner-started desk jobs (the scorecard run), their trust boundary, and their limits.
 
 ## AI assistant docs
 

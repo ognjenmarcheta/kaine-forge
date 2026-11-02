@@ -287,7 +287,9 @@ export function Shell({ children }: { readonly children: ReactNode }) {
               </RouteLink>
               <RouteLink
                 to={{ view: "scorecard" }}
-                aria-current={route.view === "scorecard" ? "page" : undefined}
+                aria-current={
+                  route.view === "scorecard" || route.view === "job" ? "page" : undefined
+                }
               >
                 {t("desk.nav.scorecard")}
               </RouteLink>
