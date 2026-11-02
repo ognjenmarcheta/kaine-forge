@@ -19,6 +19,7 @@ const STATUS_APPEARANCE = {
   online: "success",
   offline: "warning",
   syncing: "information",
+  unreachable: "danger",
   error: "danger",
   signedOut: "danger"
 } as const;
@@ -170,6 +171,11 @@ export function TodosRoute() {
                 <Badge accessibilityLabel={t("sync.status.pending")}>
                   {syncStatus.pending.toString()}
                 </Badge>
+              ) : null}
+              {engine && (syncStatus.state === "error" || syncStatus.state === "unreachable") ? (
+                <Button appearance="subtle" spacing="compact" onPress={() => engine.retry()}>
+                  {t("sync.status.retry")}
+                </Button>
               ) : null}
             </View>
           ) : null}

@@ -8,6 +8,7 @@ import {
   assistantMessagesTable,
   dataExportsTable,
   filesTable,
+  invitationsTable,
   membersTable,
   notesTable,
   organizationsTable,
@@ -19,10 +20,13 @@ import {
   webhookEndpointsTable
 } from "@repo/db/schema";
 import { createTestDatabase, type TestDatabase } from "@repo/db/testing";
+import type { Database } from "@repo/db/types";
 import type { EmailTemplate } from "@repo/email";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import JSZip from "jszip";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { createDataExportJobHandler } from "./data-export.job";
 import { createDataExports, type DataExportKind } from "./data-export.module";
@@ -176,12 +180,18 @@ function exportsFor(userId: string, organizationId: string, role: string) {
   });
 }
 
-function runJob(exportId: string, maxArchiveBytes?: number): Promise<void> {
+interface JobOptions {
+  db?: Database;
+  maxArchiveBytes?: number;
+  pageSize?: number;
+}
+
+function runJob(exportId: string, { db = database.db, ...limits }: JobOptions = {}): Promise<void> {
   return createDataExportJobHandler({
-    db: database.db,
+    db,
     store,
     archiveTtlMs: 7 * day,
-    ...(maxArchiveBytes === undefined ? {} : { maxArchiveBytes }),
+    ...limits,
     webAppUrl: "https://app.example.test",
     sendEmail: async (to, email) => void sentEmails.push({ to, email }),
     logger: { error: () => undefined, warn: () => undefined },
@@ -194,10 +204,11 @@ async function exportArchive(
   userId: string,
   organizationId: string,
   role: string,
-  kind: DataExportKind
+  kind: DataExportKind,
+  jobOptions?: JobOptions
 ): Promise<Record<string, string>> {
   const requested = await exportsFor(userId, organizationId, role).request(kind);
-  await runJob(requested.id);
+  await runJob(requested.id, jobOptions);
   const [row] = await database.db
     .select()
     .from(dataExportsTable)
@@ -285,10 +296,16 @@ describe("data exports", () => {
     expect(archive).not.toContain("message-");
     expect(archive).not.toContain("globex");
     expect(archive).not.toContain(ids.globex);
-    expect(JSON.parse(files["members.json"] ?? "")).toEqual([
-      expect.objectContaining({ email: "alice@example.test", role: "owner" }),
-      expect.objectContaining({ email: "bob@example.test", role: "member" })
-    ]);
+    // Both joined in one insert: rows with an equal joinedAt come in id order.
+    const members: unknown = JSON.parse(files["members.json"] ?? "");
+    expect(members).toHaveLength(2);
+    expect(members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ email: "alice@example.test", role: "owner" }),
+        expect.objectContaining({ email: "bob@example.test", role: "member" })
+      ])
+    );
+    expect(files["invitations.json"]).toBe("[]\n");
   });
 
   it.each(["user", "organization"] as const)(
@@ -398,7 +415,7 @@ describe("data exports", () => {
     const requested = await exportsFor(ids.alice, ids.acme, "owner").request("user");
     const before = store.keys();
 
-    await runJob(requested.id, 64);
+    await runJob(requested.id, { maxArchiveBytes: 64 });
 
     const [row] = await database.db
       .select()
@@ -435,5 +452,235 @@ describe("data exports", () => {
       .where(eq(dataExportsTable.id, requested.id));
     expect(row).toMatchObject({ status: "failed", failureReason: "error", key: null });
     expect(store.keys()).toEqual(before);
+  });
+
+  describe("an export larger than one page of every list", () => {
+    const paged = { carol: "", org: "" };
+    // Three rows share a timestamp and two differ from it by a microsecond,
+    // finer than a JS Date: the keyset cursor must neither skip nor repeat one.
+    const createdAts = [
+      "2026-01-01T00:00:00.000000Z",
+      "2026-01-01T00:00:00.000000Z",
+      "2026-01-01T00:00:00.000000Z",
+      "2026-01-01T00:00:00.000001Z",
+      "2026-01-01T00:00:00.000002Z"
+    ].map((timestamp) => sql`${timestamp}::timestamptz`);
+    const pageSize = 2;
+
+    beforeAll(async () => {
+      const db = database.db;
+      const [carol, dave, erin] = await db
+        .insert(usersTable)
+        .values([
+          { email: "carol@example.test", name: "Carol" },
+          { email: "dave@example.test", name: "Dave" },
+          { email: "erin@example.test", name: "Erin" }
+        ])
+        .returning();
+      if (!carol || !dave || !erin) throw new Error("failed to seed users");
+      const organizations = await db
+        .insert(organizationsTable)
+        .values([
+          { name: "Paged One", slug: "paged-one", userId: carol.id },
+          { name: "Paged Two", slug: "paged-two", userId: carol.id },
+          { name: "Paged Three", slug: "paged-three", userId: carol.id }
+        ])
+        .returning();
+      const org = organizations[0];
+      if (!org) throw new Error("failed to seed organizations");
+      Object.assign(paged, { carol: carol.id, org: org.id });
+      await db.insert(membersTable).values([
+        ...organizations.map(({ id }) => ({
+          organizationId: id,
+          userId: carol.id,
+          role: "owner"
+        })),
+        { organizationId: org.id, userId: dave.id, role: "member" },
+        { organizationId: org.id, userId: erin.id, role: "member" }
+      ]);
+
+      const [conversation] = await db
+        .insert(assistantConversationsTable)
+        .values(
+          createdAts.map((createdAt, index) => ({
+            userId: carol.id,
+            organizationId: org.id,
+            title: `conversation-p${index + 1}`,
+            createdAt
+          }))
+        )
+        .returning();
+      if (!conversation) throw new Error("failed to seed conversations");
+      const rows = createdAts.map((createdAt, index) => ({ createdAt, label: `p${index + 1}` }));
+      const author = { userId: carol.id, organizationId: org.id };
+      // A newline and non-ASCII text in a value: the streamed JSON escapes them as JSON.stringify does.
+      const text = "first line\nsecond line — ✓ é";
+      await db.insert(todosTable).values(
+        rows.map(({ createdAt, label }) => ({
+          ...author,
+          title: `todo-${label}`,
+          description: text,
+          createdAt
+        }))
+      );
+      await db.insert(notesTable).values(
+        rows.map(({ createdAt, label }) => ({
+          ...author,
+          title: `note-${label}`,
+          body: text,
+          createdAt
+        }))
+      );
+      await db.insert(assistantMessagesTable).values(
+        rows.map(({ createdAt, label }) => ({
+          conversationId: conversation.id,
+          organizationId: org.id,
+          role: "user",
+          content: `message-${label}`,
+          createdAt
+        }))
+      );
+      await db.insert(filesTable).values(
+        rows.map(({ createdAt, label }) => ({
+          key: `${org.id}/file-${label}`,
+          bucket: "memory",
+          originalName: `file-${label}.pdf`,
+          mimeType: "application/pdf",
+          sizeBytes: 1,
+          status: "uploaded" as const,
+          uploadedBy: carol.id,
+          organizationId: org.id,
+          createdAt
+        }))
+      );
+      await db.insert(invitationsTable).values(
+        rows.map(({ createdAt, label }) => ({
+          organizationId: org.id,
+          email: `invitee-${label}@example.test`,
+          role: "member",
+          inviterId: carol.id,
+          expiresAt: new Date(now.getTime() + day),
+          createdAt
+        }))
+      );
+    }, 30_000);
+
+    const listSchema = z.array(z.record(z.string(), z.unknown()));
+
+    /** Each row of a list file once, in any order: no row skipped or repeated. */
+    function expectRows(
+      files: Record<string, string>,
+      name: string,
+      field: string,
+      expected: string[]
+    ) {
+      const values = listSchema.parse(JSON.parse(files[name] ?? "")).map((row) => row[field]);
+      expect(values).toHaveLength(expected.length);
+      expect(values).toEqual(expect.arrayContaining(expected));
+    }
+
+    /** Every file is written exactly as JSON.stringify(value, null, 2) and a newline write it. */
+    function expectPrettyJson(files: Record<string, string>) {
+      for (const [name, text] of Object.entries(files)) {
+        const parsed: unknown = JSON.parse(text);
+        expect({ name, text }).toEqual({ name, text: `${JSON.stringify(parsed, null, 2)}\n` });
+      }
+    }
+
+    it("holds every row of a user export, read in pages", async () => {
+      const files = await exportArchive(paged.carol, paged.org, "owner", "user", { pageSize });
+
+      expectRows(files, "memberships.json", "organizationName", [
+        "Paged One",
+        "Paged Two",
+        "Paged Three"
+      ]);
+      expectRows(files, "todos.json", "title", [
+        "todo-p1",
+        "todo-p2",
+        "todo-p3",
+        "todo-p4",
+        "todo-p5"
+      ]);
+      expectRows(files, "notes.json", "title", [
+        "note-p1",
+        "note-p2",
+        "note-p3",
+        "note-p4",
+        "note-p5"
+      ]);
+      expectRows(files, "files-manifest.json", "name", [
+        "file-p1.pdf",
+        "file-p2.pdf",
+        "file-p3.pdf",
+        "file-p4.pdf",
+        "file-p5.pdf"
+      ]);
+      expectRows(files, "assistant-conversations.json", "title", [
+        "conversation-p1",
+        "conversation-p2",
+        "conversation-p3",
+        "conversation-p4",
+        "conversation-p5"
+      ]);
+      expectRows(files, "assistant-messages.json", "content", [
+        "message-p1",
+        "message-p2",
+        "message-p3",
+        "message-p4",
+        "message-p5"
+      ]);
+      expectPrettyJson(files);
+    });
+
+    it("holds every row of an Organization export, and reads each list a page at a time", async () => {
+      const queries: string[] = [];
+      const db = drizzle(database.client, {
+        logger: { logQuery: (query) => void queries.push(query) }
+      });
+
+      const files = await exportArchive(paged.carol, paged.org, "owner", "organization", {
+        db,
+        pageSize
+      });
+
+      expectRows(files, "members.json", "email", [
+        "carol@example.test",
+        "dave@example.test",
+        "erin@example.test"
+      ]);
+      expectRows(files, "invitations.json", "email", [
+        "invitee-p1@example.test",
+        "invitee-p2@example.test",
+        "invitee-p3@example.test",
+        "invitee-p4@example.test",
+        "invitee-p5@example.test"
+      ]);
+      expectRows(files, "todos.json", "title", [
+        "todo-p1",
+        "todo-p2",
+        "todo-p3",
+        "todo-p4",
+        "todo-p5"
+      ]);
+      expectRows(files, "notes.json", "title", [
+        "note-p1",
+        "note-p2",
+        "note-p3",
+        "note-p4",
+        "note-p5"
+      ]);
+      expectRows(files, "files-manifest.json", "name", [
+        "file-p1.pdf",
+        "file-p2.pdf",
+        "file-p3.pdf",
+        "file-p4.pdf",
+        "file-p5.pdf"
+      ]);
+      expectPrettyJson(files);
+      // Five rows in pages of two: three queries, none of them for every row.
+      expect(queries.filter((query) => query.includes('from "notes"'))).toHaveLength(3);
+      expect(queries.filter((query) => query.includes('from "invitations"'))).toHaveLength(3);
+    });
   });
 });

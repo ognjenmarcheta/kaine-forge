@@ -250,3 +250,11 @@ export const runReleaseApps = (
 
   return { status: "updated", plans };
 };
+
+/**
+ * The `$GITHUB_OUTPUT` line that tells the Release workflow which apps moved:
+ * `apps=["api","web"]`, or `apps=[]` when none did. Image deploys build one
+ * image per listed app.
+ */
+export const releaseOutputLine = (outcome: ReleaseAppsOutcome): string =>
+  `apps=${JSON.stringify(outcome.status === "updated" ? outcome.plans.map((plan) => plan.app.app) : [])}`;

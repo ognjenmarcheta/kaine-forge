@@ -1,0 +1,101 @@
+name: Build, scan, and push an app image
+description: >-
+  Builds Dockerfile.<app>, fails on a fixable CRITICAL vulnerability before
+  anything is pushed, and pushes the scanned image to GHCR under every tag.
+
+inputs:
+  app:
+    description: The app whose Dockerfile.<app> to build
+    required: true
+  tags:
+    description: Full image references to push, one per line; the first one reads the digest back
+    required: true
+  version:
+    description: The org.opencontainers.image.version label
+    required: true
+  revision:
+    description: The commit the image is built from, for the org.opencontainers.image.revision label
+    required: true
+  token:
+    description: A token that may push to GHCR (the job's GITHUB_TOKEN with packages write)
+    required: true
+
+outputs:
+  digest:
+    description: The pushed image's manifest digest
+    value: ${{ steps.push.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    # Same builder choice as the PR docker-images job (docs/self-hosted-ci.md).
+    - name: Detect shared BuildKit
+      id: buildkit
+      shell: bash
+      run: echo "endpoint=${BUILDKIT_HOST:-}" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      with:
+        driver: ${{ steps.buildkit.outputs.endpoint && 'remote' || 'docker-container' }}
+        endpoint: ${{ steps.buildkit.outputs.endpoint }}
+
+    - name: Compute apt refresh key
+      id: apt
+      shell: bash
+      run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+    # The web image keeps VITE_API_URL and VITE_GRAPHQL_URL empty, so the app
+    # calls same-origin /graphql and nginx proxies it to API_BACKEND_URL.
+    # Reads main's layer cache (docker-cache.yml) but does not write it.
+    - name: Build ${{ inputs.app }} image
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: Dockerfile.${{ inputs.app }}
+        build-args: APT_REFRESH=${{ steps.apt.outputs.week }}
+        tags: ${{ inputs.tags }}
+        # The source label links the GHCR package to this repository.
+        labels: |
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          org.opencontainers.image.version=${{ inputs.version }}
+          org.opencontainers.image.revision=${{ inputs.revision }}
+        outputs: type=docker,dest=${{ runner.temp }}/${{ inputs.app }}.tar
+        cache-from: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,scope={0}', inputs.app) || '' }}
+
+    # The PR docker-images gate: a fixable CRITICAL finding fails the job
+    # before anything is pushed.
+    - name: Fail on fixable CRITICAL vulnerabilities
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        input: ${{ runner.temp }}/${{ inputs.app }}.tar
+        format: table
+        severity: CRITICAL
+        ignore-unfixed: true
+        exit-code: "1"
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.token }}
+
+    # Pushes the scanned tarball itself, not a rebuild, and reads the digest
+    # back from the registry.
+    - name: Push ${{ inputs.app }} image
+      id: push
+      shell: bash
+      env:
+        APP: ${{ inputs.app }}
+        TAGS: ${{ inputs.tags }}
+      run: |
+        set -euo pipefail
+        docker load --input "$RUNNER_TEMP/$APP.tar"
+        while IFS= read -r ref; do
+          [ -n "$ref" ] && docker push "$ref"
+        done <<< "$TAGS"
+        first="$(head -n 1 <<< "$TAGS")"
+        digest="$(docker buildx imagetools inspect "$first" --format '{{.Manifest.Digest}}')"
+        [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "No digest for $first"; exit 1; }
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"

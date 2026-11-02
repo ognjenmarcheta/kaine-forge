@@ -12,8 +12,9 @@ import {
   usersTable
 } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
-import { and, asc, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import JSZip from "jszip";
+import { Readable, Transform } from "node:stream";
 
 /** A value JSON.stringify writes as is: what the selected columns hold. */
 type ArchiveValue =
@@ -25,13 +26,67 @@ type ArchiveValue =
   | readonly ArchiveValue[]
   | { readonly [key: string]: ArchiveValue | undefined };
 
+/** One file's content: a single value, or a list read one page at a time. */
+type ArchiveEntry = ArchiveValue | AsyncIterable<readonly ArchiveValue[]>;
+
 /**
  * The files of one export archive, by file name, each serialized as JSON.
  * Every query below names its columns: a credential column added to a table
  * later never reaches an archive by accident, and the archive holds no
  * password hash, session token, or two-factor secret (those tables are never read).
  */
-export type ArchiveFiles = Record<`${string}.json`, ArchiveValue>;
+export type ArchiveFiles = Record<`${string}.json`, ArchiveEntry>;
+
+/**
+ * A row's place in (createdAt, id) order. createdAt is text to the
+ * microsecond: a JS Date keeps only milliseconds, so a Date cursor would skip
+ * or repeat rows.
+ */
+interface PageCursor {
+  sortKey: string;
+  id: string;
+}
+
+interface KeysetPage {
+  cursor: { sortKey: SQL<string>; id: SQL<string> };
+  after: SQL | undefined;
+  orderBy: SQL[];
+  limit: number;
+}
+
+/**
+ * A list read `pageSize` rows at a time by keyset, in (createdAt, id) order,
+ * one page per yield. `fetchPage` selects `cursor` next to the row and
+ * applies `after`, `orderBy`, and `limit`.
+ */
+async function* keysetPages<TRow>(
+  order: { createdAt: AnyColumn; id: AnyColumn },
+  pageSize: number,
+  fetchPage: (page: KeysetPage) => Promise<Array<{ row: TRow; cursor: PageCursor }>>
+): AsyncGenerator<TRow[]> {
+  const cursor = {
+    sortKey: sql<string>`to_char(${order.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+    id: sql<string>`${order.id}::text`
+  };
+  const orderBy = [asc(order.createdAt), asc(order.id)];
+  let after: SQL | undefined;
+
+  for (;;) {
+    const page = await fetchPage({ cursor, after, orderBy, limit: pageSize });
+    yield page.map(({ row }) => row);
+    const last = page.at(-1)?.cursor;
+
+    if (page.length < pageSize || !last) {
+      return;
+    }
+
+    const sortKey = sql`${last.sortKey}::timestamptz`;
+    after = or(
+      gt(order.createdAt, sortKey),
+      and(eq(order.createdAt, sortKey), gt(order.id, last.id))
+    );
+  }
+}
 
 const todoColumns = {
   id: todosTable.id,
@@ -90,21 +145,37 @@ const manifestColumns = {
 };
 
 // Shared content of an Organization: todos, notes, and the files manifest.
-async function contentFiles(
+function contentFiles(
   db: Database,
-  owner: { todos: SQL; notes: SQL; files: SQL }
-): Promise<ArchiveFiles> {
-  const [todos, notes, files] = await Promise.all([
-    db.select(todoColumns).from(todosTable).where(owner.todos).orderBy(asc(todosTable.createdAt)),
-    db.select(noteColumns).from(notesTable).where(owner.notes).orderBy(asc(notesTable.createdAt)),
-    db
-      .select(manifestColumns)
-      .from(filesTable)
-      .where(and(owner.files, eq(filesTable.status, "uploaded")))
-      .orderBy(asc(filesTable.createdAt))
-  ]);
-
-  return { "todos.json": todos, "notes.json": notes, "files-manifest.json": files };
+  owner: { todos: SQL; notes: SQL; files: SQL },
+  pageSize: number
+): ArchiveFiles {
+  return {
+    "todos.json": keysetPages(todosTable, pageSize, ({ cursor, after, orderBy, limit }) =>
+      db
+        .select({ row: todoColumns, cursor })
+        .from(todosTable)
+        .where(and(owner.todos, after))
+        .orderBy(...orderBy)
+        .limit(limit)
+    ),
+    "notes.json": keysetPages(notesTable, pageSize, ({ cursor, after, orderBy, limit }) =>
+      db
+        .select({ row: noteColumns, cursor })
+        .from(notesTable)
+        .where(and(owner.notes, after))
+        .orderBy(...orderBy)
+        .limit(limit)
+    ),
+    "files-manifest.json": keysetPages(filesTable, pageSize, ({ cursor, after, orderBy, limit }) =>
+      db
+        .select({ row: manifestColumns, cursor })
+        .from(filesTable)
+        .where(and(owner.files, eq(filesTable.status, "uploaded"), after))
+        .orderBy(...orderBy)
+        .limit(limit)
+    )
+  };
 }
 
 /**
@@ -133,37 +204,50 @@ function mineInCurrentOrganizations(
  * Organizations they belong to. Conversations are private to their author,
  * so only a user export holds them, never an Organization export.
  */
-async function assistantFiles(db: Database, userId: string): Promise<ArchiveFiles> {
+function assistantFiles(db: Database, userId: string, pageSize: number): ArchiveFiles {
   const owned = mineInCurrentOrganizations(
     db,
     userId,
     assistantConversationsTable.userId,
     assistantConversationsTable.organizationId
   );
-  const conversations = await db
-    .select(conversationColumns)
-    .from(assistantConversationsTable)
-    .where(owned)
-    .orderBy(asc(assistantConversationsTable.createdAt));
-  // Messages follow the same conversations, by subquery: a bound id list
-  // would pass Postgres' 65,535 parameter limit for a large export.
-  const messages = await db
-    .select(messageColumns)
-    .from(assistantMessagesTable)
-    .where(
-      inArray(
-        assistantMessagesTable.conversationId,
-        db
-          .select({ id: assistantConversationsTable.id })
-          .from(assistantConversationsTable)
-          .where(owned)
-      )
-    )
-    .orderBy(asc(assistantMessagesTable.createdAt));
 
   return {
-    "assistant-conversations.json": conversations,
-    "assistant-messages.json": messages
+    "assistant-conversations.json": keysetPages(
+      assistantConversationsTable,
+      pageSize,
+      ({ cursor, after, orderBy, limit }) =>
+        db
+          .select({ row: conversationColumns, cursor })
+          .from(assistantConversationsTable)
+          .where(and(owned, after))
+          .orderBy(...orderBy)
+          .limit(limit)
+    ),
+    // Messages follow the same conversations, by subquery: a bound id list
+    // would pass Postgres' 65,535 parameter limit for a large export.
+    "assistant-messages.json": keysetPages(
+      assistantMessagesTable,
+      pageSize,
+      ({ cursor, after, orderBy, limit }) =>
+        db
+          .select({ row: messageColumns, cursor })
+          .from(assistantMessagesTable)
+          .where(
+            and(
+              inArray(
+                assistantMessagesTable.conversationId,
+                db
+                  .select({ id: assistantConversationsTable.id })
+                  .from(assistantConversationsTable)
+                  .where(owned)
+              ),
+              after
+            )
+          )
+          .orderBy(...orderBy)
+          .limit(limit)
+    )
   };
 }
 
@@ -171,7 +255,11 @@ async function assistantFiles(db: Database, userId: string): Promise<ArchiveFile
  * A user's own data: profile, current Organization Memberships, and the rows
  * they created in those Organizations.
  */
-export async function collectUserExport(db: Database, userId: string): Promise<ArchiveFiles> {
+export async function collectUserExport(
+  db: Database,
+  userId: string,
+  pageSize: number
+): Promise<ArchiveFiles> {
   const [profile] = await db
     .select({
       id: usersTable.id,
@@ -192,33 +280,41 @@ export async function collectUserExport(db: Database, userId: string): Promise<A
     throw new Error("export requester not found");
   }
 
-  const memberships = await db
-    .select({
-      organizationId: organizationsTable.id,
-      organizationName: organizationsTable.name,
-      organizationSlug: organizationsTable.slug,
-      role: membersTable.role,
-      joinedAt: membersTable.createdAt
-    })
-    .from(membersTable)
-    .innerJoin(organizationsTable, eq(organizationsTable.id, membersTable.organizationId))
-    .where(eq(membersTable.userId, userId))
-    .orderBy(asc(membersTable.createdAt));
-
   return {
     "profile.json": profile,
-    "memberships.json": memberships,
-    ...(await contentFiles(db, {
-      todos: mineInCurrentOrganizations(db, userId, todosTable.userId, todosTable.organizationId),
-      notes: mineInCurrentOrganizations(db, userId, notesTable.userId, notesTable.organizationId),
-      files: mineInCurrentOrganizations(
-        db,
-        userId,
-        filesTable.uploadedBy,
-        filesTable.organizationId
-      )
-    })),
-    ...(await assistantFiles(db, userId))
+    "memberships.json": keysetPages(membersTable, pageSize, ({ cursor, after, orderBy, limit }) =>
+      db
+        .select({
+          row: {
+            organizationId: organizationsTable.id,
+            organizationName: organizationsTable.name,
+            organizationSlug: organizationsTable.slug,
+            role: membersTable.role,
+            joinedAt: membersTable.createdAt
+          },
+          cursor
+        })
+        .from(membersTable)
+        .innerJoin(organizationsTable, eq(organizationsTable.id, membersTable.organizationId))
+        .where(and(eq(membersTable.userId, userId), after))
+        .orderBy(...orderBy)
+        .limit(limit)
+    ),
+    ...contentFiles(
+      db,
+      {
+        todos: mineInCurrentOrganizations(db, userId, todosTable.userId, todosTable.organizationId),
+        notes: mineInCurrentOrganizations(db, userId, notesTable.userId, notesTable.organizationId),
+        files: mineInCurrentOrganizations(
+          db,
+          userId,
+          filesTable.uploadedBy,
+          filesTable.organizationId
+        )
+      },
+      pageSize
+    ),
+    ...assistantFiles(db, userId, pageSize)
   };
 }
 
@@ -229,7 +325,8 @@ export async function collectUserExport(db: Database, userId: string): Promise<A
  */
 export async function collectOrganizationExport(
   db: Database,
-  organizationId: string
+  organizationId: string,
+  pageSize: number
 ): Promise<ArchiveFiles> {
   const [organization] = await db
     .select({
@@ -249,47 +346,39 @@ export async function collectOrganizationExport(
     throw new Error("exported organization not found");
   }
 
-  const [members, customRoles, invitations] = await Promise.all([
-    db
-      .select({
-        userId: membersTable.userId,
-        name: usersTable.name,
-        email: usersTable.email,
-        role: membersTable.role,
-        joinedAt: membersTable.createdAt
-      })
-      .from(membersTable)
-      .innerJoin(usersTable, eq(usersTable.id, membersTable.userId))
-      .where(eq(membersTable.organizationId, organizationId))
-      .orderBy(asc(membersTable.createdAt)),
-    db
-      .select({
-        role: organizationRolesTable.role,
-        permission: organizationRolesTable.permission,
-        createdAt: organizationRolesTable.createdAt,
-        updatedAt: organizationRolesTable.updatedAt
-      })
-      .from(organizationRolesTable)
-      .where(eq(organizationRolesTable.organizationId, organizationId))
-      .orderBy(asc(organizationRolesTable.createdAt)),
-    db
-      .select({
-        id: invitationsTable.id,
-        email: invitationsTable.email,
-        role: invitationsTable.role,
-        status: invitationsTable.status,
-        inviterId: invitationsTable.inviterId,
-        expiresAt: invitationsTable.expiresAt,
-        createdAt: invitationsTable.createdAt
-      })
-      .from(invitationsTable)
-      .where(eq(invitationsTable.organizationId, organizationId))
-      .orderBy(asc(invitationsTable.createdAt))
-  ]);
+  // One query: a Custom Role resolves against all of them, and an
+  // Organization has few.
+  const customRoles = await db
+    .select({
+      role: organizationRolesTable.role,
+      permission: organizationRolesTable.permission,
+      createdAt: organizationRolesTable.createdAt,
+      updatedAt: organizationRolesTable.updatedAt
+    })
+    .from(organizationRolesTable)
+    .where(eq(organizationRolesTable.organizationId, organizationId))
+    .orderBy(asc(organizationRolesTable.createdAt));
 
   return {
     "organization.json": organization,
-    "members.json": members,
+    "members.json": keysetPages(membersTable, pageSize, ({ cursor, after, orderBy, limit }) =>
+      db
+        .select({
+          row: {
+            userId: membersTable.userId,
+            name: usersTable.name,
+            email: usersTable.email,
+            role: membersTable.role,
+            joinedAt: membersTable.createdAt
+          },
+          cursor
+        })
+        .from(membersTable)
+        .innerJoin(usersTable, eq(usersTable.id, membersTable.userId))
+        .where(and(eq(membersTable.organizationId, organizationId), after))
+        .orderBy(...orderBy)
+        .limit(limit)
+    ),
     // A Custom Role reads as the Permissions it grants, as the server checks them.
     "roles.json": customRoles.map((customRole) => ({
       role: customRole.role,
@@ -297,38 +386,139 @@ export async function collectOrganizationExport(
       createdAt: customRole.createdAt,
       updatedAt: customRole.updatedAt
     })),
-    "invitations.json": invitations,
-    ...(await contentFiles(db, {
-      todos: eq(todosTable.organizationId, organizationId),
-      notes: eq(notesTable.organizationId, organizationId),
-      files: eq(filesTable.organizationId, organizationId)
-    }))
+    "invitations.json": keysetPages(
+      invitationsTable,
+      pageSize,
+      ({ cursor, after, orderBy, limit }) =>
+        db
+          .select({
+            row: {
+              id: invitationsTable.id,
+              email: invitationsTable.email,
+              role: invitationsTable.role,
+              status: invitationsTable.status,
+              inviterId: invitationsTable.inviterId,
+              expiresAt: invitationsTable.expiresAt,
+              createdAt: invitationsTable.createdAt
+            },
+            cursor
+          })
+          .from(invitationsTable)
+          .where(and(eq(invitationsTable.organizationId, organizationId), after))
+          .orderBy(...orderBy)
+          .limit(limit)
+    ),
+    ...contentFiles(
+      db,
+      {
+        todos: eq(todosTable.organizationId, organizationId),
+        notes: eq(notesTable.organizationId, organizationId),
+        files: eq(filesTable.organizationId, organizationId)
+      },
+      pageSize
+    )
   };
 }
 
-/** The export's JSON is over the archive cap; the export fails with reason too_large. */
-export class DataExportTooLargeError extends Error {
+/** The export passed an archive cap; the export fails with reason too_large. */
+class DataExportTooLargeError extends Error {
   override name = "DataExportTooLargeError";
 }
 
+function isList(entry: ArchiveEntry): entry is AsyncIterable<readonly ArchiveValue[]> {
+  return typeof entry === "object" && entry !== null && Symbol.asyncIterator in entry;
+}
+
 /**
- * One zip archive with a pretty-printed JSON file per entry. Throws
- * DataExportTooLargeError once the JSON passes `maxBytes`, before compressing.
+ * One entry's JSON, as `JSON.stringify(value, null, 2)` and a newline write
+ * it, one chunk per page. JSON escapes a newline inside a string, so indenting
+ * after every newline only indents structure.
  */
-export async function zipArchive(files: ArchiveFiles, maxBytes: number): Promise<Uint8Array> {
-  const zip = new JSZip();
-  let total = 0;
-
-  for (const [name, value] of Object.entries(files)) {
-    const json = `${JSON.stringify(value, null, 2)}\n`;
-    total += Buffer.byteLength(json);
-
-    if (total > maxBytes) {
-      throw new DataExportTooLargeError("data export is over the archive size cap");
-    }
-
-    zip.file(name, json);
+async function* jsonChunks(entry: ArchiveEntry): AsyncGenerator<string> {
+  if (!isList(entry)) {
+    yield `${JSON.stringify(entry, null, 2)}\n`;
+    return;
   }
 
-  return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+  let empty = true;
+
+  for await (const page of entry) {
+    if (page.length === 0) {
+      continue;
+    }
+
+    const items = page.map((row) => `  ${JSON.stringify(row, null, 2).replaceAll("\n", "\n  ")}`);
+    yield `${empty ? "[\n" : ",\n"}${items.join(",\n")}`;
+    empty = false;
+  }
+
+  yield empty ? "[]\n" : "\n]\n";
+}
+
+/** A zip archive, compressed as it is read. */
+export interface ArchiveStream {
+  stream: Readable;
+  /** The zip's bytes so far: its size once `stream` has ended. */
+  sizeBytes: () => number;
+  /** True once the export passed a cap, whichever error then reaches the reader. */
+  tooLarge: () => boolean;
+}
+
+/**
+ * One zip archive with a pretty-printed JSON file per entry, built while it is
+ * read: memory holds one page of rows and the zip's buffers, whatever the
+ * size. The stream fails with DataExportTooLargeError once the JSON passes
+ * `maxJsonBytes` or the zip passes `maxZipBytes`, and with the error of any
+ * failed page query.
+ */
+export function zipArchive(
+  files: ArchiveFiles,
+  caps: { maxJsonBytes: number; maxZipBytes: number }
+): ArchiveStream {
+  let jsonBytes = 0;
+  let zipBytes = 0;
+  let tooLarge = false;
+  const overCap = () => {
+    tooLarge = true;
+    return new DataExportTooLargeError("data export is over the archive size cap");
+  };
+  const stream = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      zipBytes += chunk.byteLength;
+      done(zipBytes > caps.maxZipBytes ? overCap() : null, chunk);
+    }
+  });
+
+  // jszip drops an entry stream's error that arrives while it is paused, and
+  // the archive never ends. So an entry never fails toward jszip: it fails
+  // the output stream instead.
+  async function* entryBytes(entry: ArchiveEntry): AsyncGenerator<Buffer> {
+    try {
+      for await (const chunk of jsonChunks(entry)) {
+        const bytes = Buffer.from(chunk);
+        jsonBytes += bytes.byteLength;
+
+        if (jsonBytes > caps.maxJsonBytes) {
+          throw overCap();
+        }
+
+        yield bytes;
+      }
+    } catch (error) {
+      stream.destroy(error instanceof Error ? error : new Error("data export entry failed"));
+    }
+  }
+
+  const zip = new JSZip();
+
+  for (const [name, entry] of Object.entries(files)) {
+    zip.file(name, Readable.from(entryBytes(entry)));
+  }
+
+  zip
+    .generateNodeStream({ type: "nodebuffer", streamFiles: true, compression: "DEFLATE" })
+    .on("error", (error: Error) => stream.destroy(error))
+    .pipe(stream);
+
+  return { stream, sizeBytes: () => zipBytes, tooLarge: () => tooLarge };
 }
