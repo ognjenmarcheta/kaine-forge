@@ -16,6 +16,10 @@ test("validCredentials accepts the shape of each provider and nothing else", () 
   assert.equal(validCredentials("claude", "{}"), false);
   assert.equal(validCredentials("codex", '{"auth_mode":"chatgpt"}'), true);
   assert.equal(validCredentials("codex", "[]"), false);
+  // OpenCode stores `opencode auth export`. An empty export must never replace a login.
+  assert.equal(validCredentials("opencode", '[{"integration":"anthropic"}]'), true);
+  assert.equal(validCredentials("opencode", "[]"), false);
+  assert.equal(validCredentials("opencode", "{}"), false);
   assert.equal(validCredentials("other", "{}"), false);
 });
 

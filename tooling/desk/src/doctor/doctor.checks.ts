@@ -2,9 +2,11 @@ import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
+import { OPENCODE_MIN_VERSION } from "../agents/opencode.runner";
 import type { DeskConfigLoadResult } from "../config/config.load";
-import type { DeskConfig, HealthFix, Provider } from "../contracts";
+import { PROVIDERS, type DeskConfig, type HealthFix, type Provider } from "../contracts";
 import { worktreeDirFor } from "../engine/pipeline.stage.setup";
+import { DESK_ROLES, type DeskRole } from "../engine/worktree.bootstrap";
 import { tryGit } from "../git";
 import { checkControllerIdentity } from "../github/github.identity";
 import { AGENT_LABELS } from "../github/github.labels";
@@ -70,14 +72,38 @@ export const REQUIRED_FLAGS: Readonly<Record<Provider, readonly string[]>> = {
     "--resume",
     "--strict-mcp-config"
   ],
-  codex: ["--json", "--output-schema", "--sandbox|-s", "--cd|-C", "--ignore-user-config", "resume"]
+  codex: ["--json", "--output-schema", "--sandbox|-s", "--cd|-C", "--ignore-user-config", "resume"],
+  opencode: ["--standalone", "--format", "--session|-s", "--model|-m", "--title"]
 };
 
 /** The help command that lists a provider's flags. */
 const HELP_ARGV: Readonly<Record<Provider, readonly string[]>> = {
   claude: ["claude", "--help"],
-  codex: ["codex", "exec", "--help"]
+  codex: ["codex", "exec", "--help"],
+  opencode: ["opencode", "run", "--help"]
 };
+
+const versionTriple = (text: string): [number, number, number] | null => {
+  const match = /(\d+)\.(\d+)\.(\d+)/.exec(text);
+  return match === null ? null : [Number(match[1]), Number(match[2]), Number(match[3])];
+};
+
+/** Is the first `x.y.z` in `text` at least `minimum`? `false` when there is none. */
+export const versionAtLeast = (text: string, minimum: string): boolean => {
+  const found = versionTriple(text);
+  const floor = versionTriple(minimum);
+  if (found === null || floor === null) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (found[index] !== floor[index]) return found[index]! > floor[index]!;
+  }
+  return true;
+};
+
+/** Roles that run OpenCode without a model. OpenCode has no default model in a desk run. */
+export const opencodeRolesWithoutModel = (config: DeskConfig): DeskRole[] =>
+  DESK_ROLES.filter(
+    (role) => config.providers[role] === "opencode" && config.models[role] === undefined
+  );
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -417,7 +443,7 @@ const checkConfig = async (
     return {
       check: check("config", "Config", "error", `${loaded.reason}: ${loaded.detail}`),
       // Without a valid config every provider counts as required.
-      providers: new Set<Provider>(["claude", "codex"]),
+      providers: new Set<Provider>(PROVIDERS),
       owner: undefined,
       docker: false,
       config: null
@@ -449,7 +475,18 @@ const checkProvider = async (
   if (version.code !== 0) {
     return [check(provider, provider, missing, `${provider} is not installed (${role})`)];
   }
-  const checks = [check(provider, provider, "ok", version.stdout.trim().split("\n")[0] ?? "")];
+  const versionLine = version.stdout.trim().split("\n")[0] ?? "";
+  if (provider === "opencode" && !versionAtLeast(versionLine, OPENCODE_MIN_VERSION)) {
+    return [
+      check(
+        provider,
+        provider,
+        missing,
+        `${versionLine}: the desk needs OpenCode ${OPENCODE_MIN_VERSION}+ (${role}). Run \`opencode upgrade\`.`
+      )
+    ];
+  }
+  const checks = [check(provider, provider, "ok", versionLine)];
   const help = await exec({ argv: HELP_ARGV[provider], cwd, timeoutMs: 15_000 });
   if (help.code !== 0) {
     checks.push(
@@ -481,6 +518,21 @@ const checkProvider = async (
   return checks;
 };
 
+const checkOpencodeModels = (config: DeskConfig): DoctorCheck[] => {
+  const roles = opencodeRolesWithoutModel(config);
+  return roles.length === 0
+    ? []
+    : [
+        check(
+          "opencode-model",
+          "OpenCode model",
+          // An agent file can still name the model, so this cannot be an error.
+          "warn",
+          `OpenCode has no model in the config for: ${roles.join(", ")}. Set models.<role> to provider/model, for example anthropic/claude-haiku-4-5, unless the agent file names one.`
+        )
+      ];
+};
+
 /** Read-only environment checks. Nothing here writes to GitHub or to the repository. */
 export const runDoctor = async (deps: DoctorDeps): Promise<DoctorReport> => {
   const config = await checkConfig(deps);
@@ -502,6 +554,9 @@ export const runDoctor = async (deps: DoctorDeps): Promise<DoctorReport> => {
     ...(await checkProvider(deps, "claude", config.providers.has("claude"))),
     ...codex,
     ...(windows && codexRuns ? [await checkCodexSandbox(deps, config.providers.has("codex"))] : []),
+    // OpenCode is checked only when a role uses it: it is not a default provider.
+    ...(config.providers.has("opencode") ? await checkProvider(deps, "opencode", true) : []),
+    ...(config.config === null ? [] : checkOpencodeModels(config.config)),
     ...(worktreePath === null ? [] : [worktreePath]),
     await checkWorkspaceBuilds(deps),
     ...((await deps.dockerChecks?.(config.docker)) ?? [])

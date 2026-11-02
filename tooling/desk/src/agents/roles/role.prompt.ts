@@ -105,12 +105,18 @@ const REPO_SOURCE: Partial<Record<DeskRole, { readonly file: string; readonly ti
 
 const skillInstruction = (provider: Provider, skills: readonly string[]): string => {
   const list = skills.map((skill) => `\`${skill}\``).join(", ");
-  if (provider === "claude") {
-    return `Before you do anything else, call the Skill tool once for each of these skills, in this order, and follow each one: ${list}. Do not skip this step. The desk checks the run for these calls.`;
+  switch (provider) {
+    case "claude":
+      return `Before you do anything else, call the Skill tool once for each of these skills, in this order, and follow each one: ${list}. Do not skip this step. The desk checks the run for these calls.`;
+    case "codex":
+      // `$skill-name` makes Codex inject the skill text without any command, which
+      // leaves no evidence in the event stream. A file read is visible.
+      return `Before you do anything else, read each of these skill files with a shell command, for example \`cat .agents/skills/<name>/SKILL.md\`, and follow each one: ${list}. Do not skip this step. The desk checks the run for these reads.`;
+    case "opencode":
+      // A desk run turns project config off, so OpenCode's skill tool finds no skill. The
+      // read tool may read any file in the worktree; the shell is closed to `cat`.
+      return `Before you do anything else, read each of these skill files with the read tool, at \`.agents/skills/<name>/SKILL.md\`, and follow each one: ${list}. Do not skip this step. The desk checks the run for these reads.`;
   }
-  // `$skill-name` makes Codex inject the skill text without any command, which
-  // leaves no evidence in the event stream. A file read is visible.
-  return `Before you do anything else, read each of these skill files with a shell command, for example \`cat .agents/skills/<name>/SKILL.md\`, and follow each one: ${list}. Do not skip this step. The desk checks the run for these reads.`;
 };
 
 export const composeRolePrompt = async (

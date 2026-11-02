@@ -1,8 +1,7 @@
 import { spawn } from "node:child_process";
 
 import { createAgentProcess } from "../agents/agent.process";
-import { createClaudeRunner } from "../agents/claude.runner";
-import { createCodexRunner } from "../agents/codex.runner";
+import { createHostRunners } from "../agents/agent.runners";
 import { loadDeskConfig } from "../config/config.load";
 import {
   flowForLabels,
@@ -101,8 +100,7 @@ export const createDefaultDeskRuntime =
 
     const store = createIssueStore(location.stateRoot);
     const github = createGitHubPort({ exec, cwd: location.repoRoot });
-    const claude = createClaudeRunner();
-    const codex = createCodexRunner();
+    const runners = createHostRunners();
     const log = (message: string): void => onEvent({ type: "log", issue: 0, message });
     const notifier = createNotifier({
       exec,
@@ -117,7 +115,7 @@ export const createDefaultDeskRuntime =
     const docker = createDockerIsolation({
       exec: dockerExec,
       process: createAgentProcess(),
-      hostRunnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      hostRunnerFor: (provider: Provider) => runners[provider],
       repoRoot: location.repoRoot,
       stateRoot: location.stateRoot,
       config
@@ -139,7 +137,7 @@ export const createDefaultDeskRuntime =
       exec,
       git: createGitPort(exec),
       github,
-      runnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      runnerFor: (provider: Provider) => runners[provider],
       docker,
       store,
       clock: systemClock,

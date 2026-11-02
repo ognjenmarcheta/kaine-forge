@@ -38,7 +38,7 @@ const MAX_LINE_BYTES = 8 * 1024 * 1024;
 /**
  * Variables an agent process may inherit. `GH_TOKEN`, `GITHUB_TOKEN` and
  * `SSH_AUTH_SOCK` are left out on purpose: an agent never pushes or calls
- * GitHub. The rest is what the Claude and Codex CLIs need to find their login.
+ * GitHub. The rest is what the Claude, Codex and OpenCode CLIs need to find their login.
  */
 const ENV_ALLOWLIST: ReadonlySet<string> = new Set([
   "PATH",
@@ -53,6 +53,7 @@ const ENV_ALLOWLIST: ReadonlySet<string> = new Set([
   "XDG_CONFIG_HOME",
   "XDG_DATA_HOME",
   "XDG_CACHE_HOME",
+  "XDG_STATE_HOME",
   "COREPACK_HOME",
   "HTTP_PROXY",
   "HTTPS_PROXY",
@@ -63,7 +64,9 @@ const ENV_ALLOWLIST: ReadonlySet<string> = new Set([
   "CLAUDE_CONFIG_DIR",
   "CLAUDE_CODE_OAUTH_TOKEN",
   "CODEX_HOME",
-  "OPENAI_API_KEY"
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "GOOGLE_GENERATIVE_AI_API_KEY"
 ]);
 
 const agentEnv = (
