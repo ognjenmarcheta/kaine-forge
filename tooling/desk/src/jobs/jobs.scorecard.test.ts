@@ -86,6 +86,20 @@ describe("appendScorecardRun", () => {
     expect(written).toContain("### 2026-11-02 — desk job 3 (`34ca7e4`, fan-out)");
   });
 
+  it("keeps the notes inside the calibration section when a section follows it", () => {
+    const next = run({ date: "2026-11-02", commit: "34ca7e4" + "c".repeat(33) });
+
+    const written = appendScorecardRun(
+      `${ledger([run()])}\n\n## Appendix\n\nLater text.\n`,
+      next,
+      ["Dim 7 → 8."],
+      3
+    );
+
+    expect(readCalibration(written)["34ca7e4"]).toEqual(["Dim 7 → 8."]);
+    expect(written.trimEnd().endsWith("## Appendix\n\nLater text.")).toBe(true);
+  });
+
   it("refuses a ledger without its data block", () => {
     expect(() => appendScorecardRun("# no data", run(), [], 1)).toThrow(LedgerWriteError);
   });

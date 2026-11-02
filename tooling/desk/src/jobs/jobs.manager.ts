@@ -118,11 +118,19 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     for (const listener of listeners) listener(event);
   };
 
-  const save = async (state: JobState): Promise<JobState> => {
-    const next = jobStateSchema.parse({ ...state, updatedAt: deps.clock.now().toISOString() });
-    await deps.store.write(next);
-    emit({ type: "job-updated", job: next });
-    return next;
+  // One write at a time per job, so a late write from a step cannot land after a cancel.
+  const writes = new Map<number, Promise<unknown>>();
+  const save = (state: JobState): Promise<JobState> => {
+    const write = (writes.get(state.id) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(async () => {
+        const next = jobStateSchema.parse({ ...state, updatedAt: deps.clock.now().toISOString() });
+        await deps.store.write(next);
+        emit({ type: "job-updated", job: next });
+        return next;
+      });
+    writes.set(state.id, write);
+    return write;
   };
 
   const record = (state: JobState, stage: JobStage, text: string): JobState => ({
@@ -255,10 +263,15 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         // A live line at most every two seconds: enough to follow, little disk churn.
         if (activity === null || now - lastActivity < 2000) return;
         lastActivity = now;
+        if (signal.aborted) return;
         void save(record(state, "score", activity)).catch(() => undefined);
       }
     });
     if (!outcome.ok) {
+      // A run that hit its budget still cost money: count it, so Continue gets only the rest.
+      const failedCost = outcome.partial.costUsd ?? 0;
+      if (failedCost > 0 && !signal.aborted)
+        await save({ ...state, spentUsd: state.spentUsd + failedCost });
       if (outcome.failure.kind === "timeout") {
         throw new JobStop("time", `The scorer ran out of its ${state.input.minutes} minutes.`);
       }
@@ -304,7 +317,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
   };
 
-  const ship = async (state: JobState, ticked: readonly string[]): Promise<JobState> => {
+  const ship = async (state: JobState): Promise<JobState> => {
     const worktree = worktreeOf(state);
     const result = state.result;
     if (result === null || state.branch === null) {
@@ -312,7 +325,9 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     }
     let next = state;
     // Filed one by one and saved after each, so a retry never files an issue twice.
-    for (const issue of result.proposedIssues.filter((entry) => ticked.includes(entry.slug))) {
+    for (const issue of result.proposedIssues.filter((entry) =>
+      state.approvedIssues.includes(entry.slug)
+    )) {
       if (next.filedIssues.some((filed) => filed.slug === issue.slug)) continue;
       const created = await deps.github.createIssue({ title: issue.title, body: issue.body });
       next = { ...next, filedIssues: [...next.filedIssues, { slug: issue.slug, ...created }] };
@@ -372,21 +387,27 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
   // --- the flow -----------------------------------------------------------------------------
 
   /** Run from `stage` until the gate or the end. Any failure stops the job as `needs-you`. */
-  const runFrom = (id: number, stage: JobStage, ticked: readonly string[] = []): void => {
+  const runFrom = (id: number, stage: JobStage): void => {
     const controller = new AbortController();
+    // After a cancel, the step's result is dropped and the flow ends at the next step boundary.
+    const step = async (next: JobState): Promise<JobState> => {
+      if (controller.signal.aborted) throw new JobStop("failed", "The job was cancelled.");
+      return save(next);
+    };
     const done = (async () => {
       let state = await require(id);
       try {
-        state = await save({ ...state, status: "running", stage, stop: null });
-        if (stage === "setup") state = await save(await setup(state));
-        if (stage === "setup" || stage === "sweep") state = await save(await sweep(state));
+        state = await step({ ...state, status: "running", stage, stop: null });
+        if (stage === "setup") state = await step(await setup(state));
+        if (stage === "setup" || stage === "sweep") state = await step(await sweep(state));
         if (stage === "setup" || stage === "sweep" || stage === "score") {
-          state = await save(await score(state, controller.signal));
-          await save({ ...state, status: "waiting", stage: "review" });
+          state = await step(await score(state, controller.signal));
+          await step({ ...state, status: "waiting", stage: "review" });
           return;
         }
-        if (stage === "ship") await save(await ship(state, ticked));
+        if (stage === "ship") await step(await ship(state));
       } catch (error) {
+        if (controller.signal.aborted) return;
         const latest = (await deps.store.read(id)) ?? state;
         if (latest.status === "cancelled") return;
         const stop =
@@ -445,6 +466,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         feedback: [],
         history: [],
         result: null,
+        approvedIssues: [],
         filedIssues: [],
         pr: null
       });
@@ -467,7 +489,10 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
               `Not proposed by this run: ${unknown.join(", ")}.`
             );
           }
-          runFrom(id, "ship", action.issues);
+          await save(
+            record({ ...state, approvedIssues: [...action.issues] }, "review", "Approved.")
+          );
+          runFrom(id, "ship");
           return deps.store.read(id);
         }
         case "send-back": {
@@ -496,13 +521,16 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           if (FINAL.has(state.status)) {
             throw new JobRefusal("invalid-transition", "The job is already finished.");
           }
-          const active = running.get(id);
-          const cancelled = await save(
+          if (state.stage === "ship" && running.has(id)) {
+            // Issues are being filed and the branch pushed, as approved: let it finish.
+            throw new JobRefusal("busy", "The job is shipping what you approved. Wait for it.");
+          }
+          // Abort first: from here the flow writes nothing, and the cancel is the last write.
+          // A command already running (an install, a sweep check) ends on its own timeout.
+          running.get(id)?.controller.abort();
+          return save(
             record({ ...state, status: "cancelled", stop: null }, state.stage, "Cancelled.")
           );
-          active?.controller.abort();
-          await active?.done;
-          return cancelled;
         }
         case "remove": {
           busy(id);

@@ -26,6 +26,7 @@ const job: JobState = {
   feedback: [],
   history: [],
   result: null,
+  approvedIssues: [],
   filedIssues: [],
   pr: null
 };

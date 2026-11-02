@@ -149,6 +149,8 @@ export interface AgentRunPartial {
   readonly trace: readonly AgentEvent[];
   readonly sessionId: string | null;
   readonly denials: readonly AgentDenial[];
+  /** What a run that ended with a result line cost, such as a run that hit its budget. */
+  readonly costUsd?: number | undefined;
 }
 
 export type AgentRunOutcome<T> =

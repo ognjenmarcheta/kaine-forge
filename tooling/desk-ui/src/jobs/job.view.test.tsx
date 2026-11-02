@@ -42,6 +42,7 @@ const job = (over: Partial<JobState> = {}): JobState => ({
     openQuestions: ["Should dim 6 drop?"],
     plainLanguage: "Plain."
   },
+  approvedIssues: [],
   filedIssues: [],
   pr: null,
   ...over
