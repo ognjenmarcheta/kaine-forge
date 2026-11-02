@@ -130,4 +130,21 @@ describe.skipIf(!adminUrl)("pubsub events across API replicas on real Postgres",
       value: { id: "note-1", organizationId: "org-1" }
     });
   });
+
+  it("still streams an event it cannot send to the other replicas to its own subscribers", async () => {
+    const a = startReplica(database);
+    onTestFinished(async () => {
+      await a.stop();
+    });
+    const onA = a.pubsub.subscribe("note:deleted")[Symbol.asyncIterator]();
+    onTestFinished(async () => {
+      await onA.return?.();
+    });
+    const nextOnA = onA.next();
+    // JSON.stringify throws on a BigInt, so the event cannot be encoded.
+    const unsendable = { id: "note-1", organizationId: "org-1", size: 1n };
+
+    expect(() => a.pubsub.publish("note:deleted", unsendable)).not.toThrow();
+    await expect(nextOnA).resolves.toEqual({ done: false, value: unsendable });
+  });
 });

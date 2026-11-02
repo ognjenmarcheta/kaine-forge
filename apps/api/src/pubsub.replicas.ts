@@ -11,6 +11,9 @@ export const REPLICA_CHANNEL = "api_pubsub";
 // delivers them together.
 const PART_LENGTH = 7_000;
 const RECONNECT_MS = { first: 1_000, max: 30_000 };
+// A socket that dies without a FIN (a dropped NAT entry) emits no error, so the
+// listener checks its connection and drops it when the check does not answer.
+const HEARTBEAT_MS = { every: 30_000, timeout: 10_000 };
 const DATE_TAG = "$date";
 
 type SendEvent = (type: string, detail: unknown) => void;
@@ -107,7 +110,14 @@ export function startReplicaEvents({
   };
 
   target.connect((type, detail) => {
-    const data = encode(type, detail);
+    let data: string;
+    try {
+      data = encode(type, detail);
+    } catch (error) {
+      // Local subscribers still get the event; only the other replicas miss it.
+      logger.warn({ err: error, type }, "pubsub event not sent to the other API replicas");
+      return;
+    }
     const id = String((sequence += 1));
     const count = Math.ceil(data.length / PART_LENGTH);
     for (let index = 0; index < count; index += 1) {
@@ -142,18 +152,39 @@ export function startReplicaEvents({
 
   let client: PoolClient | null = null;
   let timer: NodeJS.Timeout | undefined;
+  let heartbeat: NodeJS.Timeout | undefined;
   let delay = RECONNECT_MS.first;
   let stopped = false;
 
   const drop = (dropped: PoolClient, error?: Error) => {
     if (client !== dropped) return;
     client = null;
+    clearInterval(heartbeat);
     parts.clear();
     dropped.release(error ?? true);
     if (stopped) return;
     logger.warn({ err: error }, "pubsub listener for other API replicas lost; reconnecting");
     timer = setTimeout(() => void listen(), delay);
     delay = Math.min(delay * 2, RECONNECT_MS.max);
+  };
+
+  const check = async (checked: PoolClient) => {
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        checked.query("SELECT 1"),
+        new Promise((_resolve, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error("pubsub listener connection did not answer")),
+            HEARTBEAT_MS.timeout
+          );
+        })
+      ]);
+    } catch (error) {
+      drop(checked, error instanceof Error ? error : undefined);
+    } finally {
+      clearTimeout(timeout);
+    }
   };
 
   const listen = async () => {
@@ -168,6 +199,7 @@ export function startReplicaEvents({
       await connected.query(`LISTEN ${REPLICA_CHANNEL}`);
       if (stopped) return drop(connected);
       delay = RECONNECT_MS.first;
+      heartbeat = setInterval(() => void check(connected), HEARTBEAT_MS.every);
       logger.info("listening for pubsub events from the other API replicas");
     } catch (error) {
       // A dropped connection may have scheduled its reconnect already; drop() runs once per client.
