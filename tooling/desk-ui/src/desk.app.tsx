@@ -8,6 +8,7 @@ import { FlowsView } from "./flows/flows.view";
 import { HealthView } from "./health/health.view";
 import { useT } from "./i18n/i18n.t";
 import { IssueView } from "./issue/issue.view";
+import { ScorecardView } from "./scorecard/scorecard.view";
 import { Shell } from "./shell/shell.layout";
 import { useRouter } from "./shell/shell.router";
 import { Loading } from "./shell/shell.ui";
@@ -54,6 +55,8 @@ function Routes() {
       return <HealthView />;
     case "stats":
       return <StatsView />;
+    case "scorecard":
+      return <ScorecardView />;
     case "issue":
       return <IssueView key={route.issueNumber} issueNumber={route.issueNumber} />;
   }

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@repo/desk": "workspace:*",
+    "@repo/theme": "workspace:*",
     "@repo/translation": "workspace:*",
     "@repo/ui": "workspace:*",
     "@xyflow/react": "catalog:",

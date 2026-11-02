@@ -1019,8 +1019,8 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**, **Health**, and
-**Runs**.
+developer tooling. It has seven views: **Board**, **Issue**, **Flows**, **Agents**, **Health**,
+**Scorecard**, and **Runs**.
 
 - **Board.** The board opens on **Your turn**: the issues that wait on you, and nothing else.
   - _Needs you_ comes first (stopped issues, with the engine's reason), then _Your decisions_
@@ -1135,6 +1135,28 @@ developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**
     packages), **Fix** asks first, then the engine runs that fixed command. No agent runs, one
     repair runs at a time, and the report runs again when it ends. A toast says how it ended.
   - **Check again** runs the doctor again. Placeholder lines show while it runs.
+- **Scorecard.** The monorepo health scorecard, `GET /api/scorecard`. The server reads
+  `docs/agents/monorepo-scorecard.md` of the checkout each time, so the page shows the ledger as
+  it is now. The `kaine-scorecard` skill writes that ledger; `pnpm scorecard` renders its
+  generated region.
+  - The top line names the selected run: date, mode, agent, the number of scored dimensions, and
+    the commit (a link when the origin is on GitHub). **Run** picks an older run.
+  - Four cards: the overall score with its band word and its change, the dimensions that moved
+    up, down, or held, the open findings (with the regressions), and the findings fixed since the
+    previous run.
+  - **Overall score by run** draws every run on one axis. A dashed line marks where the number of
+    scored dimensions changed: the ledger says overalls across it do not compare.
+  - **Dimensions** has one row per dimension: the score, a bar, the band in words with a glyph,
+    the change in words, and its history. Sort by number, weakest first, or biggest drop first.
+    A row opens to its evidence and a **What holds it back** list, split from the ledger's
+    "Not 9:" reasons.
+  - **Findings** shows the open work by default (open, observed, regression), most severe first.
+    **Fixed** and **All** show the rest. Search the slug or the title, or pick one dimension. A
+    finding the run proposed for filing carries **Proposed**.
+  - The run's calibration notes, a table of every dimension across the runs (each number on the
+    tint of its band), and the workspace, CI, and authored diagrams, folded.
+  - A checkout without the ledger says how to create it. A ledger that does not parse shows the
+    reason. **Load again** reads the file again.
 - **Runs.** `GET /api/stats` and `GET /api/lessons`.
   - **Today** is one line from the last day of `days`: agent runs, shipped issues, and the cost,
     with the issues that need you or wait for you now.
@@ -1164,13 +1186,13 @@ developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**
 The shell is the same on every view.
 
 - The top bar is one row at every width: the brand mark, the **Board**, **Flows**, **Agents**,
-  **Health**, and **Runs**
+  **Health**, **Scorecard**, and **Runs**
   pills (Board has the count of Your turn), the search, one polite "Live"/"Reconnecting" status,
   and a preferences menu. A banner shows while the connection is lost.
 - **Ctrl+K** (or **⌘K**) or **/** opens the command palette: actions of this page (for example
   **Check again** on Health and **Load again** on Runs), recent issues, Your turn, the views,
-  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **F**, **A**, **H**, or **R**
-  goes to Board, Flows, Agents, Health, or Runs. A single-key shortcut does nothing while you type or while a
+  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **F**, **A**,
+  **H**, **S**, or **R** goes to Board, Flows, Agents, Health, Scorecard, or Runs. A single-key shortcut does nothing while you type or while a
   dialog or a menu is open.
 - Approve, Request changes, Continue, Cancel run, and Remove wait 8 seconds before they are
   sent. A toast says what will happen and offers **Undo**; Undo sends nothing. A page that closes
@@ -1178,8 +1200,8 @@ The shell is the same on every view.
   actions have no undo window: the ship asks twice, and the lesson actions act at once.
 - The tab title is "(3) Agent Desk" while three issues wait on you. In the preferences you can
   turn on browser notifications: the browser then notifies when an issue newly needs you or
-  reaches a gate. Theme (light, dark, or system) and language (English, German, Serbian) switch
-  there at once and keep what you typed and where you scrolled.
+  reaches a gate. Appearance (light, dark, or system), theme (Byte Forge or Moss, every theme
+  that `@repo/theme` registers), and language (English, German, Serbian) switch there at once and keep what you typed and where you scrolled.
 - A phone (below 40 rem) is for triage: the board shows Your turn only, the issue page shows the
   stepper without the graph, Runs hides the week cards, and touch targets are at least 44 px.
   No view scrolls sideways; a wide table scrolls inside its card.

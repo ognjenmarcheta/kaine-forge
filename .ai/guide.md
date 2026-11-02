@@ -268,7 +268,7 @@ This index is generated from canonical skill metadata:
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
-The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region and writes `scorecard-out/`, which is local, regenerable, and never committed. `REVIEW.md` governs diffs; the scorecard governs the repo.
+The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region; the agent desk's **Scorecard** view reads the ledger and shows the trend, the findings, and the diagrams. `REVIEW.md` governs diffs; the scorecard governs the repo.
 
 Downstream products keep their own guide rules, review checks, skills, and agents in `.ai/project/` (`guide.md`, `review.md`, `skills/`, `agents/`). Project skill and agent names start with the `repoSlug` from `.ai/project/template.json`. `pnpm ai:sync` merges upstream changes into the other `.ai/` sources and never writes `.ai/project/` (ADR 0014).
 

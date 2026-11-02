@@ -78,7 +78,7 @@ describe("createKeyHandler", () => {
     expect(keys.approve).not.toHaveBeenCalled();
   });
 
-  it("goes to a page with G and then B, F, A, H, or R, only within the sequence time", () => {
+  it("goes to a page with G and then B, F, A, H, S, or R, only within the sequence time", () => {
     const keys = setup();
     const page = place("<main data-target></main>");
     press(page, "g");
@@ -90,12 +90,20 @@ describe("createKeyHandler", () => {
     // G then A goes to the agents; it does not approve.
     press(page, "g");
     press(page, "a");
-    expect(keys.go.mock.calls).toEqual([["health"], ["stats"], ["flows"], ["agents"]]);
+    press(page, "g");
+    press(page, "s");
+    expect(keys.go.mock.calls).toEqual([
+      ["health"],
+      ["stats"],
+      ["flows"],
+      ["agents"],
+      ["scorecard"]
+    ]);
     expect(keys.approve).not.toHaveBeenCalled();
 
     press(page, "g");
     keys.clock.now += SEQUENCE_MS;
     press(page, "b");
-    expect(keys.go).toHaveBeenCalledTimes(4);
+    expect(keys.go).toHaveBeenCalledTimes(5);
   });
 });

@@ -1303,6 +1303,9 @@ importers:
       '@repo/desk':
         specifier: workspace:*
         version: link:../desk
+      '@repo/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       '@repo/translation':
         specifier: workspace:*
         version: link:../../packages/translation

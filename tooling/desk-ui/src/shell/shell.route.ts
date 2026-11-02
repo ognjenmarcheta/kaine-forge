@@ -10,6 +10,7 @@ export type Route =
   | { readonly view: "agent"; readonly agentId: string | null }
   | { readonly view: "health" }
   | { readonly view: "stats" }
+  | { readonly view: "scorecard" }
   | { readonly view: "issue"; readonly issueNumber: number };
 
 const POSITIVE_INTEGER = /^[1-9]\d{0,8}$/;
@@ -37,6 +38,7 @@ export function parseRoute(search: string): Route {
   }
   if (view === "health") return { view: "health" };
   if (view === "stats") return { view: "stats" };
+  if (view === "scorecard") return { view: "scorecard" };
   return { view: "board" };
 }
 
@@ -59,6 +61,8 @@ export function routeHref(route: Route): string {
       return "?view=health";
     case "stats":
       return "?view=stats";
+    case "scorecard":
+      return "?view=scorecard";
     case "issue":
       return `?issue=${String(route.issueNumber)}`;
   }

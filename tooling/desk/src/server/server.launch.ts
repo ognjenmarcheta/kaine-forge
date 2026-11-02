@@ -9,7 +9,8 @@ import {
   type HealthFix,
   type IssueState,
   type LessonReport,
-  type Provider
+  type Provider,
+  type ScorecardView
 } from "../contracts";
 import type { ServerRunner } from "./server.actions";
 import { readDefinitionViews, type DefinitionViews } from "./server.definitions";
@@ -30,7 +31,7 @@ import {
 import { repoFingerprint } from "../engine/harness.fingerprint";
 import { recoverInterrupted } from "../engine/pipeline.recovery";
 import { createPipelineRunner } from "../engine/pipeline.runner";
-import { diffAgainstBase, createGitPort } from "../git";
+import { diffAgainstBase, createGitPort, tryGit } from "../git";
 import { createGhClient } from "../github/github.gh";
 import { AGENT_LABELS, LABEL_DEFINITIONS } from "../github/github.labels";
 import { fetchOpenWork, type OpenWork } from "../github/github.lists";
@@ -42,6 +43,7 @@ import { containerCleanupFor } from "../isolation/isolation.select";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { createDefinitionWrites, type DefinitionWrites } from "../registry/registry.write";
+import { readScorecard } from "../scorecard";
 import { createLessonDesk, type LessonActions } from "../stats/stats.lesson-desk";
 import { readRunRecords, type RunRecords } from "../stats/stats.runs";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
@@ -63,6 +65,8 @@ export interface DeskRuntime {
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** `maxPrRounds` of the config. */
   readonly prRoundLimit?: number | undefined;
+  /** The monorepo health scorecard of the checkout. */
+  readonly scorecard?: (() => Promise<ScorecardView>) | undefined;
   /** `lessons.jsonl` of the desk state, aggregated against the repository's instructions now. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. */
@@ -168,6 +172,13 @@ export const createDefaultDeskRuntime =
       },
       readRuns: () => readRunRecords(location.stateRoot),
       prRoundLimit: config.maxPrRounds,
+      scorecard: async () => {
+        const remote = await tryGit(exec, location.repoRoot, ["remote", "get-url", "origin"]);
+        return readScorecard({
+          repoRoot: location.repoRoot,
+          remote: remote.ok ? remote.stdout.trim() : null
+        });
+      },
       lessons: lessonDesk.report,
       lessonActions: lessonDesk.actions,
       readDefinitions: () => readDefinitionViews({ repoRoot: location.repoRoot, config }),
@@ -308,6 +319,7 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       currentDiffHash: runtime.currentDiffHash,
       readRuns: runtime.readRuns,
       prRoundLimit: runtime.prRoundLimit,
+      scorecard: runtime.scorecard,
       lessons: runtime.lessons,
       lessonActions: runtime.lessonActions,
       readDefinitions: runtime.readDefinitions,

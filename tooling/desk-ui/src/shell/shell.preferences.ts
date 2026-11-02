@@ -1,9 +1,11 @@
+import { resolveThemeName, type ThemeName } from "@repo/theme";
 import { useEffect, useState } from "react";
 
 export const THEMES = ["light", "dark", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
 const STORAGE_KEY = "kaine-desk-theme";
+const THEME_NAME_KEY = "kaine-desk-theme-name";
 const NOTIFY_KEY = "kaine-desk-notify";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -53,6 +55,36 @@ export function useTheme(): readonly [Theme, (theme: Theme) => void] {
     }
   };
   return [theme, choose] as const;
+}
+
+const readStoredThemeName = (): ThemeName => {
+  try {
+    return resolveThemeName(window.localStorage.getItem(THEME_NAME_KEY));
+  } catch {
+    return resolveThemeName(null);
+  }
+};
+
+/**
+ * Which registered theme the desk wears (Byte Forge, Moss). A stored name that is no longer
+ * registered falls back to the default theme. Set on the root beside the color mode.
+ */
+export function useThemeName(): readonly [ThemeName, (name: ThemeName) => void] {
+  const [name, setName] = useState<ThemeName>(readStoredThemeName);
+
+  useEffect(() => {
+    document.documentElement.dataset["theme"] = name;
+  }, [name]);
+
+  const choose = (next: ThemeName): void => {
+    setName(next);
+    try {
+      window.localStorage.setItem(THEME_NAME_KEY, next);
+    } catch {
+      // The choice still applies to this page.
+    }
+  };
+  return [name, choose] as const;
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   lessonReportSchema,
   logResponseSchema,
   runStatsSchema,
+  scorecardViewSchema,
   type ActionRequestInput,
   type ActionResponse,
   type AgentDefinition,
@@ -43,7 +44,8 @@ import {
   type LessonIssueDraft,
   type LessonReport,
   type LogResponse,
-  type RunStats
+  type RunStats,
+  type ScorecardView
 } from "@repo/desk/contracts";
 import { z } from "zod";
 
@@ -91,6 +93,8 @@ export interface DeskApi {
   readonly stats: () => Promise<RunStats>;
   /** Problems seen in several issues, from `lessons.jsonl`. */
   readonly lessons: () => Promise<LessonReport>;
+  /** The monorepo health scorecard from the checkout's ledger. */
+  readonly scorecard: () => Promise<ScorecardView>;
   /** Mark a lesson handled. A second promote replaces the note. */
   readonly lessonPromote: (key: string, note: string | null) => Promise<LessonReport>;
   /** Make a promoted lesson a candidate again. */
@@ -241,6 +245,7 @@ export function createDeskApi(doFetch: FetchLike = defaultFetch): DeskApi {
     health: () => getJson("/api/health", healthReportSchema),
     stats: () => getJson("/api/stats", runStatsSchema),
     lessons: () => getJson("/api/lessons", lessonReportSchema),
+    scorecard: () => getJson("/api/scorecard", scorecardViewSchema),
     lessonPromote: (key, note) =>
       postJson("/api/lessons/promote", note === null ? { key } : { key, note }, lessonReportSchema),
     lessonUnpromote: (key) => postJson("/api/lessons/unpromote", { key }, lessonReportSchema),

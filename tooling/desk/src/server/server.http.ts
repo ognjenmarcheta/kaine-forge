@@ -26,6 +26,7 @@ import {
   type LogResponse,
   type LessonReport,
   type RunStats,
+  type ScorecardView,
   type ServerEvent
 } from "../contracts";
 import type { DoctorReport } from "../doctor/doctor.checks";
@@ -62,6 +63,7 @@ import type {
   DefinitionWriteOutcome,
   DefinitionWrites
 } from "../registry/registry.write";
+import { SCORECARD_LEDGER_PATH } from "../scorecard";
 import { aggregateRuns, snapshotsOf } from "../stats/stats.aggregate";
 import type { LessonActionResult, LessonActions } from "../stats/stats.lesson-desk";
 import { aggregateLessons } from "../stats/stats.lessons";
@@ -88,6 +90,8 @@ export interface DeskServerDeps {
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** `maxPrRounds` of the config, for the issue summaries. Absent: the default. */
   readonly prRoundLimit?: number | undefined;
+  /** The monorepo health scorecard, for `GET /api/scorecard`. Absent: the ledger is missing. */
+  readonly scorecard?: (() => Promise<ScorecardView>) | undefined;
   /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. Absent: those routes answer `404`. */
@@ -150,6 +154,7 @@ type Route =
         | "health-fix"
         | "github"
         | "stats"
+        | "scorecard"
         | "lessons"
         | "lesson-promote"
         | "lesson-unpromote"
@@ -177,6 +182,7 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 2 && resource === "health") return { kind: "health" };
   if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
   if (segments.length === 2 && resource === "stats") return { kind: "stats" };
+  if (segments.length === 2 && resource === "scorecard") return { kind: "scorecard" };
   if (segments.length === 2 && resource === "lessons") return { kind: "lessons" };
   if (segments.length === 3 && resource === "lessons") {
     if (id === "promote") return { kind: "lesson-promote" };
@@ -217,6 +223,7 @@ const METHODS_OF: Readonly<Record<Route["kind"], readonly Method[]>> = {
   "health-fix": ["POST"],
   github: ["GET"],
   stats: ["GET"],
+  scorecard: ["GET"],
   lessons: ["GET"],
   "lesson-promote": ["POST"],
   "lesson-unpromote": ["POST"],
@@ -736,6 +743,14 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
           now: clock.now()
         });
         sendJson(response, 200, stats);
+        return;
+      }
+      case "scorecard": {
+        const view: ScorecardView = (await deps.scorecard?.()) ?? {
+          state: "missing",
+          ledgerPath: SCORECARD_LEDGER_PATH
+        };
+        sendJson(response, 200, view);
         return;
       }
       case "lessons": {

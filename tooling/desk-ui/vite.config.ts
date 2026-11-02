@@ -14,6 +14,7 @@ export default defineConfig({
     alias: {
       "@repo/ui/styles/globals.css": path.join(root, "packages/ui/src/styles/globals.css"),
       "@repo/ui": path.join(root, "packages/ui/src/index.ts"),
+      "@repo/theme": path.join(root, "packages/theme/src/index.ts"),
       "@repo/translation": path.join(root, "packages/translation/src/index.ts")
     }
   },

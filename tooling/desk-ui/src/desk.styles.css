@@ -5269,3 +5269,314 @@ main:focus {
     min-height: 2.75rem;
   }
 }
+
+/* ── Scorecard: the monorepo health ledger, run by run ───────────────── */
+
+.desk-score-runbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--ds-space-150) var(--ds-space-300);
+  margin-block: var(--ds-space-200);
+}
+
+.desk-score-meta {
+  margin: 0;
+}
+
+.desk-score-run {
+  min-width: 14rem;
+  margin: 0;
+}
+
+.desk-score-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ds-space-150);
+  margin-block-end: var(--ds-space-300);
+}
+
+@media (max-width: 56.25rem) {
+  .desk-score-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .desk-score-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.desk-score-delta {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.desk-score-delta[data-direction="up"] {
+  color: var(--ds-text-success);
+}
+
+.desk-score-delta[data-direction="down"] {
+  color: var(--ds-text-danger);
+}
+
+.desk-score-delta[data-direction="held"] {
+  color: var(--ds-text-subtle);
+}
+
+/* The trend: grid lines, the boundary where the dimension count changed, the line, the runs. */
+.desk-score-trend {
+  display: block;
+}
+
+.desk-score-trend text {
+  fill: var(--ds-text-subtlest);
+  font: var(--ds-font-body-xsmall);
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-score-trend__grid line {
+  stroke: var(--ds-chart-grid);
+  stroke-width: var(--ds-border-width);
+}
+
+.desk-score-trend__boundary line {
+  stroke: var(--ds-border-bold);
+  stroke-width: var(--ds-border-width);
+  stroke-dasharray: 4 4;
+}
+
+.desk-score-trend__line {
+  fill: none;
+  stroke: var(--ds-chart-1);
+  stroke-width: var(--ds-border-width-thick);
+  stroke-linejoin: round;
+}
+
+.desk-score-trend__dot {
+  fill: var(--ds-surface-raised);
+  stroke: var(--ds-chart-1);
+  stroke-width: var(--ds-border-width-thick);
+}
+
+.desk-score-trend__dot[data-selected="true"] {
+  fill: var(--ds-chart-1);
+}
+
+/* The dimensions table: a row opens to the evidence and what holds the score back. */
+.desk-score-toggle {
+  gap: var(--ds-space-075);
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  color: var(--ds-text);
+  font: inherit;
+  text-align: start;
+}
+
+.desk-score-toggle:focus-visible {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: var(--ds-space-025);
+  border-radius: var(--ds-radius-050);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .desk-score-toggle:hover {
+    color: var(--ds-link);
+  }
+}
+
+.desk-score-toggle__chevron {
+  flex: none;
+  color: var(--ds-text-subtlest);
+  transition: transform var(--ds-motion-control) var(--ds-motion-easing);
+}
+
+.desk-score-toggle__chevron[data-open="true"],
+.desk-score-toggle[data-state="open"] .desk-score-toggle__chevron {
+  transform: rotate(90deg);
+}
+
+.desk-score-value {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-score-bar {
+  width: 6rem;
+}
+
+.desk-score-bar__fill {
+  fill: var(--ds-chart-1);
+}
+
+.desk-score-spark {
+  width: 5rem;
+  height: var(--ds-space-300);
+}
+
+.desk-score-spark polyline {
+  fill: none;
+  stroke: var(--ds-chart-1);
+  stroke-width: var(--ds-border-width-thick);
+  vector-effect: non-scaling-stroke;
+}
+
+.desk-score-details td {
+  white-space: normal;
+  background: var(--ds-surface-sunken);
+}
+
+.desk-score-details p,
+.desk-score-details ul {
+  max-width: 48rem;
+  margin-block: 0 var(--ds-space-100);
+}
+
+.desk-score-details h3 {
+  margin-block: var(--ds-space-150) var(--ds-space-050);
+  font: var(--ds-font-heading-row);
+}
+
+/* History: each score on its band's tint. The number stays, so the tint is never the only signal. */
+.desk-score-history small {
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-code-small);
+}
+
+.desk-score-cell {
+  color: var(--tone-fg);
+  background: var(--tone-bg);
+}
+
+/* Findings: the title wraps; the slug sits under it in code. */
+.desk-score-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--ds-space-150);
+}
+
+@media (max-width: 40rem) {
+  .desk-score-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.desk-score-finding {
+  display: grid;
+  gap: var(--ds-space-050);
+  justify-items: start;
+  min-width: 18rem;
+  white-space: normal;
+}
+
+.desk-score-finding code {
+  color: var(--ds-text-subtle);
+}
+
+.desk-score-reason {
+  min-width: 12rem;
+  color: var(--ds-text-subtle);
+  white-space: normal;
+}
+
+.desk-score-notes {
+  display: grid;
+  gap: var(--ds-space-100);
+  max-width: 48rem;
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+/* Diagrams: drawn at their own size; a wide one scrolls inside its card. */
+.desk-score-diagram {
+  padding-block: var(--ds-space-100);
+  border-block-end: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-score-flow {
+  overflow-x: auto;
+  margin-block-start: var(--ds-space-100);
+}
+
+.desk-score-flow:focus-visible {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+}
+
+.desk-score-flow svg {
+  display: block;
+  max-width: none;
+}
+
+.desk-score-flow__edge {
+  fill: none;
+  stroke: var(--ds-border-bold);
+  stroke-width: var(--ds-border-width);
+}
+
+.desk-score-flow__node text {
+  fill: var(--ds-text);
+  font: var(--ds-font-body-xsmall);
+}
+
+.desk-score-flow__node--1 rect {
+  fill: var(--ds-background-chart-1);
+  stroke: var(--ds-chart-1);
+}
+
+.desk-score-flow__node--2 rect {
+  fill: var(--ds-background-chart-2);
+  stroke: var(--ds-chart-2);
+}
+
+.desk-score-flow__node--3 rect {
+  fill: var(--ds-background-chart-3);
+  stroke: var(--ds-chart-3);
+}
+
+.desk-score-flow__node--4 rect {
+  fill: var(--ds-background-chart-4);
+  stroke: var(--ds-chart-4);
+}
+
+.desk-score-flow__node--5 rect {
+  fill: var(--ds-background-chart-5);
+  stroke: var(--ds-chart-5);
+}
+
+.desk-score-flow__node--6 rect {
+  fill: var(--ds-background-chart-6);
+  stroke: var(--ds-chart-6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-score-toggle__chevron {
+    transition: none;
+  }
+}
+
+.desk-score-note {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+}
+
+/* A sort or filter control drops under its heading, and wraps on a phone, instead of widening the page. */
+.desk-score-head {
+  flex-wrap: wrap;
+  margin-block-end: var(--ds-space-150);
+}
+
+.desk-score-head > h2 {
+  margin: 0;
+  font: var(--ds-font-heading-card);
+  letter-spacing: var(--ds-letter-spacing-heading);
+}
+
+@media (max-width: 40rem) {
+  .desk-score-head .desk-seg {
+    flex-wrap: wrap;
+    border-radius: var(--ds-radius-200);
+  }
+}

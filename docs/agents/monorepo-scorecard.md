@@ -1,6 +1,6 @@
 # Monorepo Health Scorecard
 
-Repeatable, evidence-bound health scoring for this monorepo. Produced by the `kaine-scorecard` skill; rendered to `scorecard-out/index.html` by `pnpm scorecard`.
+Repeatable, evidence-bound health scoring for this monorepo. Produced by the `kaine-scorecard` skill; `pnpm scorecard` renders the generated region, and the agent desk's **Scorecard** view shows it.
 
 This file is the source of truth. It holds the band descriptors, every run's scores and evidence, the finding slugs that prevent duplicate issues, and the calibration notes that bind later runs.
 
