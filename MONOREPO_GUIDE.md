@@ -286,6 +286,7 @@ The template includes production Dockerfiles for API and web:
 - `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers. Runtime proxy target: `API_BACKEND_URL`.
 - Both images define `HEALTHCHECK` directives: API probes `GET /health` (liveness; `GET /ready` checks database for readiness); web probes nginx.
 - Each top-level `Dockerfile.<app>` defines a deployable app branch contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI remains for dry-runs and repairs.
+- With the repository variable `DEPLOY_SOURCE=image`, the Release workflow also builds each moved app's image on GitHub, pushes `ghcr.io/<owner>/<repo>-<app>:release`, and calls its `DEPLOY_WEBHOOK_<APP>` secret, so the platform only pulls. The default builds on the platform from `release/<app>`. See `docs/deploy.md`, "Deploy source".
 - Docker images must stay template-safe. Do not add product-specific services, assets, or secrets.
 
 Build examples:
