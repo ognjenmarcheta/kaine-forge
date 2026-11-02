@@ -228,14 +228,12 @@ describe("the component job", () => {
     expect(await h.jobs.get(job.id)).toMatchObject({ status: "done", component: { port: null } });
   });
 
-  it("refuses a component that @repo/ui already has", async () => {
+  it("refuses a name that @repo/ui already exports, from any folder", async () => {
     const h = await harness();
-    await mkdir(path.join(h.repoRoot, "packages/ui/src/components/primitives"), {
-      recursive: true
-    });
+    await mkdir(path.join(h.repoRoot, "packages/ui/src/components/layouts"), { recursive: true });
     await writeFile(
-      path.join(h.repoRoot, "packages/ui/src/components/primitives/rating-stars.tsx"),
-      ""
+      path.join(h.repoRoot, "packages/ui/src/components/layouts/stars.tsx"),
+      "export function RatingStars() {}\n"
     );
     await expect(h.jobs.start({ kind: "component", component: COMPONENT })).rejects.toThrow(
       JobRefusal

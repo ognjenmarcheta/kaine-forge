@@ -15,6 +15,28 @@ export function SpecimensIndex({ catalog }: { catalog: LabCatalog }) {
         One new component each, with every variant and state, under the default theme. A component
         job of the agent desk writes one in src/lab/specimens/.
       </p>
+      {catalog.specimenFailures.length > 0 ? (
+        <section
+          aria-label="Specimens that did not load"
+          className="grid gap-ds-100 rounded-md border border-ds-border-danger bg-ds-bg-danger px-ds-200 py-ds-150"
+        >
+          <p className="m-0 text-body-sm font-medium text-ds-text-danger">
+            {`${catalog.specimenFailures.length} specimen(s) did not load`}
+          </p>
+          <ul className="m-0 flex flex-wrap gap-ds-150 p-0">
+            {catalog.specimenFailures.map((failure) => (
+              <li key={failure.id} className="list-none">
+                <a
+                  className="text-body-sm text-ds-text-danger underline"
+                  href={`#/specimens/${failure.id}`}
+                >
+                  {failure.id}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {catalog.specimens.length === 0 ? (
         <p className="m-0 text-body text-ds-text-subtle">No specimens yet.</p>
       ) : (

@@ -33,6 +33,7 @@ import {
   componentChangeset,
   componentChecks,
   componentPlanPrompt,
+  exportedNames,
   componentPullRequest
 } from "./jobs.component";
 import { createLabServers, type LabServer, type LabServers } from "./jobs.devserver";
@@ -168,6 +169,17 @@ const branchSlugOf = (state: JobState): string => {
   if (component !== undefined) return `ui-${componentFileName(component.name)}-job-${state.id}`;
   if (audit !== undefined) return `audit-${audit.screenId}-job-${state.id}`;
   return `scorecard-${state.createdAt.slice(0, 10)}-job-${state.id}`;
+};
+
+/** Every name the source of `@repo/ui` exports, from any file but its tests. */
+const uiExportNames = async (repoRoot: string): Promise<Set<string>> => {
+  const root = path.join(repoRoot, "packages", "ui", "src");
+  if (!existsSync(root)) return new Set();
+  const files = (await readdir(root, { recursive: true })).filter(
+    (entry) => /\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)
+  );
+  const sources = await Promise.all(files.map((entry) => readFile(path.join(root, entry), "utf8")));
+  return new Set(sources.flatMap(exportedNames));
 };
 
 /** The job with its lab server's port, on the kind's own record. */
@@ -880,14 +892,15 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       const now = deps.clock.now().toISOString();
       const id = await deps.store.nextId();
       if (request.component !== undefined) {
-        const file = componentFileName(request.component.name);
-        const existing = ["primitives", "composed"].filter((layer) =>
-          existsSync(path.join(deps.repoRoot, "packages/ui/src/components", layer, `${file}.tsx`))
-        );
-        if (existing.length > 0) {
+        const { name, layer } = request.component;
+        const file = `packages/ui/src/components/${layer}/${componentFileName(name)}.tsx`;
+        if (
+          existsSync(path.join(deps.repoRoot, file)) ||
+          (await uiExportNames(deps.repoRoot)).has(name)
+        ) {
           throw new JobRefusal(
             "bad-request",
-            `@repo/ui already has ${file}.tsx in ${existing.join(", ")}. Pick another name.`
+            `@repo/ui already exports ${name} or has ${file}. Pick another name.`
           );
         }
       }

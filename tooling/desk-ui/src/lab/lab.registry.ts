@@ -60,18 +60,25 @@ export interface LabCatalog {
   specimens: readonly LabSpecimen[];
   /** The registered themes, then each lab theme once. */
   themes: readonly ThemeDefinition[];
+  /** The screens that failed to load. */
   failures: readonly LabScreenFailure[];
+  /** The specimens that failed to load, apart from the screens: each index shows its own. */
+  specimenFailures: readonly LabScreenFailure[];
 }
 
 const registered = new Set<string>(themes.map((theme) => theme.name));
 const byId = (a: { id: string }, b: { id: string }): number =>
   a.id.localeCompare(b.id, undefined, { numeric: true });
 
-/** Load each module on its own: the ones that export `key`, and the ones that failed. */
+/**
+ * Load each module on its own: the ones that export `key`, and the ones that failed. `named`
+ * gives a loaded value the id of its file, when the file name is the id.
+ */
 async function loadEach<T, K extends string>(
   modules: Record<string, () => Promise<Partial<Record<K, T>>>>,
   key: K,
-  idOf: (path: string) => string
+  idOf: (path: string) => string,
+  named: (value: T, id: string) => T = (value) => value
 ): Promise<{ loaded: T[]; failures: LabScreenFailure[] }> {
   const entries = Object.entries(modules);
   const results = await Promise.allSettled(entries.map(([, load]) => load()));
@@ -79,11 +86,11 @@ async function loadEach<T, K extends string>(
   const failures: LabScreenFailure[] = [];
   results.forEach((result, index) => {
     const value = result.status === "fulfilled" ? result.value[key] : undefined;
+    const path = entries[index]?.[0] ?? "";
     if (value !== undefined) {
-      loaded.push(value);
+      loaded.push(named(value, idOf(path)));
       return;
     }
-    const path = entries[index]?.[0] ?? "";
     failures.push({
       id: idOf(path),
       message:
@@ -100,15 +107,18 @@ async function loadEach<T, K extends string>(
 export async function loadLabCatalog(): Promise<LabCatalog> {
   const [screenModules, specimenModules] = await Promise.all([
     loadEach(loaders, "screen", (path) => /screens\/([^/]+)\//.exec(path)?.[1] ?? path),
+    // A specimen's id is its file name, the name the component job's gate links to.
     loadEach(
       specimenLoaders,
       "specimen",
-      (path) => /specimens\/([^/]+)\.specimen\.tsx$/.exec(path)?.[1] ?? path
+      (path) => /specimens\/([^/]+)\.specimen\.tsx$/.exec(path)?.[1] ?? path,
+      (specimen, id) => ({ ...specimen, id })
     )
   ]);
   const screens = screenModules.loaded.sort(byId);
   const specimens = specimenModules.loaded.sort(byId);
-  const failures = [...screenModules.failures, ...specimenModules.failures].sort(byId);
+  const failures = screenModules.failures.sort(byId);
+  const specimenFailures = specimenModules.failures.sort(byId);
 
   const labThemes = screens
     .map((screen) => screen.theme)
@@ -116,7 +126,7 @@ export async function loadLabCatalog(): Promise<LabCatalog> {
       (theme, index, all) =>
         !registered.has(theme.name) && all.findIndex((other) => other.name === theme.name) === index
     );
-  return { screens, specimens, themes: [...themes, ...labThemes], failures };
+  return { screens, specimens, themes: [...themes, ...labThemes], failures, specimenFailures };
 }
 
 let installed: CSSStyleSheet | null = null;

@@ -6,6 +6,30 @@ import { componentFileName, componentFiles } from "./jobs.permissions";
  * test and a lab specimen, and open a draft PR. Its prompts, checks, changeset, and PR.
  */
 
+/**
+ * The names a module's source exports: declarations (`export function Card`) and export lists,
+ * by their exported name (`export { useForm as useUiForm }` gives `useUiForm`).
+ */
+export const exportedNames = (source: string): string[] => {
+  const names: string[] = [];
+  const declaration =
+    /^export\s+(?:declare\s+)?(?:default\s+)?(?:async\s+)?(?:abstract\s+)?(?:const|let|var|function\*?|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/gm;
+  for (const match of source.matchAll(declaration))
+    if (match[1] !== undefined) names.push(match[1]);
+  for (const match of source.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}/g)) {
+    for (const entry of (match[1] ?? "").split(",")) {
+      const name = entry
+        .trim()
+        .replace(/^type\s+/, "")
+        .split(/\s+as\s+/)
+        .at(-1)
+        ?.trim();
+      if (name !== undefined && name !== "") names.push(name);
+    }
+  }
+  return names;
+};
+
 /** The lab route of a component's specimen. */
 export const specimenRoute = (component: ComponentSpec): string =>
   `#/specimens/${componentFileName(component.name)}`;

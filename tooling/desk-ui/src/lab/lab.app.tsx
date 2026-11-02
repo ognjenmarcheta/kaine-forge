@@ -53,7 +53,9 @@ export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const route = useHashRoute();
   const [, view = "", id = "", mode = ""] = route.split("/");
   const screen = catalog.screens.find((entry) => entry.id === id);
-  const failure = catalog.failures.find((entry) => entry.id === id);
+  const failure = (view === "specimens" ? catalog.specimenFailures : catalog.failures).find(
+    (entry) => entry.id === id
+  );
   const specimen = catalog.specimens.find((entry) => entry.id === id);
 
   if (view === "charts") return <ChartsPage catalog={catalog} />;
