@@ -363,7 +363,9 @@ Todos and Notes work offline on web and desktop, and Todos on mobile (mobile has
 - **Device storage.** The **Outbox** is IndexedDB on web and desktop, and AsyncStorage on mobile. Synced rows are SQLite, one database per User and Organization, named `ks-<user hash>-<organization hash>.db`: OPFS through wa-sqlite on web (shared by tabs), the shell's own commands on desktop (`apps/desktop/src-tauri/src/device_db.rs`, one connection per file, because `tauri-plugin-sql` splits a transaction across its pool), and `expo-sqlite` on mobile. Signing out deletes that User's databases, and starting sync deletes other Users' databases. Deletion is best effort: a file that stays is deleted at the next try. Where a device cannot store rows, they stay in memory and sync still works.
 - **App shell.** The web production build registers a service worker (`vite-plugin-pwa`), so the app starts with no network. The dev server and the desktop shell never register it.
 - **Tests.** Engine behavior has unit tests in `@repo/sync` and `apps/web/src/lib/sync.testing.ts`, with a fake server. Playwright blocks service workers by default, so `web-offline-start.e2e.ts` and `web-offline-sync.e2e.ts` allow them and run only against the production build (`E2E_SERVE_BUILD=true`, as CI runs them).
-- **Limits.** The first pull loads every Todo and Note of the Organization (#800). Two offline edits of the same Note body keep the later one (#801). Change events reach one API process, so other replicas rely on the pull interval (#802).
+- **Large Organizations.** A first pull loads the newest 500 Todos and Notes. "Load more" past the local rows loads older ones with `engine.loadOlder`, online only. Search sees only the rows on the device.
+- **Note bodies.** A body edit sends `baseBody`, and the server merges edits of different lines. Edits of the same lines are refused with `CONFLICT`, and the web app lets the second writer keep theirs or the current body.
+- **Limits.** Change events reach one API process, so other replicas rely on the pull interval (#802).
 
 ## 14. Desktop Rules
 

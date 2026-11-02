@@ -91,8 +91,11 @@ export function openDeviceStorage(scope: {
   });
 }
 
-/** Closes and deletes the registered device databases that `match` selects. */
-function deleteDatabases(match: (name: string) => boolean): Promise<void> {
+/**
+ * Closes and deletes the registered device databases that `match` selects.
+ * Resolves false when one stays: it stays registered, so a later deletion tries again.
+ */
+function deleteDatabases(match: (name: string) => boolean): Promise<boolean> {
   return serial(async () => {
     const registered = await registeredDatabases();
     const deleted = new Set<string>();
@@ -105,16 +108,18 @@ function deleteDatabases(match: (name: string) => boolean): Promise<void> {
         // Kept in the registry, so a later deletion tries again.
       }
     }
-    await writeRegistry(registered.filter((name) => !deleted.has(name)));
+    const left = registered.filter((name) => !deleted.has(name));
+    await writeRegistry(left);
+    return !left.some(match);
   });
 }
 
-/** Closes and deletes every device database of a User, for a sign-out. */
-export async function deleteDeviceStorage(userId: string): Promise<void> {
+/** Closes and deletes every device database of a User, for a sign-out; false when one stays. */
+export async function deleteDeviceStorage(userId: string): Promise<boolean> {
   // Counted at once, so an open the provider asked for earlier is cancelled.
   deletions.set(userId, (deletions.get(userId) ?? 0) + 1);
   const prefix = await deviceDatabasePrefix(userId);
-  await deleteDatabases((name) => name.startsWith(prefix));
+  return deleteDatabases((name) => name.startsWith(prefix));
 }
 
 /**

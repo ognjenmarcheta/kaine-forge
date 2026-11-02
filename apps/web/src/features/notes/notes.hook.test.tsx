@@ -121,7 +121,8 @@ it("keeps edits made after a save as unsaved, against the saved revision", async
   await settle();
 
   // Only the changed field goes to the server: another user's title edit survives.
-  expect(server.pushed).toEqual([[{ noteUpdate: { id: "a", body: "Submitted" } }]]);
+  // The body it started from goes too, so the server can merge another device's edit.
+  expect(server.pushed).toEqual([[{ noteUpdate: { id: "a", body: "Submitted", baseBody: "" } }]]);
   expect(current.draft).toMatchObject({ body: "Newer draft", baseBody: "Submitted" });
   expect(current.draft && isNoteDirty(current.draft)).toBe(true);
 });

@@ -12,6 +12,7 @@ import {
   useNoteCountQuery
 } from "../../graphql/generated/react-query";
 import { useLiveNotes, useLiveTodos } from "../../hooks/use-live-list";
+import { useOlderRows } from "../../hooks/use-older-rows";
 import { useSyncEngine, useSyncStatus } from "../../hooks/use-sync";
 import { queryRuntime } from "../../lib/query-runtime";
 
@@ -101,15 +102,21 @@ export function useNotes(organizationId: string | null, enabled: boolean, select
   }, [phrase]);
   // The list's loading and paging state, in the shape the routes read. With
   // no rows to show, a failed pull is a load error the user can retry.
+  // Past the local rows, the next page loads older rows from the server.
+  const older = useOlderRows("notes");
+  const moreHere = matching.length > visible;
   const list = {
     isPending: !ready,
-    isError: ready && all.length === 0 && syncStatus?.state === "error",
-    isFetchNextPageError: false,
-    hasNextPage: matching.length > visible,
-    isFetching: false,
-    isFetchingNextPage: false,
+    isError: (ready && all.length === 0 && syncStatus?.state === "error") || older.failed,
+    isFetchNextPageError: older.failed,
+    hasNextPage: moreHere || (older.hasOlder && !older.needsConnection),
+    /** Older rows are left on the server, and loading them needs the network. */
+    olderNeedsConnection: !moreHere && older.hasOlder && older.needsConnection,
+    isFetching: older.loading,
+    isFetchingNextPage: older.loading,
     fetchNextPage: () => {
       setVisible((count) => count + NOTES_CONFIG.pageSize);
+      if (!moreHere) void older.load();
     },
     refetch: () => engine?.pull().catch(() => undefined)
   };

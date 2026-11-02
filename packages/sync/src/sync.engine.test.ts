@@ -39,7 +39,9 @@ function createFakeServer() {
     reject: new Set<string>(),
     // Each pull with a cursor answers resetRequired while this is set.
     reset: false,
-    refuseRequest: false
+    refuseRequest: false,
+    // Rows of each list a first pull, or one older page, returns; null returns every row.
+    window: null as number | null
   };
   const stamp = "2026-10-31T00:00:00.000Z";
 
@@ -87,7 +89,33 @@ function createFakeServer() {
       versions.set(`NOTE:${id}`, ++version);
       return applied;
     }
+    if ("noteUpdate" in mutation) {
+      const { id, title, body } = mutation.noteUpdate;
+      const note = notes.get(id);
+      if (!note) return { status: "REJECTED", code: "NOT_FOUND" };
+      notes.set(id, {
+        ...note,
+        ...(title === undefined ? {} : { title }),
+        ...(body === undefined ? {} : { body })
+      });
+      versions.set(`NOTE:${id}`, ++version);
+      return applied;
+    }
     return applied;
+  }
+
+  /** Each list's rows newest first from `offset`, `state.window` of them, and where the rest continue. */
+  function listPage(offset: number) {
+    const size = state.window ?? Number.POSITIVE_INFINITY;
+    const newest = <TRow>(rows: Map<string, TRow>) => [...rows.values()].reverse();
+    const slice = <TRow>(rows: TRow[]) => rows.slice(offset, offset + size);
+    const olderOf = (list: string, rows: unknown[]) =>
+      rows.length > offset + size ? [{ list, after: `${list}:${String(offset + size)}` }] : [];
+    return {
+      todos: slice(newest(todos)),
+      notes: slice(newest(notes)),
+      older: [...olderOf("todos", [...todos.values()]), ...olderOf("notes", [...notes.values()])]
+    };
   }
 
   const transport: SyncTransport = {
@@ -100,7 +128,17 @@ function createFakeServer() {
           deleted: [],
           cursor: null,
           hasMore: false,
-          resetRequired: true
+          resetRequired: true,
+          older: []
+        };
+      }
+      if (cursor === null && state.window !== null) {
+        return {
+          ...listPage(0),
+          deleted: [],
+          cursor: String(version),
+          hasMore: false,
+          resetRequired: false
         };
       }
       const after = cursor === null ? 0 : Number(cursor);
@@ -114,9 +152,24 @@ function createFakeServer() {
           .map(({ entity, id }) => ({ entity, id })),
         cursor: String(version),
         hasMore: false,
-        resetRequired: false
+        resetRequired: false,
+        older: []
       };
       return page;
+    },
+    async pullOlder(after) {
+      guard();
+      const [list, offset] = after.split(":");
+      const page = listPage(Number(offset));
+      return {
+        todos: list === "todos" ? page.todos : [],
+        notes: list === "notes" ? page.notes : [],
+        deleted: [],
+        cursor: null,
+        hasMore: false,
+        resetRequired: false,
+        older: page.older.filter((entry) => entry.list === list)
+      };
     },
     async push(idempotencyKey, mutations) {
       guard();
@@ -287,7 +340,7 @@ describe("createSyncEngine", () => {
     await engine.pull();
 
     expect(titles(engine)).toEqual(["Renamed"]);
-    expect(engine.getStatus()).toEqual({ state: "online", pending: 0 });
+    expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] });
   });
 
   it("skips a deletion of an entity it does not sync, even one with a Todo's id", async () => {
@@ -305,7 +358,7 @@ describe("createSyncEngine", () => {
     await engine.pull();
 
     expect(titles(engine)).toEqual(["Kept"]);
-    expect(engine.getStatus()).toEqual({ state: "online", pending: 0 });
+    expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] });
   });
 
   it("shows a local create at once and keeps the server's row after the push", async () => {
@@ -317,7 +370,9 @@ describe("createSyncEngine", () => {
 
     expect(engine.todos.get(id)).toMatchObject({ title: "Local", description: "Draft" });
     await vi.waitFor(() => expect(server.todos.has(id)).toBe(true));
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
     expect(engine.todos.get(id)).toMatchObject({
       title: "Local",
       createdAt: "2026-10-31T00:00:00.000Z"
@@ -356,7 +411,9 @@ describe("createSyncEngine", () => {
     await engine.createTodo({ title: "Tickets", noteId });
 
     expect(titles(engine)).toEqual(["Tickets"]);
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "offline", pending: 2 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "offline", pending: 2, older: [] })
+    );
     expect(server.pushes).toEqual([]);
 
     server.state.online = true;
@@ -369,7 +426,9 @@ describe("createSyncEngine", () => {
       "noteCreate",
       "todoCreate"
     ]);
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
   });
 
   it("keeps a change once its call resolves, even if the page closes while a push runs", async () => {
@@ -420,6 +479,27 @@ describe("createSyncEngine", () => {
     );
   });
 
+  it("sends the body each Note body edit started from, and no base with a title edit", async () => {
+    const server = createFakeServer();
+    server.apply({ noteCreate: { id: "n1", title: "Plan", body: "one" } });
+    const { engine } = start(server);
+    await engine.ready;
+    const settled = () => vi.waitFor(() => expect(engine.getStatus().pending).toBe(0));
+
+    await engine.updateNote("n1", { body: "one\ntwo" });
+    await settled();
+    await engine.updateNote("n1", { body: null });
+    await settled();
+    await engine.updateNote("n1", { title: "Renamed" });
+    await settled();
+
+    expect(server.pushes.flatMap((push) => push.mutations)).toEqual([
+      { noteUpdate: { id: "n1", body: "one\ntwo", baseBody: "one" } },
+      { noteUpdate: { id: "n1", body: null, baseBody: "one\ntwo" } },
+      { noteUpdate: { id: "n1", title: "Renamed" } }
+    ]);
+  });
+
   it("rolls back a change the server refuses and reports it", async () => {
     const server = createFakeServer();
     server.state.reject.add("Refused");
@@ -429,7 +509,16 @@ describe("createSyncEngine", () => {
 
     const id = await engine.createTodo({ title: "Refused" });
 
-    await vi.waitFor(() => expect(rejections).toEqual([{ entity: "TODO", id, code: "INVALID" }]));
+    await vi.waitFor(() =>
+      expect(rejections).toEqual([
+        {
+          entity: "TODO",
+          id,
+          code: "INVALID",
+          change: { todoCreate: { id, title: "Refused", description: null, noteId: null } }
+        }
+      ])
+    );
     await vi.waitFor(() => expect(engine.todos.get(id)).toBeUndefined());
     expect(engine.getStatus().pending).toBe(0);
   });
@@ -471,7 +560,16 @@ describe("createSyncEngine", () => {
 
     const id = await engine.createTodo({ title: "Refused" });
 
-    await vi.waitFor(() => expect(rejections).toEqual([{ entity: "TODO", id, code: "INVALID" }]));
+    await vi.waitFor(() =>
+      expect(rejections).toEqual([
+        {
+          entity: "TODO",
+          id,
+          code: "INVALID",
+          change: { todoCreate: { id, title: "Refused", description: null, noteId: null } }
+        }
+      ])
+    );
     await vi.waitFor(() => expect(engine.todos.get(id)).toBeUndefined());
   });
 
@@ -490,7 +588,9 @@ describe("createSyncEngine", () => {
     online.notifyOnline();
 
     await vi.waitFor(() => expect(server.todos.has(id)).toBe(true), { timeout: 5_000 });
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
   });
 });
 
@@ -526,6 +626,32 @@ describe("createSyncEngine with device storage", () => {
     expect(titles(second)).toEqual(["First", "Second"]);
     expect(cursors).toHaveLength(1);
     expect(cursors).not.toContain(null);
+  });
+
+  it("loads the newest rows first, then older rows on demand, and remembers the rest after a restart", async () => {
+    const { persistence, idle } = deviceStorage();
+    const server = createFakeServer();
+    server.state.window = 2;
+    for (const title of ["T1", "T2", "T3", "T4", "T5"]) {
+      server.apply({ todoCreate: { id: title, title, description: null, noteId: null } });
+    }
+    const first = start(server, undefined, persistence).engine;
+    await first.ready;
+
+    expect(titles(first)).toEqual(["T4", "T5"]);
+    expect(first.getStatus().older).toEqual(["todos"]);
+    await first.loadOlder("todos");
+    expect(titles(first)).toEqual(["T2", "T3", "T4", "T5"]);
+    await idle();
+    first.dispose();
+
+    const second = start(server, undefined, persistence).engine;
+    await second.ready;
+    expect(second.getStatus().older).toEqual(["todos"]);
+    await second.loadOlder("todos");
+
+    expect(titles(second)).toEqual(["T1", "T2", "T3", "T4", "T5"]);
+    expect(second.getStatus().older).toEqual([]);
   });
 
   it("applies a resumed pull's update and deletion to rows loaded from the device", async () => {

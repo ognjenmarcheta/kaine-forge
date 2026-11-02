@@ -69,5 +69,13 @@
   "sync.rejected.PLAN_LIMIT_REACHED": "Izmena nije sačuvana: dostignuto je ograničenje vašeg paketa.",
   "sync.signOut.title": "Odjaviti se sa nesinhronizovanim izmenama?",
   "sync.signOut.message": "Neke izmene na ovom uređaju još nisu sinhronizovane. Odjavom se brišu.",
-  "sync.signOut.confirm": "Ipak se odjavi"
+  "sync.signOut.confirm": "Ipak se odjavi",
+  "sync.conflict.title": "Ova beleška je izmenjena na drugom uređaju",
+  "sync.conflict.message": "Vi i neko drugi ste izmenili iste redove ove beleške. Izaberite verziju koju čuvate.",
+  "sync.conflict.mine": "Vaša verzija",
+  "sync.conflict.current": "Trenutna verzija",
+  "sync.conflict.keepMine": "Zadrži moju",
+  "sync.conflict.keepCurrent": "Zadrži trenutnu",
+  "sync.older.offline": "Za starije stavke potrebna je veza.",
+  "sync.signOut.cleanupFailed": "Neki vaši podaci nisu uklonjeni sa ovog uređaja. Uklanjaju se pri sledećoj odjavi ili pokretanju aplikacije."
 }

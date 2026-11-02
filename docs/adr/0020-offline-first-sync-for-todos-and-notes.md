@@ -83,7 +83,7 @@ The server work is additive. Existing CRUD mutations, API-key clients, and onlin
 - The server applies Pending Changes in arrival order. An update writes only the fields the user changed. Two users who change different fields both keep their change. For the same field, the change that arrives last wins.
 - **Delete wins.** An update or delete of a row that is gone returns `NOT_FOUND`, and the client drops that Pending Change.
 - A permission or validation reject (`FORBIDDEN`, `INVALID`) is non-retriable: the client rolls back that Pending Change and shows a translated message. A `401` pauses the Outbox and keeps it.
-- **Known ceiling:** two offline edits of the same Note body keep only the later one. A GitHub issue records this ceiling and the trigger to move to versioned rejects or a text CRDT.
+- **Note bodies merge line by line (issue #801, 2026-11-02).** A body edit carries `baseBody`, the body as it stood before that local change (the row's `original` in the Outbox, so it survives a reload). The server locks the Note row, then merges the edit into the current body with a three-way line merge (`sync.merge.ts`). Edits to different lines both stay. When both sides changed the same or adjacent lines, the push is refused with `CONFLICT`, and the web app shows the refused text beside the current one: "Keep mine" sends it again from the current body, "Keep current" drops it. Without `baseBody` the body is replaced, as before. A text CRDT stays out: it needs a new library, a body format change, and a character-level merge that line-based notes do not need.
 
 ### Identity binding of local stores
 
@@ -96,6 +96,13 @@ The server work is additive. Existing CRUD mutations, API-key clients, and onlin
 - The web app opens one OPFS database per `(userId, organizationId)` and passes it to `createSyncEngine` as `persistence`. Without OPFS (a private window, Linux WebKitGTK until M4), the rows stay in memory as before.
 - The database name is `ks-<user hash>-<organization hash>.db`, from the first 8 bytes of SHA-256 of each id. wa-sqlite caps a database path at 64 characters, which two plain UUIDs exceed. Sign-out finds a User's databases by the `ks-<user hash>-` prefix. Starting sync also deletes the `ks-` databases of every other User: a browser holds one signed-in User, so those rows are only a copy of server data. Their Outboxes stay, so an expired session keeps its Pending Changes.
 - The pull cursor is stored in each collection's metadata, in the same commit as that collection's rows. The engine resumes from it only when the Todo and Note collections hold the same cursor; otherwise its first pull rebuilds both in full.
+
+### First pull of a large Organization (issue #800, 2026-11-02)
+
+- A first pull (no cursor) sends `window: 500`. The server then returns only the newest 500 Todos and 500 Notes by `created_at`, the order every list shows, with a cursor at the Organization's current Sync Version. `older` names each list that has more rows, with an Organization-bound cursor from `data.page`.
+- Every later change of any row, held or not, still follows from that cursor, with its Tombstones. A client without `window` still gets every row.
+- `syncPullOlder(after)` returns the next older page of one list. The engine stores each list's older cursor beside its rows, so a reload remembers it. It never loads an older page beside a pull, and pulls again after it: a row deleted while the page loaded is then removed by its Tombstone.
+- The lists show "Load more" past the local rows to load older rows, which needs the network. Offline, they say so. Search and filters see only the rows on the device.
 - Collection ids stay `todos` and `notes` inside each database. A mounted TanStack DB 1.0 live query requires a collection id to keep naming one collection, so the screens key their live queries on the engine's unique `id` instead.
 - The web CSP allows `'wasm-unsafe-eval'` in `script-src`: SQLite runs as WebAssembly in a same-origin worker, which gets the same header.
 
@@ -141,7 +148,7 @@ A product that does not want offline sync removes it in one change:
 - Cons:
   - New foundational dependencies on a release-candidate library, and a native SQLite plugin on desktop and mobile.
   - Mobile now needs a dev build for the UUID polyfill; Expo Go cannot run the app.
-  - Full-Organization sync, no partial sync: a very large Organization loads slowly on first use. A GitHub issue tracks this ceiling.
-  - Note bodies are last-write-wins at the field level.
+  - A first pull loads the newest 500 rows of each list; older rows need the network, and search sees only the rows on the device.
+  - Two edits of the same Note lines conflict and the second writer chooses; Todo fields stay last-write-wins.
   - Pubsub pokes reach one API process, so clients also pull on a slow interval.
   - Two persistence paths on desktop and web (OPFS in browsers, Tauri SQL in the desktop shell) need tests on each.

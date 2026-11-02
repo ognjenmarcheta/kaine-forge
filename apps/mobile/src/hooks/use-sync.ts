@@ -1,8 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SyncEngine, SyncStatus } from "@repo/sync";
 import { useCallback, useContext, useSyncExternalStore } from "react";
+import { Alert } from "react-native";
 
 import { useAuth } from "./use-auth";
+import { useTranslation } from "./use-translation";
 import { deleteDeviceStorage } from "../lib/sync-storage";
 import { userOutboxKeys } from "../lib/sync-stores";
 import { SyncContext, type SyncContextValue } from "../providers/sync.provider";
@@ -39,15 +41,21 @@ export function useSignOut(): {
   countPendingChanges: () => Promise<number>;
 } {
   const { logout, session } = useAuth();
+  const { t } = useTranslation();
   const engine = useSyncEngine();
   const userId = session?.user.id ?? null;
   const signOut = useCallback(async () => {
     await logout();
     if (!userId) return;
     await engine?.clearLocalData().catch(() => undefined);
-    await AsyncStorage.multiRemove(await userOutboxKeys(userId)).catch(() => undefined);
-    await deleteDeviceStorage(userId).catch(() => undefined);
-  }, [engine, logout, userId]);
+    const outboxDeleted = await AsyncStorage.multiRemove(await userOutboxKeys(userId)).then(
+      () => true,
+      () => false
+    );
+    const databasesDeleted = await deleteDeviceStorage(userId).catch(() => false);
+    // The sign-out stands either way; what stays is deleted at the next try.
+    if (!outboxDeleted || !databasesDeleted) Alert.alert(t("sync.signOut.cleanupFailed"));
+  }, [engine, logout, t, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;
     const keys = await userOutboxKeys(userId).catch(() => null);

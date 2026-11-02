@@ -5,7 +5,8 @@ const sqlite = vi.hoisted(() => ({
   closed: [] as string[],
   deleted: [] as string[],
   events: [] as string[],
-  closeDelay: 0
+  closeDelay: 0,
+  locked: new Set<string>()
 }));
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
@@ -28,6 +29,7 @@ vi.mock("expo-sqlite", () => ({
     }
   }),
   deleteDatabaseAsync: async (name: string) => {
+    if (sqlite.locked.has(name)) throw new Error("database is locked");
     sqlite.deleted.push(name);
     sqlite.events.push(`deleted ${name}`);
   }
@@ -45,6 +47,7 @@ beforeEach(() => {
   sqlite.deleted = [];
   sqlite.events = [];
   sqlite.closeDelay = 0;
+  sqlite.locked.clear();
 });
 
 const registry = () => JSON.parse(store.get("kaine-sync:databases") ?? "[]");
@@ -66,6 +69,18 @@ it("deletes only the signed-out User's databases, closing the open one first", a
   expect(JSON.parse(store.get("kaine-sync:databases") ?? "[]")).toEqual([
     "ks-u200000000000000-o100000000000000.db"
   ]);
+});
+
+it("reports a database it could not delete and keeps it listed for the next try", async () => {
+  await openDeviceStorage({ userId: "u1", organizationId: "o1" });
+  sqlite.locked.add("ks-u100000000000000-o100000000000000.db");
+
+  await expect(deleteDeviceStorage("u1")).resolves.toBe(false);
+  expect(registry()).toEqual(["ks-u100000000000000-o100000000000000.db"]);
+
+  sqlite.locked.clear();
+  await expect(deleteDeviceStorage("u1")).resolves.toBe(true);
+  expect(registry()).toEqual([]);
 });
 
 it("deletes every other User's databases when a User starts sync", async () => {

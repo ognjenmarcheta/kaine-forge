@@ -125,6 +125,23 @@ it("keeps text typed while the last Todo is still being stored", async () => {
   expect(current.draft).toEqual({ title: "Second", description: "" });
 });
 
+it("loads older Todos from the server once the local rows run out", async () => {
+  server.window = 2;
+  server.todos.set("b", todo("b"));
+  server.todos.set("c", todo("c"));
+  await render();
+  expect(current.rows.map((row) => row.id)).toEqual(["c", "b"]);
+  expect(current.list.hasNextPage).toBe(true);
+
+  await act(async () => {
+    current.list.fetchNextPage();
+    await vi.waitFor(() => expect(current.list.isFetchingNextPage).toBe(false));
+  });
+
+  expect(current.rows.map((row) => row.id)).toEqual(["c", "b", "a"]);
+  expect(current.list.hasNextPage).toBe(false);
+});
+
 it("keeps quick and edit drafts through searches and status changes", async () => {
   await render();
   await act(async () => {

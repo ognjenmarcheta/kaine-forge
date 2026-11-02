@@ -238,6 +238,9 @@ function NotesWorkspace({
                 {t(notes.list.isFetchingNextPage ? "notes.loading" : "notes.loadMore")}
               </Button>
             ) : null}
+            {notes.list.olderNeedsConnection ? (
+              <p className="text-ds-text-subtle">{t("sync.older.offline")}</p>
+            ) : null}
           </div>
         </aside>
         <section className="ui-notes__detail" aria-label={t("notes.editor")}>

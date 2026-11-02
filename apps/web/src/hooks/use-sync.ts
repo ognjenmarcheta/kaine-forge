@@ -1,7 +1,9 @@
 import { browserSyncStorePrefix, type SyncEngine, type SyncStatus } from "@repo/sync";
 import { useCallback, useContext, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 
 import { useAuth } from "./use-auth";
+import { useTranslation } from "./use-translation";
 import { deleteDeviceStorage } from "../lib/sync-storage";
 import { SyncContext } from "../providers/sync.provider";
 
@@ -27,6 +29,19 @@ async function browserSyncStores(userId: string): Promise<string[]> {
   return (await indexedDB.databases()).flatMap(({ name }) =>
     name?.startsWith(prefix) ? [name] : []
   );
+}
+
+/**
+ * Deletes one Outbox store; resolves false when the browser refuses. A store
+ * still open in this tab is deleted once its engine closes it.
+ */
+function deleteStore(name: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve(true);
+    request.onblocked = () => resolve(true);
+    request.onerror = () => resolve(false);
+  });
 }
 
 /**
@@ -69,18 +84,21 @@ export function useSignOut(): {
   countPendingChanges: () => Promise<number>;
 } {
   const { logout, session } = useAuth();
+  const { t } = useTranslation();
   const engine = useSyncEngine();
   const userId = session?.user.id ?? null;
   const signOut = useCallback(async () => {
     await logout();
     if (!userId) return;
     await engine?.clearLocalData().catch(() => undefined);
-    // A store still open in this tab is deleted once its engine closes.
-    for (const name of await browserSyncStores(userId).catch(() => [])) {
-      indexedDB.deleteDatabase(name);
-    }
-    await deleteDeviceStorage(userId).catch(() => undefined);
-  }, [engine, logout, userId]);
+    const stores = await browserSyncStores(userId).catch(() => []);
+    const deleted = await Promise.all([
+      ...stores.map(deleteStore),
+      deleteDeviceStorage(userId).catch(() => false)
+    ]);
+    // The sign-out stands either way; what stays is deleted at the next try.
+    if (deleted.includes(false)) toast.warning(t("sync.signOut.cleanupFailed"));
+  }, [engine, logout, t, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;
     const stores = await browserSyncStores(userId).catch(() => null);
