@@ -95,3 +95,7 @@ jobs:
         # (issue #516), then `tauri build --no-bundle` (compile only, no .dmg
         # packaging or signing).
         run: pnpm exec turbo run build --filter=@repo/desktop
+
+      - name: Test desktop Rust
+        # The device databases (src/device_db.rs) are the only Rust logic with tests.
+        run: cargo test --lib --manifest-path apps/desktop/src-tauri/Cargo.toml

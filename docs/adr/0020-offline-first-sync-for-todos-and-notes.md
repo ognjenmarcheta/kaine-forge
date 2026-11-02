@@ -50,14 +50,14 @@ The spike used the 0.x set above. Each run opened a persisted collection, wrote 
 
 - **Web.** OPFS with wa-sqlite (`OPFSCoopSyncVFS` in a worker) and `BrowserCollectionCoordinator` worked on the dev server and in the production build. Rows survived a browser restart. The Outbox entry survived it too and was retried with the same idempotency key.
 - **WebKitGTK** is the engine Tauri v2 uses on Linux. The spike drove it through its GObject bindings with a persistent data directory, on `http://localhost` (as `tauri dev` serves) and on a secure `tauri://localhost` custom scheme (as a production build serves). `navigator.storage.getDirectory` is missing, so the adapter throws `PersistenceUnavailableError`. With WebKit's `FileSystem`, `AccessHandle`, and `StorageAPI` features forced on, `createSyncAccessHandle` throws `NotSupportedError`. IndexedDB works on both origins.
-- **`tauri-plugin-sql`** (crate and npm `2.6.0`) was not run. Tauri does not compile on the spike machine without `libwebkit2gtk-4.1-dev` and the GTK development packages, which were not installed. Only the adapter API (`createTauriSQLitePersistence({ database })` over `@tauri-apps/plugin-sql`) was read. Milestone 4 must prove this path before it merges.
+- **`tauri-plugin-sql`** (crate and npm `2.6.0`) was not run. Tauri does not compile on the spike machine without `libwebkit2gtk-4.1-dev` and the GTK development packages, which were not installed. Only the adapter API (`createTauriSQLitePersistence({ database })` over `@tauri-apps/plugin-sql`) was read. Milestone 4 then ran it in the Linux shell and it failed: the plugin opens each file as an sqlx pool of up to 10 connections, which cannot be configured, and the driver sends `BEGIN IMMEDIATE`, the statements, and `COMMIT` as separate calls. They land on different connections, so a commit fails with "cannot commit - no transaction is active" and the collections crash.
 - **WebView2, WKWebView, and iOS** were not tested, because no Windows or macOS machine was available. The Tauri SQL path does not depend on the webview, so desktop uses it on every OS.
 - **Mobile** ran as a dev build (`expo run:android`). Hermes had no `crypto.randomUUID` until `react-native-random-uuid` loaded. Rows and the Outbox entry survived a cold restart, and the retry reused the same idempotency key. The `expo-network` detector reported the online state. Its offline-to-online transition was **not** verified: with the radios off, the dev build cannot load its bundle from Metro. Milestone 5 checks it with a release build in airplane mode.
 
 So the adapters are:
 
 - **Web:** `@tanstack/browser-db-sqlite-persistence` with `BrowserCollectionCoordinator` for multiple tabs; the Outbox on `IndexedDBAdapter`.
-- **Desktop:** `@tanstack/tauri-db-sqlite-persistence` over `tauri-plugin-sql` (the Rust crate plus a `sql:` capability in `apps/desktop/src-tauri/capabilities`). The desktop build stays the web build: the web app picks the Tauri adapter when it runs inside Tauri. The Outbox stays on IndexedDB, which works in WebKitGTK.
+- **Desktop:** `@tanstack/tauri-db-sqlite-persistence` over the shell's own commands, not `tauri-plugin-sql`. `apps/desktop/src-tauri/src/device_db.rs` keeps one `rusqlite` connection per database file in the app data directory, and the web app passes the driver an object whose `execute` and `select` call those commands. With one connection, a transaction's statements all reach it. The commands also list and delete database files, which the plugin cannot. `@tauri-apps/plugin-sql` stays installed only as the driver's type peer. The desktop build stays the web build: the web app picks the Tauri adapter when it runs inside Tauri. The Outbox stays on IndexedDB, which works in WebKitGTK.
 - **Mobile:** `@tanstack/expo-db-sqlite-persistence` on `expo-sqlite`. `react-native-random-uuid` is imported first from a new `apps/mobile/index.ts` entry, before `expo-router/entry`. The package has native code, so it needs a dev build, not Expo Go. The Outbox uses an `AsyncStorageAdapter` copied from the TanStack docs into the app, and a custom `onlineDetector` built on the installed `expo-network`. Import the executor from the main `@tanstack/offline-transactions` entry: the `/react-native` entry only adds a default detector, and that detector imports `@react-native-community/netinfo` statically, so the entry needs NetInfo installed even when a custom detector is passed.
 - **Bundle cost on web:** the OPFS worker asset is about 1.7 MB (about 0.7 MB gzip) and loads only when the local database opens. TanStack DB and the Outbox add about 90 KB gzip to the page.
 
@@ -116,11 +116,11 @@ The server work is additive. Existing CRUD mutations, API-key clients, and onlin
 
 A product that does not want offline sync removes it in one change:
 
-1. Remove `packages/sync` and its catalog entries (the TanStack DB set, `wa-sqlite`, `tauri-plugin-sql`, `expo-sqlite`, `react-native-random-uuid`).
+1. Remove `packages/sync` and its catalog entries (the TanStack DB set, `wa-sqlite`, `@tauri-apps/api`, `@tauri-apps/plugin-sql`, `expo-sqlite`, `react-native-random-uuid`).
 2. Return the Todo and Note screens to the generated Query hooks, which stay in place. Remove the sync status indicator, the service worker, the `sync.graphql` operations, and run `pnpm generate`.
 3. Remove `apps/api/src/features/sync` and the `syncPull`/`syncPush` schema.
 4. Add a new migration that drops the triggers, `sync_version` columns, and sync tables. Do not edit shipped migrations (ADR 0008).
-5. Desktop: remove the `tauri-plugin-sql` crate and capability. Mobile: restore `"main": "expo-router/entry"`.
+5. Desktop: remove `src-tauri/src/device_db.rs`, its commands in `lib.rs`, and the `rusqlite` crate. Mobile: restore `"main": "expo-router/entry"`.
 
 ## Alternatives Considered
 
@@ -129,7 +129,8 @@ A product that does not want offline sync removes it in one change:
 - **Replicache, PowerSync, ElectricSQL, Zero.** Each brings its own server or sync service, and some a hosted dependency or a commercial license. The template keeps GraphQL Yoga, `ScopedData`, and the existing module functions as the only write path.
 - **Soft deletes (`deleted_at` on every table).** Every existing query would need a filter, and one missed filter leaks deleted data. Tombstones in a separate table keep hard deletes.
 - **`updated_at > last_synced_at` pulls and last-write-wins by client clock.** `updated_at` is set by hand, clocks drift, two rows can share a millisecond, and a late commit can carry an older timestamp than rows already pulled. A per-Organization Sync Version has none of these gaps.
-- **OPFS in the Tauri webview.** It fails on Linux WebKitGTK (see the matrix), so one desktop adapter on `tauri-plugin-sql` is simpler than one per OS.
+- **OPFS in the Tauri webview.** It fails on Linux WebKitGTK (see the matrix), so one desktop adapter on SQLite is simpler than one per OS.
+- **`tauri-plugin-sql` as the desktop store.** Its connection pool splits the driver's transactions (see the matrix). Owning about 200 lines of Rust with one connection per file costs less than waiting for an upstream fix.
 
 ## Consequences
 

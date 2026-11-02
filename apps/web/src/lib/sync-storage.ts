@@ -40,17 +40,22 @@ async function removeFiles(match: (name: string) => boolean): Promise<void> {
 }
 
 /**
- * Opens the device database of one User in one Organization, shared by every
- * tab of that pair: one tab leads it, the others reach it through the leader.
- * Resolves null where the browser cannot store it (no OPFS, a private
- * window); the synced rows then live in memory, as they did before.
+ * Whether this build runs in the desktop shell, which loads it from disk. Its
+ * Linux webview has no OPFS, so it stores through the shell's own database
+ * commands instead, loaded only there.
  */
-export async function openDeviceStorage(
-  scope: { userId: string; organizationId: string },
+const inDesktopShell = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+interface OpenedDatabase {
+  persistence: DevicePersistence;
+  close: () => Promise<void>;
+}
+
+/** An OPFS database, shared by every tab: one tab leads it, the others reach it through the leader. */
+async function openBrowserDatabase(
+  databaseName: string,
   signal: AbortSignal
-): Promise<{ persistence: DevicePersistence; close: () => Promise<void> } | null> {
-  const asked = deletions.get(scope.userId) ?? 0;
-  const databaseName = `${await deviceDatabasePrefix(scope.userId)}${await namePart(scope.organizationId)}.db`;
+): Promise<OpenedDatabase | null> {
   let database: Awaited<ReturnType<typeof openBrowserWASQLiteOPFSDatabase>>;
   try {
     database = await openBrowserWASQLiteOPFSDatabase({ databaseName, signal });
@@ -58,25 +63,62 @@ export async function openDeviceStorage(
     if (!signal.aborted) console.warn("Synced rows stay in memory: no device storage.", error);
     return null;
   }
+  const coordinator = new BrowserCollectionCoordinator({ dbName: databaseName });
+  return {
+    persistence: createBrowserWASQLitePersistence({ database, coordinator }),
+    close: async () => {
+      coordinator.dispose();
+      await database.close?.();
+    }
+  };
+}
+
+async function openDatabase(
+  databaseName: string,
+  signal: AbortSignal
+): Promise<OpenedDatabase | null> {
+  if (!inDesktopShell) return openBrowserDatabase(databaseName, signal);
+  const { openDesktopDatabase } = await import("./sync-desktop-storage");
+  return openDesktopDatabase(databaseName);
+}
+
+/** Deletes the databases whose names `match` selects. */
+async function removeDatabases(match: (name: string) => boolean): Promise<void> {
+  if (!inDesktopShell) return removeFiles(match);
+  const { deleteDesktopDatabases } = await import("./sync-desktop-storage");
+  await deleteDesktopDatabases(match);
+}
+
+/**
+ * Opens the device database of one User in one Organization. Resolves null
+ * where the device cannot store it (no OPFS, a private window); the synced
+ * rows then live in memory, as they did before.
+ */
+export async function openDeviceStorage(
+  scope: { userId: string; organizationId: string },
+  signal: AbortSignal
+): Promise<{ persistence: DevicePersistence; close: () => Promise<void> } | null> {
+  const asked = deletions.get(scope.userId) ?? 0;
+  const databaseName = `${await deviceDatabasePrefix(scope.userId)}${await namePart(scope.organizationId)}.db`;
+  const opened = await openDatabase(databaseName, signal);
+  if (!opened) return null;
   if ((deletions.get(scope.userId) ?? 0) !== asked) {
-    // The User signed out while this opened, after the sign-out deleted their files.
-    await database.close?.();
-    await removeFiles((name) => name.startsWith(databaseName));
+    // The User signed out while this opened, after the sign-out deleted their data.
+    await opened.close();
+    await removeDatabases((name) => name.startsWith(databaseName));
     return null;
   }
-  const coordinator = new BrowserCollectionCoordinator({ dbName: databaseName });
   let closing: Promise<void> | null = null;
   const close = () => {
     closing ??= (async () => {
-      coordinator.dispose();
-      await database.close?.();
-      // Only once it is closed: a sign-out waits on this before it deletes the file.
+      await opened.close();
+      // Only once it is closed: a sign-out waits on this before it deletes the data.
       openDatabases.delete(databaseName);
     })();
     return closing;
   };
   openDatabases.set(databaseName, close);
-  return { persistence: createBrowserWASQLitePersistence({ database, coordinator }), close };
+  return { persistence: opened.persistence, close };
 }
 
 /**
@@ -90,7 +132,7 @@ export async function deleteDeviceStorage(userId: string): Promise<void> {
   await Promise.all(
     [...openDatabases].filter(([name]) => name.startsWith(prefix)).map(([, close]) => close())
   );
-  await removeFiles((name) => name.startsWith(prefix));
+  await removeDatabases((name) => name.startsWith(prefix));
 }
 
 /**
@@ -101,5 +143,5 @@ export async function deleteDeviceStorage(userId: string): Promise<void> {
  */
 export async function deleteOtherUsersStorage(userId: string): Promise<void> {
   const own = await deviceDatabasePrefix(userId);
-  await removeFiles((name) => name.startsWith(DEVICE_DATABASE_PREFIX) && !name.startsWith(own));
+  await removeDatabases((name) => name.startsWith(DEVICE_DATABASE_PREFIX) && !name.startsWith(own));
 }
