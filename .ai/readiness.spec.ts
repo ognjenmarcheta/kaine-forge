@@ -2,7 +2,8 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { parse } from "smol-toml";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { AGENT_REGISTRY } from "./agent-registry.util";
 import {
@@ -22,7 +23,7 @@ import {
 } from "./install-state.util";
 import { computeSkillDrift } from "./installation.util";
 import { probeMcp, validateMcpPins } from "./mcp-probe.util";
-import { installedServers } from "./readiness";
+import { inspectInstallation, installedServers } from "./readiness";
 
 it("respects selected skills and detects content drift independently of timestamps", () => {
   const root = mkdtempSync(path.join(tmpdir(), "kaine-readiness-"));
@@ -113,23 +114,23 @@ it("renders a remote MCP server as the native remote entry each agent loads", ()
   const url = "https://docs.example.test/mcp";
   const source: McpSource = { mcpServers: { docs: { url } } };
   // Rendered through the agent registry, the same path pnpm ai:install writes.
-  const cases: Array<[Agent, string[], Record<string, unknown>]> = [
-    ["claude", ["mcpServers"], { type: "http", url }],
-    ["cursor", ["mcpServers"], { url }],
-    ["codex", ["mcp_servers"], { url }],
-    ["grok", ["mcp_servers"], { url }],
-    ["opencode", ["mcp"], { type: "remote", url, enabled: true }]
+  const cases: Array<[Agent, Record<string, unknown>]> = [
+    ["claude", { mcpServers: { docs: { type: "http", url } } }],
+    ["cursor", { mcpServers: { docs: { url } } }],
+    ["codex", { mcp_servers: { docs: { url } } }],
+    ["grok", { mcp_servers: { docs: { url } } }],
+    ["opencode", { mcp: { servers: { docs: { type: "remote", url, disabled: false } } } }]
   ];
   const root = mkdtempSync(path.join(tmpdir(), "kaine-remote-mcp-"));
   try {
-    for (const [agent, [key], entry] of cases) {
+    for (const [agent, expected] of cases) {
       const config = AGENT_REGISTRY[agent].mcpConfig;
       const content = config.render(source);
       const file = path.join(root, config.path);
       mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, content);
       const parsed: unknown = file.endsWith(".toml") ? parse(content) : JSON.parse(content);
-      expect(parsed, agent).toMatchObject({ [key!]: { docs: entry } });
+      expect(parsed, agent).toMatchObject(expected);
       // Readiness reads the URL back, so the server is not reported as a missing executable.
       expect(installedServers(agent, root).docs?.url, agent).toBe(url);
     }
@@ -225,30 +226,75 @@ it("removes unselected managed TOML servers and preserves launch options", () =>
 });
 
 it.each([false, true])(
-  "preserves OpenCode enabled=%s while updating launch definitions",
-  (enabled) => {
+  "preserves OpenCode disabled=%s and personal rules while updating launch definitions",
+  (disabled) => {
     const generated = renderOpencodeConfig({
       mcpServers: {
         current: { command: "npx", args: ["tool@1.2.3"] },
         added: { command: "node", args: ["server.mjs"] }
       }
     });
+    const personalRule = { action: "shell", resource: "pnpm db:push *", effect: "allow" };
     const previous = JSON.stringify({
-      mcp: { current: { type: "local", command: ["npx", "tool@1.0.0"], enabled } }
-    });
-    const installed = mergeInstalledConfig(previous, generated, false, ["current", "added"]);
-    expect(JSON.parse(installed)).toMatchObject({
+      permissions: [personalRule],
       mcp: {
-        current: { command: ["npx", "tool@1.2.3"], enabled },
-        added: { command: ["node", "server.mjs"], enabled: true }
+        // An OpenCode 1.x install placed managed servers directly under mcp.
+        current: { type: "local", command: ["npx", "tool@1.0.0"], enabled: true },
+        servers: {
+          current: { type: "local", command: ["npx", "tool@1.0.0"], disabled },
+          mine: { type: "local", command: ["mine"] }
+        }
       }
     });
+    const installed = mergeInstalledConfig(previous, generated, false, ["current", "added"]);
+    const parsed = z
+      .object({
+        permissions: z.array(
+          z.object({ action: z.string(), resource: z.string(), effect: z.string() })
+        ),
+        mcp: z.record(z.string(), z.unknown())
+      })
+      .parse(JSON.parse(installed));
+    expect(Object.keys(parsed.mcp)).toEqual(["servers"]);
+    expect(parsed.mcp.servers).toMatchObject({
+      current: { command: ["npx", "tool@1.2.3"], disabled },
+      added: { command: ["node", "server.mjs"], disabled: false },
+      mine: { command: ["mine"] }
+    });
+    // Last match wins, so the personal allow comes before the generated deny.
+    expect(parsed.permissions[0]).toEqual(personalRule);
+    expect(
+      parsed.permissions.findIndex(
+        (rule) => rule.resource === "pnpm db:push *" && rule.effect === "deny"
+      )
+    ).toBeGreaterThan(0);
     expect(managedConfigMatches(installed, generated)).toBe(true);
     expect(managedConfigMatches(installed.replace("tool@1.2.3", "tool@1.0.0"), generated)).toBe(
       false
     );
   }
 );
+
+it.skipIf(process.platform === "win32").each([
+  ["opencode 1.19.0", ["OpenCode 1.19.0 is below 2.2.4; run: opencode upgrade 2.2.5"]],
+  ["opencode v2.2.3", ["OpenCode 2.2.3 is below 2.2.4; run: opencode upgrade 2.2.5"]],
+  ["opencode v2.2.4", []],
+  ["opencode v2.10.0", []]
+])("reports an installed OpenCode older than 2.2.4 (%s)", (versionOutput, expected) => {
+  const bin = mkdtempSync(path.join(tmpdir(), "kaine-opencode-bin-"));
+  try {
+    writeFileSync(path.join(bin, "opencode"), `#!/bin/sh\necho "${versionOutput}"\n`, {
+      mode: 0o755
+    });
+    vi.stubEnv("PATH", `${bin}${path.delimiter}${process.env.PATH ?? ""}`);
+    expect(
+      inspectInstallation("opencode").problems.filter((problem) => problem.startsWith("OpenCode "))
+    ).toEqual(expected);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(bin, { recursive: true, force: true });
+  }
+});
 
 it("accepts personal settings while detecting modified managed hooks", () => {
   const expected = JSON.stringify({

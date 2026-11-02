@@ -141,7 +141,8 @@ It is a default server because better-auth is a core template dependency and the
 returns version-matched documentation for its plugins and flows. The installed package's
 types stay authoritative for the exact API. The installer writes it natively for each agent:
 Claude `{ "type": "http", "url" }`, Cursor `{ "url" }`, Codex and Grok Build `url = "…"`, and
-OpenCode `{ "type": "remote", "url" }`. No `mcp-remote` stdio bridge runs. Better Auth's agent
+OpenCode 2.x `mcp.servers` `{ "type": "remote", "url", "disabled": false }`. No `mcp-remote`
+stdio bridge runs. Better Auth's agent
 skills are a per-contributor install (`npx skills add better-auth/skills`), not vendored,
 because team skills must use the `kaine-` prefix; ADR 0013 sets the same precedent for
 GitButler's skill.
@@ -468,6 +469,15 @@ are supported too. Known Git commit message/metadata options and GitHub review
 body options consume their argument as data. Quoting an actual flag does not hide
 it; tokens after `--` are not flags. `--force-with-lease` and validated local database
 commands retain their existing treatment. Deny still takes precedence over ask.
+
+OpenCode 2.x has no hook file. `pnpm ai:install --agent opencode` writes two layers.
+`opencode.json` gets one ordered `permissions` rule, `{ "action": "shell", "resource":
+"<command> *", "effect" }`, for each rule without a flag. A resource that ends in ` *`
+also matches the bare command. The plugin `.opencode/plugins/kaine-guardrail/index.ts`
+registers an `execute.before` tool hook. It blocks `shell` deny matches, flag rules
+included, and warns on `ask`. The installer removes the generated OpenCode 1.x plugin
+files. OpenCode 1.x is not supported: `pnpm ai:doctor --agent opencode` reports an
+installed CLI below 2.2.4 and names `opencode upgrade 2.2.5` as the fix.
 
 Claude's generated hook matches Bash and PowerShell. PowerShell command events use
 backtick escapes and doubled single quotes; Bash uses shell backslash escapes.
