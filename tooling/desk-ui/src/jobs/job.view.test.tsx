@@ -43,6 +43,8 @@ const job = (over: Partial<JobState> = {}): JobState => ({
     plainLanguage: "Plain."
   },
   screen: null,
+  component: null,
+  audit: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null,
@@ -221,5 +223,116 @@ describe("Screen jobs", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Push and open PR" }));
 
     expect(jobAction).toHaveBeenCalledWith(3, { action: "approve", issues: [], confirm: true });
+  });
+});
+
+describe("Component and audit jobs", () => {
+  const COMPONENT = { name: "RatingStars", layer: "composed" } as const;
+
+  it("starts a component job only with what the component is for", async () => {
+    window.history.replaceState(null, "", "?view=lab#/charts");
+    const startJob = vi.fn(() =>
+      Promise.resolve(job({ id: 4, kind: "component", status: "running", stage: "setup" }))
+    );
+    renderDesk(<DeskApp />, fakeApi({ startJob }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Build component" }));
+    const dialog = screen.getByRole("dialog", { name: "Build a component" });
+    await userEvent.type(within(dialog).getByLabelText("Component name"), "RatingStars");
+    const startButton = within(dialog).getByRole("button", { name: "Start" });
+    expect(startButton).toHaveProperty("disabled", true);
+    await userEvent.type(
+      within(dialog).getByLabelText("What the component is for"),
+      "Show a 0–5 rating."
+    );
+    await userEvent.click(startButton);
+
+    expect(startJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "component",
+        note: "Show a 0–5 rating.",
+        component: COMPONENT
+      })
+    );
+  });
+
+  it("approves a plan in one step, because the build only starts", async () => {
+    window.history.replaceState(null, "", "?job=4");
+    const planned = job({
+      id: 4,
+      kind: "component",
+      stage: "plan",
+      input: { note: "", model: "opus", budgetUsd: 10, minutes: 60, component: COMPONENT },
+      result: null,
+      component: {
+        plan: {
+          summary: "A row of stars.",
+          api: ["value: number"],
+          reuse: [],
+          tests: [],
+          openQuestions: [],
+          plainLanguage: "Stars."
+        },
+        planApproved: false,
+        result: null,
+        port: null
+      }
+    });
+    const jobAction = vi.fn(() => Promise.resolve(planned));
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([planned]), jobAction }));
+
+    expect(await screen.findByText("value: number")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Approve the plan and build" }));
+
+    expect(jobAction).toHaveBeenCalledWith(4, { action: "approve", issues: [], confirm: true });
+  });
+
+  it("files only the ticked audit findings after the confirmation", async () => {
+    window.history.replaceState(null, "", "?job=5");
+    const audited = job({
+      id: 5,
+      kind: "audit",
+      input: {
+        note: "",
+        model: "opus",
+        budgetUsd: 5,
+        minutes: 30,
+        audit: { screenId: "10-sample" }
+      },
+      result: null,
+      audit: {
+        result: {
+          summary: "Two problems.",
+          matchPercent: 91,
+          findings: ["low-contrast-label", "missing-focus-ring"].map((slug) => ({
+            slug,
+            title: `fix(lab): ${slug}`,
+            labels: [],
+            body: "## Outcome",
+            ruleId: "COLOR-1",
+            severity: "must" as const
+          })),
+          openQuestions: [],
+          plainLanguage: "Fix two things."
+        },
+        port: 5555
+      }
+    });
+    const jobAction = vi.fn(() => Promise.resolve(audited));
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([audited]), jobAction }));
+
+    const preview = await screen.findByRole("link", { name: "Open the screen" });
+    expect(preview.getAttribute("href")).toBe("http://localhost:5555/?view=lab#/compare/10-sample");
+    await userEvent.click(screen.getByRole("checkbox", { name: "fix(lab): missing-focus-ring" }));
+    await userEvent.click(screen.getByRole("button", { name: "Approve…" }));
+    expect(jobAction).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "File the ticked findings?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "File issues" }));
+
+    expect(jobAction).toHaveBeenCalledWith(5, {
+      action: "approve",
+      issues: ["missing-focus-ring"],
+      confirm: true
+    });
   });
 });

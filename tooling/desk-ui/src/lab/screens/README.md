@@ -13,7 +13,7 @@ src/screens/<id>/
 
 `<id>` is the reference number and a short name, such as `10-medspa`. The reference image goes in `tooling/desk-ui/public/references/` (gitignored); never commit it.
 
-With the desk server running, **Recreate screen** in the Lab view starts a screen job (ADR 0021): upload the reference, and an agent builds the folder in its own worktree and lab server. The job's gate links to that server's compare view.
+With the desk server running, **Recreate screen** in the Lab view starts a screen job (ADR 0021): upload the reference, and an agent builds the folder in its own worktree and lab server. The job's gate links to that server's compare view. **Audit screen** starts an audit job that checks a screen against the guidelines and its reference, and files the findings you tick.
 
 ## Compare
 

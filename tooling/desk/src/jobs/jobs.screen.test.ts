@@ -50,7 +50,9 @@ describe("the screen job's permissions", () => {
   });
 
   it("writes only its own screen folder, runs only the lab and check commands, and gets the browser", () => {
-    const { allow, disallow } = jobPermissions(profile, "screen", "10-sample");
+    const { allow, disallow } = jobPermissions(profile, "screen", [
+      `${screenFolder("10-sample")}/**`
+    ]);
     expect(allow.filter((rule) => rule.startsWith("Edit") || rule.startsWith("Write"))).toEqual([
       "Edit(tooling/desk-ui/src/lab/screens/10-sample/**)"
     ]);

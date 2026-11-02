@@ -13,7 +13,9 @@ export const JOB_TONE: Readonly<Record<JobStatus, Tone>> = {
 /** The steps each job kind shows, in order. */
 export const JOB_STEPS: Readonly<Record<JobState["kind"], readonly JobStage[]>> = {
   scorecard: ["setup", "sweep", "score", "review", "ship"],
-  screen: ["setup", "build", "check", "review", "ship"]
+  screen: ["setup", "build", "check", "review", "ship"],
+  component: ["setup", "plan", "build", "check", "review", "ship"],
+  audit: ["setup", "audit", "review", "ship"]
 };
 
 export type StepState = "done" | "current" | "todo";
@@ -27,11 +29,30 @@ export const stepStates = (job: Pick<JobState, "kind" | "stage" | "status">): St
   );
 };
 
-/** The job's lab compare page in its own lab server, or `null` while that server is down. */
-export const compareUrlOf = (job: Pick<JobState, "input" | "screen">): string | null =>
-  job.screen?.port === null || job.screen?.port === undefined || job.input.screen === undefined
-    ? null
-    : `http://localhost:${String(job.screen.port)}/?view=lab#/compare/${job.input.screen.id}`;
+/** `RatingStars` → `rating-stars`, as the engine names the component's files. */
+const fileNameOf = (name: string): string => name.replace(/(?<!^)([A-Z])/g, "-$1").toLowerCase();
+
+/**
+ * The page a lab job's gate opens in the job's own lab server: a screen's compare view, a
+ * component's specimen, or the audited screen (its compare view when it has a reference).
+ * `null` while that server is down.
+ */
+export const previewUrlOf = (
+  job: Pick<JobState, "input" | "screen" | "component" | "audit">
+): string | null => {
+  const port = job.screen?.port ?? job.component?.port ?? job.audit?.port ?? null;
+  if (port === null) return null;
+  const lab = `http://localhost:${String(port)}/?view=lab#`;
+  const { screen, component, audit } = job.input;
+  if (screen !== undefined) return `${lab}/compare/${screen.id}`;
+  if (component !== undefined) return `${lab}/specimens/${fileNameOf(component.name)}`;
+  if (audit !== undefined) {
+    return job.audit?.result?.matchPercent === null
+      ? `${lab}/screens/${audit.screenId}`
+      : `${lab}/compare/${audit.screenId}`;
+  }
+  return null;
+};
 
 /** A job that is not finished: the desk runs one of each kind at a time. */
 export const isOpenJob = (job: Pick<JobState, "status">): boolean =>

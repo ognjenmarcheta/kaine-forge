@@ -27,6 +27,8 @@ const job: JobState = {
   history: [],
   result: null,
   screen: null,
+  component: null,
+  audit: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null

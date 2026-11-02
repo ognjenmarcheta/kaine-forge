@@ -4,12 +4,13 @@ const links = [
   { href: "#/", label: "Components", page: "components" },
   { href: "#/options", label: "Options", page: "options" },
   { href: "#/screens", label: "Screens", page: "screens" },
+  { href: "#/specimens", label: "Specimens", page: "specimens" },
   { href: "#/charts", label: "Charts", page: "charts" }
 ] as const;
 
 /**
- * The lab's pages: the component gallery, the kit options, the recreated screens, and the chart
- * primitives.
+ * The lab's pages: the component gallery, the kit options, the recreated screens, the new
+ * components' specimens, and the chart primitives.
  */
 export function LabNav({ current }: { current: (typeof links)[number]["page"] }) {
   return (
