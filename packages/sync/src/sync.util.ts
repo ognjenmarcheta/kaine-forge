@@ -5,6 +5,11 @@ export class SyncAuthError extends Error {
   override name = "SyncAuthError";
 }
 
+/** The request got no response: the device has no route to the server, or the server is down. */
+export class SyncNetworkError extends Error {
+  override name = "SyncNetworkError";
+}
+
 /** The server refused the request as a whole; resending it cannot succeed. */
 export class SyncRequestError extends Error {
   override name = "SyncRequestError";

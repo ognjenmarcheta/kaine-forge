@@ -117,9 +117,10 @@ test("Note drafts survive theme changes and an unreachable API", async ({ page }
   // Saved on the device at once; it syncs once the API answers.
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   const status = page.getByRole("status", { name: "Sync status", exact: true });
-  await expect(status).toContainText("Syncing");
+  // A failed push wins over Syncing, so the waiting change cannot hide it.
+  await expect(status).toContainText("Sync failed – retrying");
   reachable = true;
-  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await status.getByRole("button", { name: "Retry now", exact: true }).click();
   await expect(status).toContainText("Online", { timeout: 15_000 });
   await page.reload();
   await expect(page.locator("#note-body")).toHaveValue("Unsaved work");

@@ -60,6 +60,8 @@
   "sync.status.offline": "Offline – wird auf diesem Gerät gespeichert",
   "sync.status.syncing": "Wird synchronisiert",
   "sync.status.error": "Synchronisierung fehlgeschlagen – neuer Versuch folgt",
+  "sync.status.unreachable": "Server nicht erreichbar – neuer Versuch folgt",
+  "sync.status.retry": "Jetzt erneut versuchen",
   "sync.status.signedOut": "Melden Sie sich an, um Ihre Änderungen zu synchronisieren",
   "sync.status.pending": "Wartende Änderungen",
   "sync.rejected.NOT_FOUND": "Eine Änderung wurde nicht gespeichert: Das Element wurde gelöscht.",

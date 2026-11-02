@@ -1,13 +1,14 @@
 import type { SyncState } from "@repo/sync";
-import { Badge } from "@repo/ui";
+import { Badge, Button } from "@repo/ui";
 
-import { useSyncStatus } from "../hooks/use-sync";
+import { useSyncEngine, useSyncStatus } from "../hooks/use-sync";
 import { useTranslation } from "../hooks/use-translation";
 
 const APPEARANCE: Record<SyncState, "success" | "warning" | "information" | "danger"> = {
   online: "success",
   offline: "warning",
   syncing: "information",
+  unreachable: "danger",
   error: "danger",
   signedOut: "danger"
 };
@@ -15,6 +16,7 @@ const APPEARANCE: Record<SyncState, "success" | "warning" | "information" | "dan
 /** The header's sync state: Online, Offline, Syncing, or what stops sync, with the pending count. */
 export function SyncStatusBadge() {
   const status = useSyncStatus();
+  const engine = useSyncEngine();
   const { t } = useTranslation();
   if (!status) return null;
 
@@ -28,6 +30,12 @@ export function SyncStatusBadge() {
         <Badge appearance="default" aria-label={t("sync.status.pending")}>
           {status.pending}
         </Badge>
+      ) : null}
+      {/* Only a failing sync can retry now: offline waits for the network, signed out for sign-in. */}
+      {engine && (status.state === "error" || status.state === "unreachable") ? (
+        <Button appearance="subtle" spacing="compact" onClick={() => engine.retry()}>
+          {t("sync.status.retry")}
+        </Button>
       ) : null}
     </div>
   );

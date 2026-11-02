@@ -60,6 +60,8 @@
   "sync.status.offline": "Offline – saving on this device",
   "sync.status.syncing": "Syncing",
   "sync.status.error": "Sync failed – retrying",
+  "sync.status.unreachable": "Can't reach the server – retrying",
+  "sync.status.retry": "Retry now",
   "sync.status.signedOut": "Sign in to sync your changes",
   "sync.status.pending": "Changes waiting",
   "sync.rejected.NOT_FOUND": "A change was not saved: the item was deleted.",
