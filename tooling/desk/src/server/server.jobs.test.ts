@@ -26,6 +26,7 @@ const job: JobState = {
   feedback: [],
   history: [],
   result: null,
+  screen: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null
@@ -50,7 +51,8 @@ const fakeJobs = (calls: unknown[]): JobManager => ({
     return Promise.resolve(id === job.id ? job : null);
   },
   recover: () => Promise.resolve(),
-  settled: () => Promise.resolve()
+  settled: () => Promise.resolve(),
+  close: () => Promise.resolve()
 });
 
 describe("job routes", () => {

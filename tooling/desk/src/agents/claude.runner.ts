@@ -127,7 +127,10 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
       argv: [binary, ...buildClaudeArgs(request, { newSessionId: newSessionId() })],
       stdin: request.prompt,
       cwd: request.cwd,
-      env: request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath },
+      env: {
+        ...request.env,
+        ...(request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath })
+      },
       timeoutMs: request.timeoutMs,
       signal: request.signal,
       onSpawn: request.onSpawn,

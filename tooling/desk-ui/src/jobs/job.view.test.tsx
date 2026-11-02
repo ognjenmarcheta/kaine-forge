@@ -42,6 +42,7 @@ const job = (over: Partial<JobState> = {}): JobState => ({
     openQuestions: ["Should dim 6 drop?"],
     plainLanguage: "Plain."
   },
+  screen: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null,
@@ -133,5 +134,92 @@ describe("Scorecard jobs on the Scorecard view", () => {
     expect(await screen.findByText(/Preview of job 2/)).toBeTruthy();
     expect(scorecard).toHaveBeenCalledWith(2);
     expect(screen.queryByRole("button", { name: "Run scorecard" })).toBeNull();
+  });
+});
+
+describe("Screen jobs", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7]);
+
+  it("starts a screen job from the lab with the reference image as base64", async () => {
+    window.history.replaceState(null, "", "?view=lab#/charts");
+    const startJob = vi.fn(() =>
+      Promise.resolve(job({ id: 3, kind: "screen", status: "running", stage: "setup" }))
+    );
+    renderDesk(<DeskApp />, fakeApi({ startJob }));
+    const user = userEvent.setup({ applyAccept: false });
+
+    await user.click(await screen.findByRole("button", { name: "Recreate screen" }));
+    const dialog = screen.getByRole("dialog", { name: "Recreate a screen" });
+    await user.type(within(dialog).getByLabelText("Screen id"), "10-sample");
+    await user.type(within(dialog).getByLabelText("Screen title"), "Sample");
+    const file = within(dialog).getByLabelText(/Reference image/);
+    await user.upload(file, new File(["<svg/>"], "x.svg", { type: "image/svg+xml" }));
+    expect(within(dialog).getByText("Pick a PNG, JPEG, or WebP image.")).toBeTruthy();
+    const startButton = within(dialog).getByRole("button", { name: "Start" });
+    expect(startButton).toHaveProperty("disabled", true);
+
+    await user.upload(file, new File([PNG], "ref.png", { type: "image/png" }));
+    await user.click(startButton);
+
+    expect(startJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "screen",
+        budgetUsd: 10,
+        screen: {
+          id: "10-sample",
+          title: "Sample",
+          mode: "light",
+          width: 1440,
+          height: 900,
+          reference: { mediaType: "image/png", dataBase64: btoa(String.fromCharCode(...PNG)) }
+        }
+      })
+    );
+    expect(window.location.search).toBe("?job=3");
+  });
+
+  it("links the gate to the job's compare view and pushes only after the confirmation", async () => {
+    window.history.replaceState(null, "", "?job=3");
+    const waiting = job({
+      id: 3,
+      kind: "screen",
+      input: {
+        note: "",
+        model: "opus",
+        budgetUsd: 10,
+        minutes: 60,
+        screen: {
+          id: "10-sample",
+          title: "Sample",
+          mode: "light",
+          width: 1440,
+          height: 900,
+          reference: "10-sample.png"
+        }
+      },
+      result: null,
+      screen: {
+        result: {
+          summary: "Recreated.",
+          deviations: ["COLOR-1: darker label."],
+          openQuestions: [],
+          plainLanguage: "Close."
+        },
+        diffPercent: 3.4,
+        port: 5555
+      }
+    });
+    const jobAction = vi.fn(() => Promise.resolve(waiting));
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([waiting]), jobAction }));
+
+    const compare = await screen.findByRole("link", { name: "Open the compare view" });
+    expect(compare.getAttribute("href")).toBe("http://localhost:5555/?view=lab#/compare/10-sample");
+    expect(screen.getByText("3.4% of pixels still differ from the reference.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Approve…" }));
+    expect(jobAction).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Push the screen and open the PR?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Push and open PR" }));
+
+    expect(jobAction).toHaveBeenCalledWith(3, { action: "approve", issues: [], confirm: true });
   });
 });

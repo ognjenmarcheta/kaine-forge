@@ -5699,3 +5699,10 @@ main:focus {
   max-width: 48rem;
   white-space: pre-line;
 }
+
+/* The lab's job bar: start a screen job, or follow the one that runs. */
+.desk-lab-jobs {
+  justify-content: flex-end;
+  margin-block: 0;
+  padding: var(--ds-space-150) var(--ds-space-200) 0;
+}

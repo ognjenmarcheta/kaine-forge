@@ -10,18 +10,28 @@ export const JOB_TONE: Readonly<Record<JobStatus, Tone>> = {
   cancelled: "neutral"
 };
 
-/** The steps a scorecard job shows, in order. */
-export const SCORECARD_STEPS: readonly JobStage[] = ["setup", "sweep", "score", "review", "ship"];
+/** The steps each job kind shows, in order. */
+export const JOB_STEPS: Readonly<Record<JobState["kind"], readonly JobStage[]>> = {
+  scorecard: ["setup", "sweep", "score", "review", "ship"],
+  screen: ["setup", "build", "check", "review", "ship"]
+};
 
 export type StepState = "done" | "current" | "todo";
 
 /** Where each step stands for a job: before its stage, at it, or after it. */
-export const stepStates = (job: Pick<JobState, "stage" | "status">): StepState[] => {
-  const at = job.stage === "done" ? SCORECARD_STEPS.length : SCORECARD_STEPS.indexOf(job.stage);
-  return SCORECARD_STEPS.map((_, index) =>
+export const stepStates = (job: Pick<JobState, "kind" | "stage" | "status">): StepState[] => {
+  const steps = JOB_STEPS[job.kind];
+  const at = job.stage === "done" ? steps.length : steps.indexOf(job.stage);
+  return steps.map((_, index) =>
     index < at || job.status === "done" ? "done" : index === at ? "current" : "todo"
   );
 };
+
+/** The job's lab compare page in its own lab server, or `null` while that server is down. */
+export const compareUrlOf = (job: Pick<JobState, "input" | "screen">): string | null =>
+  job.screen?.port === null || job.screen?.port === undefined || job.input.screen === undefined
+    ? null
+    : `http://localhost:${String(job.screen.port)}/?view=lab#/compare/${job.input.screen.id}`;
 
 /** A job that is not finished: the desk runs one of each kind at a time. */
 export const isOpenJob = (job: Pick<JobState, "status">): boolean =>

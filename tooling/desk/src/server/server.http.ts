@@ -15,6 +15,7 @@ import {
   lessonUnpromoteRequestSchema,
   jobActionRequestSchema,
   jobStartRequestSchema,
+  MAX_REFERENCE_BYTES,
   sessionRequestSchema,
   type ActionName,
   type ActionResponse,
@@ -155,6 +156,9 @@ const DEFAULTS = {
 } as const;
 
 const ISSUE_NUMBER = /^[1-9]\d{0,8}$/;
+
+/** `POST /api/jobs`: a reference image of `MAX_REFERENCE_BYTES` as base64, and room for the rest. */
+const JOB_START_MAX_BODY_BYTES = Math.ceil(MAX_REFERENCE_BYTES / 3) * 4 + 64 * 1024;
 
 type Route =
   | {
@@ -806,7 +810,10 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       }
       case "jobs":
         if (request.method === "POST") {
-          const parsed = jobStartRequestSchema.safeParse(await readJsonBody(request, maxBodyBytes));
+          // A screen job carries its reference image, base64, in the body.
+          const parsed = jobStartRequestSchema.safeParse(
+            await readJsonBody(request, JOB_START_MAX_BODY_BYTES)
+          );
           if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
           sendJson(response, 201, await jobCall(() => requireJobs().start(parsed.data)));
           return;

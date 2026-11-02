@@ -2,7 +2,7 @@ import type { JobActionRequest, JobState, ProposedIssue } from "@repo/desk/contr
 import { Button, Card, Checkbox, Label, Modal, Textarea } from "@repo/ui";
 import { useEffect, useId, useState } from "react";
 
-import { JOB_TONE, SCORECARD_STEPS, stepStates } from "./job.model";
+import { JOB_STEPS, JOB_TONE, compareUrlOf, stepStates } from "./job.model";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useLanguage, useT } from "../i18n/i18n.t";
@@ -41,7 +41,7 @@ function Steps({ job }: { readonly job: JobState }) {
   const states = stepStates(job);
   return (
     <ol className="desk-job-steps" aria-label={t("desk.job.steps")}>
-      {SCORECARD_STEPS.map((step, index) => (
+      {JOB_STEPS[job.kind].map((step, index) => (
         <li
           key={step}
           data-state={states[index]}
@@ -190,6 +190,110 @@ function Review({ job }: { readonly job: JobState }) {
   );
 }
 
+/** The screen gate: the compare view in the job's lab server, the diff, and approve or send back. */
+function ScreenReview({ job }: { readonly job: JobState }) {
+  const t = useT();
+  const id = useId();
+  const action = useJobAction(job.id);
+  const result = job.screen?.result ?? null;
+  const [note, setNote] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  if (result === null) return null;
+  const compare = compareUrlOf(job);
+  const diff = job.screen?.diffPercent ?? null;
+  return (
+    <Card className="desk-panel">
+      <h2>{t("desk.job.screenReview.title")}</h2>
+      <p className="desk-job-text">{result.summary}</p>
+      <p>
+        {diff === null
+          ? t("desk.job.screenReview.noDiff")
+          : t("desk.job.screenReview.diff", { value: diff })}
+      </p>
+      <p>
+        {compare === null ? (
+          <span className="desk-muted">{t("desk.job.screenReview.noServer")}</span>
+        ) : (
+          <a href={compare} target="_blank" rel="noreferrer">
+            {t("desk.job.screenReview.compare")}
+          </a>
+        )}
+      </p>
+      {result.deviations.length > 0 && (
+        <>
+          <h3>{t("desk.job.screenReview.deviations")}</h3>
+          <ul>
+            {result.deviations.map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {result.openQuestions.length > 0 && (
+        <>
+          <h3>{t("desk.job.review.questions")}</h3>
+          <ul>
+            {result.openQuestions.map((question) => (
+              <li key={question}>{question}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      <div className="desk-job-actions">
+        <Button disabled={action.pending} onClick={() => setConfirming(true)}>
+          {t("desk.job.review.approve")}
+        </Button>
+      </div>
+      <div className="desk-field">
+        <Label htmlFor={`${id}-note`}>{t("desk.job.screenReview.sendBackNote")}</Label>
+        <Textarea
+          id={`${id}-note`}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </div>
+      <Button
+        appearance="subtle"
+        disabled={action.pending || note.trim() === ""}
+        onClick={() => {
+          void action.run({ action: "send-back", note: note.trim() });
+          setNote("");
+        }}
+      >
+        {t("desk.job.review.sendBack")}
+      </Button>
+      {action.error !== null && (
+        <p className="desk-field__error" role="alert">
+          {action.error}
+        </p>
+      )}
+      <Modal
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={t("desk.job.screenReview.confirmTitle")}
+        description={t("desk.job.screenReview.confirmText")}
+        closeButtonLabel={t("desk.common.close")}
+        size="sm"
+        actions={[
+          {
+            appearance: "subtle",
+            label: t("desk.common.back"),
+            onClick: () => setConfirming(false)
+          },
+          {
+            appearance: "default",
+            label: t("desk.job.screenReview.confirm"),
+            onClick: () => {
+              setConfirming(false);
+              void action.run({ action: "approve", issues: [], confirm: true });
+            }
+          }
+        ]}
+      />
+    </Card>
+  );
+}
+
 function Stopped({ job }: { readonly job: JobState }) {
   const t = useT();
   const action = useJobAction(job.id);
@@ -285,7 +389,8 @@ export function JobView({ jobId }: { readonly jobId: number }) {
         )}
       </Card>
       {job.status === "needs-you" && <Stopped job={job} />}
-      {job.status === "waiting" && <Review job={job} />}
+      {job.status === "waiting" &&
+        (job.kind === "screen" ? <ScreenReview job={job} /> : <Review job={job} />)}
       {job.status === "done" && <Done job={job} />}
       <Card className="desk-panel">
         <h2>{t("desk.job.history")}</h2>

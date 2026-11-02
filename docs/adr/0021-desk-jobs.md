@@ -29,6 +29,16 @@ A **desk job** is a new run kind beside issue runs. The owner starts it from the
   - The **engine** writes the ledger: it sets the date, commit, mode, agent, and overall itself (the facts it can prove), appends the run and the notes, and runs `pnpm scorecard` and Prettier.
   - At the **gate**, the owner sees the preview (the Scorecard view on the job's worktree), the open questions, and the proposed issues, and ticks the issues to file. Approve files exactly those issues through the desk's GitHub port, then commits, pushes, and opens a draft PR labelled `release:skip-changeset`. Send back reruns the scorer with the owner's note.
 
+### The screen job
+
+Added with the second job kind. Flow: setup → build → check → review gate → ship.
+
+- **Start.** **Recreate screen** in the Lab view takes the screen id (`10-medspa`), title, frame size, mode, and the reference image. The desk takes the image as base64 in the start request, checks its first bytes against the claimed type (PNG, JPEG, or WebP) and its size (10 MB), and writes it to the worktree's `tooling/desk-ui/public/references/` (gitignored).
+- **Lab server.** The engine starts the desk UI's Vite server from the job worktree on a free loopback port and gives the agent `LAB_URL`. It is the one long-running process the desk owns: one per screen job, kept while the job waits at its gate (so the gate can link to the compare view), and stopped at ship, cancel, remove, or desk shutdown. A desk restart starts it again for a job at its gate.
+- **Build.** One Claude run follows `kaine-build-ui` in reference-image mode with the Playwright MCP browser, and may start subagents (for example a `kaine-audit-ui` pass). It may write only its screen folder (`Edit(tooling/desk-ui/src/lab/screens/<id>/**)`, which also covers `Write`) and run `lab:diff`, `lab:shots`, the desk UI test, lint, and typecheck, and `ui:check`.
+- **Check.** The engine runs the lab tests, eslint on the folder, the desk UI typecheck, and `ui:check`. A failure stops the job and hands the output to the builder on **Continue**. Then the engine runs `lab:diff --json` for the gate.
+- **Gate and ship.** The owner opens the compare view, reads the diff percent and the deviations, and approves or sends back. Approve commits only the screen folder, pushes, opens a draft PR labelled `release:skip-changeset`, and stops the lab server. The reference image never leaves the machine.
+
 ### Trust boundary
 
 - **The agent never holds a GitHub token.** The engine runs every `gh` read and every GitHub write. The scorer's deny list keeps the whole desk policy floor (`gh`, installs, servers, WebFetch, protected paths, skills outside its list).
@@ -38,7 +48,7 @@ A **desk job** is a new run kind beside issue runs. The owner starts it from the
 
 ### Limits
 
-Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
+Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen: $10 and 60 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
 
 ## Consequences
 
@@ -46,7 +56,7 @@ Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 a
 - Jobs reuse the runner, the worktree bootstrap, the GitHub port, the ship helpers, and the live event stream; they do not reuse the issue pipeline's state machine, which is issue-bound.
 - Job worktrees sit beside issue worktrees as `KAINE-job-<n>` and stay until the owner removes the job.
 - The Board's "Your turn" count and the tab title count issues only; jobs show in their own card on the Board.
-- Later job kinds (screen, component, audit) add their flow, skills, command allowlist, and limits; the lab kinds also need a desk-managed dev server and a browser, which is a separate decision when they land.
+- Later job kinds (component, audit) add their flow, skills, command allowlist, and limits, and reuse the screen job's lab server and browser.
 
 ## Alternatives considered
 
