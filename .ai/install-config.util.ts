@@ -87,7 +87,7 @@ export function mergeInstalledConfig(
   const old = decode(previous);
   const next = decode(generated);
   // Empty generated TOML has no server table. Explicitly remove unselected managed servers.
-  for (const key of ["mcpServers", "mcp_servers", "mcp"]) {
+  for (const key of ["mcpServers", "mcp_servers"]) {
     if (old[key] && !(key in next)) next[key] = {};
   }
   const merge = (
@@ -98,7 +98,10 @@ export function mergeInstalledConfig(
     const result = { ...left };
     for (const [key, value] of Object.entries(right)) {
       const before = left[key];
-      if (["mcpServers", "mcp_servers", "mcp"].includes(key) && isObject(value)) {
+      // OpenCode nests its server map as mcp.servers.
+      const serverMap =
+        ["mcpServers", "mcp_servers"].includes(key) || (parent === "mcp" && key === "servers");
+      if (serverMap && isObject(value)) {
         const personal =
           before && isObject(before)
             ? Object.fromEntries(
@@ -114,14 +117,28 @@ export function mergeInstalledConfig(
                 return [name, server];
               const merged = merge(previousServer, server);
               // Activation is a personal choice, even when the renderer supplies a default.
-              if (typeof previousServer.enabled === "boolean")
-                merged.enabled = previousServer.enabled;
+              for (const flag of ["enabled", "disabled"]) {
+                const choice = previousServer[flag];
+                if (typeof choice === "boolean") merged[flag] = choice;
+              }
               return [name, merged];
             })
           )
         };
       } else if (Array.isArray(value) && Array.isArray(before) && parent === "hooks") {
         result[key] = [...preservePersonalHooks(key, before, value, warn), ...value];
+      } else if (Array.isArray(value) && Array.isArray(before) && key === "permissions") {
+        // OpenCode rules are last-match-wins: personal rules first, so generated denials win.
+        result[key] = [
+          ...before.filter((rule) => !value.some((owned) => isDeepStrictEqual(rule, owned))),
+          ...value
+        ];
+      } else if (key === "mcp" && isObject(value) && before && isObject(before)) {
+        // Drop managed servers that an OpenCode 1.x install placed directly under mcp.
+        const current = Object.fromEntries(
+          Object.entries(before).filter(([name]) => !managedMcps.includes(name))
+        );
+        result[key] = merge(current, value, key);
       } else if (isObject(value) && before && isObject(before))
         result[key] = merge(before, value, key);
       else result[key] = value;

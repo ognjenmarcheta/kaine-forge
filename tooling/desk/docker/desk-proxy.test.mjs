@@ -31,6 +31,9 @@ test("dependency proxy permits only the exact HTTPS npm registry destination", (
 test("provider and dependency policies stay separate and an unknown mode denies everything", () => {
   assert.equal(allowedProxyTarget("chatgpt.com:443", "providers"), true);
   assert.equal(allowedProxyTarget("api.anthropic.com:443", "providers"), true);
+  assert.equal(allowedProxyTarget("openrouter.ai:443", "providers"), true);
+  assert.equal(allowedProxyTarget("opencode.ai:443", "providers"), true);
+  assert.equal(allowedProxyTarget("openrouter.ai:443", "dependencies"), false);
   assert.equal(allowedProxyTarget("registry.npmjs.org:443", "providers"), false);
   assert.equal(allowedProxyTarget("github.com:443", "providers"), false);
   assert.equal(allowedProxyTarget("registry.npmjs.org:443", "unknown"), false);

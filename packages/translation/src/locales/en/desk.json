@@ -1046,6 +1046,7 @@
   "desk.agents.outputAbout.intake": "Checks a new issue before a flow starts. A flow cannot use it as a step.",
   "desk.agents.provider.claude": "Claude",
   "desk.agents.provider.codex": "Codex",
+  "desk.agents.provider.opencode": "OpenCode",
   "desk.agents.presetAbout.read-only": "Reads the repository. It cannot change files.",
   "desk.agents.presetAbout.edit-code": "Changes files in the worktree.",
   "desk.agents.presetAbout.run-checks": "Reads the repository and runs the check commands of the plan.",

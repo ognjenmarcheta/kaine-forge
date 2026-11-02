@@ -15,7 +15,12 @@ const providerHosts = new Set([
   "api.anthropic.com",
   "claude.ai",
   "platform.claude.com",
-  "console.anthropic.com"
+  "console.anthropic.com",
+  // OpenCode model providers that `OPENCODE_DOCKER_PROVIDERS` (docker.runner.ts) allows,
+  // beyond Anthropic and OpenAI above: OpenRouter, Google Gemini and OpenCode Zen.
+  "openrouter.ai",
+  "generativelanguage.googleapis.com",
+  "opencode.ai"
 ]);
 
 export function allowedProxyTarget(authority, mode) {

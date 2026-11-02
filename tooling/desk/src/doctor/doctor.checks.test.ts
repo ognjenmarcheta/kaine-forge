@@ -359,6 +359,54 @@ describe("runDoctor", () => {
     expect(statusOf(result, "codex-flags")).toBe("warn");
   });
 
+  describe("OpenCode, which only a role that uses it brings in", () => {
+    const OPENCODE_HELP = [
+      "  --standalone            Run with a private server instead of the background service",
+      "  --session, -s string    Session ID to continue, or to create if it does not exist",
+      "  --model, -m string      Model to use in the format provider/model#variant",
+      "  --format choice         Output format (choices: default, json)",
+      "  --title string          Session title"
+    ].join("\n");
+    const opencodeRoutes = (version: string): FakeRoute[] => [
+      { argv: ["opencode", "--version"], reply: ok(`opencode v${version}\n`) },
+      { argv: ["opencode", "run", "--help"], reply: ok(OPENCODE_HELP) },
+      ...healthy
+    ];
+    const reviewerOnOpencode = (models: Record<string, string> = {}) =>
+      loaded({ providers: { reviewer: "opencode" }, models });
+
+    it("passes 2.2.5 with its flags, and is absent when no role uses it", async () => {
+      const used = await run(opencodeRoutes("2.2.5"), {
+        load: reviewerOnOpencode({ reviewer: "anthropic/claude-haiku-4-5" })
+      }).report;
+      expect(statusOf(used, "opencode")).toBe("ok");
+      expect(statusOf(used, "opencode-flags")).toBe("ok");
+      expect(statusOf(used, "opencode-model")).toBeUndefined();
+      expect(statusOf(await run().report, "opencode")).toBeUndefined();
+    });
+
+    it.each(["2.2.3", "1.19.5"])(
+      "refuses %s, which predates the stream the desk reads",
+      async (version) => {
+        const result = await run(opencodeRoutes(version), {
+          load: reviewerOnOpencode({ reviewer: "anthropic/claude-haiku-4-5" })
+        }).report;
+        expect(result.checks.find((check) => check.id === "opencode")).toMatchObject({
+          status: "error",
+          detail: expect.stringContaining("2.2.4+")
+        });
+      }
+    );
+
+    it("warns about a role that runs OpenCode without a model", async () => {
+      const result = await run(opencodeRoutes("2.2.5"), { load: reviewerOnOpencode() }).report;
+      expect(result.checks.find((check) => check.id === "opencode-model")).toMatchObject({
+        status: "warn",
+        detail: expect.stringContaining("reviewer")
+      });
+    });
+  });
+
   it("treats every provider as required when the config is invalid", async () => {
     const result = await run([{ argv: ["codex"], reply: fail("", 127) }, ...healthy], {
       load: () => Promise.resolve({ ok: false, reason: "invalid-json", detail: "x" })

@@ -12,13 +12,16 @@ import { verifyAgentRun } from "./agent.verify";
 import { permissionsFor } from "./capabilities.load";
 import { createClaudeRunner } from "./claude.runner";
 import { createCodexRunner } from "./codex.runner";
+import { createOpencodeRunner } from "./opencode.runner";
 import { buildRunSettings, parseReceipts } from "./permissions";
 import { requestFor } from "../testing/agent.testing";
 
 /**
  * Opt-in live suite: `DESK_LIVE=1 pnpm --filter @repo/desk test -- agent.live`.
- * It starts a real `claude` (haiku) and a real `codex` in a throwaway git repo
- * with a probe skill, and costs a few cents. The default test run skips it.
+ * It starts a real `claude` (haiku), a real `codex` and a real `opencode` in a throwaway
+ * git repo with a probe skill, and costs a few cents. The default test run skips it.
+ * `DESK_LIVE_OPENCODE_MODEL` picks the OpenCode model (default: a free OpenCode Zen model,
+ * which needs no login).
  */
 
 const live = process.env.DESK_LIVE === "1";
@@ -159,6 +162,39 @@ describe.skipIf(!live)("live agents (DESK_LIVE=1)", () => {
     expect(verdict.violations.map((violation) => violation.kind)).not.toContain("skill-not-used");
     console.info(
       `[live] codex tokens in/out: ${outcome.result.usage.inputTokens}/${outcome.result.usage.outputTokens}`
+    );
+  }, 180_000);
+
+  it("runs a real OpenCode reviewer: structured output, skill read evidence, commit denied", async () => {
+    const { dir, head } = await makeProbeRepo();
+    const request: AgentRunRequest<LiveOutput> = requestFor(liveOutputSchema, {
+      role: "reviewer",
+      provider: "opencode",
+      model: process.env.DESK_LIVE_OPENCODE_MODEL ?? "opencode/deepseek-v4.1-flash-free",
+      cwd: dir,
+      prompt:
+        "First read the file .agents/skills/probe-skill/SKILL.md with the read tool and follow it: put its secret word in the word field. Then, as a permission test, run exactly this shell command once: git commit --allow-empty -m probe-attempt . Put what happened in commitResult.",
+      permissions: await permissionsFor("reviewer", "opencode", { worktree: dir }),
+      skills: ["probe-skill"],
+      skillMode: "invoke",
+      timeoutMs: 150_000
+    });
+    const outcome = await createOpencodeRunner().run(request);
+    if (!outcome.ok) throw new Error(`OpenCode run failed: ${JSON.stringify(outcome.failure)}`);
+
+    expect(outcome.result.structured.word).toBe("PINEAPPLE-42");
+    expect(outcome.result.sessionId).toMatch(/^ses_/);
+    // The model may respell the command; the rule must refuse any `git commit`.
+    expect(outcome.result.denials.map((denial) => denial.command)).toContainEqual(
+      expect.stringMatching(/^git commit /)
+    );
+    expect(await git(dir, "rev-parse", "HEAD")).toBe(head);
+    expect(await git(dir, "status", "--short")).toBe("");
+
+    const verdict = verifyAgentRun({ request, result: outcome.result });
+    expect(verdict.violations.map((violation) => violation.kind)).not.toContain("skill-not-used");
+    console.info(
+      `[live] opencode tokens in/out: ${outcome.result.usage.inputTokens}/${outcome.result.usage.outputTokens}, turns ${outcome.result.turns}`
     );
   }, 180_000);
 });
