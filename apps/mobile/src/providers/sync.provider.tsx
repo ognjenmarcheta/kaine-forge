@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../hooks/use-auth";
 import { useOrganization } from "../hooks/use-organization";
 import { createGraphqlClient } from "../lib/graphql-client";
+import { deleteOtherUsersStorage, openDeviceStorage } from "../lib/sync-storage";
 import {
   createAsyncStorageOutbox,
   createExpoNetworkDetector,
@@ -35,8 +36,8 @@ export const SyncContext = createContext<SyncContextValue>({
 
 /**
  * One sync engine per (User, Active Organization). A switch disposes the old
- * engine; its Outbox stays in AsyncStorage under its own prefix and resumes
- * when the User returns to that Organization.
+ * engine; its Outbox and stored rows stay on the device under their own names
+ * and resume when the User returns to that Organization.
  */
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
@@ -56,18 +57,36 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setCurrent(null);
       return;
     }
-    const onlineDetector = createExpoNetworkDetector();
-    const next = createSyncEngine({
-      transport: createSyncTransport(createGraphqlClient(latestSession.current)),
-      storage: createAsyncStorageOutbox({ userId, organizationId: activeOrganizationId }),
-      onlineDetector,
-      leaderElection: singleProcessLeader,
-      onRejected: setRejection
-    });
-    setCurrent({ scope, engine: next });
+    const organizationId = activeOrganizationId;
+    let stopped = false;
+    let stop: (() => void) | null = null;
+    void (async () => {
+      // Best effort: on a failure, startup goes on.
+      await deleteOtherUsersStorage(userId).catch(() => undefined);
+      const device = await openDeviceStorage({ userId, organizationId });
+      if (stopped) {
+        await device?.close();
+        return;
+      }
+      const onlineDetector = createExpoNetworkDetector();
+      const engine = createSyncEngine({
+        transport: createSyncTransport(createGraphqlClient(latestSession.current)),
+        storage: createAsyncStorageOutbox({ userId, organizationId }),
+        onlineDetector,
+        leaderElection: singleProcessLeader,
+        ...(device ? { persistence: device.persistence } : {}),
+        onRejected: setRejection
+      });
+      stop = () => {
+        engine.dispose();
+        onlineDetector.dispose();
+        void device?.close();
+      };
+      setCurrent({ scope, engine });
+    })();
     return () => {
-      next.dispose();
-      onlineDetector.dispose();
+      stopped = true;
+      stop?.();
     };
   }, [scope, userId, activeOrganizationId]);
 

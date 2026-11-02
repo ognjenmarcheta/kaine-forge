@@ -3,6 +3,7 @@ import type { SyncEngine, SyncStatus } from "@repo/sync";
 import { useCallback, useContext, useSyncExternalStore } from "react";
 
 import { useAuth } from "./use-auth";
+import { deleteDeviceStorage } from "../lib/sync-storage";
 import { userOutboxKeys } from "../lib/sync-stores";
 import { SyncContext, type SyncContextValue } from "../providers/sync.provider";
 
@@ -45,6 +46,7 @@ export function useSignOut(): {
     if (!userId) return;
     await engine?.clearLocalData().catch(() => undefined);
     await AsyncStorage.multiRemove(await userOutboxKeys(userId)).catch(() => undefined);
+    await deleteDeviceStorage(userId).catch(() => undefined);
   }, [engine, logout, userId]);
   const countPendingChanges = useCallback(async () => {
     if (!userId) return 0;
