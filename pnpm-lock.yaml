@@ -63,6 +63,15 @@ catalogs:
     '@tanstack/react-query':
       specifier: ^5.104.5
       version: 5.104.5
+    '@tanstack/tauri-db-sqlite-persistence':
+      specifier: 1.0.0-rc.1
+      version: 1.0.0-rc.1
+    '@tauri-apps/api':
+      specifier: 2.12.4
+      version: 2.12.4
+    '@tauri-apps/plugin-sql':
+      specifier: 2.6.0
+      version: 2.6.0
     '@testing-library/dom':
       specifier: ^10.4.2
       version: 10.4.2
@@ -694,6 +703,15 @@ importers:
       '@tanstack/react-query-devtools':
         specifier: ^5.104.5
         version: 5.104.5(@tanstack/react-query@5.104.5(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(csstype@3.2.3)(react@19.2.8)
+      '@tanstack/tauri-db-sqlite-persistence':
+        specifier: 'catalog:'
+        version: 1.0.0-rc.1(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)
+      '@tauri-apps/api':
+        specifier: 'catalog:'
+        version: 2.12.4
+      '@tauri-apps/plugin-sql':
+        specifier: 'catalog:'
+        version: 2.6.0
       graphql:
         specifier: 'catalog:'
         version: 16.14.2
@@ -6298,6 +6316,15 @@ packages:
   '@tanstack/store@0.11.0':
     resolution: {integrity: sha512-WlzzCt3xi0G6pCAJu1U+2jiECwabETDpQDi3hfkFZvJii9AuZqEKbOiVarX1/bWhTNjU486yQtJCCasi/0q+Cw==}
 
+  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1':
+    resolution: {integrity: sha512-+6eezT+H2uv8WrG4Lahm0nDorpMMxHxCwvfsFhjBtGR2FGsyYGH30KMEaUUNTxxsui4WKsWrVJzC6iEYq0p82g==}
+    peerDependencies:
+      '@tauri-apps/plugin-sql': ^2.3.2
+      typescript: '>=4.7'
+
+  '@tauri-apps/api@2.12.4':
+    resolution: {integrity: sha512-pVmfis+4zT8H0Qhp3xPZx9Ju7kpzvA6rr/PSJPyuwfvucTQ8sVt61NYU9KMkK703UFlYadFmjKA4HhybOtN0gg==}
+
   '@tauri-apps/cli-darwin-arm64@2.12.4':
     resolution: {integrity: sha512-OxqKSckIkoJ6vX2AjifIJpTasFC0Hbdoo7gEiCmAjauABO3U8m2MRsLWe+QTiBwDx1mIrvgA+rvI7tvDnbnHVg==}
     engines: {node: '>= 10'}
@@ -6373,6 +6400,9 @@ packages:
     resolution: {integrity: sha512-JI9bHfudSRJikGOrjbXEm6RjzzvmKuLc+JixB1NE8hNzQkNlCCIC3pTES3uypkR9lxHrsbxzcnSwhI2IxBQphw==}
     engines: {node: '>= 10'}
     hasBin: true
+
+  '@tauri-apps/plugin-sql@2.6.0':
+    resolution: {integrity: sha512-UfP4p3Zwh6N7ODRMgnMgXSN6rfUxFo7YXHnRjX8L3Vx7i+IV0bh+r8puwv2OnGq04SLDZFY+LvotxN+pJdZ1Zg==}
 
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
@@ -18379,6 +18409,14 @@ snapshots:
 
   '@tanstack/store@0.11.0': {}
 
+  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)':
+    dependencies:
+      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1(typescript@5.9.3)
+      '@tauri-apps/plugin-sql': 2.6.0
+      typescript: 5.9.3
+
+  '@tauri-apps/api@2.12.4': {}
+
   '@tauri-apps/cli-darwin-arm64@2.12.4':
     optional: true
 
@@ -18425,6 +18463,10 @@ snapshots:
       '@tauri-apps/cli-win32-arm64-msvc': 2.12.4
       '@tauri-apps/cli-win32-ia32-msvc': 2.12.4
       '@tauri-apps/cli-win32-x64-msvc': 2.12.4
+
+  '@tauri-apps/plugin-sql@2.6.0':
+    dependencies:
+      '@tauri-apps/api': 2.12.4
 
   '@testing-library/dom@10.4.2':
     dependencies:
