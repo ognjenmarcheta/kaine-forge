@@ -203,6 +203,8 @@ describe("runIntake", () => {
       reason: expect.stringContaining("Acceptance criteria")
     });
     expect(result).toMatchObject({ reason: expect.stringContaining("kaine-write-issue") });
+    // The desk names this stop "issue format" from its code.
+    expect(result.state.history.at(-1)).toMatchObject({ event: "needs-you", code: "intake" });
     // The board still shows the title of an issue that stopped at intake.
     const summary: unknown = JSON.parse(
       await readFile(path.join(store.artifactsDir(7), "issue.json"), "utf8")

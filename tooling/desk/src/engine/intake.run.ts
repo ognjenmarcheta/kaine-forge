@@ -11,6 +11,7 @@ import {
   type DeskConfig,
   type FlowSnapshot,
   type IssueState,
+  type NeedsYouCode,
   type StageId
 } from "../contracts";
 import { readArtifactJson } from "./pipeline.artifacts";
@@ -197,8 +198,19 @@ export const runIntake = async (
     return { outcome: "refused", reason: `#${issueNumber} has no flow to run on.` };
   }
   let state = initial;
-  const record = async (stage: StageId, event: string, note?: string): Promise<void> => {
-    const entry = { at: stamp(), stage, event, ...(note === undefined ? {} : { note }) };
+  const record = async (
+    stage: StageId,
+    event: string,
+    note?: string,
+    code?: NeedsYouCode
+  ): Promise<void> => {
+    const entry = {
+      at: stamp(),
+      stage,
+      event,
+      ...(note === undefined ? {} : { note }),
+      ...(code === undefined ? {} : { code })
+    };
     state = { ...state, history: [...state.history, entry], updatedAt: entry.at };
     await store.appendEvent(issueNumber, entry);
   };
@@ -218,7 +230,7 @@ export const runIntake = async (
   };
   const park = async (reason: string): Promise<IntakeResult> => {
     move(apply({ type: "step-complete", step: "intake", outcome: "blocked" }), "waiting");
-    await record("needs-you", "needs-you", reason);
+    await record("needs-you", "needs-you", reason, "intake");
     return finish({ outcome: "needs-you", state, reason }, reason);
   };
 

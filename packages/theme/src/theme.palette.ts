@@ -109,6 +109,47 @@ function shadows(
 const CHART_HUES = [255, 175, 300, 80, 145, 350, 210, 25];
 
 /**
+ * The light-mode series, the same for every theme: every pair stays apart for deuteranopia,
+ * protanopia, and tritanopia (min ΔE 27.7, 28.0, 9.6), and each one reads at 4.5:1 on white.
+ * Charts still carry labels, so color is never the only cue.
+ */
+export const LIGHT_CHART_COLORS = {
+  "chart-1": "#d4421a",
+  "chart-2": "#2b6cb0",
+  "chart-3": "#8a3ffc",
+  "chart-4": "#1a1a8c",
+  "chart-5": "#00838f",
+  "chart-6": "#6d4c41"
+} as const satisfies Pick<ThemeMode, `chart-${1 | 2 | 3 | 4 | 5 | 6}`>;
+
+/** The roles that alias other roles: attention follows warning, the state border follows bold. */
+export function aliasRoles(
+  colors: Pick<
+    ThemeMode,
+    | "background-warning"
+    | "background-warning-bold"
+    | "text-warning"
+    | "border-warning"
+    | "border-bold"
+  >
+): Pick<
+  ThemeMode,
+  | "background-attention"
+  | "background-attention-bold"
+  | "text-attention"
+  | "border-attention"
+  | "border-state"
+> {
+  return {
+    "background-attention": colors["background-warning"],
+    "background-attention-bold": colors["background-warning-bold"],
+    "text-attention": colors["text-warning"],
+    "border-attention": colors["border-warning"],
+    "border-state": colors["border-bold"]
+  };
+}
+
+/**
  * Six categorical series colors that start from the brand hue and keep the other hues apart,
  * each moved until it reaches 3:1 against every background (WCAG 2.2 SC 1.4.11), plus a grid
  * color. Pass the backgrounds nearest the series tone: the darkest in light mode, the lightest
@@ -146,6 +187,8 @@ export function createChartColors(
 }
 
 type Category = 1 | 2 | 3 | 4 | 5 | 6;
+
+type AliasRole = keyof ReturnType<typeof aliasRoles>;
 
 /** The roles `createCategoryColors` derives: the tint and the text color of each chart color. */
 type CategoryRole = `background-chart-${Category}` | `text-chart-${Category}`;
@@ -212,8 +255,12 @@ export function createCategoryColors(
 }
 
 /** A mode's colors with the tint and the text color of each chart color. */
-const withCategoryColors = (mode: ColorMode, colors: Omit<ThemeMode, CategoryRole>): ThemeMode => ({
+const withCategoryColors = (
+  mode: ColorMode,
+  colors: Omit<ThemeMode, CategoryRole | AliasRole>
+): ThemeMode => ({
   ...colors,
+  ...aliasRoles(colors),
   ...createCategoryColors(mode, colors)
 });
 
@@ -264,7 +311,12 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       warningBackground,
       TEXT_CONTRAST
     );
-    const warningBold = ensureContrast(tone(hue("warning"), 0.14, 0.8), ink, TEXT_CONTRAST);
+    // The fill also marks status on the page, so it holds 3:1 on white as well as under ink.
+    const warningBold = ensureContrast(
+      ensureContrast(tone(hue("warning"), 0.14, 0.8), WHITE, GRAPHIC_CONTRAST),
+      ink,
+      TEXT_CONTRAST
+    );
     const [dangerHovered, dangerPressed] = fillStates(danger.bold, WHITE, -0.04);
     const [warningHovered, warningPressed] = fillStates(warningBold, ink, -0.03);
     const textSubtle = gray(0.44);
@@ -342,13 +394,8 @@ export function createColorModes(input: PaletteInput): Record<ColorMode, ThemeMo
       "border-information": information.text,
       "border-discovery": discovery.text,
       blanket: withAlpha(ink, 0.48),
-      // Charts sit on sunken areas, the darkest light surface, and on the tracks and grid there.
-      ...createChartColors(
-        input.brand,
-        "light",
-        [sunken, [neutralTrack, sunken], [pressedTrack, sunken], grid],
-        grid
-      ),
+      ...LIGHT_CHART_COLORS,
+      "chart-grid": grid,
       ...shadows("light", ink, { color: brandFill.fill, strength: glowStrength })
     });
   };

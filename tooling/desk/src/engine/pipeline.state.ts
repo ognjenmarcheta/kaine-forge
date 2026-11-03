@@ -7,6 +7,7 @@ import {
   type HistoryEvent,
   type IssueState,
   type IssueStatus,
+  type NeedsYouCode,
   type StageId
 } from "../contracts";
 import type { MachineState } from "./pipeline.machine";
@@ -42,6 +43,14 @@ export const needsYouReason = (state: IssueState): string | null => {
   if (state.stage !== "needs-you") return null;
   const latest = state.history.filter((event) => event.stage === "needs-you").at(-1);
   return latest?.note ?? null;
+};
+
+/** Why the issue stopped, from the latest `needs-you` event, or `null`. Older events carry no code. */
+export const needsYouCode = (state: IssueState): NeedsYouCode | null => {
+  if (state.stage !== "needs-you") return null;
+  const latest = state.history.filter((event) => event.stage === "needs-you").at(-1);
+  if (latest?.code !== undefined) return latest.code;
+  return latest?.event === "interrupted" ? "interrupted" : null;
 };
 
 /** History events that move an issue into an engine state or the pr-wait step. */

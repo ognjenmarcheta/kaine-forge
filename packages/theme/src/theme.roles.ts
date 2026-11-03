@@ -43,6 +43,11 @@ export const colorRoles = [
   "background-warning-bold",
   "background-warning-bold-hovered",
   "background-warning-bold-pressed",
+  // "Waiting on you": warning colors today, apart from real warnings so a theme can retune it.
+  "background-attention",
+  "background-attention-bold",
+  "text-attention",
+  "border-attention",
   "background-information",
   "background-information-bold",
   "background-discovery",
@@ -60,6 +65,8 @@ export const colorRoles = [
   "border",
   "border-strong",
   "border-bold",
+  // Selected, pressed, and current state borders: border-bold contrast, never border-strong.
+  "border-state",
   "border-focused",
   "border-selected",
   "border-brand",
@@ -183,3 +190,54 @@ export const componentTokenNames = [
   "dialog-radius",
   "badge-radius"
 ] as const;
+
+/**
+ * The five text styles of a screen, each an alias of one type step. Label is the floor: nothing
+ * reads smaller. The older steps stay for other apps. Web only.
+ */
+export const typeStyles = {
+  title: "heading-large",
+  heading: "heading-small",
+  body: "body",
+  label: "body-small",
+  mono: "code-small"
+} as const;
+
+/** Row and card spacing for the two densities, set by data-density on an app root. Web only. */
+export const densityTokens = {
+  comfortable: {
+    "density-row-y": "var(--ds-space-150)",
+    "density-row-x": "var(--ds-space-250)",
+    "density-card": "var(--ds-space-250)",
+    "density-gap": "var(--ds-space-300)",
+    "density-section": "var(--ds-space-200)"
+  },
+  compact: {
+    "density-row-y": "var(--ds-space-075)",
+    "density-row-x": "var(--ds-space-200)",
+    "density-card": "var(--ds-space-200)",
+    "density-gap": "var(--ds-space-200)",
+    "density-section": "var(--ds-space-150)",
+    "control-medium": "var(--ds-control-small)",
+    "control-large": "2.25rem"
+  }
+} as const;
+
+/** Named stacking layers and layout widths, so no component picks a z-index or width of its own. Web only. */
+export const layoutTokens = {
+  "layer-raised": "1",
+  "layer-sticky": "20",
+  "layer-nav": "30",
+  "layer-menu": "35",
+  "layer-blanket": "40",
+  "layer-popover": "45",
+  "layer-toast": "60",
+  "layout-sidebar": "15rem",
+  "layout-sidebar-collapsed": "4rem",
+  "layout-rail": "20rem",
+  "layout-measure": "48rem",
+  "layout-page": "90rem",
+  "layout-tabbar": "3.5rem",
+  // The smallest pointer target (WCAG 2.2 SC 2.5.8).
+  "layout-hit": "var(--ds-control-xsmall)"
+} as const;

@@ -28,7 +28,7 @@ import { indexArtifacts, readArtifact } from "./server.artifacts";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "../engine/intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "../engine/pipeline.artifacts";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
-import { needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
+import { needsYouCode, needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
 import type { Clock } from "../ports";
 import type { RunRecords } from "../stats/stats.runs";
 import type { IssueReadResult, IssueStore } from "../store/store.issue";
@@ -173,6 +173,7 @@ export const summarizeResult = async (
         ? prWait.maxRounds
         : (deps.prRoundLimit ?? DEFAULT_LOOP_LIMITS.prRounds),
     needsYouReason: needsYouReason(state),
+    needsYouCode: needsYouCode(state),
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
     mergedAt:

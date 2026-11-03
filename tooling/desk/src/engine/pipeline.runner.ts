@@ -13,6 +13,7 @@ import {
   type FlowSnapshot,
   type Isolation,
   type HistoryEvent,
+  type NeedsYouCode,
   type IssueState,
   type StageId
 } from "../contracts";
@@ -302,13 +303,15 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     session: Session,
     stage: StageId,
     event: string,
-    note?: string
+    note?: string,
+    code?: NeedsYouCode
   ): Promise<void> => {
     const entry: HistoryEvent = {
       at: stamp(),
       stage,
       event,
-      ...(note === undefined ? {} : { note })
+      ...(note === undefined ? {} : { note }),
+      ...(code === undefined ? {} : { code })
     };
     session.state = {
       ...session.state,
@@ -522,7 +525,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       if (outcome.kind === "trigger" && forced === null && outcome.note !== undefined) {
         reason = `${reason} (${outcome.note})`;
       }
-      await record(session, "needs-you", "needs-you", reason);
+      await record(
+        session,
+        "needs-you",
+        "needs-you",
+        reason,
+        forced === null ? (moved.reasonCode ?? "error") : "error"
+      );
     }
     await finishMove(session, reason);
   };
@@ -840,7 +849,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         let reason: string | null = null;
         if (session.state.stage === "needs-you") {
           reason = describeStop(session.state.flowSnapshot, moved.reasonCode, from, null);
-          await record(session, "needs-you", "needs-you", reason);
+          await record(session, "needs-you", "needs-you", reason, moved.reasonCode ?? "error");
         }
         await finishMove(session, reason);
         return drive(session);
@@ -911,7 +920,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { type: "feedback", target },
       {
         event: "feedback",
-        note: `to ${target}`,
+        // The words stay in the history, so a later round can show what the owner asked for.
+        note: text.trim() === "" ? `to ${target}` : `to ${target}: ${text.trim()}`,
         patch: { pendingFeedback: { target, source: "human", text: text.trim() || "(no text)" } },
         prepare: async (session) => {
           if (text.trim() === "") {
