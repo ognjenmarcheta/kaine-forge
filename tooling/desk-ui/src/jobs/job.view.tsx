@@ -1,16 +1,32 @@
 import type { JobActionRequest, JobState, ProposedIssue } from "@repo/desk/contracts";
-import { Button, Card, Checkbox, Label, Modal, Textarea } from "@repo/ui";
+import {
+  Button,
+  Card,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Ellipsis,
+  Label,
+  Modal,
+  Textarea
+} from "@repo/ui";
 import { useEffect, useId, useState } from "react";
 
-import { JOB_STEPS, JOB_TONE, previewUrlOf, stepStates } from "./job.model";
+import { JOB_STEPS, previewUrlOf, stepStates } from "./job.model";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useLanguage, useT } from "../i18n/i18n.t";
+import { useMarkSeen } from "../inbox/inbox.unread";
+import { Crumb } from "../issue/issue.header";
 import { formatUsd } from "../shell/shell.format";
 import { RouteLink, useRouter } from "../shell/shell.router";
 import { Loading, Muted, Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 import { StatusChip } from "../status/status.chip";
+import { jobItem } from "../work/work.model";
+import { chipOf } from "../work/work.present";
 
 /** Send an action; the page shows the job from the live events, so only a refusal matters here. */
 function useJobAction(jobId: number) {
@@ -36,23 +52,40 @@ function useJobAction(jobId: number) {
   return { run, error, pending };
 }
 
+/** The job's steps as a rail, like an issue's: done, now, and to come, each with a glyph. */
 function Steps({ job }: { readonly job: JobState }) {
   const t = useT();
   const states = stepStates(job);
+  const glyph = {
+    done: { g: "✓", tone: "dk-ok" },
+    current: { g: "◷", tone: "dk-warn" },
+    todo: { g: "", tone: "" }
+  } as const;
   return (
-    <ol className="desk-job-steps" aria-label={t("desk.job.steps")}>
-      {JOB_STEPS[job.kind].map((step, index) => (
-        <li
-          key={step}
-          data-state={states[index]}
-          aria-current={states[index] === "current" ? "step" : undefined}
-        >
-          <span className="desk-job-steps__dot" aria-hidden="true" />
-          {t(`desk.job.stage.${step}`)}
-          <span className="dk-sr">{t(`desk.job.stepState.${states[index] ?? "todo"}`)}</span>
-        </li>
-      ))}
-    </ol>
+    <aside className="dk-rail" aria-label={t("desk.job.steps")}>
+      <section className="dk-card dk-rail-card">
+        <h2 className="dk-h-sec dk-mb-100">{t("desk.rail.title")}</h2>
+        <ol className="dk-steps">
+          {JOB_STEPS[job.kind].map((step, index) => {
+            const state = states[index] ?? "todo";
+            return (
+              <li
+                key={step}
+                className={`dk-step${state === "current" ? " dk-cur" : ""}${state === "todo" ? " dk-idle" : ""}`}
+                aria-current={state === "current" ? "step" : undefined}
+              >
+                <span className={`dk-gl ${glyph[state].tone}`} aria-hidden="true">
+                  {glyph[state].g}
+                </span>
+                <span className="dk-nm">{t(`desk.job.stage.${step}`)}</span>
+                <span className="dk-du" />
+                <span className="dk-wh">{t(`desk.job.stepState.${state}`)}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    </aside>
   );
 }
 
@@ -467,6 +500,7 @@ export function JobView({ jobId }: { readonly jobId: number }) {
   const action = useJobAction(jobId);
   const [loaded, setLoaded] = useState(job !== undefined);
   const [confirm, setConfirm] = useState<"cancel" | "remove" | null>(null);
+  useMarkSeen(job === undefined ? null : jobItem(job));
 
   // The list loads with the issues; a job opened by its link may not be in it yet.
   useEffect(() => {
@@ -478,69 +512,87 @@ export function JobView({ jobId }: { readonly jobId: number }) {
     return loaded ? <Muted>{t("desk.job.missing", { id: jobId })}</Muted> : <Loading />;
   const open = job.status !== "done" && job.status !== "cancelled";
   const latest = job.history.at(-1);
+  const item = jobItem(job);
+  const chip = chipOf(t, item);
   return (
     <>
-      <div className="dk-row dk-between">
-        <div>
-          <h1>{t(`desk.job.title.${job.kind}`, { id: job.id })}</h1>
-          <p className="dk-t-sub">
-            {t("desk.job.meta", {
-              model: job.input.model,
-              spent: formatUsd(job.spentUsd, language),
-              budget: formatUsd(job.input.budgetUsd, language),
-              minutes: job.input.minutes
-            })}
+      <Crumb itemKey={item.key} label={t("desk.work.jobRef")} />
+      <header className="dk-ihead">
+        <div className="dk-grow">
+          <h1>
+            <span className="dk-idn">{t("desk.work.jobRef")}</span>{" "}
+            {t(`desk.job.title.${job.kind}`, { id: job.id })}
+          </h1>
+          <p className="dk-meta">
+            <StatusChip tone={chip.tone}>{chip.text}</StatusChip>
+            <span>
+              {t("desk.job.meta", {
+                model: job.input.model,
+                spent: formatUsd(job.spentUsd, language),
+                budget: formatUsd(job.input.budgetUsd, language),
+                minutes: job.input.minutes
+              })}
+            </span>
+            {job.branch !== null && (
+              <span className="dk-ihead-more">
+                <code className="dk-mono">{job.branch}</code>
+              </span>
+            )}
           </p>
         </div>
-        <StatusChip tone={JOB_TONE[job.status]}>{t(`desk.job.status.${job.status}`)}</StatusChip>
-      </div>
-      <Card className="dk-card">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button appearance="outline" spacing="icon" aria-label={t("desk.gate.more")}>
+              <Ellipsis aria-hidden="true" className="dk-ic" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              destructive
+              disabled={!open || action.pending}
+              onSelect={() => setConfirm("cancel")}
+            >
+              {t("desk.job.cancel")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              destructive
+              disabled={job.status === "running" || action.pending}
+              onSelect={() => setConfirm("remove")}
+            >
+              {t("desk.job.remove")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </header>
+      <div className="dk-ilayout">
+        <div className="dk-icol">
+          {latest !== undefined && job.status === "running" && (
+            <p className="dk-row" aria-live="polite">
+              <span className="dk-spin" aria-hidden="true" />
+              <span className="dk-t-sub">{latest.message}</span>
+            </p>
+          )}
+          {job.status === "needs-you" && <Stopped job={job} />}
+          {job.status === "waiting" && <Gate job={job} />}
+          {job.status === "done" && <Done job={job} />}
+          <section className="dk-card" aria-labelledby={`job-${String(job.id)}-history`}>
+            <h2 id={`job-${String(job.id)}-history`} className="dk-h-sec dk-mb-100">
+              {t("desk.job.history")}
+            </h2>
+            <ol className="dk-actrows">
+              {[...job.history].reverse().map((entry) => (
+                <li key={`${entry.at}-${entry.message}`} className="dk-actr dk-actr3">
+                  <time className="dk-t-small dk-t-subtlest dk-num" dateTime={entry.at}>
+                    {new Date(entry.at).toLocaleTimeString(language)}
+                  </time>
+                  <span className="dk-t-small dk-strong">{t(`desk.job.stage.${entry.stage}`)}</span>
+                  <span className="dk-t-small dk-t-sub">{entry.message}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
         <Steps job={job} />
-        {latest !== undefined && (
-          <p className="desk-job-activity" aria-live="polite">
-            {latest.message}
-          </p>
-        )}
-        {job.branch !== null && (
-          <p className="dk-t-sub">
-            <code>{job.branch}</code>
-          </p>
-        )}
-      </Card>
-      {job.status === "needs-you" && <Stopped job={job} />}
-      {job.status === "waiting" && <Gate job={job} />}
-      {job.status === "done" && <Done job={job} />}
-      <Card className="dk-card">
-        <h2>{t("desk.job.history")}</h2>
-        <ol className="desk-job-history">
-          {[...job.history].reverse().map((entry) => (
-            <li key={`${entry.at}-${entry.message}`}>
-              <time dateTime={entry.at}>{new Date(entry.at).toLocaleTimeString(language)}</time>
-              <span>{t(`desk.job.stage.${entry.stage}`)}</span>
-              <span>{entry.message}</span>
-            </li>
-          ))}
-        </ol>
-      </Card>
-      <div className="desk-job-actions">
-        {open && (
-          <Button
-            appearance="subtle"
-            disabled={action.pending}
-            onClick={() => setConfirm("cancel")}
-          >
-            {t("desk.job.cancel")}
-          </Button>
-        )}
-        {job.status !== "running" && (
-          <Button
-            appearance="subtle"
-            disabled={action.pending}
-            onClick={() => setConfirm("remove")}
-          >
-            {t("desk.job.remove")}
-          </Button>
-        )}
       </div>
       {action.error !== null && (
         <p className="dk-hint dk-t-danger" role="alert">

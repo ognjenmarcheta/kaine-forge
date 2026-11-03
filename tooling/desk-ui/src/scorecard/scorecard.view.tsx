@@ -895,10 +895,10 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
 
   return (
     <>
-      <div className="dk-row dk-between">
-        <div>
-          <h1>{t("desk.scorecard.title")}</h1>
-          <p className="dk-t-sub">{t("desk.scorecard.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.scorecard.title")}</h1>
+          <p className="dk-lead">{t("desk.scorecard.intro")}</p>
         </div>
         <div className="desk-job-actions">
           <Button appearance="subtle" onClick={load} disabled={loading}>
@@ -910,7 +910,7 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
             </Button>
           )}
         </div>
-      </div>
+      </header>
       {jobId !== undefined && (
         <p className="desk-job-banner" role="note">
           {t("desk.job.preview", { id: jobId })}{" "}

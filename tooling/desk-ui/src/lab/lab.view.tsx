@@ -55,7 +55,7 @@ function LabJobBar() {
   const { state } = useDesk();
   if (state.session !== "ready") return null;
   return (
-    <div className="desk-job-actions desk-lab-jobs">
+    <div className="dk-row">
       {LAB_JOBS.map((job) => (
         <LabJob key={job.kind} {...job} />
       ))}
@@ -82,9 +82,16 @@ export function LabView() {
     };
   }, []);
 
+  const t = useT();
   return (
     <>
-      <LabJobBar />
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.nav.lab")}</h1>
+          <p className="dk-lead">{t("desk.lab.intro")}</p>
+        </div>
+        <LabJobBar />
+      </header>
       {catalog === null ? <Loading /> : <LabApp catalog={catalog} />}
     </>
   );

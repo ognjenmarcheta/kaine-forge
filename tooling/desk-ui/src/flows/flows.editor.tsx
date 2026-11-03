@@ -192,10 +192,10 @@ function EditorBody({
     <>
       <div className="dk-row dk-between desk-editor__heading">
         <div>
-          <RouteLink to={{ view: "flows" }} className="desk-editor__back">
+          <RouteLink to={{ view: "flows" }} className="dk-backlink">
             {t("desk.flows.back")}
           </RouteLink>
-          <h1>{name}</h1>
+          <h1 className="dk-h-page">{name}</h1>
           <p className="desk-editor__facts">
             <code className="desk-agent__id">{flowId}</code>
             <DefinitionBadges view={view} />
@@ -442,10 +442,10 @@ export function FlowEditor({ flowId }: { readonly flowId: string }) {
   if (view === undefined) {
     return (
       <>
-        <RouteLink to={{ view: "flows" }} className="desk-editor__back">
+        <RouteLink to={{ view: "flows" }} className="dk-backlink">
           {t("desk.flows.back")}
         </RouteLink>
-        <h1>{t("desk.flows.missingTitle")}</h1>
+        <h1 className="dk-h-page">{t("desk.flows.missingTitle")}</h1>
         <p className="dk-t-sub">{t("desk.flows.missing", { id: flowId })}</p>
         {dialog}
       </>

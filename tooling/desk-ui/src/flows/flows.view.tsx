@@ -136,16 +136,16 @@ export function FlowsView() {
 
   return (
     <>
-      <div className="dk-row dk-between">
-        <div>
-          <h1>{t("desk.flows.title")}</h1>
-          <p className="dk-t-sub">{t("desk.flows.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.flows.title")}</h1>
+          <p className="dk-lead">{t("desk.flows.intro")}</p>
         </div>
         <Button type="button" disabled={flows.length === 0} onClick={() => setCreating(true)}>
           <Plus aria-hidden="true" className="dk-ic" />
           {t("desk.flows.new")}
         </Button>
-      </div>
+      </header>
       {state.status === "loading" && <LoadingLines label={t("desk.flows.loading")} lines={4} />}
       {state.status === "error" && <FailureText code={state.code} detail={state.detail} />}
       {state.status === "ok" && (

@@ -230,10 +230,10 @@ function EditorBody({
     <>
       <div className="dk-row dk-between desk-editor__heading">
         <div>
-          <RouteLink to={{ view: "agents" }} className="desk-editor__back">
+          <RouteLink to={{ view: "agents" }} className="dk-backlink">
             {t("desk.agents.back")}
           </RouteLink>
-          <h1>{title}</h1>
+          <h1 className="dk-h-page">{title}</h1>
           {view !== null && (
             <p className="desk-editor__facts">
               <code className="desk-agent__id">{view.definition.id}</code>
@@ -464,10 +464,10 @@ export function AgentEditor({ agentId }: { readonly agentId: string | null }) {
   if (view === undefined) {
     return (
       <>
-        <RouteLink to={{ view: "agents" }} className="desk-editor__back">
+        <RouteLink to={{ view: "agents" }} className="dk-backlink">
           {t("desk.agents.back")}
         </RouteLink>
-        <h1>{t("desk.agents.missingTitle")}</h1>
+        <h1 className="dk-h-page">{t("desk.agents.missingTitle")}</h1>
         <p className="dk-t-sub">{t("desk.agents.missing", { id: agentId ?? "" })}</p>
       </>
     );

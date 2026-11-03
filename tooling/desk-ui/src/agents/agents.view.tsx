@@ -226,10 +226,10 @@ export function AgentsView() {
 
   return (
     <>
-      <div className="dk-row dk-between">
-        <div>
-          <h1>{t("desk.agents.title")}</h1>
-          <p className="dk-t-sub">{t("desk.agents.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.agents.title")}</h1>
+          <p className="dk-lead">{t("desk.agents.intro")}</p>
         </div>
         <RouteLink
           to={{ view: "agent", agentId: null }}
@@ -238,7 +238,7 @@ export function AgentsView() {
           <Plus aria-hidden="true" className="dk-ic" />
           {t("desk.agents.new")}
         </RouteLink>
-      </div>
+      </header>
       {state.status === "loading" && <LoadingLines label={t("desk.agents.loading")} lines={4} />}
       {state.status === "error" && <FailureText code={state.code} detail={state.detail} />}
       {state.status === "ok" && (

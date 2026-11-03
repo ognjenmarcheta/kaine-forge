@@ -226,3 +226,12 @@
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
+.dk-backlink {
+  display: inline-block;
+  margin-bottom: var(--ds-space-150);
+  font: var(--ds-type-label);
+  color: var(--ds-link);
+}
+.dk-backlink::before {
+  content: "← ";
+}

@@ -974,3 +974,9 @@
   content: "– ";
   color: var(--ds-text-subtlest);
 }
+.dk-actr3 {
+  grid-template-columns: 6rem 8rem minmax(0, 1fr);
+}
+li.dk-step {
+  cursor: default;
+}

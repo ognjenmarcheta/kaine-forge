@@ -386,15 +386,15 @@ export function InsightsView() {
 
   return (
     <>
-      <div className="dk-row dk-between">
-        <div>
-          <h1>{t("desk.stats.title")}</h1>
-          <p className="dk-t-sub">{t("desk.stats.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.stats.title")}</h1>
+          <p className="dk-lead">{t("desk.stats.intro")}</p>
         </div>
         <Button appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.stats.refresh")}
         </Button>
-      </div>
+      </header>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {stats !== null && (
         <>

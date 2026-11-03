@@ -237,15 +237,15 @@ export function SetupView() {
   const report = state.health;
   return (
     <>
-      <div className="dk-row dk-between">
-        <div>
-          <h1>{t("desk.health.title")}</h1>
-          <p className="dk-t-sub">{t("desk.health.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.health.title")}</h1>
+          <p className="dk-lead">{t("desk.health.intro")}</p>
         </div>
         <Button appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.health.refresh")}
         </Button>
-      </div>
+      </header>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {(report !== null || loading) && (
         <Card className="dk-card">
