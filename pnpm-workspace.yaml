@@ -56,7 +56,7 @@ catalog:
   # keeps its own single-connection databases, because the plugin pools connections.
   "@tauri-apps/api": "2.12.4"
   "@tauri-apps/plugin-sql": "2.6.0"
-  "@journeyapps/wa-sqlite": "1.7.2"
+  "@journeyapps/wa-sqlite": "2.0.10"
   # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
   # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify,
   # and the API zips data export archives with it.
