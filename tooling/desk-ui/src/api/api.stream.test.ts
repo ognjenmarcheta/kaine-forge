@@ -35,6 +35,7 @@ const summary = {
   needsYouReason: null,
   resumeStage: null,
   prUrl: null,
+  mergedAt: null,
   contract: null,
   stageEnteredAt: null,
   progress: ["passed", "passed", "waiting", "idle", "idle", "idle", "idle", "idle", "idle"],

@@ -40,6 +40,10 @@ const pull = (over: Partial<GithubPull>): GithubPull => ({
   author: "someone",
   updatedAt: AT,
   issue: null,
+  ci: { state: "none", failing: 0 },
+  review: "none",
+  labels: [],
+  check: null,
   ...over
 });
 
@@ -185,7 +189,7 @@ afterEach(() => {
 });
 
 describe("Open pull requests on the board", () => {
-  it("lists them read-only, links a desk issue on the board, and refreshes from GitHub", async () => {
+  it("lists them, links a desk issue on the board, and refreshes from GitHub", async () => {
     const github = vi.fn<DeskApi["github"]>(() =>
       Promise.resolve(
         lists([], [pull({ draft: true }), pull({ number: 41, title: "fix: thing", issue: 7 })])
@@ -206,6 +210,58 @@ describe("Open pull requests on the board", () => {
 
     await userEvent.click(within(panel).getByRole("button", { name: "Refresh" }));
     expect(github).toHaveBeenLastCalledWith(true);
+  });
+
+  it("checks a desk PR and sends what the check found to a fix round", async () => {
+    const check = {
+      at: AT,
+      headSha: "a".repeat(40),
+      failingChecks: ["CI"],
+      comments: 2,
+      authors: ["coderabbitai[bot]"],
+      skipped: []
+    };
+    const act = vi.fn<DeskApi["act"]>(() =>
+      Promise.resolve({ status: "accepted", action: "pr-feedback", issueNumber: 7 })
+    );
+    show(
+      () =>
+        Promise.resolve(
+          lists(
+            [],
+            [
+              pull({ number: 40, ci: { state: "passing", failing: 0 } }),
+              pull({ number: 41, issue: 7, ci: { state: "failing", failing: 1 }, check })
+            ]
+          )
+        ),
+      { act }
+    );
+    await showColumns();
+    const panel = await screen.findByRole("region", { name: "Open pull requests (2)" });
+
+    expect(within(panel).getByText("1 failing")).toBeTruthy();
+    expect(within(panel).getByText(/1 failing checks, 2 comments/)).toBeTruthy();
+    // Only the desk PR has actions.
+    expect(within(panel).getAllByRole("button", { name: "Check CI and comments" })).toHaveLength(1);
+    await userEvent.click(within(panel).getByRole("button", { name: "Address feedback" }));
+    expect(act).toHaveBeenCalledWith(7, { action: "pr-feedback" });
+  });
+
+  it("offers no fix round before a check found something", async () => {
+    const act = vi.fn<DeskApi["act"]>(() =>
+      Promise.resolve({ status: "accepted", action: "check-pr", issueNumber: 7 })
+    );
+    show(() => Promise.resolve(lists([], [pull({ number: 41, issue: 7 })])), { act });
+    await showColumns();
+    const panel = await screen.findByRole("region", { name: "Open pull requests (1)" });
+
+    expect(within(panel).getByRole("button", { name: "Address feedback" })).toHaveProperty(
+      "disabled",
+      true
+    );
+    await userEvent.click(within(panel).getByRole("button", { name: "Check CI and comments" }));
+    expect(act).toHaveBeenCalledWith(7, { action: "check-pr" });
   });
 
   it("does not link a pull request URL that is not http", async () => {

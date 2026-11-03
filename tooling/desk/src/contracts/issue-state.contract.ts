@@ -137,6 +137,26 @@ const sharedFields = {
   /** The PR head commit the desk last pushed or read. */
   prHeadSha: shaSchema.nullable().optional(),
   /**
+   * The owner's last `check-pr`: what a PR feedback round would read now. The failing checks
+   * on the PR head, the comments of trusted people and review bots since the desk's last push,
+   * and the authors left out for trust. The desk's next push clears it. A reader treats a
+   * missing field like `null`.
+   */
+  prCheck: z
+    .object({
+      at: timestampSchema,
+      headSha: shaSchema,
+      failingChecks: z.array(z.string()),
+      comments: z.number().int().nonnegative(),
+      authors: z.array(z.string()),
+      skipped: z.array(z.string())
+    })
+    .strict()
+    .nullable()
+    .optional(),
+  /** When GitHub merged the PR, set when the desk saw the merge. */
+  mergedAt: timestampSchema.nullable().optional(),
+  /**
    * Added with the redesigned desk. The owner's note at the plan approval: the answer to the
    * plan's open questions. The builder reads it. A reader treats a missing field like `null`.
    */

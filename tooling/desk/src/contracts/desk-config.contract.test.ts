@@ -24,7 +24,8 @@ describe("desk config contract", () => {
       },
       defaultFlow: "kaine-default",
       flowLabels: {},
-      reviewBots: []
+      // The usual review bots are trusted by default, so their PR comments reach a fix round.
+      reviewBots: ["coderabbitai[bot]", "github-actions[bot]", "copilot-pull-request-reviewer[bot]"]
     });
   });
 

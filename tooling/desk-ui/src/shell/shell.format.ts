@@ -88,6 +88,13 @@ export function formatElapsed(ms: number, language: string): string {
     .join(" ");
 }
 
+/** The local date of a timestamp, in the page language ("2 Nov 2026"). */
+export function formatDate(iso: string, language: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(date);
+}
+
 /** The local time of day of an engine timestamp, in the page language ("14:05:09"). */
 export function formatClock(iso: string, language: string): string {
   const date = new Date(iso);

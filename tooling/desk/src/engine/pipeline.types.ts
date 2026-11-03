@@ -208,6 +208,8 @@ export type StatePatch = Partial<
     | "prUrl"
     | "prNumber"
     | "prHeadSha"
+    | "prCheck"
+    | "mergedAt"
     | "approveNote"
     | "pauseRequested"
     | "pausedAt"

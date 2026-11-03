@@ -35,7 +35,17 @@ const LEDGER_TEXT = [
 
 const RESULT: ScorecardJobResult = {
   summary: "Two dimensions dropped.",
-  run: { ...previous, dimensions: { "1": { score: 7, evidence: "drift" } } },
+  run: {
+    ...previous,
+    dimensions: { "1": { score: 7, evidence: "drift" } },
+    findings: ["ui-lab-gap", "adr-index-drift"].map((slug) => ({
+      slug,
+      title: slug,
+      dimension: 1,
+      ladderRank: 3,
+      disposition: "open" as const
+    }))
+  },
   calibration: ["Dim 1 → 7 with cause."],
   proposedIssues: ["ui-lab-gap", "adr-index-drift"].map((slug) => ({
     slug,
@@ -198,15 +208,33 @@ describe("the scorecard job", () => {
     await h.jobs.settled(id);
 
     expect(h.github.createdIssues.map((issue) => issue.title)).toEqual(["docs: adr-index-drift"]);
-    // `type:bug` is not a label of this repository: it is dropped, not sent.
+    // `type:bug` is not a label of this repository: it is dropped, not sent. The desk's own
+    // source label is made sure of first, then always added.
+    expect(h.calls()).toContainEqual(
+      expect.stringMatching(/^gh label create source:scorecard .*--force$/)
+    );
     expect(h.calls().filter((call) => call.startsWith("gh issue edit"))).toEqual([
-      "gh issue edit 501 --add-label type:docs"
+      "gh issue edit 501 --add-label type:docs --add-label source:scorecard"
+    ]);
+    // The filed number is on its finding in the ledger the PR carries; the other has none.
+    const data = JSON.parse(
+      /```json\n([\s\S]*?)```/.exec(await readFile(path.join(h.worktree, LEDGER), "utf8"))?.[1] ??
+        "{}"
+    );
+    expect(
+      data.runs
+        .at(-1)
+        .findings.map((finding: { slug: string; issue?: number }) => [finding.slug, finding.issue])
+    ).toEqual([
+      ["ui-lab-gap", undefined],
+      ["adr-index-drift", 501]
     ]);
     expect(h.github.createdPullRequests).toMatchObject([
       { base: "main", head: "KAINE-chore-scorecard-2026-11-02-job-1", draft: true }
     ]);
     expect(h.github.pullRequestLabels).toEqual([
-      { pr: expect.any(Number), label: "release:skip-changeset" }
+      { pr: expect.any(Number), label: "release:skip-changeset" },
+      { pr: expect.any(Number), label: "source:scorecard" }
     ]);
     expect(h.calls()).toContain("git push -u origin KAINE-chore-scorecard-2026-11-02-job-1");
     expect(await h.jobs.get(id)).toMatchObject({
