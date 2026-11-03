@@ -159,8 +159,14 @@ export function InboxView() {
       }
     }
   ]);
-  usePaletteActions(
-    batch.length > 1
+  usePaletteActions([
+    {
+      id: "inbox-new",
+      label: t("desk.newWork.open"),
+      hint: keyLabel("n"),
+      run: () => newWork.open()
+    },
+    ...(batch.length > 1
       ? [
           {
             id: "inbox-batch",
@@ -168,8 +174,8 @@ export function InboxView() {
             run: () => setBatchOpen(true)
           }
         ]
-      : []
-  );
+      : [])
+  ]);
 
   const summaryLine =
     turnCount === 0
@@ -210,9 +216,13 @@ export function InboxView() {
               const offset = index;
               index += list.length;
               return (
-                <div key={group} className="dk-grp-wrap">
+                <section
+                  key={group}
+                  className="dk-grp-wrap"
+                  aria-labelledby={`${heading}-${group}`}
+                >
                   <div className="dk-grp">
-                    <h2>{t(`desk.inbox.group.${group}`)}</h2>
+                    <h2 id={`${heading}-${group}`}>{t(`desk.inbox.group.${group}`)}</h2>
                     <span className="dk-count dk-num">{list.length}</span>
                     <span className="dk-t-small dk-t-subtlest dk-grow">
                       {t(`desk.inbox.groupNote.${group}`)}
@@ -255,7 +265,7 @@ export function InboxView() {
                       />
                     ))}
                   </ul>
-                </div>
+                </section>
               );
             })}
             {turnCount === 0 && (

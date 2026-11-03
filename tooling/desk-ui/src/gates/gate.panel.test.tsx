@@ -37,13 +37,19 @@ const statsWith = (riskOutcomes: RiskOutcome[]): RunStats => ({
 });
 
 /** The plan artifact of the fixture: one open question. Every other read fails until stubbed. */
-const apiWith = (stats?: RunStats) =>
+const apiWith = (stats?: RunStats, diff?: string) =>
   fakeApi({
     artifactJson: (_issue, id, schema) =>
       id === "plan"
         ? Promise.resolve(schema.parse(JSON.parse(planArtifact("low"))))
         : Promise.reject(new Error(`no artifact ${id}`)),
-    ...(stats === undefined ? {} : { stats: () => Promise.resolve(stats) })
+    ...(stats === undefined ? {} : { stats: () => Promise.resolve(stats) }),
+    ...(diff === undefined
+      ? {}
+      : {
+          artifactText: (_issue: number, id: string) =>
+            id === "diff" ? Promise.resolve(diff) : Promise.reject(new Error(`no artifact ${id}`))
+        })
   });
 
 const show = (
@@ -54,6 +60,7 @@ const show = (
     detail?: Partial<IssueDetail>;
     onShowTrace?: () => void;
     stats?: RunStats;
+    diff?: string;
   } = {}
 ) => {
   const { detail, summary } = makeDetail(stateOverrides, extra.summary);
@@ -66,7 +73,7 @@ const show = (
       onOpenResult={vi.fn()}
       onShowTrace={extra.onShowTrace ?? vi.fn()}
     />,
-    apiWith(extra.stats)
+    apiWith(extra.stats, extra.diff)
   );
 };
 
@@ -129,7 +136,7 @@ describe("GatePanel at the plan gate", () => {
         }
       }
     );
-    const changed = screen.getByRole("heading", { name: "What changed since round 1" });
+    const changed = screen.getByText("What changed since round 1");
     expect(changed.parentElement?.textContent).toContain("Added a fallback");
     expect(within(changed.parentElement ?? document.body).getAllByRole("listitem")).toHaveLength(2);
   });
@@ -138,7 +145,7 @@ describe("GatePanel at the plan gate", () => {
     const actions = actionsOf();
     actions.run.mockResolvedValueOnce({ kind: "error", code: "busy", detail: null });
     show({ stage: "plan-gate" }, actions);
-    const toggle = screen.getByRole("button", { name: "Request changes" });
+    const toggle = screen.getByRole("button", { name: "Send back…" });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(toggle);
     const box = screen.getByRole("textbox", { name: "Feedback" });
@@ -166,10 +173,7 @@ describe("GatePanel at the plan gate", () => {
   it("disables every control that starts work while an action runs", () => {
     show({ stage: "plan-gate" }, actionsOf({ busy: true }));
     expect(screen.getByRole("button", { name: "Approve plan" })).toHaveProperty("disabled", true);
-    expect(screen.getByRole("button", { name: "Request changes" })).toHaveProperty(
-      "disabled",
-      true
-    );
+    expect(screen.getByRole("button", { name: "Send back…" })).toHaveProperty("disabled", true);
   });
 });
 
@@ -192,7 +196,7 @@ describe("GatePanel at a gate of the owner's own flow", () => {
       { pending: "desk.undo.pending.gateApprove", done: "desk.action.done.gateApprove" }
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back…" }));
     const targets = screen.getByRole("radiogroup");
     expect(within(targets).getAllByRole("radio")).toHaveLength(2);
     await userEvent.click(within(targets).getByRole("radio", { name: "Back to Sketch" }));
@@ -225,20 +229,19 @@ describe("GatePanel while the engine works", () => {
     await userEvent.click(screen.getByRole("button", { name: "Resume" }));
     expect(actions.run).toHaveBeenLastCalledWith({ action: "resume" });
   });
-  it("steers the running builder with a note and offers Take over, while the engine is busy", async () => {
+  it("tells the running builder a note from a box that opens on request, while the engine is busy", async () => {
     const actions = actionsOf({ busy: true });
     show({ stage: "build", status: "running" }, actions, { summary: { busy: true } });
-    const note = screen.getByLabelText("Steer the agent");
+    expect(screen.queryByLabelText("Note for Builder")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Tell Builder…" }));
+    const note = screen.getByLabelText("Note for Builder");
     await userEvent.type(note, "Reuse the CSV helper.");
-    await userEvent.click(screen.getByRole("button", { name: "Steer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send the note" }));
     expect(actions.run).toHaveBeenLastCalledWith({
       action: "steer",
       note: "Reuse the CSV helper."
     });
     await waitFor(() => expect((note as HTMLTextAreaElement).value).toBe(""));
-
-    await userEvent.click(screen.getByRole("button", { name: "Take over" }));
-    expect(actions.run).toHaveBeenLastCalledWith({ action: "take-over" });
   });
 
   it("keeps what the owner typed while a steer was being sent", async () => {
@@ -250,9 +253,10 @@ describe("GatePanel while the engine works", () => {
         })
     );
     show({ stage: "build", status: "running" }, { busy: true, run }, { summary: { busy: true } });
-    const note = screen.getByLabelText("Steer the agent");
+    await userEvent.click(screen.getByRole("button", { name: "Tell Builder…" }));
+    const note = screen.getByLabelText("Note for Builder");
     await userEvent.type(note, "Reuse the helper.");
-    await userEvent.click(screen.getByRole("button", { name: "Steer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send the note" }));
     await userEvent.type(note, " Keep the API.");
     await act(async () => {
       settle(DONE);
@@ -261,18 +265,42 @@ describe("GatePanel while the engine works", () => {
     expect((note as HTMLTextAreaElement).value).toBe("Reuse the helper. Keep the API.");
   });
 
-  it("offers no Take over for the reviewer, whose next run starts a new session", () => {
-    show({ stage: "review", status: "running" }, actionsOf(), { summary: { busy: true } });
-    expect(screen.getByRole("button", { name: "Steer" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Take over" })).toBeNull();
+  it("offers no note on a step the engine runs, and says why", () => {
+    show({ stage: "check", status: "running" }, actionsOf(), { summary: { busy: true } });
+    expect(screen.queryByRole("button", { name: /^Tell / })).toBeNull();
+    expect(screen.getByText(/The engine runs this step/)).toBeTruthy();
   });
 });
 
 describe("GatePanel at PR review", () => {
+  it("collects line comments on the diff and sends them to the builder", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, {
+      diff: "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+next\n"
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Comment on line 1" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Comment on line 1 for the builder" }),
+      "Keep the old name"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add comment" }));
+    // Nothing goes out until the owner sends the comments.
+    expect(screen.getByText("You · for the builder")).toBeTruthy();
+    expect(actions.run).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Send line comments to the builder (1)" })
+    );
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "build",
+      text: "Line comments:\n- src/a.ts:1: Keep the old name"
+    });
+  });
+
   it("sends feedback to the chosen stage", async () => {
     const actions = actionsOf();
     show({ stage: "pr-review" }, actions);
-    await userEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back…" }));
     expect(screen.getByRole("radiogroup")).toBeTruthy();
     await userEvent.click(screen.getByRole("radio", { name: "Review again" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Feedback" }), "Look at tenancy");
@@ -309,12 +337,13 @@ describe("GatePanel when the desk needs you", () => {
     show({ stage: "needs-you", resumeStage: "build" }, actions, {
       summary: { needsYouReason: "Checks failed <script>window.injected = true</script>" }
     });
-    expect(screen.getByRole("heading", { name: "Build stopped" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "The desk stopped at Build" })).toBeTruthy();
     expect(screen.getByLabelText("Reason from the engine").textContent).toContain(
       "Checks failed <script>"
     );
     expect(document.querySelector("script")).toBeNull();
-    // The resume select names the stage the engine remembers.
+    // Retry is one of the choices; its select names the stage the engine remembers.
+    await userEvent.click(screen.getByRole("radio", { name: "Retry from a step" }));
     expect(screen.getByRole("combobox", { name: "Resume from" }).textContent).toContain(
       "Build (the engine remembers it)"
     );
@@ -325,9 +354,12 @@ describe("GatePanel when the desk needs you", () => {
   it("recommends telling the builder first, and sends the note to build", async () => {
     const actions = actionsOf();
     show({ stage: "needs-you", resumeStage: "build" }, actions);
-    const options = screen.getAllByRole("heading", { level: 4 });
-    expect(options[0]?.textContent).toBe("Tell the builder Recommended");
-    const send = screen.getByRole("button", { name: "Send and continue" });
+    const options = screen.getAllByRole("radio");
+    expect(options[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Tell the builder").closest("label")?.textContent).toBe(
+      "Tell the builderRecommended"
+    );
+    const send = screen.getByRole("button", { name: "Send to the builder" });
     expect(send).toHaveProperty("disabled", true);
     await userEvent.type(
       screen.getByRole("textbox", { name: "Note to the builder" }),
@@ -344,7 +376,9 @@ describe("GatePanel when the desk needs you", () => {
   it("offers the session command only when the desk knows one, and links to the trace", async () => {
     const onShowTrace = vi.fn();
     show({ stage: "needs-you", resumeStage: "build" }, actionsOf(), { onShowTrace });
-    expect(screen.queryByRole("heading", { name: "Open the session yourself" })).toBeNull();
+    expect(
+      screen.queryByRole("radio", { name: "Open the agent session in a terminal" })
+    ).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "See it in the trace" }));
     expect(onShowTrace).toHaveBeenCalledTimes(1);
 
@@ -357,6 +391,10 @@ describe("GatePanel when the desk needs you", () => {
         }
       }
     });
+    await userEvent.click(
+      screen.getAllByRole("radio", { name: "Open the agent session in a terminal" }).at(-1) ??
+        document.body
+    );
     expect(screen.getByText(command)).toBeTruthy();
   });
 
@@ -367,7 +405,7 @@ describe("GatePanel when the desk needs you", () => {
     expect(screen.queryByRole("combobox", { name: "Resume from" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /own authority/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /ready label/ }));
     await userEvent.click(screen.getByRole("button", { name: "Start again" }));
 
     expect(actions.run).toHaveBeenCalledWith({ action: "start", override: true });

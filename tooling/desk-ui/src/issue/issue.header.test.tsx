@@ -27,9 +27,6 @@ const show = (
     <IssueHeader
       summary={summary}
       detail={detail}
-      flow={detail.flow}
-      selected={detail.flow.current}
-      onSelect={vi.fn()}
       graphOpen={false}
       onToggleGraph={vi.fn()}
       actions={actions}

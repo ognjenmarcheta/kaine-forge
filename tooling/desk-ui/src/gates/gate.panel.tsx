@@ -86,7 +86,6 @@ function TellForm({
       // Clear only what was sent: the owner may have typed on while it was sent.
       if (await send({ action: "steer", note: text })) {
         setNote((current) => (current === submitted ? "" : current));
-        onClose();
       }
     } finally {
       setSending(false);

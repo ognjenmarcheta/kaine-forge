@@ -38,7 +38,7 @@ const rowOf = async (label: string): Promise<HTMLElement> => {
   return row;
 };
 
-beforeEach(() => window.history.replaceState(null, "", "?view=health"));
+beforeEach(() => window.history.replaceState(null, "", "?view=setup"));
 afterEach(() => window.history.replaceState(null, "", "/"));
 
 describe("SetupView remedies", () => {

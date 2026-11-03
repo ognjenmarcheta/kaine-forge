@@ -165,6 +165,8 @@ function ConnectionBar() {
  * change applies at once and keeps what you typed. Esc or a click outside closes it.
  */
 interface Prefs {
+  readonly theme: ReturnType<typeof useTheme>;
+  readonly themeName: ReturnType<typeof useThemeName>;
   readonly density: ReturnType<typeof useDensity>;
   readonly hold: ReturnType<typeof useHoldToasts>;
   readonly notify: ReturnType<typeof useNotifyPreference>;
@@ -182,8 +184,8 @@ function Preferences({
   const t = useT();
   const id = useId();
   const { language, setLanguage } = useLanguage();
-  const [theme, setTheme] = useTheme();
-  const [themeName, setThemeName] = useThemeName();
+  const [theme, setTheme] = prefs.theme;
+  const [themeName, setThemeName] = prefs.themeName;
   const [density, setDensity] = prefs.density;
   const [hold, setHold] = prefs.hold;
   const [notify, setNotify] = prefs.notify;
@@ -304,7 +306,7 @@ function Sidebar({ prefs, onPalette }: { readonly prefs: Prefs; readonly onPalet
   const [prefsButton, setPrefsButton] = useState<HTMLButtonElement | null>(null);
   const shortcut = IS_MAC ? "⌘K" : `${t("desk.keys.ctrl")} K`;
   return (
-    <aside className="dk-side" aria-label={t("desk.shell.navigation")}>
+    <aside className="dk-side" aria-label={t("desk.shell.sidebar")}>
       <div className="dk-brand">
         <span className="dk-logo" aria-hidden="true">
           {t("desk.shell.mark")}
@@ -374,7 +376,7 @@ function PhoneTabs() {
     PHONE_TABS.includes(item.target)
   );
   return (
-    <nav className="dk-btabs" aria-label={t("desk.shell.navigation")}>
+    <nav className="dk-btabs" aria-label={t("desk.shell.tabs")}>
       {items.map((item) => (
         <NavLink key={item.target} item={item} />
       ))}
@@ -387,7 +389,10 @@ function Frame({ children }: { readonly children: ReactNode }) {
   const { route, navigate } = useRouter();
   const newWork = useNewWork();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // One owner for each preference: the root shows it from the first paint, the panel changes it.
   const prefs: Prefs = {
+    theme: useTheme(),
+    themeName: useThemeName(),
     density: useDensity(),
     hold: useHoldToasts(),
     notify: useNotifyPreference()

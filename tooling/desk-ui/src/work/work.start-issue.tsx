@@ -92,7 +92,7 @@ function IssuePicker({
                   disabled={issue.onBoard}
                   onClick={() => onPick(issue)}
                 >
-                  <b className="dk-mono">{t("desk.issue.number", { number: issue.number })}</b>
+                  <b className="dk-mono">{t("desk.issue.number", { number: issue.number })}</b>{" "}
                   <span>{issue.title}</span>
                   <span className="dk-row">
                     {issue.onBoard ? (
