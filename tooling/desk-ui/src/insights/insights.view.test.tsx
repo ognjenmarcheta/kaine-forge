@@ -259,11 +259,45 @@ const PROMOTED: LessonReport = {
   ...LESSONS,
   candidates: [],
   promoted: [
-    { key: CANDIDATE.key, at: "2026-10-13T09:00:00.000Z", note: "Added a rule", issue: null }
+    {
+      key: CANDIDATE.key,
+      at: "2026-10-13T09:00:00.000Z",
+      note: "Added a rule",
+      issue: null,
+      recurrence: { occurrences: 0, issues: [], lastSeen: null }
+    }
   ]
 };
 
 describe("InsightsView lessons", () => {
+  it("flags a promoted lesson whose problem came back after the promotion", async () => {
+    const promoted = PROMOTED.promoted[0];
+    if (promoted === undefined) throw new Error("no promoted fixture");
+    renderDesk(
+      <InsightsView />,
+      fakeApi({
+        stats: () => Promise.resolve(STATS),
+        lessons: () =>
+          Promise.resolve({
+            ...PROMOTED,
+            promoted: [
+              {
+                ...promoted,
+                recurrence: {
+                  occurrences: 3,
+                  issues: [20, 24],
+                  lastSeen: "2026-10-20T09:00:00.000Z"
+                }
+              }
+            ]
+          })
+      })
+    );
+
+    expect(await screen.findByText("Seen again after the promotion: 3 · #20 #24")).toBeTruthy();
+    expect(screen.queryByText("Not seen again since the promotion")).toBeNull();
+  });
+
   it("promotes a lesson with its note, then unpromotes it, from the server's answers", async () => {
     const lessonPromote = vi.fn(() => Promise.resolve(PROMOTED));
     const lessonUnpromote = vi.fn(() => Promise.resolve(LESSONS));
@@ -284,6 +318,7 @@ describe("InsightsView lessons", () => {
 
     expect(lessonPromote).toHaveBeenCalledWith("check/pnpm test", "Added a rule");
     expect(await screen.findByText("Added a rule")).toBeTruthy();
+    expect(screen.getByText("Not seen again since the promotion")).toBeTruthy();
     expect(screen.queryByRole("table", { name: "Lesson candidates" })).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "Unpromote check/pnpm test" }));
@@ -307,7 +342,15 @@ describe("InsightsView lessons", () => {
         report: {
           ...LESSONS,
           candidates: [],
-          promoted: [{ key: CANDIDATE.key, at: "2026-10-13T09:00:00.000Z", note: null, issue: 321 }]
+          promoted: [
+            {
+              key: CANDIDATE.key,
+              at: "2026-10-13T09:00:00.000Z",
+              note: null,
+              issue: 321,
+              recurrence: { occurrences: 0, issues: [], lastSeen: null }
+            }
+          ]
         }
       })
     );

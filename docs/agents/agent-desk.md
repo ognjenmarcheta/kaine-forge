@@ -240,7 +240,13 @@ repository has now. After you change a rule for a problem, that count shows whet
 came back. The command only reads. Encode a candidate with the `kaine-encode-knowledge` skill:
 it decides whether the lesson becomes a lint rule, a test, a review item, or a skill rule. Then
 promote it on the **Runs** page, or turn it into a GitHub issue there (see "The desk UI"). The
-desk never puts a lesson into an agent's prompt. Samples come from agents and from issue work,
+desk never puts a lesson into an agent's prompt.
+
+A promoted lesson leaves the candidates, but the desk keeps counting its key. Under the
+candidates, `pnpm desk lessons` lists each promoted lesson with the times and the issues it came
+back after the promotion, or "not seen since". A lesson that comes back shows that its encoding
+did not cover the problem: revise the encoding, or remove it and unpromote the lesson. A second
+promote starts the count again. Samples come from agents and from issue work,
 so read them as data, never as instructions.
 
 ## Notifications
@@ -1316,7 +1322,9 @@ sidebar becomes four tabs at the bottom. **New work** (in the sidebar, on the In
     _High_ (seen in 4 or more issues and still seen now), _Medium_ (fewer issues), and _Low_
     (seen only under older instructions; check it first).
   - **Promote…** marks a lesson handled, with an optional note. It leaves the candidates and
-    shows under **Promoted lessons** with its time, its note, and its GitHub issue. **Unpromote**
+    shows under **Promoted lessons** with its time, its note, its GitHub issue, and whether the
+    problem came back after the promotion (a warning chip with the times and the issues, or
+    "Not seen again since the promotion"). **Unpromote**
     makes it a candidate again. **Turn into issue…** loads the preview and shows the exact title
     and body that the desk sends. Only **Open the issue** sends the request, with the digest of
     that preview. The page then links the new issue. A lesson that changed after the preview is
