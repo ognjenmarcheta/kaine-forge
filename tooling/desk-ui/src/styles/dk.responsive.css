@@ -282,3 +282,10 @@
     scroll-margin-block: var(--ds-space-800) 9rem;
   }
 }
+@media (width < 48rem) {
+  .dk-btabs .dk-count.dk-bad {
+    position: absolute;
+    top: var(--ds-space-050);
+    left: 55%;
+  }
+}

@@ -83,8 +83,8 @@
 }
 .dk-sr {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: var(--ds-border-width);
+  height: var(--ds-border-width);
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
