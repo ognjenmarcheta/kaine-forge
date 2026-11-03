@@ -317,6 +317,7 @@ function Sidebar({ prefs, onPalette }: { readonly prefs: Prefs; readonly onPalet
         </span>
       </div>
       <Button
+        type="button"
         appearance="ghost"
         className="dk-bare dk-search-trigger"
         aria-label={t("desk.palette.open")}
@@ -339,6 +340,7 @@ function Sidebar({ prefs, onPalette }: { readonly prefs: Prefs; readonly onPalet
       </nav>
       <div className="dk-side-foot">
         <Button
+          type="button"
           appearance="outline"
           title={t("desk.newWork.open")}
           aria-keyshortcuts="N"
@@ -351,6 +353,7 @@ function Sidebar({ prefs, onPalette }: { readonly prefs: Prefs; readonly onPalet
           <Connection />
           <span className="dk-grow" />
           <Button
+            type="button"
             ref={setPrefsButton}
             appearance="ghost"
             spacing="icon"

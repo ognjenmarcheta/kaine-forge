@@ -1946,11 +1946,10 @@ main:focus {
 
 .desk-node__title {
   min-width: 0;
-  overflow: hidden;
   font: var(--ds-font-body-small);
   font-weight: var(--ds-font-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* The gate names are longer now ("Merge on GitHub"): a title wraps rather than cut. */
+  overflow-wrap: anywhere;
 }
 
 .desk-node__status {

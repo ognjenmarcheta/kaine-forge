@@ -431,6 +431,7 @@ function DimensionRowView({
         <td className="dk-n">{row.number}</td>
         <th scope="row">
           <Button
+            type="button"
             appearance="ghost"
             className="desk-score-toggle"
             aria-expanded={expanded}
@@ -794,7 +795,7 @@ function Diagrams({ flows }: { readonly flows: readonly ScorecardFlowLayout[] })
       {flows.map((flow) => (
         <Collapsible key={flow.id} className="desk-score-diagram">
           <CollapsibleTrigger asChild>
-            <Button appearance="ghost" className="desk-score-toggle">
+            <Button type="button" appearance="ghost" className="desk-score-toggle">
               <ChevronRight aria-hidden="true" className="dk-ic desk-score-toggle__chevron" />
               {flow.title}
             </Button>
@@ -901,11 +902,11 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
           <p className="dk-lead">{t("desk.scorecard.intro")}</p>
         </div>
         <div className="desk-job-actions">
-          <Button appearance="subtle" onClick={load} disabled={loading}>
+          <Button type="button" appearance="subtle" onClick={load} disabled={loading}>
             {t("desk.scorecard.refresh")}
           </Button>
           {jobId === undefined && openJob === null && (
-            <Button onClick={() => newWork.open({ tab: "job", kind: "scorecard" })}>
+            <Button type="button" onClick={() => newWork.open({ tab: "job", kind: "scorecard" })}>
               {t("desk.job.start.scorecard")}
             </Button>
           )}

@@ -263,7 +263,9 @@ export function WorkView() {
           name={(option) => t(`desk.work.view.${option}`)}
           onChange={setView}
         />
-        <Button onClick={() => newWork.open()}>{t("desk.newWork.open")}</Button>
+        <Button type="button" onClick={() => newWork.open()}>
+          {t("desk.newWork.open")}
+        </Button>
       </header>
       <div className="dk-filters">
         <div className="dk-field dk-search" role="search">
@@ -282,6 +284,7 @@ export function WorkView() {
           <div className="dk-row" role="group" aria-label={t("desk.board.filter.label")}>
             {chips.map((chip) => (
               <Button
+                type="button"
                 key={chip.name}
                 appearance="ghost"
                 className="dk-bare dk-fchip"

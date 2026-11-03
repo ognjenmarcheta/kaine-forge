@@ -108,6 +108,7 @@ function DraftBox({
       />
       <span className="dk-row">
         <Button
+          type="button"
           appearance="outline"
           spacing="compact"
           disabled={text.trim() === ""}
@@ -115,7 +116,7 @@ function DraftBox({
         >
           {t("desk.lines.add")}
         </Button>
-        <Button appearance="ghost" spacing="compact" onClick={onCancel}>
+        <Button type="button" appearance="ghost" spacing="compact" onClick={onCancel}>
           {t("desk.common.cancel")}
         </Button>
         <span className="dk-hint">{t("desk.lines.notSent")}</span>
@@ -131,6 +132,7 @@ export function LineAdd({ path, line }: { readonly path: string; readonly line: 
   if (notes === null) return null;
   return (
     <Button
+      type="button"
       appearance="ghost"
       className="dk-bare dk-ln-add"
       aria-label={t("desk.lines.start", { line })}
@@ -157,6 +159,7 @@ export function LineNotesAt({ path, line }: { readonly path: string; readonly li
           <span>{note.text}</span>
           <span>
             <Button
+              type="button"
               appearance="link"
               spacing="compact"
               className="dk-bare dk-linkbtn dk-t-small"

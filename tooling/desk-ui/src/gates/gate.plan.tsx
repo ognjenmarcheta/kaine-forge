@@ -116,11 +116,18 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
             : "desk.gate.plan.hint"
         )}
       >
-        <Button spacing="spacious" disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
+        <Button
+          type="button"
+          spacing="spacious"
+          disabled={actions.busy}
+          aria-keyshortcuts="A"
+          onClick={approve}
+        >
           {t("desk.gate.plan.approve")}
           <Kbd shortcut="a" />
         </Button>
         <Button
+          type="button"
           appearance="outline"
           spacing="spacious"
           disabled={actions.busy}

@@ -68,6 +68,7 @@ export function QueueNav({ itemKey }: { readonly itemKey: string }) {
           : t("desk.issue.queue.position", { position: queue.position, total: queue.total })}
       </span>
       <Button
+        type="button"
         appearance="ghost"
         spacing="compact"
         className="dk-btn"
@@ -80,6 +81,7 @@ export function QueueNav({ itemKey }: { readonly itemKey: string }) {
         <Kbd shortcut="k" />
       </Button>
       <Button
+        type="button"
         appearance="ghost"
         spacing="compact"
         className="dk-btn"
@@ -268,6 +270,7 @@ export function IssueHeader({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              type="button"
               ref={moreButton}
               appearance="outline"
               spacing="icon"

@@ -258,6 +258,7 @@ export function AgentsView() {
               />
               {filter.query !== "" && (
                 <Button
+                  type="button"
                   appearance="ghost"
                   spacing="compact"
                   className="desk-search__clear"

@@ -127,6 +127,7 @@ export function Segmented<T extends string>({
     <div className="dk-seg" role="group" aria-label={label}>
       {options.map((option) => (
         <Button
+          type="button"
           key={option}
           appearance="ghost"
           className="dk-bare"

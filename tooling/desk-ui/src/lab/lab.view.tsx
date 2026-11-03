@@ -35,7 +35,11 @@ function LabJob({ kind, start }: (typeof LAB_JOBS)[number]) {
   return (
     <>
       {open === null ? (
-        <Button appearance="subtle" onClick={() => newWork.open({ tab: "job", kind })}>
+        <Button
+          type="button"
+          appearance="subtle"
+          onClick={() => newWork.open({ tab: "job", kind })}
+        >
           {t(start)}
         </Button>
       ) : (

@@ -67,12 +67,13 @@ export function ApproveGate({ summary, actions, send, titleId }: GateBodyProps) 
         />
       )}
       <DecideBar labelledBy={titleId} hint={t("desk.gate.approve.hint")}>
-        <Button disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
+        <Button type="button" disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
           {t("desk.gate.approve.button")}
           <Kbd shortcut="a" />
         </Button>
         {targets.length > 0 && (
           <Button
+            type="button"
             appearance="secondary"
             disabled={actions.busy}
             aria-expanded={feedbackOpen}

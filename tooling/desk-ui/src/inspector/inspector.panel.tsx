@@ -158,6 +158,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           <StatusChip tone={tone}>{nodeStatusText(t, node)}</StatusChip>
         </div>
         <Button
+          type="button"
           appearance="ghost"
           className="desk-sheet__button"
           aria-label={t("desk.sheet.previous")}
@@ -168,6 +169,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           <ArrowRight aria-hidden="true" className="dk-ic desk-icon--back" />
         </Button>
         <Button
+          type="button"
           appearance="ghost"
           className="desk-sheet__button"
           aria-label={t("desk.sheet.next")}
@@ -178,6 +180,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           <ArrowRight aria-hidden="true" className="dk-ic" />
         </Button>
         <Button
+          type="button"
           appearance="ghost"
           className="desk-sheet__button"
           aria-label={t("desk.common.close")}

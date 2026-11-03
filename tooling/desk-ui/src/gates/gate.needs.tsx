@@ -54,6 +54,7 @@ function IncidentCard({ detail, onShowTrace }: Pick<GateBodyProps, "detail" | "o
         <p className="dk-t-small dk-row">
           {incident.cause !== null && <span>{t(`desk.incident.cause.${incident.cause}`)}</span>}
           <Button
+            type="button"
             appearance="link"
             spacing="compact"
             className="dk-bare dk-linkbtn"
@@ -213,7 +214,13 @@ export function NeedsYouGate({
         </RadioGroup>
       </div>
       <DecideBar labelledBy={titleId} hint={t("desk.incident.hint")}>
-        <Button spacing="spacious" disabled={disabled} aria-keyshortcuts="C" onClick={act}>
+        <Button
+          type="button"
+          spacing="spacious"
+          disabled={disabled}
+          aria-keyshortcuts="C"
+          onClick={act}
+        >
           {cta}
           <Kbd shortcut="c" />
         </Button>
@@ -284,7 +291,7 @@ export function IntakeGate({ detail, summary, actions, send, titleId }: GateBody
         <h3 className="dk-h-sec">{t("desk.intake.fix")}</h3>
         <p className="dk-t-sub">{t("desk.draft.help")}</p>
         <div className="dk-row">
-          <Button disabled={actions.busy} onClick={() => void draft()}>
+          <Button type="button" disabled={actions.busy} onClick={() => void draft()}>
             {drafting ? (
               <>
                 <Spinner size="sm" label={t("desk.draft.drafting")} aria-hidden="true" />
@@ -295,7 +302,7 @@ export function IntakeGate({ detail, summary, actions, send, titleId }: GateBody
             )}
           </Button>
           {hasDraft && (
-            <Button appearance="secondary" onClick={() => setDraftOpen(true)}>
+            <Button type="button" appearance="secondary" onClick={() => setDraftOpen(true)}>
               {t("desk.draft.review")}
             </Button>
           )}
@@ -316,6 +323,7 @@ export function IntakeGate({ detail, summary, actions, send, titleId }: GateBody
         </div>
         <div className="dk-row" role="group" aria-labelledby={titleId}>
           <Button
+            type="button"
             appearance="secondary"
             disabled={actions.busy}
             onClick={() => void send({ action: "start", override })}

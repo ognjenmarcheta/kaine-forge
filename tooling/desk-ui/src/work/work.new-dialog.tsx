@@ -73,6 +73,7 @@ export function NewWorkDialog({
             <div className="dk-jobk" role="radiogroup" aria-label={t("desk.newWork.job")}>
               {JOB_KINDS.map((option) => (
                 <Button
+                  type="button"
                   key={option}
                   appearance="ghost"
                   className="dk-bare"

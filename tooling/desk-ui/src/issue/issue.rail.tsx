@@ -83,7 +83,7 @@ function StepFacts({
         )}
       </dl>
       <div className="dk-row">
-        <Button appearance="outline" spacing="compact" onClick={onDetails}>
+        <Button type="button" appearance="outline" spacing="compact" onClick={onDetails}>
           {t("desk.rail.details")}
         </Button>
       </div>
@@ -120,7 +120,7 @@ export function StepsRail({
           <h2 id={`${id}-title`} className="dk-h-sec dk-grow">
             {t("desk.rail.title")}
           </h2>
-          <Button appearance="ghost" spacing="compact" onClick={onToggleGraph}>
+          <Button type="button" appearance="ghost" spacing="compact" onClick={onToggleGraph}>
             {t(graphOpen ? "desk.rail.mapHide" : "desk.rail.mapShow")}
           </Button>
         </div>
@@ -135,6 +135,7 @@ export function StepsRail({
             return (
               <li key={node.id}>
                 <Button
+                  type="button"
                   appearance="ghost"
                   className={`dk-bare dk-step${node.current ? " dk-cur" : ""}${node.status === "idle" ? " dk-idle" : ""}`}
                   aria-expanded={expanded}

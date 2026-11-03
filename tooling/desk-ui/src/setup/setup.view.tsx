@@ -34,6 +34,7 @@ function CopyCommand({ command }: { readonly command: string }) {
     <>
       <code className="desk-remedy__command">{command}</code>
       <Button
+        type="button"
         appearance="subtle"
         spacing="compact"
         onClick={copy}
@@ -63,6 +64,7 @@ function Remedy({ check, running, onFix }: RemedyProps) {
       {fix !== null && (
         <>
           <Button
+            type="button"
             appearance="default"
             spacing="compact"
             disabled={running !== null}
@@ -242,7 +244,7 @@ export function SetupView() {
           <h1 className="dk-h-page">{t("desk.health.title")}</h1>
           <p className="dk-lead">{t("desk.health.intro")}</p>
         </div>
-        <Button appearance="subtle" onClick={refresh} disabled={loading}>
+        <Button type="button" appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.health.refresh")}
         </Button>
       </header>

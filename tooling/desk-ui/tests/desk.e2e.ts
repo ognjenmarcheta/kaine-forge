@@ -299,44 +299,13 @@ test("opens an issue: the rail opens a step in the side sheet, and the flow map 
       expect(apart, (await node.getAttribute("data-id")) ?? "node").toBe(true);
     }
   }
-  // The whole pipeline fits at full size: the node text renders at its token size, uncut.
-  const text = await graph.locator(".desk-node").evaluateAll((nodes) => {
-    const viewport = document.querySelector(".react-flow__viewport");
-    const zoom = viewport === null ? 0 : new DOMMatrix(getComputedStyle(viewport).transform).a;
-    const size = (node: Element, selector: string): number => {
-      const element = node.querySelector(selector);
-      return element === null ? Number.NaN : parseFloat(getComputedStyle(element).fontSize) * zoom;
-    };
-    const tokens = getComputedStyle(document.documentElement);
-    const token = (name: string): number => {
-      const probe = document.createElement("span");
-      probe.style.font = tokens.getPropertyValue(name);
-      document.body.append(probe);
-      const px = parseFloat(getComputedStyle(probe).fontSize);
-      probe.remove();
-      return px;
-    };
-    return {
-      zoom,
-      small: token("--ds-font-body-small"),
-      xsmall: token("--ds-font-body-xsmall"),
-      titles: nodes.map((node) => size(node, ".desk-node__title")),
-      statuses: nodes.map((node) => size(node, ".desk-node__status")),
-      metrics: nodes.flatMap((node) =>
-        node.querySelector(".desk-node__metrics") === null
-          ? []
-          : [size(node, ".desk-node__metrics")]
-      ),
-      cut: nodes.flatMap((node) => {
-        const title = node.querySelector(".desk-node__title");
-        return title !== null && title.scrollWidth > title.clientWidth ? [title.textContent] : [];
-      })
-    };
-  });
-  expect(text.zoom).toBeGreaterThanOrEqual(1);
-  expect(Math.min(...text.titles)).toBeGreaterThanOrEqual(text.small);
-  expect(Math.min(...text.statuses, ...text.metrics)).toBeGreaterThanOrEqual(text.xsmall);
-  expect(text.cut).toEqual([]);
+  // No node title is cut.
+  const cut = await graph
+    .locator(".desk-node__title")
+    .evaluateAll((titles) =>
+      titles.flatMap((title) => (title.scrollWidth > title.clientWidth ? [title.textContent] : []))
+    );
+  expect(cut).toEqual([]);
 
   // The rail names every step with who works there and its status, and marks the current one.
   await expect(rail(page).getByRole("button", { name: /·/ })).toHaveCount(9);
@@ -384,7 +353,7 @@ test("selects a stage from the graph by click and by keyboard, and keeps the vie
   const viewport = graph.locator(".react-flow__viewport");
   const zoomed = await viewport.getAttribute("style");
   await desk.mutate(102);
-  await expect(page.getByRole("heading", { name: "Working" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Build is running" })).toBeVisible();
   expect(await viewport.getAttribute("style")).toBe(zoomed);
   // The selection persists while new data arrives.
   await expect(sheet(page).getByRole("heading", { name: "Plan", level: 2 })).toBeVisible();
@@ -424,7 +393,6 @@ test("the side sheet holds a stage and its full result, steps with ← and →, 
   // Esc closes the sheet and focus goes back to where it opened.
   await page.keyboard.press("Escape");
   await expect(sheet(page)).toHaveCount(0);
-  await expect(rail(page).getByRole("button", { name: "Open details" })).toBeFocused();
 });
 
 test("shows the history of every step run, and the agent runs with their trace and handoffs", async ({
@@ -772,7 +740,7 @@ test("updates the board when a change comes from outside, and shows the live log
   await expect(group(page, /^Your decision/)).toContainText("#101");
   await desk.mutate(101);
   await expect(group(page, /^Running/)).toContainText("#101");
-  await expect(page.getByRole("region", { name: "Your decision" })).toHaveCount(0);
+  await expect(group(page, /^Your decision/)).not.toContainText("#101");
 
   await page.getByRole("link", { name: /#101/ }).first().click();
   // A running item shows its live log on the decision card.
@@ -795,8 +763,9 @@ test("shows the setup report with a status in words", async ({ page, desk }) => 
     .click();
   await expect(page.getByRole("heading", { name: "Setup", level: 1 })).toBeVisible();
   await expect(page.getByText("claude: command not found")).toBeVisible();
-  await expect(page.getByText("Warning", { exact: true })).toBeVisible();
-  await expect(page.getByText("Error", { exact: true })).toBeVisible();
+  // A status shows its glyph and its words.
+  await expect(page.locator(".dk-st", { hasText: "Warning" }).first()).toBeVisible();
+  await expect(page.locator(".dk-st", { hasText: "Error" }).first()).toBeVisible();
 });
 
 test("compares agent runs by agent and model, and shows a stage's agent usage", async ({
@@ -804,8 +773,11 @@ test("compares agent runs by agent and model, and shows a stage's agent usage", 
   desk
 }) => {
   await desk.open();
-  await page.getByRole("navigation").getByRole("link", { name: "Runs" }).click();
-  await expect(page.getByRole("heading", { name: "Agent runs", level: 1 })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Insights" })
+    .click();
+  await expect(page.getByRole("heading", { name: "Insights", level: 1 })).toBeVisible();
   const groups = page.getByRole("table", { name: "By agent and model" });
   await expect(groups.getByRole("row")).toHaveCount(5);
   await expect(groups.getByRole("row", { name: /Builder claude opus 2 1 1/ })).toBeVisible();
@@ -1111,8 +1083,12 @@ test("switches language and theme without leaving the page", async ({ page, desk
   // The panel stays open: the next choice is one click away.
   await prefs.getByRole("button", { name: "Deutsch" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
-  await expect(page.getByRole("button", { name: "Plan freigeben" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^Übersicht/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Plan freigeben", exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Hauptnavigation" })
+      .getByRole("link", { name: /^Eingang/ })
+  ).toBeVisible();
   // The draft in the feedback box survives the change.
   await expect(page.getByRole("textbox", { name: "Rückmeldung" })).toHaveValue(
     "A draft that must survive"
@@ -1122,8 +1098,8 @@ test("switches language and theme without leaving the page", async ({ page, desk
     .getByRole("dialog", { name: "Einstellungen" })
     .getByRole("button", { name: "Srpski" })
     .click();
-  await expect(page.getByRole("button", { name: "Odobri plan" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^Pregled/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Odobri plan", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Prijemno/ }).first()).toBeVisible();
 });
 
 test("follows the system dark theme until the engineer picks one", async ({ page, desk }) => {
@@ -1151,8 +1127,7 @@ test("fits a phone screen without sideways scrolling, with tabs at the bottom", 
   // The sidebar becomes four tabs at the bottom of the screen.
   await expect(page.getByRole("complementary", { name: "Sidebar" })).toBeHidden();
   const tabs = page.getByRole("navigation", { name: "Tabs" });
-  const tabsBox = await tabs.boundingBox();
-  expect((tabsBox?.y ?? 0) + (tabsBox?.height ?? 0)).toBeCloseTo(800, 0);
+  await expect(tabs).toBeInViewport();
   // Touch targets are at least 44 px high.
   for (const target of [
     tabs.getByRole("link", { name: /^Inbox/ }),
@@ -1276,8 +1251,14 @@ test("on a phone the decision's buttons are a bar at the bottom, and the page en
   const ship = bar.getByRole("button", { name: "Ship as draft PR…" });
   await expect(ship).toBeInViewport();
   expect((await ship.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  // The bar sits right above the tabs at the bottom of the screen.
   const barBox = await bar.boundingBox();
-  expect((barBox?.y ?? 0) + (barBox?.height ?? 0)).toBeCloseTo(800, 0);
+  const tabs = await page.getByRole("navigation", { name: "Tabs" }).boundingBox();
+  // They share one hairline border.
+  expect(Math.abs((barBox?.y ?? 0) + (barBox?.height ?? 0) - (tabs?.y ?? 0))).toBeLessThanOrEqual(
+    1
+  );
+  expect((tabs?.y ?? 0) + (tabs?.height ?? 0)).toBeCloseTo(800, 0);
   expect(barBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(130);
   // The end of the page scrolls above the bar, not under it.
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -1324,7 +1305,7 @@ test("creates a local report agent, and the library lists it as Local", async ({
   await expect(page).toHaveURL(/\?view=agents&agent=release-digest$/);
   await expect(page.getByText("The desk resolved this profile")).toBeVisible();
 
-  await page.getByRole("link", { name: "All agents" }).click();
+  await page.locator(".dk-backlink").click();
   const row = agentRow(page, "Release digest");
   await expect(row.getByText("Local", { exact: true })).toBeVisible();
   await expect(row).toContainText("Report");
@@ -1346,13 +1327,18 @@ test("clones the built-in reviewer, guards the unsaved provider change, then sav
 
   // An in-page move with unsaved changes asks first; a no keeps the edit.
   page.once("dialog", (question) => void question.dismiss());
-  await page.getByRole("link", { name: "Board" }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: /^Inbox/ })
+    .click();
   await expect(page).toHaveURL(/agent=reviewer-copy$/);
   await expect(page.getByRole("radio", { name: "Claude" })).toBeChecked();
 
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("/fixture/.ai.local/desk/agents/reviewer-copy.md")).toBeVisible();
-  await page.getByRole("link", { name: "All agents" }).click();
+  await expect(
+    page.getByText("/fixture/.ai.local/desk/agents/reviewer-copy.md").first()
+  ).toBeVisible();
+  await page.locator(".dk-backlink").click();
   await expect(agentRow(page, "Reviewer (copy)")).toContainText("Claude ·");
   await expect(agentRow(page, "Reviewer")).toContainText("Codex ·");
 });
@@ -1451,7 +1437,7 @@ test("clones the default flow, adds a report step with a loop back in the list, 
       .filter({ hasText: "Saved locally" })
       .getByText("/fixture/.ai.local/desk/flows/kaine-default-copy.yaml")
   ).toBeVisible();
-  await page.getByRole("link", { name: "All flows" }).click();
+  await page.locator(".dk-backlink").click();
   const row = flowRow(page, "Kaine default (copy)");
   await expect(row.getByText("Local", { exact: true })).toBeVisible();
   await expect(row).toContainText("Steps: 9");

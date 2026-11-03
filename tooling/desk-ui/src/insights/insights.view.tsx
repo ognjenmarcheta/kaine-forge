@@ -391,7 +391,7 @@ export function InsightsView() {
           <h1 className="dk-h-page">{t("desk.stats.title")}</h1>
           <p className="dk-lead">{t("desk.stats.intro")}</p>
         </div>
-        <Button appearance="subtle" onClick={refresh} disabled={loading}>
+        <Button type="button" appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.stats.refresh")}
         </Button>
       </header>

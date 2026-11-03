@@ -77,6 +77,7 @@ function Outputs({
       <div className="dk-row" role="group" aria-label={t("desk.details.outputs")}>
         {steps.map((step) => (
           <Button
+            type="button"
             key={step}
             appearance="ghost"
             className="dk-bare dk-fchip"
@@ -96,9 +97,13 @@ function Outputs({
 /** The trace step a run belongs to: the step of its role that was running when it started. */
 const stepOfRun = (trace: Trace, run: RunRecord): string | null => {
   const at = Date.parse(run.at);
+  const ofRole = trace.steps.filter((step) => step.role === run.role);
+  // A run is recorded when it ends, so the latest step of its role that began before then.
   return (
-    trace.steps.find((step) => step.role === run.role && step.startMs <= at && at <= step.endMs)
-      ?.id ?? null
+    ofRole.find((step) => step.startMs <= at && at <= step.endMs)?.id ??
+    ofRole.filter((step) => step.startMs <= at).at(-1)?.id ??
+    ofRole.at(-1)?.id ??
+    null
   );
 };
 
@@ -182,6 +187,7 @@ function AgentRuns({
                   <tr>
                     <td>
                       <Button
+                        type="button"
                         appearance="link"
                         spacing="compact"
                         className="dk-bare dk-linkbtn"
@@ -217,6 +223,7 @@ function AgentRuns({
                       {t(run.accepted ? "desk.details.accepted" : "desk.details.notAccepted")}{" "}
                       {step !== null && (
                         <Button
+                          type="button"
                           appearance="link"
                           spacing="compact"
                           className="dk-bare dk-linkbtn dk-t-small"

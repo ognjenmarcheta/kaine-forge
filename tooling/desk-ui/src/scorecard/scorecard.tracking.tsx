@@ -86,6 +86,7 @@ export function IssueCell({ issue }: { readonly issue: TrackedIssue }) {
       ) : (
         issue.state === "open" && (
           <Button
+            type="button"
             appearance="subtle"
             spacing="compact"
             disabled={actions.busy}
@@ -194,11 +195,16 @@ export function TrackingBar({
               })
             : t("desk.scorecard.tracking.failed", { reason: tracking.reason })}
       </span>
-      <Button appearance="subtle" spacing="compact" onClick={() => reload(true)}>
+      <Button type="button" appearance="subtle" spacing="compact" onClick={() => reload(true)}>
         {t("desk.github.refresh")}
       </Button>
       {unlabeled.length > 0 && (
-        <Button appearance="subtle" spacing="compact" onClick={() => setPreview(true)}>
+        <Button
+          type="button"
+          appearance="subtle"
+          spacing="compact"
+          onClick={() => setPreview(true)}
+        >
           {t("desk.scorecard.tracking.backfill", { count: unlabeled.length })}
         </Button>
       )}

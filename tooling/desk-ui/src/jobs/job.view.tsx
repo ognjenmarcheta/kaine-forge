@@ -190,6 +190,7 @@ function GateActions({
     <>
       <div className="desk-job-actions">
         <Button
+          type="button"
           disabled={action.pending}
           onClick={() => (confirm === null ? approve() : setConfirming(true))}
         >
@@ -205,6 +206,7 @@ function GateActions({
         />
       </div>
       <Button
+        type="button"
         appearance="subtle"
         disabled={action.pending || note.trim() === ""}
         onClick={() => {
@@ -454,7 +456,11 @@ function Stopped({ job }: { readonly job: JobState }) {
     <div className="dk-banner dk-banner-danger dk-stack" role="alert">
       <p>{t(`desk.job.stop.${job.stop.reason}`)}</p>
       <Pre>{job.stop.detail}</Pre>
-      <Button disabled={action.pending} onClick={() => void action.run({ action: "continue" })}>
+      <Button
+        type="button"
+        disabled={action.pending}
+        onClick={() => void action.run({ action: "continue" })}
+      >
         {t("desk.job.continue")}
       </Button>
       {action.error !== null && <p className="dk-hint dk-t-danger">{action.error}</p>}
@@ -542,7 +548,12 @@ export function JobView({ jobId }: { readonly jobId: number }) {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button appearance="outline" spacing="icon" aria-label={t("desk.gate.more")}>
+            <Button
+              type="button"
+              appearance="outline"
+              spacing="icon"
+              aria-label={t("desk.gate.more")}
+            >
               <Ellipsis aria-hidden="true" className="dk-ic" />
             </Button>
           </DropdownMenuTrigger>

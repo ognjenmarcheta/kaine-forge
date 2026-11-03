@@ -197,6 +197,7 @@ export function ReviewGate({
         }
       >
         <Button
+          type="button"
           appearance={allViewed ? "default" : "secondary"}
           disabled={actions.busy}
           aria-keyshortcuts="S"
@@ -206,13 +207,14 @@ export function ReviewGate({
           <Kbd shortcut="s" />
         </Button>
         {!allViewed && (
-          <Button aria-keyshortcuts="N" onClick={nextUnviewed}>
+          <Button type="button" aria-keyshortcuts="N" onClick={nextUnviewed}>
             {t("desk.diff.nextUnviewed")}
             <Kbd shortcut="n" />
           </Button>
         )}
         {lines.notes.length > 0 && !feedbackOpen ? (
           <Button
+            type="button"
             appearance="outline"
             disabled={actions.busy || builder === null}
             onClick={() => void sendLines()}
@@ -221,6 +223,7 @@ export function ReviewGate({
           </Button>
         ) : (
           <Button
+            type="button"
             appearance="outline"
             disabled={actions.busy}
             aria-expanded={feedbackOpen}

@@ -159,22 +159,23 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     <IssueFlowProvider flow={issueFlowOf(summary)}>
       {header}
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
+      {graphOpen && (
+        // The map spans the page: a flow is wide, and the rail and the decision stay below it.
+        <section className="dk-card dk-mb-250 dk-hide-phone" aria-label={t("desk.flow.title")}>
+          <div className="dk-card-h">
+            <h2 className="dk-h-sec dk-grow">{t("desk.flow.title")}</h2>
+            <FlowLegend />
+          </div>
+          <FlowGraph
+            model={flow}
+            selected={sheet}
+            onSelect={(id) => setSheet((open) => (open === id ? null : id))}
+            needsYouReason={summary.needsYouReason}
+          />
+        </section>
+      )}
       <div className="dk-ilayout">
         <div className="dk-icol">
-          {graphOpen && (
-            <section className="dk-card" aria-label={t("desk.flow.title")}>
-              <div className="dk-card-h">
-                <h2 className="dk-h-sec dk-grow">{t("desk.flow.title")}</h2>
-                <FlowLegend />
-              </div>
-              <FlowGraph
-                model={flow}
-                selected={sheet}
-                onSelect={(id) => setSheet((open) => (open === id ? null : id))}
-                needsYouReason={summary.needsYouReason}
-              />
-            </section>
-          )}
           <GatePanel
             detail={detail}
             summary={summary}

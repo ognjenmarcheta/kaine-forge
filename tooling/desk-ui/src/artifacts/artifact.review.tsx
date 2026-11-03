@@ -68,7 +68,12 @@ export function FindingLinks({
         const location = `${finding.file}:${String(finding.line)}`;
         return (
           <li key={index}>
-            <Button appearance="ghost" className="desk-finding-link" onClick={() => onGo(finding)}>
+            <Button
+              type="button"
+              appearance="ghost"
+              className="desk-finding-link"
+              onClick={() => onGo(finding)}
+            >
               <Tag appearance={appearanceOf(SEVERITY_TONE[finding.severity])}>
                 {t(`desk.review.severity.${finding.severity}`)}
               </Tag>

@@ -65,6 +65,7 @@ export function LogPanel({ issueNumber }: { readonly issueNumber: number }) {
       </div>
       {!following && (
         <Button
+          type="button"
           appearance="secondary"
           spacing="compact"
           className="dk-end"

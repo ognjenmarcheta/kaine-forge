@@ -109,10 +109,10 @@ function TellForm({
         </p>
       </div>
       <div className="dk-row">
-        <Button disabled={sending || note.trim() === ""} onClick={() => void steer()}>
+        <Button type="button" disabled={sending || note.trim() === ""} onClick={() => void steer()}>
           {t("desk.gate.working.steer.send")}
         </Button>
-        <Button appearance="ghost" onClick={onClose}>
+        <Button type="button" appearance="ghost" onClick={onClose}>
           {t("desk.common.cancel")}
         </Button>
       </div>
@@ -187,12 +187,19 @@ function RunningGate({ summary, send }: GateBodyProps) {
         <TellForm key={summary.stage} agent={who} send={send} onClose={() => setTelling(false)} />
       )}
       <div className="dk-decide">
-        <Button appearance="outline" spacing="spacious" aria-keyshortcuts="P" onClick={toggle}>
+        <Button
+          type="button"
+          appearance="outline"
+          spacing="spacious"
+          aria-keyshortcuts="P"
+          onClick={toggle}
+        >
           {label}
           <Kbd shortcut="p" />
         </Button>
         {who !== null && !summary.paused && (
           <Button
+            type="button"
             appearance="outline"
             aria-expanded={telling}
             onClick={() => setTelling((open) => !open)}
@@ -249,10 +256,15 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
         </p>
       )}
       <DecideBar labelledBy={titleId}>
-        <Button disabled={actions.busy} onClick={() => void send({ action: "refresh-pr" })}>
+        <Button
+          type="button"
+          disabled={actions.busy}
+          onClick={() => void send({ action: "refresh-pr" })}
+        >
           {t("desk.gate.prOpen.check")}
         </Button>
         <Button
+          type="button"
           appearance="secondary"
           disabled={actions.busy}
           onClick={() => void send({ action: "check-pr" })}
@@ -260,6 +272,7 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
           {t("desk.pulls.check")}
         </Button>
         <Button
+          type="button"
           appearance="secondary"
           disabled={actions.busy}
           aria-expanded={feedbackOpen}
@@ -306,6 +319,7 @@ function FinishedReports({ detail, revision, onOpenResult }: GateBodyProps) {
           <div className="dk-row">
             {others.map((report) => (
               <Button
+                type="button"
                 key={report.stepId}
                 appearance="secondary"
                 onClick={() => onOpenResult(report.stepId)}
@@ -421,6 +435,7 @@ function DecisionCard(props: GatePanelProps) {
           {byline !== undefined && <span className="dk-t-sub dk-t-small">{t(byline)}</span>}
           {resultNode !== undefined && (
             <Button
+              type="button"
               appearance="ghost"
               spacing="compact"
               className="dk-btn"

@@ -248,6 +248,7 @@ export function DiffReview({
                   data-viewed={viewed.has(path) ? "true" : undefined}
                 >
                   <Button
+                    type="button"
                     appearance="ghost"
                     spacing="compact"
                     className="desk-diff__name"
@@ -281,6 +282,7 @@ export function DiffReview({
             <p className="desk-patch__folded">
               {t("desk.diff.folded")}{" "}
               <Button
+                type="button"
                 appearance="link"
                 spacing="compact"
                 onClick={() => onViewed(open.file.path, false)}

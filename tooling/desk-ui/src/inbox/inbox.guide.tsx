@@ -97,6 +97,7 @@ export function FirstRunGuide({ items }: { readonly items: readonly WorkItem[] }
             </div>
             {!step.done && (
               <Button
+                type="button"
                 appearance={index === on ? "default" : "outline"}
                 spacing="compact"
                 onClick={step.run}

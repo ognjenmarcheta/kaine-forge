@@ -198,7 +198,7 @@ export function InboxView() {
           </h1>
           <p className="dk-lead">{summaryLine}</p>
         </div>
-        <Button appearance="outline" onClick={() => newWork.open()}>
+        <Button type="button" appearance="outline" onClick={() => newWork.open()}>
           <Plus className="dk-ic" aria-hidden="true" />
           {t("desk.newWork.open")} <Kbd>{keyLabel("n")}</Kbd>
         </Button>
@@ -229,6 +229,7 @@ export function InboxView() {
                     </span>
                     {group === "decide" && batch.length > 1 && (
                       <Button
+                        type="button"
                         appearance="link"
                         spacing="compact"
                         className="dk-bare dk-linkbtn dk-t-small"

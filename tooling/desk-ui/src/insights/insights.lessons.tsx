@@ -126,6 +126,7 @@ function LessonsTable({
               <td>
                 <span className="desk-lesson__actions">
                   <Button
+                    type="button"
                     appearance="subtle"
                     spacing="compact"
                     disabled={actions.busy !== null}
@@ -135,6 +136,7 @@ function LessonsTable({
                     {t("desk.lessons.promote")}
                   </Button>
                   <Button
+                    type="button"
                     appearance="subtle"
                     spacing="compact"
                     disabled={actions.busy !== null}
@@ -227,6 +229,7 @@ function PromotedList({
                   </p>
                 </div>
                 <Button
+                  type="button"
                   appearance="subtle"
                   spacing="compact"
                   disabled={busy !== null}

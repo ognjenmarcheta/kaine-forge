@@ -105,6 +105,7 @@ export function RunningPanel({
       )}
       {items.length > RUNNING_SHOWN && (
         <Button
+          type="button"
           appearance="link"
           spacing="compact"
           className="dk-bare dk-linkbtn dk-t-small"

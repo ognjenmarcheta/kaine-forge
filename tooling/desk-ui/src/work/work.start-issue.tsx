@@ -86,6 +86,7 @@ function IssuePicker({
             {shown.map((issue) => (
               <li key={issue.number}>
                 <Button
+                  type="button"
                   appearance="ghost"
                   className="dk-bare dk-pick"
                   aria-pressed={selected === issue.number}

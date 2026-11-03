@@ -289,3 +289,15 @@
     left: 55%;
   }
 }
+@media (width < 48rem) {
+  /* Two rows of buttons still leave the page most of the screen. */
+  .dk-decide {
+    gap: var(--ds-space-100);
+  }
+}
+@media (width < 48rem) {
+  /* A page with a decision bar ends above it and the tabs, not under them. */
+  .dk-page:has(.dk-decide) {
+    padding-bottom: calc(var(--ds-layout-tabbar) + 9rem);
+  }
+}

@@ -34,7 +34,9 @@ function SessionGate() {
       <div className="dk-empty" role="alert">
         <h1 className="dk-h-page">{t("desk.session.unavailableTitle")}</h1>
         <p>{t("desk.session.unavailable")}</p>
-        <Button onClick={() => void reloadIssues()}>{t("desk.session.retry")}</Button>
+        <Button type="button" onClick={() => void reloadIssues()}>
+          {t("desk.session.retry")}
+        </Button>
       </div>
     );
   }

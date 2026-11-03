@@ -511,3 +511,7 @@
   border-top: var(--ds-border-width) solid var(--ds-border);
   margin: var(--ds-space-050) 0;
 }
+/* Hidden labels inside a wide table stay inside its scroll box, not past the page edge. */
+.dk-tbl-wrap {
+  position: relative;
+}

@@ -101,6 +101,7 @@ export function InboxRow({
       <div className="dk-acts">
         {risk === "low" && item.kind === "issue" && (
           <Button
+            type="button"
             appearance="outline"
             spacing="compact"
             className="dk-btn"
@@ -113,6 +114,7 @@ export function InboxRow({
           </Button>
         )}
         <Button
+          type="button"
           appearance={first ? "default" : "outline"}
           spacing="compact"
           className="dk-btn"

@@ -142,6 +142,7 @@ function StepRow({
     >
       <div className="desk-trace__row">
         <Button
+          type="button"
           ref={buttonRef}
           appearance="ghost"
           className="desk-trace__name"
@@ -178,7 +179,12 @@ function StepRow({
               {t("desk.trace.started", { time: formatClock(step.at, language) })}
             </span>
             {node !== null && (
-              <Button appearance="link" spacing="compact" onClick={() => onInspect(node)}>
+              <Button
+                type="button"
+                appearance="link"
+                spacing="compact"
+                onClick={() => onInspect(node)}
+              >
                 {t("desk.trace.inspect")}
               </Button>
             )}
@@ -249,7 +255,7 @@ export function TraceView({
           onChange={onFilter}
         />
         {trace.problems > 0 && (
-          <Button appearance="ghost" spacing="compact" onClick={onJump}>
+          <Button type="button" appearance="ghost" spacing="compact" onClick={onJump}>
             {t(needsYou ? "desk.trace.jump.failure" : "desk.trace.jump.first")}
           </Button>
         )}
