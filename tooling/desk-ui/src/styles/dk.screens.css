@@ -970,3 +970,7 @@
   justify-content: flex-start;
   width: 100%;
 }
+.dk-riskbox .dk-t-small li::before {
+  content: "– ";
+  color: var(--ds-text-subtlest);
+}

@@ -4,6 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef } from "react";
 import { clipLines, parseDiffStat, type DiffLine } from "./artifact.diffstat";
 import { FilePath } from "./artifact.plan";
 import { useTextArtifact } from "./artifact.use";
+import { LineAdd, LineNotesAt } from "../gates/gate.lines";
 import type { ReviewFile } from "../gates/gate.model";
 import { useT } from "../i18n/i18n.t";
 import { FailureText, Loading, Muted, Pre, Section } from "../shell/shell.ui";
@@ -143,8 +144,11 @@ function Patch({
           <Fragment key={index}>
             <div
               ref={lit ? marked : undefined}
-              className={`desk-ln desk-ln--${line.kind}${lit ? " desk-ln--lit" : ""}`}
+              className={`dk-ln desk-ln desk-ln--${line.kind}${lit ? " desk-ln--lit" : ""}`}
             >
+              {line.kind !== "del" && line.newLine !== null && (
+                <LineAdd path={file.path} line={line.newLine} />
+              )}
               <span className="desk-ln__no" aria-hidden="true">
                 {line.newLine ?? line.oldLine ?? ""}
               </span>
@@ -156,6 +160,9 @@ function Patch({
             {here.map((finding, at) => (
               <InlineFinding key={`${String(index)}-${String(at)}`} finding={finding} />
             ))}
+            {line.kind !== "del" && line.newLine !== null && (
+              <LineNotesAt path={file.path} line={line.newLine} />
+            )}
           </Fragment>
         );
       })}
