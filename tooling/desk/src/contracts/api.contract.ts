@@ -220,6 +220,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */
       prUrl: z.string().nullable(),
+      /** When the PR merged: GitHub's time, else when the desk saw it. `null` before a merge. */
+      mergedAt: timestampSchema.nullable(),
       /** "contract N/6" from `ticket.md`, or `null` before intake wrote it. */
       contract: z
         .object({ found: z.number().int().nonnegative(), total: z.number().int().positive() })
@@ -530,6 +532,7 @@ export const ACTION_NAMES = [
   "remove",
   "ship",
   "refresh-pr",
+  "check-pr",
   "pr-feedback",
   "draft",
   "apply-draft",
@@ -584,6 +587,8 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     }),
   // Reads the PR once. It never writes to the PR.
   z.object({ action: z.literal("refresh-pr") }).strict(),
+  // Reads the PR's failing checks and new comments, and keeps a summary. It changes no stage.
+  z.object({ action: z.literal("check-pr") }).strict(),
   // Reads the PR and sends its feedback to build. The PR number comes from the issue state.
   z
     .object({
@@ -798,7 +803,28 @@ export const githubPullSchema = z
     author: z.string().nullable(),
     updatedAt: z.string(),
     /** The desk issue it belongs to: the desk shipped it, or its branch is `KAINE-<n>-...`. */
-    issue: z.number().int().positive().nullable()
+    issue: z.number().int().positive().nullable(),
+    /** The head's CI: any failed check makes it `failing`, with how many failed. */
+    ci: z
+      .object({
+        state: z.enum(["passing", "failing", "running", "none"]),
+        failing: z.number().int().nonnegative()
+      })
+      .strict(),
+    review: z.enum(["approved", "changes-requested", "required", "none"]),
+    labels: z.array(z.string()),
+    /** The owner's last `check-pr` of the desk issue: failing checks and new comments. */
+    check: z
+      .object({
+        at: timestampSchema,
+        headSha: z.string(),
+        failingChecks: z.array(z.string()),
+        comments: z.number().int().nonnegative(),
+        authors: z.array(z.string()),
+        skipped: z.array(z.string())
+      })
+      .strict()
+      .nullable()
   })
   .strict();
 export type GithubPull = z.infer<typeof githubPullSchema>;

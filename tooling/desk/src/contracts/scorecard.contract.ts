@@ -133,3 +133,85 @@ export const scorecardViewSchema = z.discriminatedUnion("state", [
     .strict()
 ]);
 export type ScorecardView = z.infer<typeof scorecardViewSchema>;
+
+/** The label of every issue and PR that comes from a scorecard run. */
+export const SCORECARD_LABEL = "source:scorecard";
+
+/** The PR that closes a tracked issue, as GitHub links them. */
+export const scorecardFixSchema = z
+  .object({
+    number: z.number().int().positive(),
+    url: z.string(),
+    state: z.enum(["open", "closed", "merged"]),
+    mergedAt: z.iso.datetime({ offset: true }).nullable()
+  })
+  .strict();
+export type ScorecardFix = z.infer<typeof scorecardFixSchema>;
+
+/** One issue that came from the scorecard, with its fix and its desk run. */
+export const trackedIssueSchema = z
+  .object({
+    number: z.number().int().positive(),
+    /** Untrusted text from GitHub. The page shows it as plain text. */
+    title: z.string(),
+    url: z.string(),
+    state: z.enum(["open", "closed"]),
+    createdAt: z.iso.datetime({ offset: true }),
+    closedAt: z.iso.datetime({ offset: true }).nullable(),
+    /** It carries `source:scorecard`. */
+    labeled: z.boolean(),
+    /** The finding it was filed for: from the ledger or the job that filed it. */
+    slug: z.string().nullable(),
+    /** The merged PR that closed it, else an open one, else a closed one; `null` without one. */
+    fix: scorecardFixSchema.nullable(),
+    /** The desk issue run working on it, if any. */
+    run: z.object({ stage: z.string(), status: z.string() }).strict().nullable()
+  })
+  .strict();
+export type TrackedIssue = z.infer<typeof trackedIssueSchema>;
+
+/**
+ * `GET /api/scorecard/tracking`: every issue the ledger names, the scorecard jobs filed, or that
+ * carries `source:scorecard`, read live from GitHub. `ok: false` with the reason when it failed.
+ */
+export const scorecardTrackingSchema = z.discriminatedUnion("ok", [
+  z
+    .object({
+      ok: z.literal(true),
+      fetchedAt: z.iso.datetime({ offset: true }),
+      issues: z.array(trackedIssueSchema)
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      reason: z.string(),
+      fetchedAt: z.iso.datetime({ offset: true })
+    })
+    .strict()
+]);
+export type ScorecardTracking = z.infer<typeof scorecardTrackingSchema>;
+
+/** `POST /api/scorecard/backfill`: add `source:scorecard` to tracked issues without it. */
+export const scorecardBackfillRequestSchema = z
+  .object({
+    issues: z.array(z.number().int().positive()).min(1).max(100),
+    confirm: z.literal(true)
+  })
+  .strict();
+export type ScorecardBackfillRequest = z.infer<typeof scorecardBackfillRequestSchema>;
+
+export const scorecardBackfillResultSchema = z
+  .object({
+    results: z.array(
+      z
+        .object({
+          number: z.number().int().positive(),
+          ok: z.boolean(),
+          detail: z.string().nullable()
+        })
+        .strict()
+    )
+  })
+  .strict();
+export type ScorecardBackfillResult = z.infer<typeof scorecardBackfillResultSchema>;

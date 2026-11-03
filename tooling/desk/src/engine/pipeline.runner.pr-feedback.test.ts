@@ -137,9 +137,14 @@ describe("feedback from the PR, end to end with real git", () => {
 
     e.github.setPullRequestHead(firstHead);
     e.github.setPullRequestFeedback(feedbackOn(firstHead));
+    expect(await e.pipeline.checkPr(ISSUE)).toMatchObject({ stop: "gate" });
     const result = await e.pipeline.feedbackFromPr(ISSUE, { text: "Keep the old name exported." });
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
-    expect(e.github.feedbackReads).toEqual([[101, firstHead]]);
+    // One read for the check, one for the round.
+    expect(e.github.feedbackReads).toEqual([
+      [101, firstHead],
+      [101, firstHead]
+    ]);
 
     // The builder of the round read the owner's note and the fenced trusted text, nothing else.
     const builder = e.runner.requests.filter((run) => run.role === "builder").at(-1);
@@ -185,7 +190,9 @@ describe("feedback from the PR, end to end with real git", () => {
       stage: "pr-open",
       prNumber: 101,
       prHeadSha: secondHead,
-      commitSha: secondHead
+      commitSha: secondHead,
+      // The check read the old head, so the push drops it.
+      prCheck: null
     });
     expect(updated.history.at(-1)).toMatchObject({ stage: "ship", event: "pr-updated" });
     expect(e.github.createdPullRequests).toHaveLength(1);
@@ -296,6 +303,38 @@ describe("feedback from the PR refuses and changes nothing", () => {
     expect(result.outcome === "refused" && result.reason).toContain("Nothing was changed.");
     await expectUnchanged(e, before);
     expect(e.github.feedbackReads.length > 0).toBe(reads);
+  });
+
+  it("check-pr keeps what a round would read and changes no stage", async () => {
+    const e = await seeded();
+    e.github.setPullRequestFeedback({
+      ...TRUSTED,
+      conversationComments: [
+        {
+          id: 5,
+          user: { login: "coderabbitai[bot]", type: "Bot" },
+          body: "Rename the helper.",
+          created_at: "2026-10-07T10:00:00Z",
+          author_association: "NONE",
+          html_url: `${PR_URL}#issuecomment-5`
+        }
+      ]
+    });
+
+    const result = await e.pipeline.checkPr(ISSUE);
+
+    expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
+    const state = await stateOf(e);
+    expect(state).toMatchObject({ stage: "pr-open", status: "waiting" });
+    // The owner's review and CodeRabbit (a default review bot) count; the stranger does not.
+    expect(state.prCheck).toMatchObject({
+      headSha: FAKE_BASE_SHA,
+      failingChecks: ["check"],
+      comments: 2,
+      authors: ["octo-owner", "coderabbitai[bot]"],
+      skipped: ["stranger (NONE)"]
+    });
+    expect(e.runner.requests).toEqual([]);
   });
 
   it("is an invalid transition outside pr-open", async () => {

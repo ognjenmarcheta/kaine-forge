@@ -196,6 +196,7 @@ describe("issue summary", () => {
     needsYouReason: null,
     resumeStage: null,
     prUrl: null,
+    mergedAt: null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: "2026-03-01T10:00:00.000Z",
     progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],

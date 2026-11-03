@@ -30,6 +30,10 @@ import {
   type LessonReport,
   type RunStats,
   type ScorecardView,
+  type ScorecardBackfillResult,
+  type ScorecardTracking,
+  type TrackedIssue,
+  scorecardBackfillRequestSchema,
   type ServerEvent
 } from "../contracts";
 import type { DoctorReport } from "../doctor/doctor.checks";
@@ -101,6 +105,14 @@ export interface DeskServerDeps {
    * checkout (a scorecard job's worktree). Absent: the ledger is missing.
    */
   readonly scorecard?: ((checkout?: string) => Promise<ScorecardView>) | undefined;
+  /**
+   * The scorecard's issues read live from GitHub, for `GET /api/scorecard/tracking`. It throws
+   * when GitHub cannot be read. Absent: the route says the desk has no GitHub access.
+   */
+  readonly scorecardTracking?: (() => Promise<TrackedIssue[]>) | undefined;
+  /** Add `source:scorecard` to these issues, for `POST /api/scorecard/backfill`. */
+  readonly scorecardBackfill?:
+    ((issues: readonly number[]) => Promise<ScorecardBackfillResult>) | undefined;
   /** Desk jobs, for `/api/jobs`. Absent: the list is empty and the other job routes answer `404`. */
   readonly jobs?: JobManager | undefined;
   /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
@@ -169,6 +181,8 @@ type Route =
         | "github"
         | "stats"
         | "scorecard"
+        | "scorecard-tracking"
+        | "scorecard-backfill"
         | "jobs"
         | "lessons"
         | "lesson-promote"
@@ -199,6 +213,12 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
   if (segments.length === 2 && resource === "stats") return { kind: "stats" };
   if (segments.length === 2 && resource === "scorecard") return { kind: "scorecard" };
+  if (segments.length === 3 && resource === "scorecard" && id === "tracking") {
+    return { kind: "scorecard-tracking" };
+  }
+  if (segments.length === 3 && resource === "scorecard" && id === "backfill") {
+    return { kind: "scorecard-backfill" };
+  }
   if (resource === "jobs") {
     if (segments.length === 2) return { kind: "jobs" };
     if (id === undefined || !ISSUE_NUMBER.test(id)) return { kind: "unknown" };
@@ -248,6 +268,8 @@ const METHODS_OF: Readonly<Record<Route["kind"], readonly Method[]>> = {
   github: ["GET"],
   stats: ["GET"],
   scorecard: ["GET"],
+  "scorecard-tracking": ["GET"],
+  "scorecard-backfill": ["POST"],
   jobs: ["GET", "POST"],
   job: ["GET"],
   "job-actions": ["POST"],
@@ -454,6 +476,23 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
   // One `gh` round trip per minute at most. The board marks follow the store on every request.
   let openWorkCache: { readonly at: number; readonly work: OpenWork } | null = null;
   let openWorkInflight: Promise<OpenWork> | null = null;
+  /**
+   * A desk PR that left the open list was merged or closed. Each fresh list asks the runner to
+   * read it once, so the issue moves to done (with its merge date) without the owner's click.
+   * A busy issue is skipped: the read would wait for its action. The next fresh list reads it.
+   * A refusal (the issue is not at its PR wait) changes nothing.
+   */
+  const noticeClosedPulls = async (work: OpenWork): Promise<void> => {
+    const open = new Set(work.pulls.map((pull) => pull.number));
+    for (const entry of await deps.store.list()) {
+      const state = entry.result.status === "ok" ? entry.result.state : null;
+      const pr = state?.prNumber ?? null;
+      if (state === null || state.status === "done" || pr === null || open.has(pr)) continue;
+      if (dispatcher.isBusy(entry.issueNumber)) continue;
+      await deps.runner.refreshPr(entry.issueNumber).catch(() => undefined);
+    }
+  };
+
   const githubLists = async (refresh: boolean): Promise<GithubLists> => {
     const fetchedAt = clock.now();
     if (deps.openWork === undefined) {
@@ -475,6 +514,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         });
         work = await openWorkInflight;
         openWorkCache = { at: fetchedAt.getTime(), work };
+        await noticeClosedPulls(work);
       }
       const at = new Date(openWorkCache?.at ?? fetchedAt.getTime()).toISOString();
       return toGithubLists(
@@ -488,6 +528,34 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         ok: false,
         reason: error instanceof Error ? error.message : "gh could not list the open work",
         fetchedAt: fetchedAt.toISOString()
+      };
+    }
+  };
+
+  // Like the open work: one read a minute at most, unless the owner asks again.
+  let trackingCache: { readonly at: number; readonly issues: TrackedIssue[] } | null = null;
+  const scorecardTracking = async (refresh: boolean): Promise<ScorecardTracking> => {
+    const now = clock.now();
+    if (deps.scorecardTracking === undefined) {
+      return { ok: false, reason: "This desk has no GitHub access.", fetchedAt: now.toISOString() };
+    }
+    const ttl = deps.githubTtlMs ?? DEFAULTS.githubTtlMs;
+    if (!refresh && trackingCache !== null && now.getTime() - trackingCache.at < ttl) {
+      return {
+        ok: true,
+        fetchedAt: new Date(trackingCache.at).toISOString(),
+        issues: trackingCache.issues
+      };
+    }
+    try {
+      const issues = await deps.scorecardTracking();
+      trackingCache = { at: now.getTime(), issues };
+      return { ok: true, fetchedAt: now.toISOString(), issues };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: error instanceof Error ? error.message : "GitHub could not be read",
+        fetchedAt: now.toISOString()
       };
     }
   };
@@ -782,6 +850,35 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       case "github":
         sendJson(response, 200, await githubLists(url.searchParams.get("refresh") === "1"));
         return;
+      case "scorecard-tracking":
+        sendJson(response, 200, await scorecardTracking(url.searchParams.get("refresh") === "1"));
+        return;
+      case "scorecard-backfill": {
+        const parsed = scorecardBackfillRequestSchema.safeParse(
+          await readJsonBody(request, maxBodyBytes)
+        );
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        if (deps.scorecardBackfill === undefined) {
+          throw new HttpError("not-found", "This desk has no GitHub access.");
+        }
+        // Only an issue the scorecard tracks, without the label now, may get it.
+        const tracking = await scorecardTracking(true);
+        if (!tracking.ok) throw new HttpError("bad-request", tracking.reason);
+        const open = new Set(
+          tracking.issues.filter((issue) => !issue.labeled).map((issue) => issue.number)
+        );
+        const other = parsed.data.issues.filter((issue) => !open.has(issue));
+        if (other.length > 0) {
+          throw new HttpError(
+            "bad-request",
+            `Not a tracked issue without the label: ${other.map((issue) => `#${String(issue)}`).join(", ")}.`
+          );
+        }
+        const result = await deps.scorecardBackfill(parsed.data.issues);
+        trackingCache = null;
+        sendJson(response, 200, result);
+        return;
+      }
       case "stats": {
         const runs = (await deps.readRuns?.()) ?? { records: [], invalidLines: 0 };
         const stats: RunStats = aggregateRuns(runs, snapshotsOf(await deps.store.list()), {

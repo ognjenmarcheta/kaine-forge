@@ -30,7 +30,7 @@ import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
 import { flowStepOf, issueFlowOf } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { ranReports } from "../inspector/inspector.model";
-import { formatClock, safeHttpUrl } from "../shell/shell.format";
+import { formatClock, relativeTime, safeHttpUrl } from "../shell/shell.format";
 import { useShortcuts } from "../shell/shell.keys";
 import { useNow } from "../shell/shell.now";
 import { usePaletteActions } from "../shell/shell.palette";
@@ -189,6 +189,9 @@ function RunningGate({ summary, send }: GateBodyProps) {
 /** The draft PR is open: the owner merges on GitHub, then checks it here or sends its feedback. */
 function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
   const t = useT();
+  const { language } = useLanguage();
+  const now = useNow();
+  const check = detail.state.prCheck;
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const prUrl = safeHttpUrl(detail.state.prUrl);
   return (
@@ -210,9 +213,28 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
         />
       )}
       <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
+      {check !== null && check !== undefined && (
+        <p className="desk-muted">
+          {t("desk.pulls.checked", {
+            when: relativeTime(check.at, now, language),
+            failing: check.failingChecks.length,
+            comments: check.comments
+          })}
+          {check.failingChecks.length > 0 && ` ${check.failingChecks.join(", ")}.`}
+          {check.skipped.length > 0 &&
+            ` ${t("desk.pulls.skipped", { authors: check.skipped.join(", ") })}`}
+        </p>
+      )}
       <DecideBar labelledBy={titleId}>
         <Button disabled={actions.busy} onClick={() => void send({ action: "refresh-pr" })}>
           {t("desk.gate.prOpen.check")}
+        </Button>
+        <Button
+          appearance="secondary"
+          disabled={actions.busy}
+          onClick={() => void send({ action: "check-pr" })}
+        >
+          {t("desk.pulls.check")}
         </Button>
         <Button
           appearance="secondary"

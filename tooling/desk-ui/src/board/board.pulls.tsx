@@ -2,6 +2,7 @@ import type { GithubPull } from "@repo/desk/contracts";
 import { Badge, Button, Card } from "@repo/ui";
 import { useId } from "react";
 
+import { useIssueActions } from "../gates/gate.actions";
 import { useGithubLists } from "../github/github.use";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { relativeTime, safeHttpUrl } from "../shell/shell.format";
@@ -9,8 +10,71 @@ import { useNow } from "../shell/shell.now";
 import { RouteLink } from "../shell/shell.router";
 import { FailureText, Loading, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
+import { StatusChip } from "../status/status.chip";
+import type { Tone } from "../status/status.model";
 
-function PullRow({ pull }: { readonly pull: GithubPull }) {
+const CI_TONE: Readonly<Record<GithubPull["ci"]["state"], Tone>> = {
+  passing: "success",
+  failing: "danger",
+  running: "information",
+  none: "neutral"
+};
+
+/**
+ * A desk PR's actions: read its failing checks and new comments now, and send them to a fix
+ * round. The round runs build, check, and review again and waits for the owner's OK to push.
+ */
+function DeskPullActions({
+  pull,
+  issue,
+  onDone
+}: {
+  readonly pull: GithubPull;
+  readonly issue: number;
+  readonly onDone: () => void;
+}) {
+  const t = useT();
+  const { language } = useLanguage();
+  const now = useNow();
+  const { state } = useDesk();
+  const summary = state.issues[issue];
+  const actions = useIssueActions(issue, summary?.readable === true && summary.busy);
+  const check = pull.check;
+  const found = check !== null && (check.failingChecks.length > 0 || check.comments > 0);
+  const atLimit = summary?.readable === true && summary.prRound >= summary.prRoundLimit;
+  return (
+    <span className="desk-pulls__actions">
+      {check !== null && (
+        <span className="desk-muted">
+          {t("desk.pulls.checked", {
+            when: relativeTime(check.at, now, language),
+            failing: check.failingChecks.length,
+            comments: check.comments
+          })}
+          {check.skipped.length > 0 &&
+            ` ${t("desk.pulls.skipped", { authors: check.skipped.join(", ") })}`}
+        </span>
+      )}
+      <Button
+        appearance="subtle"
+        spacing="compact"
+        disabled={actions.busy}
+        onClick={() => void actions.run({ action: "check-pr" }).then(onDone)}
+      >
+        {t("desk.pulls.check")}
+      </Button>
+      <Button
+        spacing="compact"
+        disabled={actions.busy || !found || atLimit}
+        onClick={() => void actions.run({ action: "pr-feedback" }).then(onDone)}
+      >
+        {t("desk.pulls.address")}
+      </Button>
+    </span>
+  );
+}
+
+function PullRow({ pull, onDone }: { readonly pull: GithubPull; readonly onDone: () => void }) {
   const t = useT();
   const { language } = useLanguage();
   const now = useNow();
@@ -30,6 +94,12 @@ function PullRow({ pull }: { readonly pull: GithubPull }) {
         {pull.title}
       </span>
       <span className="desk-pulls__meta">
+        <StatusChip tone={CI_TONE[pull.ci.state]}>
+          {t(`desk.pulls.ci.${pull.ci.state}`, { count: pull.ci.failing })}
+        </StatusChip>
+        {pull.review !== "none" && (
+          <Badge appearance="default">{t(`desk.pulls.review.${pull.review}`)}</Badge>
+        )}
         {pull.draft && <Badge appearance="default">{t("desk.pulls.draft")}</Badge>}
         <code>{pull.branch}</code>
         {pull.author !== null && (
@@ -42,13 +112,16 @@ function PullRow({ pull }: { readonly pull: GithubPull }) {
           </RouteLink>
         )}
       </span>
+      {pull.issue !== null && state.issues[pull.issue] !== undefined && (
+        <DeskPullActions pull={pull} issue={pull.issue} onDone={onDone} />
+      )}
     </li>
   );
 }
 
 /**
- * The open pull requests of the repository, read-only. The desk opens draft PRs for its own
- * issues; it does not continue a pull request. The engineer reviews and merges on GitHub.
+ * The open pull requests of the repository with their CI and review state. A PR of a desk issue
+ * can be checked and sent to a fix round from here; the engineer reviews and merges on GitHub.
  */
 export function OpenPullRequests() {
   const t = useT();
@@ -86,7 +159,8 @@ export function OpenPullRequests() {
         ) : (
           <ul className="desk-pulls__list">
             {pulls.map((pull) => (
-              <PullRow key={pull.number} pull={pull} />
+              // After an action the list reads the issue state again, not GitHub.
+              <PullRow key={pull.number} pull={pull} onDone={() => reload(false)} />
             ))}
           </ul>
         ))}
