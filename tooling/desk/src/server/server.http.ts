@@ -13,6 +13,9 @@ import {
   lessonIssueRequestSchema,
   lessonPromoteRequestSchema,
   lessonUnpromoteRequestSchema,
+  jobActionRequestSchema,
+  jobStartRequestSchema,
+  MAX_REFERENCE_BYTES,
   sessionRequestSchema,
   type ActionName,
   type ActionResponse,
@@ -27,6 +30,10 @@ import {
   type LessonReport,
   type RunStats,
   type ScorecardView,
+  type ScorecardBackfillResult,
+  type ScorecardTracking,
+  type TrackedIssue,
+  scorecardBackfillRequestSchema,
   type ServerEvent
 } from "../contracts";
 import type { DoctorReport } from "../doctor/doctor.checks";
@@ -59,6 +66,7 @@ import {
 import { createStaticHandler, type StaticHandler } from "./server.static";
 import { createStoreWatcher } from "./server.watch";
 import { toGithubLists, type OpenWork } from "../github/github.lists";
+import { JobRefusal, type JobManager } from "../jobs";
 import { DEFAULT_FLOW_ID } from "../registry/registry.snapshot";
 import type {
   Definition,
@@ -92,8 +100,21 @@ export interface DeskServerDeps {
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** `maxPrRounds` of the config, for the issue summaries. Absent: the default. */
   readonly prRoundLimit?: number | undefined;
-  /** The monorepo health scorecard, for `GET /api/scorecard`. Absent: the ledger is missing. */
-  readonly scorecard?: (() => Promise<ScorecardView>) | undefined;
+  /**
+   * The monorepo health scorecard, for `GET /api/scorecard`. With `checkout`, the ledger of that
+   * checkout (a scorecard job's worktree). Absent: the ledger is missing.
+   */
+  readonly scorecard?: ((checkout?: string) => Promise<ScorecardView>) | undefined;
+  /**
+   * The scorecard's issues read live from GitHub, for `GET /api/scorecard/tracking`. It throws
+   * when GitHub cannot be read. Absent: the route says the desk has no GitHub access.
+   */
+  readonly scorecardTracking?: (() => Promise<TrackedIssue[]>) | undefined;
+  /** Add `source:scorecard` to these issues, for `POST /api/scorecard/backfill`. */
+  readonly scorecardBackfill?:
+    ((issues: readonly number[]) => Promise<ScorecardBackfillResult>) | undefined;
+  /** Desk jobs, for `/api/jobs`. Absent: the list is empty and the other job routes answer `404`. */
+  readonly jobs?: JobManager | undefined;
   /** Problems seen in several issues, for `GET /api/lessons`. Absent: none recorded. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. Absent: those routes answer `404`. */
@@ -148,6 +169,9 @@ const DEFAULTS = {
 
 const ISSUE_NUMBER = /^[1-9]\d{0,8}$/;
 
+/** `POST /api/jobs`: a reference image of `MAX_REFERENCE_BYTES` as base64, and room for the rest. */
+const JOB_START_MAX_BODY_BYTES = Math.ceil(MAX_REFERENCE_BYTES / 3) * 4 + 64 * 1024;
+
 type Route =
   | {
       readonly kind:
@@ -157,6 +181,9 @@ type Route =
         | "github"
         | "stats"
         | "scorecard"
+        | "scorecard-tracking"
+        | "scorecard-backfill"
+        | "jobs"
         | "lessons"
         | "lesson-promote"
         | "lesson-unpromote"
@@ -174,6 +201,7 @@ type Route =
       readonly id: string;
     }
   | { readonly kind: "issue" | "log" | "actions"; readonly issueNumber: number }
+  | { readonly kind: "job" | "job-actions"; readonly jobId: number }
   | { readonly kind: "artifact"; readonly issueNumber: number; readonly artifact: string };
 
 const parseRoute = (pathname: string): Route => {
@@ -185,6 +213,20 @@ const parseRoute = (pathname: string): Route => {
   if (segments.length === 3 && resource === "health" && id === "fix") return { kind: "health-fix" };
   if (segments.length === 2 && resource === "stats") return { kind: "stats" };
   if (segments.length === 2 && resource === "scorecard") return { kind: "scorecard" };
+  if (segments.length === 3 && resource === "scorecard" && id === "tracking") {
+    return { kind: "scorecard-tracking" };
+  }
+  if (segments.length === 3 && resource === "scorecard" && id === "backfill") {
+    return { kind: "scorecard-backfill" };
+  }
+  if (resource === "jobs") {
+    if (segments.length === 2) return { kind: "jobs" };
+    if (id === undefined || !ISSUE_NUMBER.test(id)) return { kind: "unknown" };
+    if (segments.length === 3) return { kind: "job", jobId: Number(id) };
+    if (segments.length === 4 && sub === "actions")
+      return { kind: "job-actions", jobId: Number(id) };
+    return { kind: "unknown" };
+  }
   if (segments.length === 2 && resource === "lessons") return { kind: "lessons" };
   if (segments.length === 3 && resource === "lessons") {
     if (id === "promote") return { kind: "lesson-promote" };
@@ -226,6 +268,11 @@ const METHODS_OF: Readonly<Record<Route["kind"], readonly Method[]>> = {
   github: ["GET"],
   stats: ["GET"],
   scorecard: ["GET"],
+  "scorecard-tracking": ["GET"],
+  "scorecard-backfill": ["POST"],
+  jobs: ["GET", "POST"],
+  job: ["GET"],
+  "job-actions": ["POST"],
   lessons: ["GET"],
   "lesson-promote": ["POST"],
   "lesson-unpromote": ["POST"],
@@ -397,6 +444,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     onChanged: publish,
     onRemoved: (issueNumber) => hub.broadcast({ type: "issue-removed", issueNumber })
   });
+  const unsubscribeJobs = deps.jobs?.subscribe((event) => hub.broadcast(event));
   hub.onActivity((active) => {
     if (!active) watcher.stop();
   });
@@ -428,6 +476,23 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
   // One `gh` round trip per minute at most. The board marks follow the store on every request.
   let openWorkCache: { readonly at: number; readonly work: OpenWork } | null = null;
   let openWorkInflight: Promise<OpenWork> | null = null;
+  /**
+   * A desk PR that left the open list was merged or closed. Each fresh list asks the runner to
+   * read it once, so the issue moves to done (with its merge date) without the owner's click.
+   * A busy issue is skipped: the read would wait for its action. The next fresh list reads it.
+   * A refusal (the issue is not at its PR wait) changes nothing.
+   */
+  const noticeClosedPulls = async (work: OpenWork): Promise<void> => {
+    const open = new Set(work.pulls.map((pull) => pull.number));
+    for (const entry of await deps.store.list()) {
+      const state = entry.result.status === "ok" ? entry.result.state : null;
+      const pr = state?.prNumber ?? null;
+      if (state === null || state.status === "done" || pr === null || open.has(pr)) continue;
+      if (dispatcher.isBusy(entry.issueNumber)) continue;
+      await deps.runner.refreshPr(entry.issueNumber).catch(() => undefined);
+    }
+  };
+
   const githubLists = async (refresh: boolean): Promise<GithubLists> => {
     const fetchedAt = clock.now();
     if (deps.openWork === undefined) {
@@ -449,6 +514,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         });
         work = await openWorkInflight;
         openWorkCache = { at: fetchedAt.getTime(), work };
+        await noticeClosedPulls(work);
       }
       const at = new Date(openWorkCache?.at ?? fetchedAt.getTime()).toISOString();
       return toGithubLists(
@@ -462,6 +528,34 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         ok: false,
         reason: error instanceof Error ? error.message : "gh could not list the open work",
         fetchedAt: fetchedAt.toISOString()
+      };
+    }
+  };
+
+  // Like the open work: one read a minute at most, unless the owner asks again.
+  let trackingCache: { readonly at: number; readonly issues: TrackedIssue[] } | null = null;
+  const scorecardTracking = async (refresh: boolean): Promise<ScorecardTracking> => {
+    const now = clock.now();
+    if (deps.scorecardTracking === undefined) {
+      return { ok: false, reason: "This desk has no GitHub access.", fetchedAt: now.toISOString() };
+    }
+    const ttl = deps.githubTtlMs ?? DEFAULTS.githubTtlMs;
+    if (!refresh && trackingCache !== null && now.getTime() - trackingCache.at < ttl) {
+      return {
+        ok: true,
+        fetchedAt: new Date(trackingCache.at).toISOString(),
+        issues: trackingCache.issues
+      };
+    }
+    try {
+      const issues = await deps.scorecardTracking();
+      trackingCache = { at: now.getTime(), issues };
+      return { ok: true, fetchedAt: now.toISOString(), issues };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: error instanceof Error ? error.message : "GitHub could not be read",
+        fetchedAt: now.toISOString()
       };
     }
   };
@@ -636,6 +730,23 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     }
   };
 
+  // --- jobs -----------------------------------------------------------------
+
+  const requireJobs = (): JobManager => {
+    if (deps.jobs === undefined) throw new HttpError("not-found", "This desk runs no jobs.");
+    return deps.jobs;
+  };
+
+  /** A job refusal as the API's error envelope. */
+  const jobCall = async <T>(call: () => Promise<T>): Promise<T> => {
+    try {
+      return await call();
+    } catch (error) {
+      if (!(error instanceof JobRefusal)) throw error;
+      throw new HttpError(error.code === "unknown-job" ? "not-found" : error.code, error.message);
+    }
+  };
+
   // --- lessons --------------------------------------------------------------
 
   const requireLessonActions = (): LessonActions => {
@@ -739,6 +850,35 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
       case "github":
         sendJson(response, 200, await githubLists(url.searchParams.get("refresh") === "1"));
         return;
+      case "scorecard-tracking":
+        sendJson(response, 200, await scorecardTracking(url.searchParams.get("refresh") === "1"));
+        return;
+      case "scorecard-backfill": {
+        const parsed = scorecardBackfillRequestSchema.safeParse(
+          await readJsonBody(request, maxBodyBytes)
+        );
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        if (deps.scorecardBackfill === undefined) {
+          throw new HttpError("not-found", "This desk has no GitHub access.");
+        }
+        // Only an issue the scorecard tracks, without the label now, may get it.
+        const tracking = await scorecardTracking(true);
+        if (!tracking.ok) throw new HttpError("bad-request", tracking.reason);
+        const open = new Set(
+          tracking.issues.filter((issue) => !issue.labeled).map((issue) => issue.number)
+        );
+        const other = parsed.data.issues.filter((issue) => !open.has(issue));
+        if (other.length > 0) {
+          throw new HttpError(
+            "bad-request",
+            `Not a tracked issue without the label: ${other.map((issue) => `#${String(issue)}`).join(", ")}.`
+          );
+        }
+        const result = await deps.scorecardBackfill(parsed.data.issues);
+        trackingCache = null;
+        sendJson(response, 200, result);
+        return;
+      }
       case "stats": {
         const runs = (await deps.readRuns?.()) ?? { records: [], invalidLines: 0 };
         const stats: RunStats = aggregateRuns(runs, snapshotsOf(await deps.store.list()), {
@@ -748,11 +888,47 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
         return;
       }
       case "scorecard": {
-        const view: ScorecardView = (await deps.scorecard?.()) ?? {
+        const job = url.searchParams.get("job");
+        let checkout: string | undefined;
+        if (job !== null) {
+          if (!ISSUE_NUMBER.test(job)) throw new HttpError("bad-request", "job must be a job id");
+          const state = await requireJobs().get(Number(job));
+          if (state?.worktree === null || state?.worktree === undefined) {
+            throw new HttpError("not-found", `Job ${job} has no worktree.`);
+          }
+          checkout = state.worktree;
+        }
+        const view: ScorecardView = (await deps.scorecard?.(checkout)) ?? {
           state: "missing",
           ledgerPath: SCORECARD_LEDGER_PATH
         };
         sendJson(response, 200, view);
+        return;
+      }
+      case "jobs":
+        if (request.method === "POST") {
+          // A screen job carries its reference image, base64, in the body.
+          const parsed = jobStartRequestSchema.safeParse(
+            await readJsonBody(request, JOB_START_MAX_BODY_BYTES)
+          );
+          if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+          sendJson(response, 201, await jobCall(() => requireJobs().start(parsed.data)));
+          return;
+        }
+        // A desk without jobs lists none, as the runs and lessons do.
+        sendJson(response, 200, deps.jobs === undefined ? [] : await deps.jobs.list());
+        return;
+      case "job": {
+        const state = await requireJobs().get(found.jobId);
+        if (state === null) throw new HttpError("not-found", `Job ${found.jobId} does not exist.`);
+        sendJson(response, 200, state);
+        return;
+      }
+      case "job-actions": {
+        const parsed = jobActionRequestSchema.safeParse(await readJsonBody(request, maxBodyBytes));
+        if (!parsed.success) throw new HttpError("bad-request", zodDetail(parsed.error));
+        const state = await jobCall(() => requireJobs().act(found.jobId, parsed.data));
+        sendJson(response, 200, { job: state });
         return;
       }
       case "lessons": {
@@ -919,6 +1095,7 @@ export const createDeskServer = async (deps: DeskServerDeps): Promise<DeskServer
     closing ??= (async () => {
       unsubscribe();
       watcher.stop();
+      unsubscribeJobs?.();
       hub.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

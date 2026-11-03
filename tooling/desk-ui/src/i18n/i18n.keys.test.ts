@@ -8,6 +8,11 @@ import {
   DEFINITION_SOURCES,
   HEALTH_FIXES,
   INTAKE_RECOMMENDATIONS,
+  COMPONENT_LAYERS,
+  JOB_KINDS,
+  JOB_STAGES,
+  JOB_STATUSES,
+  JOB_STOP_REASONS,
   ISSUE_SECTIONS,
   FLOW_NODE_IDS,
   LOOP_KINDS,
@@ -29,7 +34,7 @@ import { BACK_KINDS } from "../flows/flows.model";
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
 import { TRACE_FILTERS } from "../issue/issue.trace";
-import { BANDS, FINDING_FILTERS, SORTS } from "../scorecard/scorecard.model";
+import { BANDS, FINDING_FILTERS, FINDING_SORTS, SORTS } from "../scorecard/scorecard.model";
 import { THEMES } from "../shell/shell.preferences";
 import { CHIP_STATES } from "../status/status.model";
 
@@ -160,7 +165,30 @@ describe("desk translations", () => {
       "desk.scorecard.mode.": SCORECARD_MODES,
       "desk.scorecard.delta.": ["up", "down", "held"],
       "desk.scorecard.sort.": SORTS,
-      "desk.scorecard.findings.show.": FINDING_FILTERS
+      "desk.scorecard.findings.show.": FINDING_FILTERS,
+      "desk.scorecard.findings.sortBy.": FINDING_SORTS,
+      "desk.scorecard.tracking.issue.": ["open", "closed"],
+      "desk.scorecard.tracking.fix.": ["open", "closed", "merged"],
+      "desk.job.title.": JOB_KINDS,
+      "desk.job.start.title.": JOB_KINDS,
+      "desk.job.start.description.": JOB_KINDS,
+      "desk.job.stage.": JOB_STAGES,
+      "desk.job.status.": JOB_STATUSES,
+      "desk.job.stop.": JOB_STOP_REASONS,
+      "desk.job.stepState.": ["done", "current", "todo"],
+      "desk.pulls.ci.": ["passing", "failing", "running", "none"],
+      "desk.pulls.review.": ["approved", "changes-requested", "required"],
+      "desk.board.side.doneSort.": ["recent", "number"],
+      "desk.job.start.component.layer.": COMPONENT_LAYERS,
+      "desk.job.auditReview.severity.": ["must", "should", "could"],
+      "desk.job.": [
+        "cancel",
+        "remove",
+        "cancelConfirm.title",
+        "cancelConfirm.text",
+        "removeConfirm.title",
+        "removeConfirm.text"
+      ]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

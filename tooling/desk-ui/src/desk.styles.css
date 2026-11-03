@@ -1103,6 +1103,15 @@ main:focus {
   overflow-wrap: anywhere;
 }
 
+/* A desk PR's last check and its actions: check now, or send to a fix round. */
+.desk-pulls__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  font: var(--ds-font-body-small);
+}
+
 .desk-pulls__meta code {
   overflow-wrap: anywhere;
 }
@@ -5579,4 +5588,152 @@ main:focus {
     flex-wrap: wrap;
     border-radius: var(--ds-radius-200);
   }
+}
+
+/* ── Desk jobs: a scorecard run started from the desk ─────────────────── */
+
+.desk-job-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin-block: var(--ds-space-150);
+}
+
+.desk-job-banner {
+  padding: var(--ds-space-150) var(--ds-space-200);
+  color: var(--ds-text-information);
+  background: var(--ds-background-information);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-job-limits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-150);
+}
+
+@media (max-width: 40rem) {
+  .desk-job-limits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.desk-job-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100) var(--ds-space-250);
+  margin: 0 0 var(--ds-space-150);
+  padding: 0;
+  list-style: none;
+  font: var(--ds-font-body-snug);
+}
+
+.desk-job-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  color: var(--ds-text-subtlest);
+}
+
+.desk-job-steps li[data-state="done"] {
+  color: var(--ds-text-subtle);
+}
+
+.desk-job-steps li[data-state="current"] {
+  color: var(--ds-text);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-job-steps__dot {
+  width: var(--ds-space-100);
+  height: var(--ds-space-100);
+  border: var(--ds-border-width) solid var(--ds-border-bold);
+  border-radius: var(--ds-radius-round);
+}
+
+.desk-job-steps li[data-state="done"] .desk-job-steps__dot {
+  background: var(--ds-background-success-bold);
+  border-color: var(--ds-background-success-bold);
+}
+
+.desk-job-steps li[data-state="current"] .desk-job-steps__dot {
+  background: var(--ds-background-information-bold);
+  border-color: var(--ds-background-information-bold);
+}
+
+.desk-job-activity {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-code-small);
+}
+
+.desk-job-issues {
+  display: grid;
+  gap: var(--ds-space-150);
+  margin: 0 0 var(--ds-space-150);
+  padding: 0;
+  list-style: none;
+}
+
+.desk-job-issue p {
+  margin: var(--ds-space-050) 0;
+}
+
+.desk-job-history {
+  display: grid;
+  gap: var(--ds-space-075);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--ds-font-body-compact);
+}
+
+.desk-job-history li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: var(--ds-space-100);
+  overflow-wrap: anywhere;
+}
+
+.desk-job-history time,
+.desk-job-history li > span:nth-child(2) {
+  color: var(--ds-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An agent's summary keeps its own line breaks and bullets, as text. */
+.desk-job-text {
+  max-width: 48rem;
+  white-space: pre-line;
+}
+
+/* The lab's job bar: start a screen job, or follow the one that runs. */
+.desk-lab-jobs {
+  justify-content: flex-end;
+  margin-block: 0;
+  padding: var(--ds-space-150) var(--ds-space-200) 0;
+}
+
+/* Scorecard tracking: the read time and actions, a finding's issue cell, and solved findings. */
+.desk-score-trackbar,
+.desk-score-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.desk-score-solved {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-score-solved li {
+  display: grid;
+  gap: var(--ds-space-025);
 }

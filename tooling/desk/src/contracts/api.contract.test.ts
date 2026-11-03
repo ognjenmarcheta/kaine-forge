@@ -48,7 +48,12 @@ describe("action request", () => {
       expected: { action: "approve", note: "CSV only, no XLSX" }
     },
     { input: { action: "pause" }, expected: { action: "pause" } },
-    { input: { action: "resume" }, expected: { action: "resume" } }
+    { input: { action: "resume" }, expected: { action: "resume" } },
+    {
+      input: { action: "steer", note: "  reuse the CSV helper  " },
+      expected: { action: "steer", note: "reuse the CSV helper" }
+    },
+    { input: { action: "take-over" }, expected: { action: "take-over" } }
   ])("accepts $input", ({ input, expected }) => {
     expect(actionRequestSchema.parse(input)).toEqual(expected);
   });
@@ -77,7 +82,13 @@ describe("action request", () => {
       name: "an approval note over the limit",
       input: { action: "approve", note: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
     },
-    { name: "a pause that names a stage", input: { action: "pause", stage: "build" } }
+    { name: "a pause that names a stage", input: { action: "pause", stage: "build" } },
+    { name: "a steer without a note", input: { action: "steer" } },
+    { name: "a blank steer note", input: { action: "steer", note: "   " } },
+    {
+      name: "a steer note over the limit",
+      input: { action: "steer", note: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
+    }
   ])("rejects $name", ({ input }) => {
     expect(actionRequestSchema.safeParse(input).success).toBe(false);
   });
@@ -185,6 +196,7 @@ describe("issue summary", () => {
     needsYouReason: null,
     resumeStage: null,
     prUrl: null,
+    mergedAt: null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: "2026-03-01T10:00:00.000Z",
     progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],

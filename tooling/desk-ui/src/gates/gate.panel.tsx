@@ -1,5 +1,20 @@
-import type { ActionRequestInput, FlowNodeId, IssueDetail, LogEntry } from "@repo/desk/contracts";
-import { Button, Card, ExternalLink, GitPullRequest, Spinner, buttonVariants } from "@repo/ui";
+import {
+  MAX_FEEDBACK_CHARS,
+  type ActionRequestInput,
+  type FlowNodeId,
+  type IssueDetail,
+  type LogEntry
+} from "@repo/desk/contracts";
+import {
+  Button,
+  Card,
+  ExternalLink,
+  GitPullRequest,
+  Label,
+  Spinner,
+  Textarea,
+  buttonVariants
+} from "@repo/ui";
 import { useId, useRef, useState } from "react";
 
 import type { ActionWords, IssueActions } from "./gate.actions";
@@ -12,10 +27,10 @@ import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
 import { ReportArtifact } from "../artifacts/artifact.report";
 import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
-import { issueFlowOf } from "../flow/flow.steps";
+import { flowStepOf, issueFlowOf } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { ranReports } from "../inspector/inspector.model";
-import { formatClock, safeHttpUrl } from "../shell/shell.format";
+import { formatClock, relativeTime, safeHttpUrl } from "../shell/shell.format";
 import { useShortcuts } from "../shell/shell.keys";
 import { useNow } from "../shell/shell.now";
 import { usePaletteActions } from "../shell/shell.palette";
@@ -46,6 +61,76 @@ const BYLINE: Partial<Record<CardMode, string>> = {
 
 /** Cards whose button opens the full result of the gate's stage. */
 const SHOWS_RESULT: ReadonlySet<CardMode> = new Set(["plan-gate", "pr-review"]);
+
+/** Agents that go on in their session on the next run, so the owner can take theirs over. */
+const RESUMING_OUTPUTS: ReadonlySet<string> = new Set(["plan", "change"]);
+
+/**
+ * The owner's way into the agent that runs now (ADR 0022): a note that it reads in the same
+ * session, or Take over, which stops it so the owner works in its session.
+ */
+function SteerForm({ summary, send }: Pick<GateBodyProps, "summary" | "send">) {
+  const t = useT();
+  const id = useId();
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const agent = flowStepOf(issueFlowOf(summary), summary.stage)?.agent ?? null;
+  if (agent === null) return null;
+
+  const run = async (request: ActionRequestInput): Promise<boolean> => {
+    setSending(true);
+    try {
+      return await send(request);
+    } finally {
+      setSending(false);
+    }
+  };
+  const steer = async (): Promise<void> => {
+    const submitted = note;
+    const text = submitted.trim();
+    if (text === "" || sending) return;
+    // Clear only what was sent: the owner may have typed on while it was sent.
+    if (await run({ action: "steer", note: text })) {
+      setNote((current) => (current === submitted ? "" : current));
+    }
+  };
+
+  return (
+    <section className="desk-sec">
+      <Label htmlFor={`${id}-steer`}>{t("desk.gate.working.steer.label")}</Label>
+      <Textarea
+        id={`${id}-steer`}
+        value={note}
+        rows={2}
+        maxLength={MAX_FEEDBACK_CHARS}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <p className="desk-muted">{t("desk.gate.working.steer.help")}</p>
+      <div className="desk-gate__row">
+        <Button
+          spacing="compact"
+          disabled={sending || note.trim() === ""}
+          onClick={() => void steer()}
+        >
+          {t("desk.gate.working.steer.send")}
+        </Button>
+        {RESUMING_OUTPUTS.has(agent.output) && (
+          <>
+            <Button
+              appearance="subtle"
+              spacing="compact"
+              disabled={sending}
+              onClick={() => void run({ action: "take-over" })}
+            >
+              {t("desk.gate.working.takeOver")}
+            </Button>
+            <span className="desk-muted">{t("desk.gate.working.takeOverHelp")}</span>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
 
 /** What the issue does now: the stage, the latest agent line, the time, and Pause or Resume (P). */
 function RunningGate({ summary, send }: GateBodyProps) {
@@ -100,6 +185,8 @@ function RunningGate({ summary, send }: GateBodyProps) {
           <span className="desk-muted">{t("desk.gate.working.pauseHelp")}</span>
         )}
       </div>
+      {/* Keyed by stage, so a note written for one agent never goes to the next. */}
+      {!summary.paused && <SteerForm key={summary.stage} summary={summary} send={send} />}
     </>
   );
 }
@@ -107,6 +194,9 @@ function RunningGate({ summary, send }: GateBodyProps) {
 /** The draft PR is open: the owner merges on GitHub, then checks it here or sends its feedback. */
 function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
   const t = useT();
+  const { language } = useLanguage();
+  const now = useNow();
+  const check = detail.state.prCheck;
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const prUrl = safeHttpUrl(detail.state.prUrl);
   return (
@@ -128,9 +218,28 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
         />
       )}
       <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
+      {check !== null && check !== undefined && (
+        <p className="desk-muted">
+          {t("desk.pulls.checked", {
+            when: relativeTime(check.at, now, language),
+            failing: check.failingChecks.length,
+            comments: check.comments
+          })}
+          {check.failingChecks.length > 0 && ` ${check.failingChecks.join(", ")}.`}
+          {check.skipped.length > 0 &&
+            ` ${t("desk.pulls.skipped", { authors: check.skipped.join(", ") })}`}
+        </p>
+      )}
       <DecideBar labelledBy={titleId}>
         <Button disabled={actions.busy} onClick={() => void send({ action: "refresh-pr" })}>
           {t("desk.gate.prOpen.check")}
+        </Button>
+        <Button
+          appearance="secondary"
+          disabled={actions.busy}
+          onClick={() => void send({ action: "check-pr" })}
+        >
+          {t("desk.pulls.check")}
         </Button>
         <Button
           appearance="secondary"

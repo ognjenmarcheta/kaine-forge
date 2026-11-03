@@ -108,7 +108,8 @@ const STOP_TITLE: Readonly<Record<StopKind, string>> = {
   shipped: "shipped",
   cancelled: "cancelled",
   finished: "finished: every step ran, nothing shipped",
-  paused: "paused"
+  paused: "paused",
+  steered: "steered: the agent goes on with your note"
 };
 
 const changesetLine = (plan: ShipPlan): string => {

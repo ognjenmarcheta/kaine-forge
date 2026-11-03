@@ -7,8 +7,9 @@ const catalog = await loadLabCatalog();
 
 // The lab shows a screen that fails to load as a failure and keeps working, so the check
 // that every screen loads lives here.
-it("loads every screen", () => {
+it("loads every screen and specimen", () => {
   expect(catalog.failures).toEqual([]);
+  expect(catalog.specimenFailures).toEqual([]);
 });
 
 // A recreated screen may change the look, never the MUST rules: every lab theme passes the

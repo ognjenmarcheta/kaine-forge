@@ -47,6 +47,9 @@ export const buildClaudeArgs = <T>(
   ];
   if (request.settingsPath !== undefined) args.push("--settings", request.settingsPath);
   if (request.model !== undefined) args.push("--model", request.model);
+  if (request.maxBudgetUsd !== undefined) {
+    args.push("--max-budget-usd", String(request.maxBudgetUsd));
+  }
   for (const rule of request.permissions.allow) args.push("--allowedTools", rule);
   for (const rule of request.permissions.disallow) args.push("--disallowedTools", rule);
   args.push("--strict-mcp-config");
@@ -76,6 +79,9 @@ export const buildClaudeArgs = <T>(
   if (request.systemAppend !== undefined) args.push("--append-system-prompt", request.systemAppend);
   return args;
 };
+
+/** The `result` subtype Claude ends with when `--max-budget-usd` is spent. */
+export const CLAUDE_BUDGET_SUBTYPE = "error_max_budget_usd";
 
 export interface ClaudeRunnerDeps {
   readonly process?: AgentProcess;
@@ -121,7 +127,10 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
       argv: [binary, ...buildClaudeArgs(request, { newSessionId: newSessionId() })],
       stdin: request.prompt,
       cwd: request.cwd,
-      env: request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath },
+      env: {
+        ...request.env,
+        ...(request.receiptsPath === undefined ? {} : { KAINE_DESK_RECEIPTS: request.receiptsPath })
+      },
       timeoutMs: request.timeoutMs,
       signal: request.signal,
       onSpawn: request.onSpawn,
@@ -133,7 +142,8 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
     const partial = {
       trace: summary.events,
       sessionId: summary.sessionId,
-      denials: summary.denials
+      denials: summary.denials,
+      costUsd: summary.final?.costUsd
     };
 
     if (run.aborted) return { ok: false, failure: { kind: "aborted" }, partial };

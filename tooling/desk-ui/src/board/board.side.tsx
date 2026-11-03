@@ -4,7 +4,8 @@ import { useId, useState, type ReactNode } from "react";
 
 import { issueFlowOf, stageName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
-import { formatElapsed, safeHttpUrl } from "../shell/shell.format";
+import { formatDate, formatElapsed, safeHttpUrl } from "../shell/shell.format";
+import { Segmented } from "../shell/shell.layout";
 import { RouteLink } from "../shell/shell.router";
 import { StatusChip, statusLabelText } from "../status/status.chip";
 import { issueStatusOf } from "../status/status.model";
@@ -18,7 +19,7 @@ const titleOf = (t: Translate, summary: IssueSummary): string =>
     title: summary.readable ? (summary.title ?? t("desk.issue.untitled")) : ""
   }).trim();
 
-function SideCard({
+export function SideCard({
   title,
   count,
   children,
@@ -105,11 +106,29 @@ export function RunningList({
   );
 }
 
-/** Finished issues, folded: a summary line, and the list behind Show. */
+const DONE_SORTS = ["recent", "number"] as const;
+type DoneSort = (typeof DONE_SORTS)[number];
+
+/** When a finished issue ended: its PR's merge, else when it reached its last stage. */
+const doneAt = (summary: IssueSummary): string | null =>
+  summary.readable ? (summary.mergedAt ?? summary.stageEnteredAt) : null;
+
+/** Newest finish first, or by issue number. An issue without a date goes last. */
+export const sortDone = (issues: readonly IssueSummary[], sort: DoneSort): IssueSummary[] =>
+  [...issues].sort((left, right) =>
+    sort === "number"
+      ? right.issueNumber - left.issueNumber
+      : (doneAt(right) ?? "").localeCompare(doneAt(left) ?? "") ||
+        right.issueNumber - left.issueNumber
+  );
+
+/** Finished issues, folded: a summary line, and the list behind Show, with each one's date. */
 export function DoneList({ issues }: { readonly issues: readonly IssueSummary[] }) {
   const t = useT();
+  const { language } = useLanguage();
   const list = useId();
   const [open, setOpen] = useState(false);
+  const [sort, setSort] = useState<DoneSort>("recent");
   const count = (stage: string): number =>
     issues.filter((summary) => summary.readable && summary.stage === stage).length;
   const shipped = count("shipped");
@@ -142,10 +161,20 @@ export function DoneList({ issues }: { readonly issues: readonly IssueSummary[] 
             )}
       </p>
       {open && (
+        <Segmented
+          label={t("desk.board.side.doneSort")}
+          value={sort}
+          options={DONE_SORTS}
+          name={(option) => t(`desk.board.side.doneSort.${option}`)}
+          onChange={setSort}
+        />
+      )}
+      {open && (
         <ul id={list} className="desk-side__list">
-          {issues.map((summary) => {
+          {sortDone(issues, sort).map((summary) => {
             const status = issueStatusOf(summary);
             const pr = summary.readable ? safeHttpUrl(summary.prUrl) : null;
+            const when = doneAt(summary);
             return (
               <li key={summary.issueNumber} className="desk-side__item">
                 <RouteLink
@@ -156,6 +185,7 @@ export function DoneList({ issues }: { readonly issues: readonly IssueSummary[] 
                 </RouteLink>
                 <span className="desk-side__meta">
                   <StatusChip tone={status.tone}>{statusLabelText(t, status.label)}</StatusChip>
+                  {when !== null && <time dateTime={when}>{formatDate(when, language)}</time>}
                   {pr !== null && (
                     <a href={pr} target="_blank" rel="noreferrer noopener">
                       {t("desk.card.openPr")}

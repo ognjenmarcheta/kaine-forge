@@ -146,6 +146,13 @@ const flowIdSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "Use lowercase letters, digits and hyphens (at most 64)");
 
+/** The review bots a desk trusts unless its config lists others. */
+export const DEFAULT_REVIEW_BOTS = [
+  "coderabbitai[bot]",
+  "github-actions[bot]",
+  "copilot-pull-request-reviewer[bot]"
+] as const;
+
 export const deskConfigSchema = z
   .object({
     /** `null` places worktrees in a sibling directory of the main checkout, named after it. */
@@ -171,14 +178,14 @@ export const deskConfigSchema = z
     flowLabels: z.record(z.string().min(1), flowIdSchema).default({}),
     /**
      * Review bots whose PR comments reach the builder in `feedback --from-pr`, although
-     * GitHub gives them no trusted association. Exact GitHub App logins, for example
-     * `coderabbitai[bot]`. Their text is still fenced as untrusted data.
+     * GitHub gives them no trusted association. Exact GitHub App logins. The default trusts the
+     * usual reviewers; an empty list trusts none. Their text is still fenced as untrusted data.
      */
     reviewBots: z
       .array(
         z.string().regex(/^[A-Za-z0-9][A-Za-z0-9-]*\[bot\]$/, "Use a bot login like name[bot]")
       )
-      .default([]),
+      .default([...DEFAULT_REVIEW_BOTS]),
     /** GitHub login that may authorize runs. Set it explicitly for organization repositories. */
     owner: z
       .string()

@@ -225,6 +225,20 @@ const buildRunner = (
       record(issue, "resume", {});
       return gate(await change(store, issue, { pauseRequested: false, pausedAt: null }));
     },
+    steer: async (issue, note) => {
+      record(issue, "steer", { note });
+      const state = await readState(store, issue);
+      return { outcome: "stopped", stop: "steered", state, message: null };
+    },
+    takeOver: async (issue) => {
+      record(issue, "take-over", {});
+      return {
+        outcome: "stopped",
+        stop: "needs-you",
+        state: await readState(store, issue),
+        message: null
+      };
+    },
     cancel: async (issue) => {
       record(issue, "cancel", {});
       const state = await change(
@@ -316,6 +330,11 @@ const buildRunner = (
       record(issue, "refresh-pr", {});
       const state = await readState(store, issue);
       return gate(state, `PR #${String(state.prNumber ?? 0)} is still open.`);
+    },
+    checkPr: async (issue) => {
+      record(issue, "check-pr", {});
+      const state = await readState(store, issue);
+      return gate(state, `PR #${String(state.prNumber ?? 0)}: 0 failing checks, 0 comments.`);
     },
     feedbackFromPr: async (issue, feedbackOptions) => {
       record(issue, "pr-feedback", feedbackOptions ?? {});
@@ -536,8 +555,12 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
                 url: "https://github.com/owner/kaine-forge/pull/321",
                 isDraft: true,
                 headRefName: "KAINE-105-feat-open-pr",
+                headRefOid: "a".repeat(40),
                 author: { login: "owner" },
-                updatedAt: "2026-10-12T10:00:00Z"
+                updatedAt: "2026-10-12T10:00:00Z",
+                statusCheckRollup: [{ status: "COMPLETED", conclusion: "FAILURE" }],
+                reviewDecision: "",
+                labels: [{ name: "source:scorecard" }]
               }
             ]
           }),

@@ -109,10 +109,18 @@ export const createPullRequest = async (
   return { number: Number(number), url };
 };
 
-export const addPullRequestLabelArgv = (pr: number, label: string): string[] => [
-  "pr",
-  "edit",
-  String(pr),
-  "--add-label",
-  label
-];
+/**
+ * Add a label through the REST API (a pull request is an issue for labels). `gh pr edit` also
+ * reads the PR's classic project cards, which GitHub has turned off, so on some gh versions it
+ * fails before it labels anything.
+ */
+export const addPullRequestLabel = async (
+  gh: GhClient,
+  pr: number,
+  label: string
+): Promise<void> => {
+  await gh.api(z.array(z.unknown()), `repos/{owner}/{repo}/issues/${pr}/labels`, {
+    method: "POST",
+    body: { labels: [label] }
+  });
+};

@@ -18,6 +18,7 @@ import {
 } from "../contracts";
 import { ISSUE_DRAFT_FILE, draftIssueFormat } from "./intake.draft";
 import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
+import { agentProfileOf } from "./pipeline.agent";
 import { ARTIFACTS, readArtifactJson, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
@@ -40,6 +41,7 @@ import type {
   AgentStepHandler,
   ApproveOptions,
   NotifyKind,
+  OwnerInterrupt,
   PipelineDeps,
   PipelineEvent,
   PipelineResult,
@@ -78,7 +80,11 @@ import {
   readSnapshotFile
 } from "../github/github.snapshot-file";
 import { renderStatusComment } from "../github/github.status-comment";
-import { TRUSTED_ASSOCIATIONS, type IssueSnapshot } from "../github/github.types";
+import {
+  SOURCE_LABEL_PREFIX,
+  TRUSTED_ASSOCIATIONS,
+  type IssueSnapshot
+} from "../github/github.types";
 import { containerCleanupFor, isolationOf, selectIsolation } from "../isolation/isolation.select";
 import { resolveFlowSnapshot } from "../registry/registry.snapshot";
 import { shipAdmission, type ShipIntent } from "../ship/ship.admission";
@@ -163,6 +169,11 @@ export interface PipelineRunner {
    */
   readonly refreshPr: (issue: number) => Promise<PipelineResult>;
   /**
+   * Read the open PR's failing checks and the comments a PR feedback round would read, and keep
+   * a summary on the state. It changes no stage and never writes to the PR.
+   */
+  readonly checkPr: (issue: number) => Promise<PipelineResult>;
+  /**
    * At `pr-open`: collect the failing checks and the trusted reviews and comments on the PR
    * head, add the owner's own text, and send it all to `build`. Then drive to `pr-review`.
    * It refuses, and changes nothing, unless the PR is open, its head is the clean worktree
@@ -190,6 +201,18 @@ export interface PipelineRunner {
   readonly pause: (issue: number) => Promise<PipelineResult>;
   /** Clear the hold and drive on from where the issue stopped. Refused when it is not paused. */
   readonly resume: (issue: number) => Promise<PipelineResult>;
+  /**
+   * Stop the agent that runs now and run it again in the same session with the owner's note
+   * (ADR 0022). It answers at once with `steered`. Refused unless an agent of the issue runs in
+   * this process.
+   */
+  readonly steer: (issue: number, note: string) => Promise<PipelineResult>;
+  /**
+   * Stop the agent that runs now, so the owner works in its session. The stage ends in
+   * `needs-you`, and the agent's next run resumes that session. Only a plan or change agent on
+   * the host: a Docker session stays in the container. It answers when the stage has stopped.
+   */
+  readonly takeOver: (issue: number) => Promise<PipelineResult>;
   /** Stop the running agent (if this process drives the issue) and end the issue. The worktree stays. */
   readonly cancel: (issue: number) => Promise<PipelineResult>;
   /** Delete the issue's desk state and its worktree (unless `keepWorktree`). The branch stays. */
@@ -236,6 +259,8 @@ const machine = (state: IssueState, trigger: Trigger) =>
 interface Session {
   state: IssueState;
   readonly controller: AbortController;
+  /** The agent run the owner can reach now, and the owner's request to it. */
+  readonly owner: { run: AbortController | null; request: OwnerInterrupt | null };
 }
 
 const refused = (refusal: Refusal, reason: string, state: IssueState | null = null): Refused => ({
@@ -518,7 +543,21 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       await save(session);
     },
     emitAgent: (role, event) =>
-      emit({ type: "agent", issue: session.state.issueNumber, role, event })
+      emit({ type: "agent", issue: session.state.issueNumber, role, event }),
+    owner: {
+      arm: () => {
+        const run = new AbortController();
+        session.owner.run = run;
+        session.owner.request = null;
+        return run.signal;
+      },
+      disarm: () => {
+        const { request } = session.owner;
+        session.owner.run = null;
+        session.owner.request = null;
+        return request;
+      }
+    }
   });
 
   const runStage = async (
@@ -634,7 +673,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           );
         }
         const session: Session | null =
-          read.status === "ok" ? { state: read.state, controller } : null;
+          read.status === "ok"
+            ? { state: read.state, controller, owner: { run: null, request: null } }
+            : null;
         if (session !== null) live.set(issue, session);
         return await body(session, controller);
       } finally {
@@ -728,7 +769,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             options.isolation === undefined
               ? result.state
               : { ...result.state, isolation: options.isolation },
-          controller
+          controller,
+          owner: { run: null, request: null }
         };
         if (result.outcome === "needs-you") {
           const reason = result.reason;
@@ -852,6 +894,17 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     );
   };
 
+  /** The owner's words to an agent, kept in the issue's feedback artifact. */
+  const appendOwnerWords = async (issue: number, heading: string, text: string): Promise<void> => {
+    const dir = store.artifactsDir(issue);
+    await mkdir(dir, { recursive: true });
+    await appendFile(
+      path.join(dir, ARTIFACTS.feedback),
+      `\n## ${stamp()} ${heading}\n\n${text}\n`,
+      "utf8"
+    );
+  };
+
   const feedback: PipelineRunner["feedback"] = (issue, target, text) =>
     humanAction(
       issue,
@@ -864,13 +917,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           if (text.trim() === "") {
             return refused("invalid-transition", "Feedback needs text.", session.state);
           }
-          const dir = store.artifactsDir(issue);
-          await mkdir(dir, { recursive: true });
-          await appendFile(
-            path.join(dir, ARTIFACTS.feedback),
-            `\n## ${stamp()} to ${target}\n\n${text.trim()}\n`,
-            "utf8"
-          );
+          await appendOwnerWords(issue, `to ${target}`, text.trim());
           return null;
         }
       }
@@ -1169,20 +1216,45 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         });
         return { kind: "settled" };
       }
-      case "shipped":
+      case "shipped": {
+        // A new PR carries the issue's origin (`source:scorecard`, `source:audit`), so it shows
+        // with that work. A label that fails to apply does not fail the ship.
+        const sourceLabels = result.updated
+          ? []
+          : await copySourceLabels(session.state.issueNumber, result.prNumber);
         await applyOutcome(session, shipStage, {
           kind: "complete",
           event: result.updated ? "pr-updated" : "pr-opened",
-          note: result.prUrl,
+          note:
+            sourceLabels.length === 0
+              ? result.prUrl
+              : `${result.prUrl} (labels: ${sourceLabels.join(", ")})`,
           patch: {
             prUrl: result.prUrl,
             prNumber: result.prNumber,
             commitSha: result.commitSha,
             prHeadSha: result.commitSha,
-            baseSha: result.baseSha
+            baseSha: result.baseSha,
+            // A check read the old head. The Board and the gate must not show it for this one.
+            prCheck: null
           }
         });
         return { kind: "settled" };
+      }
+    }
+  };
+
+  /** Add the issue's `source:*` labels to its new PR. Returns the labels it added. */
+  const copySourceLabels = async (issue: number, prNumber: number): Promise<string[]> => {
+    if (deps.noWriteback === true || noWriteback.has(issue)) return [];
+    try {
+      const labels = (await github.fetchIssue(issue)).labels.filter((label) =>
+        label.startsWith(SOURCE_LABEL_PREFIX)
+      );
+      for (const label of labels) await github.addPullRequestLabel(prNumber, label);
+      return labels;
+    } catch {
+      return [];
     }
   };
 
@@ -1240,9 +1312,66 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         const waiting = session.state.stage;
         const moved = move(session, { type: "pr-closed", merged });
         if (!moved.ok) return refused("invalid-transition", moved.reason, session.state);
+        if (merged) merge(session, { mergedAt: pr.mergedAt ?? stamp() });
         await record(session, waiting, merged ? "pr-merged" : "pr-closed", pr.url);
         await finishMove(session, null);
         return stopped(session.state);
+      },
+      { needsState: true }
+    );
+
+  const checkPr: PipelineRunner["checkPr"] = (issue) =>
+    withLease(
+      issue,
+      async (loaded): Promise<PipelineResult> => {
+        const session = requireSession(loaded);
+        const refuse = (reason: string): PipelineResult =>
+          refused("pr-refused", `${reason} Nothing was changed.`, session.state);
+        if (deps.noWriteback === true || noWriteback.has(issue)) {
+          return refuse(`#${issue} reads nothing from GitHub (no write-back or a snapshot file).`);
+        }
+        const prNumber = session.state.prNumber ?? null;
+        if (prNumber === null) return refuse(`#${issue} has no pull request number.`);
+        let pr: PullRequestView;
+        let raw: PullRequestFeedbackRaw;
+        try {
+          pr = await github.viewPullRequest(prNumber);
+          if (pr.state !== "OPEN") {
+            return refuse(`PR #${prNumber} is ${pr.state.toLowerCase()}. Run refresh.`);
+          }
+          raw = await github.fetchPullRequestFeedback(prNumber, pr.headRefOid);
+        } catch (error) {
+          return refuse(`GitHub read failed: ${message(error)}.`);
+        }
+        // The same reading as a PR feedback round, so the check says what a round would get.
+        const since =
+          [...session.state.history]
+            .reverse()
+            .find((entry) => entry.event === "pr-opened" || entry.event === "pr-updated")?.at ??
+          null;
+        const selected = selectPrFeedback(raw, {
+          headSha: pr.headRefOid,
+          since,
+          trusted: TRUSTED_ASSOCIATIONS,
+          trustedBots: config.reviewBots
+        });
+        merge(session, {
+          prCheck: {
+            at: stamp(),
+            headSha: pr.headRefOid,
+            failingChecks: selected.failingChecks.map((check) => check.name),
+            comments: selected.comments.length,
+            authors: [...new Set(selected.comments.map((comment) => comment.author))],
+            skipped: [...selected.skipped]
+          }
+        });
+        await save(session);
+        return {
+          outcome: "stopped",
+          stop: "gate",
+          state: session.state,
+          message: `PR #${prNumber}: ${selected.failingChecks.length} failing checks, ${selected.comments.length} comments.`
+        };
       },
       { needsState: true }
     );
@@ -1470,6 +1599,75 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
+  // --- steer and take over (ADR 0022) ---------------------------------------
+
+  /** The live session whose agent the owner may reach now, or why not. */
+  const reachableAgent = (issue: number): Session | Refused => {
+    const session = live.get(issue);
+    if (session === undefined || session.owner.run === null) {
+      return refused(
+        "invalid-transition",
+        `No agent of #${issue} runs in this desk now. Give feedback when the issue stops.`,
+        session?.state ?? null
+      );
+    }
+    if (session.owner.request !== null) {
+      return refused(
+        "invalid-transition",
+        `The agent of #${issue} has not taken your last request yet. Try again in a moment.`,
+        session.state
+      );
+    }
+    return session;
+  };
+
+  const steer: PipelineRunner["steer"] = async (issue, note) => {
+    const text = note.trim();
+    if (text === "") return refused("invalid-transition", "A steer needs a note.");
+    const session = reachableAgent(issue);
+    if ("outcome" in session) return session;
+    const { stage } = session.state;
+    session.owner.request = { kind: "steer", note: text };
+    session.owner.run?.abort();
+    await appendOwnerWords(issue, `steer at ${stage}`, text);
+    await record(session, stage, "steered");
+    return {
+      outcome: "stopped",
+      stop: "steered",
+      state: session.state,
+      message: `The agent at '${stage}' goes on with your note.`
+    };
+  };
+
+  const takeOver: PipelineRunner["takeOver"] = async (issue) => {
+    const session = reachableAgent(issue);
+    if ("outcome" in session) return session;
+    const { stage, flowSnapshot: snapshot } = session.state;
+    const step = stepOf(snapshot, stage);
+    const agent = step?.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
+    if (agent === undefined || !agentProfileOf(config, agent).resumes) {
+      return refused(
+        "invalid-transition",
+        `The agent at '${stage}' starts a new session on each run, so there is no session to hand back. Steer it instead.`,
+        session.state
+      );
+    }
+    if (isolationOf(config, session.state) === "docker") {
+      return refused(
+        "invalid-transition",
+        `#${issue} runs in Docker: the agent session stays in the container. Steer it instead.`,
+        session.state
+      );
+    }
+    session.owner.request = { kind: "take-over" };
+    session.owner.run?.abort();
+    await record(session, stage, "taken-over");
+    // Answer once the stage has stopped: the action that drives the issue holds its queue.
+    return withLease(issue, async (loaded) => stopped(requireSession(loaded).state), {
+      needsState: true
+    });
+  };
+
   const remove: PipelineRunner["remove"] = async (issue, options = {}) => {
     controllers.get(issue)?.abort();
     const force = options.force === true;
@@ -1556,11 +1754,14 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     continueFrom,
     ship,
     refreshPr,
+    checkPr,
     feedbackFromPr,
     draft,
     applyDraft,
     pause,
     resume,
+    steer,
+    takeOver,
     cancel,
     remove,
     status

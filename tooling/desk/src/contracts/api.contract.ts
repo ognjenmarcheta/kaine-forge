@@ -24,6 +24,7 @@ import {
 } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
 import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
+import { jobStateSchema } from "./job.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 import { stepRoleOf, stepRoleSchema } from "./step-role.contract";
 
@@ -219,6 +220,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */
       prUrl: z.string().nullable(),
+      /** When the PR merged: GitHub's time, else when the desk saw it. `null` before a merge. */
+      mergedAt: timestampSchema.nullable(),
       /** "contract N/6" from `ticket.md`, or `null` before intake wrote it. */
       contract: z
         .object({ found: z.number().int().nonnegative(), total: z.number().int().positive() })
@@ -529,11 +532,14 @@ export const ACTION_NAMES = [
   "remove",
   "ship",
   "refresh-pr",
+  "check-pr",
   "pr-feedback",
   "draft",
   "apply-draft",
   "pause",
-  "resume"
+  "resume",
+  "steer",
+  "take-over"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
@@ -581,6 +587,8 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     }),
   // Reads the PR once. It never writes to the PR.
   z.object({ action: z.literal("refresh-pr") }).strict(),
+  // Reads the PR's failing checks and new comments, and keeps a summary. It changes no stage.
+  z.object({ action: z.literal("check-pr") }).strict(),
   // Reads the PR and sends its feedback to build. The PR number comes from the issue state.
   z
     .object({
@@ -593,7 +601,16 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict(),
   // Hold the issue after the running stage. It never stops a running agent: `cancel` does.
   z.object({ action: z.literal("pause") }).strict(),
-  z.object({ action: z.literal("resume") }).strict()
+  z.object({ action: z.literal("resume") }).strict(),
+  // The owner's note to the agent that runs now. It stops the agent and resumes its session (ADR 0022).
+  z
+    .object({
+      action: z.literal("steer"),
+      note: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS)
+    })
+    .strict(),
+  // Stop the agent that runs now so the owner works in its session (ADR 0022).
+  z.object({ action: z.literal("take-over") }).strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
@@ -631,8 +648,20 @@ export const actionTargetProblem = (
 /** How a runner call ended: at a gate, at `needs-you`, or at the end of the issue. */
 export const actionOutcomeSchema = z
   .object({
-    /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
-    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "finished", "removed", "paused"]),
+    /**
+     * `paused`: the issue holds (or holds once the running stage ends) until `resume`.
+     * `steered`: the running agent goes on in its session with the owner's note.
+     */
+    stop: z.enum([
+      "gate",
+      "needs-you",
+      "shipped",
+      "cancelled",
+      "finished",
+      "removed",
+      "paused",
+      "steered"
+    ]),
     stage: stageIdSchema.nullable(),
     message: z.string().nullable()
   })
@@ -774,7 +803,28 @@ export const githubPullSchema = z
     author: z.string().nullable(),
     updatedAt: z.string(),
     /** The desk issue it belongs to: the desk shipped it, or its branch is `KAINE-<n>-...`. */
-    issue: z.number().int().positive().nullable()
+    issue: z.number().int().positive().nullable(),
+    /** The head's CI: any failed check makes it `failing`, with how many failed. */
+    ci: z
+      .object({
+        state: z.enum(["passing", "failing", "running", "none"]),
+        failing: z.number().int().nonnegative()
+      })
+      .strict(),
+    review: z.enum(["approved", "changes-requested", "required", "none"]),
+    labels: z.array(z.string()),
+    /** The owner's last `check-pr` of the desk issue: failing checks and new comments. */
+    check: z
+      .object({
+        at: timestampSchema,
+        headSha: z.string(),
+        failingChecks: z.array(z.string()),
+        comments: z.number().int().nonnegative(),
+        authors: z.array(z.string()),
+        skipped: z.array(z.string())
+      })
+      .strict()
+      .nullable()
   })
   .strict();
 export type GithubPull = z.infer<typeof githubPullSchema>;
@@ -819,7 +869,9 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     .strict(),
   z.object({ type: z.literal("log"), entry: logEntrySchema }).strict(),
   z.object({ type: z.literal("health"), report: healthReportSchema }).strict(),
-  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict()
+  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict(),
+  z.object({ type: z.literal("job-updated"), job: jobStateSchema }).strict(),
+  z.object({ type: z.literal("job-removed"), jobId: z.number().int().positive() }).strict()
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

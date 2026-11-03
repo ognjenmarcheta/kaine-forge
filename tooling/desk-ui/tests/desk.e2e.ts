@@ -532,10 +532,9 @@ test("shows the ship dry run, asks twice, then ships and links the pull request"
   await expect(dialog).toContainText(".changeset/board-empty-state.md");
   await expect(dialog).toContainText("Changeset file");
   await expect(dialog).toContainText("Files in the commit (3)");
-  // Nothing was shipped by the dry run.
-  expect(await desk.calls()).toEqual([
-    { issue: 102, action: "ship", payload: { confirm: false, dryRun: true } }
-  ]);
+  // Nothing was shipped by the dry run. The API checks `confirm` (a real ship needs it); the
+  // runner gets only `dryRun` since #637.
+  expect(await desk.calls()).toEqual([{ issue: 102, action: "ship", payload: { dryRun: true } }]);
 
   await dialog.getByRole("button", { name: "Continue to confirm" }).click();
   await expect(dialog).toContainText("commits 3 files on KAINE-102-feat-agent-desk");
@@ -544,7 +543,7 @@ test("shows the ship dry run, asks twice, then ships and links the pull request"
   expect((await desk.calls()).at(-1)).toEqual({
     issue: 102,
     action: "ship",
-    payload: { confirm: true, dryRun: false }
+    payload: { dryRun: false }
   });
 
   await dialog.getByRole("button", { name: "Close", exact: true }).first().click();
