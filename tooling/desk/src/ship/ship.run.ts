@@ -85,7 +85,7 @@ import {
 import { recheckAuthorization } from "../github/github.authorization";
 import { checkControllerIdentity, type ControllerIdentity } from "../github/github.identity";
 import type { PullRequestInfo } from "../github/github.pull-request";
-import { isProtectedPath } from "../policy";
+import { generatedAiOutputs, isProtectedPath } from "../policy";
 import type { Clock, Exec, GitHubPort } from "../ports";
 import { writeJsonAtomic } from "../store/store.atomic";
 import type { IssueStore } from "../store/store.issue";
@@ -514,6 +514,7 @@ const prepare = async (
     checks: { report: over.report, accept: over.accept },
     diffHash: over.codeHash,
     changedPaths: filesOf(over.diff),
+    aiOutputs: [...(await generatedAiOutputs(worktree, filesOf(over.diff)))],
     identity,
     branch: { actual: branchNow, expected: state.branch },
     authorization,
@@ -898,7 +899,9 @@ const prepare = async (
         } else {
           step("stage", "start");
           const files = filesOf(finalDiff);
-          const forbidden = files.filter((file) => isProtectedPath(file));
+          // A generated AI file is checked by the pre-push hook, which refuses a hand-made one.
+          const generated = await generatedAiOutputs(worktree, files);
+          const forbidden = files.filter((file) => isProtectedPath(file) && !generated.has(file));
           if (forbidden.length > 0) {
             await rollback();
             return stop({

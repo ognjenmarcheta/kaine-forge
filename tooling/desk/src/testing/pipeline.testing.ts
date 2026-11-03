@@ -247,6 +247,8 @@ export interface FakePnpm {
   readonly checkReplies: PnpmReply[];
   /** Set to make a setup script fail (`install`, `env:ensure`, `ai:install`). */
   readonly scriptReplies: Map<string, PnpmReply>;
+  /** Runs before a script replies, as the real script would change files (`ai:install`). */
+  readonly scriptEffects: Map<string, (request: ExecRequest) => Promise<void>>;
 }
 
 /**
@@ -257,6 +259,7 @@ export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
   const calls: ExecRequest[] = [];
   const checkReplies: PnpmReply[] = [];
   const scriptReplies = new Map<string, PnpmReply>();
+  const scriptEffects = new Map<string, (request: ExecRequest) => Promise<void>>();
   const exec: Exec = async (request) => {
     calls.push(request);
     if (request.argv[0] === "git") {
@@ -266,6 +269,7 @@ export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
       return gitExec(request);
     }
     const script = request.argv[1] ?? "";
+    await scriptEffects.get(script)?.(request);
     const reply: PnpmReply =
       script === "check:affected"
         ? (checkReplies.shift() ?? {})
@@ -279,7 +283,7 @@ export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
     };
     return result;
   };
-  return { exec, calls, checkReplies, scriptReplies };
+  return { exec, calls, checkReplies, scriptReplies, scriptEffects };
 };
 
 // --- the environment -------------------------------------------------------
