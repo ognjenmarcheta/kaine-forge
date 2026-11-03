@@ -47,6 +47,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0020-offline-first-sync-for-todos-and-notes.md`](adr/0020-offline-first-sync-for-todos-and-notes.md): offline-first sync for Todos and Notes.
 - [`adr/0021-desk-jobs.md`](adr/0021-desk-jobs.md): owner-started desk jobs (the scorecard run), their trust boundary, and their limits.
 - [`adr/0022-owner-steering-of-a-running-stage.md`](adr/0022-owner-steering-of-a-running-stage.md): owner steering of a running desk stage.
+- [`adr/0023-desk-provider-choice.md`](adr/0023-desk-provider-choice.md): desk provider choice.
 
 ## AI assistant docs
 
