@@ -1,8 +1,9 @@
-import type { ScorecardRun, ScorecardView } from "@repo/desk/contracts";
+import type { ScorecardRun, ScorecardView, TrackedIssue } from "@repo/desk/contracts";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DeskApi } from "../api/api.client";
 import { DeskApp } from "../desk.app";
 import { fakeApi, renderDesk } from "../test/test.render";
 
@@ -105,5 +106,80 @@ describe("ScorecardView", () => {
     expect(screen.getByText("Showing 1 of 2")).toBeTruthy();
     expect(screen.getByText("old finding")).toBeTruthy();
     expect(screen.queryByText("ci: pr e2e and release e2e run different servers")).toBeNull();
+  });
+});
+
+describe("Scorecard tracking", () => {
+  const issue = (number: number, over: Partial<TrackedIssue>): TrackedIssue => ({
+    number,
+    title: `Issue ${String(number)}`,
+    url: `https://github.com/owner/repo/issues/${String(number)}`,
+    state: "open",
+    createdAt: "2026-11-02T10:00:00Z",
+    closedAt: null,
+    labeled: true,
+    slug: null,
+    fix: null,
+    run: null,
+    ...over
+  });
+  const tracking = (issues: TrackedIssue[]) => () =>
+    Promise.resolve({ ok: true as const, fetchedAt: "2026-11-03T10:00:00.000Z", issues });
+
+  it("shows a solved finding in Recently solved and offers Fix with desk for an open one", async () => {
+    const act = vi.fn<DeskApi["act"]>(() =>
+      Promise.resolve({ status: "accepted", action: "start", issueNumber: 848 })
+    );
+    renderDesk(
+      <DeskApp />,
+      fakeApi({
+        scorecard: () => Promise.resolve(READY),
+        act,
+        scorecardTracking: tracking([
+          issue(846, {
+            slug: "old",
+            state: "closed",
+            fix: {
+              number: 852,
+              url: "https://github.com/owner/repo/pull/852",
+              state: "merged",
+              mergedAt: "2026-11-03T09:00:00Z"
+            }
+          }),
+          issue(848, { slug: "e2e-mode-split" })
+        ])
+      })
+    );
+
+    const recent = (await screen.findByRole("heading", { name: "Recently solved" })).closest(
+      "div.desk-panel"
+    );
+    if (!(recent instanceof HTMLElement)) throw new Error("no Recently solved panel");
+    expect(within(recent).getByText("old finding")).toBeTruthy();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Fix with desk" }));
+    expect(act).toHaveBeenCalledWith(848, { action: "start" });
+  });
+
+  it("labels the older issues only after the owner confirms the preview", async () => {
+    const backfill = vi.fn<DeskApi["scorecardBackfill"]>((issues) =>
+      Promise.resolve({ results: issues.map((number) => ({ number, ok: true, detail: null })) })
+    );
+    renderDesk(
+      <DeskApp />,
+      fakeApi({
+        scorecard: () => Promise.resolve(READY),
+        scorecardBackfill: backfill,
+        scorecardTracking: tracking([issue(257, { labeled: false }), issue(848, {})])
+      })
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Label 1 older issues" }));
+    const dialog = screen.getByRole("dialog", { name: "Label older scorecard issues?" });
+    expect(within(dialog).getByText(/Issue 257/)).toBeTruthy();
+    expect(backfill).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add the label" }));
+
+    expect(backfill).toHaveBeenCalledWith([257]);
   });
 });

@@ -27,6 +27,10 @@ export const fakeApi = (overrides: Partial<DeskApi> = {}): DeskApi => ({
   stats: unexpected("stats"),
   lessons: unexpected("lessons"),
   scorecard: unexpected("scorecard"),
+  // The Scorecard view reads it beside the ledger: no tracked issue unless a test says so.
+  scorecardTracking: () =>
+    Promise.resolve({ ok: true, fetchedAt: "2026-03-01T10:00:00.000Z", issues: [] }),
+  scorecardBackfill: unexpected("scorecardBackfill"),
   // The provider loads the jobs with the issues. Most tests want none.
   jobs: () => Promise.resolve([]),
   startJob: unexpected("startJob"),
@@ -121,6 +125,7 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     needsYouReason: null,
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
+    mergedAt: state.mergedAt ?? null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: state.history.at(-1)?.at ?? null,
     progress: flow.nodes.map((node) => node.status),

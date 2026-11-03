@@ -1,8 +1,10 @@
 import {
   SCORECARD_DIMENSIONS,
+  SCORECARD_DISPOSITIONS,
   type ScorecardDisposition,
   type ScorecardFinding,
-  type ScorecardRun
+  type ScorecardRun,
+  type TrackedIssue
 } from "@repo/desk/contracts";
 
 import type { Tone } from "../status/status.model";
@@ -172,13 +174,98 @@ export const summaryOf = (runs: readonly ScorecardRun[], index: number): RunSumm
 export const FINDING_FILTERS = ["open", "fixed", "all"] as const;
 export type FindingFilter = (typeof FINDING_FILTERS)[number];
 
+/** How the findings table orders its rows. `rank` is the ledger's order. */
+export const FINDING_SORTS = ["rank", "solved", "opened", "dimension", "state"] as const;
+export type FindingSort = (typeof FINDING_SORTS)[number];
+
+/** Each tracked issue by number. */
+export type Tracking = ReadonlyMap<number, TrackedIssue>;
+
+/** The issue a finding was filed as: its ledger number, else the issue a job filed for its slug. */
+export const issueOf = (finding: ScorecardFinding, tracking: Tracking): TrackedIssue | null => {
+  if (finding.issue !== undefined) return tracking.get(finding.issue) ?? null;
+  for (const issue of tracking.values()) if (issue.slug === finding.slug) return issue;
+  return null;
+};
+
+/** When a tracked issue was solved: it is closed, and a merged PR closed it. Else `null`. */
+export const solvedAt = (issue: TrackedIssue | null): string | null =>
+  issue !== null && issue.state === "closed" && issue.fix?.state === "merged"
+    ? issue.fix.mergedAt
+    : null;
+
+/** A dimension's score in the last run before a day and in the first run after it. */
+export interface ScoreDelta {
+  readonly dimension: number;
+  readonly before: number | null;
+  readonly after: number | null;
+  /** The date of the run after. */
+  readonly afterDate: string;
+}
+
+/**
+ * The finding's dimension in the last run before the merge day and the first run after it.
+ * A run on the merge day itself may predate the merge, so it counts on neither side. `null`
+ * until a run after the merge exists.
+ */
+export const scoreDelta = (
+  runs: readonly ScorecardRun[],
+  dimension: number,
+  mergedAt: string
+): ScoreDelta | null => {
+  const day = mergedAt.slice(0, 10);
+  const before = runs.filter((run) => run.date < day).at(-1);
+  const after = runs.find((run) => run.date > day);
+  if (after === undefined) return null;
+  const scoreIn = (run: ScorecardRun | undefined): number | null =>
+    run?.dimensions[String(dimension)]?.score ?? null;
+  return { dimension, before: scoreIn(before), after: scoreIn(after), afterDate: after.date };
+};
+
+/** A finding whose issue a merged PR closed. */
+export interface SolvedFinding {
+  readonly finding: ScorecardFinding;
+  readonly issue: TrackedIssue;
+  readonly solvedAt: string;
+  readonly delta: ScoreDelta | null;
+}
+
+/**
+ * The findings of the run solved by a merged PR, newest merge first. The finding comes from the
+ * latest run that names its slug, so a finding the next run dropped still shows.
+ */
+export const recentlySolved = (
+  runs: readonly ScorecardRun[],
+  tracking: Tracking,
+  limit = 10
+): SolvedFinding[] => {
+  const latest = new Map<string, ScorecardFinding>();
+  for (const run of runs) for (const finding of run.findings) latest.set(finding.slug, finding);
+  return [...latest.values()]
+    .flatMap((finding) => {
+      const issue = issueOf(finding, tracking);
+      const when = solvedAt(issue);
+      return issue === null || when === null
+        ? []
+        : [{ finding, issue, solvedAt: when, delta: scoreDelta(runs, finding.dimension, when) }];
+    })
+    .sort((left, right) => right.solvedAt.localeCompare(left.solvedAt))
+    .slice(0, limit);
+};
+
 export interface FindingsQuery {
   readonly filter: FindingFilter;
   /** Words to find in the slug or the title. */
   readonly search: string;
   /** One dimension, or `null` for all. */
   readonly dimension: number | null;
+  readonly sort?: FindingSort;
+  readonly tracking?: Tracking;
 }
+
+/** Newest first; a missing date last. */
+const newestFirst = (left: string | null, right: string | null): number =>
+  (right ?? "").localeCompare(left ?? "");
 
 /** The findings that match, by ladder rank (the most severe first), and how many there are in all. */
 export const findingsView = (
@@ -198,9 +285,33 @@ export const findingsView = (
     .filter(
       (finding) => words === "" || `${finding.slug} ${finding.title}`.toLowerCase().includes(words)
     )
-    .sort(
-      (left, right) => left.ladderRank - right.ladderRank || left.slug.localeCompare(right.slug)
-    );
+    .sort((left, right) => {
+      const tracking = query.tracking ?? new Map<number, TrackedIssue>();
+      const byRank = left.ladderRank - right.ladderRank || left.slug.localeCompare(right.slug);
+      switch (query.sort ?? "rank") {
+        case "solved":
+          return (
+            newestFirst(solvedAt(issueOf(left, tracking)), solvedAt(issueOf(right, tracking))) ||
+            byRank
+          );
+        case "opened":
+          return (
+            newestFirst(
+              issueOf(left, tracking)?.createdAt ?? null,
+              issueOf(right, tracking)?.createdAt ?? null
+            ) || byRank
+          );
+        case "dimension":
+          return left.dimension - right.dimension || byRank;
+        case "state":
+          return (
+            SCORECARD_DISPOSITIONS.indexOf(left.disposition) -
+              SCORECARD_DISPOSITIONS.indexOf(right.disposition) || byRank
+          );
+        case "rank":
+          return byRank;
+      }
+    });
   return { rows, total: run.findings.length };
 };
 

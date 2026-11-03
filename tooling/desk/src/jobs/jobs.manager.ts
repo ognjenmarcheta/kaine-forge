@@ -24,6 +24,11 @@ import {
   type JobStopReason
 } from "../contracts";
 import { commitStaged, pushBranch, stageFiles, tryGit, type GitPort } from "../git";
+import {
+  SOURCE_LABEL_DEFINITIONS,
+  labelEnsureArgv,
+  type SourceLabelDefinition
+} from "../github/github.labels";
 import type { Clock, Exec, GitHubPort } from "../ports";
 import { SCORECARD_LEDGER_PATH } from "../scorecard";
 import { createWorktree, removeWorktree } from "../worktree";
@@ -47,6 +52,7 @@ import {
 } from "./jobs.permissions";
 import {
   appendScorecardRun,
+  setFindingIssues,
   ledgerRun,
   scorecardPrompt,
   scorecardPullRequest
@@ -252,6 +258,12 @@ const repositoryLabels = async (checkout: string): Promise<ReadonlySet<string> |
   } catch {
     return null;
   }
+};
+
+/** The label the desk adds to the issues and PRs that come from a job, by job kind. */
+const SOURCE_LABELS: Readonly<Partial<Record<JobState["kind"], SourceLabelDefinition>>> = {
+  scorecard: SOURCE_LABEL_DEFINITIONS.scorecard,
+  audit: SOURCE_LABEL_DEFINITIONS.audit
 };
 
 /** The job with its lab server's port, on the kind's own record. */
@@ -473,6 +485,22 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     return { structured: outcome.result.structured, costUsd: outcome.result.costUsd ?? 0 };
   };
 
+  /** Render the ledger's generated region and format it, as `pnpm scorecard` does by hand. */
+  const renderLedger = async (worktree: string): Promise<void> => {
+    for (const argv of [
+      ["pnpm", "scorecard"],
+      ["pnpm", "exec", "prettier", "--write", SCORECARD_LEDGER_PATH]
+    ]) {
+      const rendered = await deps.exec({ argv, cwd: worktree, timeoutMs: 5 * 60_000 });
+      if (rendered.code !== 0) {
+        throw new JobStop(
+          "failed",
+          `${argv.join(" ")} failed:\n${rendered.stderr || rendered.stdout}`
+        );
+      }
+    }
+  };
+
   const score = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
     const worktree = worktreeOf(state);
     const head = await deps.git.headSha(worktree);
@@ -500,18 +528,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       state.id
     );
     await writeFile(ledgerFile, written, "utf8");
-    for (const argv of [
-      ["pnpm", "scorecard"],
-      ["pnpm", "exec", "prettier", "--write", SCORECARD_LEDGER_PATH]
-    ]) {
-      const rendered = await deps.exec({ argv, cwd: worktree, timeoutMs: 5 * 60_000 });
-      if (rendered.code !== 0) {
-        throw new JobStop(
-          "failed",
-          `${argv.join(" ")} failed:\n${rendered.stderr || rendered.stdout}`
-        );
-      }
-    }
+    await renderLedger(worktree);
     return record(
       {
         ...state,
@@ -732,6 +749,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
   };
 
+  /** Create the label, or update it when it exists (`--force`). `false` when `gh` failed. */
+  const ensureLabel = async (label: SourceLabelDefinition): Promise<boolean> =>
+    (await deps.exec({ argv: labelEnsureArgv(label), cwd: deps.repoRoot, timeoutMs: 60_000 }))
+      .code === 0;
+
   /** File the ticked issues one by one, saved after each, so a retry never files one twice. */
   const fileIssues = async (
     state: JobState,
@@ -739,13 +761,17 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
   ): Promise<JobState> => {
     let next = state;
     const known = await repositoryLabels(worktreeOf(state));
+    const source = SOURCE_LABELS[state.kind];
+    let sourceReady = false;
     for (const issue of proposed.filter((entry) => state.approvedIssues.includes(entry.slug))) {
       if (next.filedIssues.some((filed) => filed.slug === issue.slug)) continue;
       const created = await deps.github.createIssue({ title: issue.title, body: issue.body });
       next = { ...next, filedIssues: [...next.filedIssues, { slug: issue.slug, ...created }] };
       // `gh` sets no label when one is unknown, so only known labels are sent. Without the
       // repository's label list, none is known.
-      const labels = issue.labels.filter((label) => known?.has(label) === true);
+      const labels = issue.labels.filter(
+        (label) => known?.has(label) === true && label !== source?.name
+      );
       const unknown = issue.labels.filter((label) => !labels.includes(label));
       if (unknown.length > 0) {
         next = record(
@@ -755,6 +781,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
             ? `#${created.number}: labels not set, .github/repo-setup.json has no label list: ${unknown.join(", ")}.`
             : `#${created.number}: not a label here: ${unknown.join(", ")}.`
         );
+      }
+      // The desk owns its source label: it makes sure it exists, then always adds it.
+      if (source !== undefined) {
+        sourceReady ||= await ensureLabel(source);
+        if (sourceReady) labels.push(source.name);
       }
       if (labels.length > 0) {
         const argv = ["gh", "issue", "edit", String(created.number)];
@@ -774,8 +805,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
   };
 
   /**
-   * Commit `paths`, push the branch, and open the draft PR, once: a retry after the PR opened
-   * skips this. `skipChangeset` labels a PR whose files are not a package.
+   * Commit `paths`, push the branch, and open the draft PR with `labels`, once: a retry after
+   * the PR opened skips this. `release:skip-changeset` is the label of a PR that is not a package.
    */
   const shipBranch = async (
     state: JobState,
@@ -783,7 +814,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       readonly paths: readonly string[];
       readonly pr: { readonly title: string; readonly body: string };
       readonly commitBody: string;
-      readonly skipChangeset: boolean;
+      readonly labels: readonly string[];
     }
   ): Promise<JobState> => {
     if (state.pr !== null) return state;
@@ -817,11 +848,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       draft: true
     });
     let next: JobState = { ...state, pr: opened };
-    if (change.skipChangeset) {
+    for (const label of change.labels) {
       try {
-        await deps.github.addPullRequestLabel(opened.number, "release:skip-changeset");
+        await deps.github.addPullRequestLabel(opened.number, label);
       } catch (error) {
-        next = record(next, "ship", `PR label not set (${message(error)}).`);
+        next = record(next, "ship", `PR label ${label} not set (${message(error)}).`);
       }
     }
     return next;
@@ -844,7 +875,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       pr: screenPullRequest(screen, result, state.screen?.diffPercent ?? null),
       commitBody: result.summary,
       // A lab screen never ships to a product: the PR needs no changeset.
-      skipChangeset: true
+      labels: ["release:skip-changeset"]
     });
     await labServers.stop(state.id);
     return finished({ ...next, screen: next.screen && { ...next.screen, port: null } });
@@ -869,7 +900,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       paths: [...written, changeset.path],
       pr: componentPullRequest(component, approved, result),
       commitBody: result.summary,
-      skipChangeset: false
+      labels: []
     });
     await labServers.stop(state.id);
     return finished({ ...next, component: next.component && { ...next.component, port: null } });
@@ -889,13 +920,25 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     const result = state.result;
     if (result === null) throw new JobStop("failed", "The job has no result to ship.");
     const filed = await fileIssues(state, result.proposedIssues);
+    if (filed.pr === null && filed.filedIssues.length > 0) {
+      // Each filed issue's number goes on its finding, so the Scorecard view can follow it.
+      const worktree = worktreeOf(filed);
+      const ledgerFile = path.join(worktree, SCORECARD_LEDGER_PATH);
+      const numbers = new Map(filed.filedIssues.map((issue) => [issue.slug, issue.number]));
+      await writeFile(
+        ledgerFile,
+        setFindingIssues(await readFile(ledgerFile, "utf8"), result.run, numbers),
+        "utf8"
+      );
+      await renderLedger(worktree);
+    }
     return finished(
       await shipBranch(filed, {
         paths: [SCORECARD_LEDGER_PATH],
         pr: scorecardPullRequest(result.run, result, filed.filedIssues),
         commitBody: result.summary,
         // The ledger is not a package: the PR needs no changeset.
-        skipChangeset: true
+        labels: ["release:skip-changeset", SOURCE_LABEL_DEFINITIONS.scorecard.name]
       })
     );
   };

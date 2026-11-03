@@ -175,6 +175,10 @@ export const summarizeResult = async (
     needsYouReason: needsYouReason(state),
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
+    mergedAt:
+      state.mergedAt ??
+      [...state.history].reverse().find((entry) => entry.event === "pr-merged")?.at ??
+      null,
     contract: contract === null ? null : { found: contract.found, total: contract.total },
     stageEnteredAt: stageEnteredAt(state),
     progress: flow.nodes.map((node) => node.status),
