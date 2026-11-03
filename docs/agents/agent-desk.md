@@ -620,6 +620,15 @@ agent stage it checks these rules, whether the run succeeded or not:
 - No forbidden command, no permission denial, no claimed check that did not run.
 - A change agent changed only files that the plan lists (or generated GraphQL output),
   and no protected path.
+
+After a change agent whose diff touches `.ai/` or a file that `pnpm ai:install` writes, the engine
+runs the worktree's own `ai:install` command (the one setup ran). No agent may run it. The tracked
+copies then follow their sources: `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, and each
+`.serena/memories/<name>` that has an `.ai/serena-memories/<name>` source. These copies need no plan
+entry, and they pass the protected-path rule here and at ship. The history gets an
+`ai-regenerated` entry. A Serena memory without a source stays protected, and the `pre-push` hook
+(`ai:doctor --strict`) refuses a copy that differs from the generator's output.
+
 - The result passes the contract schema. The runner parses it, and the engine parses it again.
 
 While the agent runs, the engine also watches its tool calls. When the same call (tool, command,

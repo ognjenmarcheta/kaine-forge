@@ -13,6 +13,7 @@ import type {
   StageOutcome,
   StatePatch
 } from "./pipeline.types";
+import { aiInstallArgv, installsForAgents } from "./worktree.bootstrap";
 import {
   describeFailure,
   type AgentEvent,
@@ -40,6 +41,7 @@ import {
   type CapabilityProfile,
   type DeskConfig,
   type HarnessFingerprint,
+  type IssueState,
   type LoopCounters,
   type PendingFeedback,
   type PlanRisk,
@@ -55,7 +57,10 @@ import {
   type RefViolation
 } from "../git";
 import { isolationOf, selectIsolation } from "../isolation/isolation.select";
+import { generatedAiOutputs } from "../policy/ai-outputs";
+import { touchesAiSetup } from "../policy/protected-paths";
 import { boundedTail } from "../process/process.output";
+import { readInstalledCapabilities } from "../registry/registry.snapshot";
 import { recordRefsBaseline } from "../ship/ship.refs";
 import { appendRunRecord } from "../stats/stats.runs";
 import { defaultProcessStart } from "../store/store.lease";
@@ -187,6 +192,58 @@ export const agentProfileOf = (config: DeskConfig, agent: AgentDefinition): Agen
     resumes: agent.output === "plan" || agent.output === "change",
     ...agentRuntime(config, role, agent)
   };
+};
+
+/**
+ * The agents, skills and servers an issue worktree installs: every agent of the issue's flow gets
+ * its provider, servers and skills, and each installed CLI gets its files too, because a role moves
+ * to one when the CLI it asks for is missing. A Docker run loads no server.
+ */
+export const worktreeInstalls = async (
+  deps: PipelineDeps,
+  state: IssueState
+): Promise<{
+  readonly agents: readonly Provider[];
+  readonly skills: readonly string[];
+  readonly mcp: readonly string[];
+}> => {
+  const flowAgents = state.flowSnapshot.agents;
+  const agents = [
+    ...new Set<Provider>([
+      ...Object.values(deps.config.providers),
+      ...flowAgents.map((agent) => agentProfileOf(deps.config, agent).provider),
+      ...((await deps.providers?.usable()) ?? [])
+    ])
+  ];
+  const installs = installsForAgents(
+    flowAgents,
+    await readInstalledCapabilities(deps.location.repoRoot)
+  );
+  return { agents, skills: installs.skills, mcp: installs.mcp };
+};
+
+/** How long the engine waits for `pnpm ai:install` in an issue worktree. */
+const AI_INSTALL_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * Runs the worktree's `ai:install` after a change to `.ai/`, so the tracked files it writes follow
+ * their sources. It also overwrites any edit an agent made to them by hand.
+ */
+const regenerateAiOutputs = async (
+  context: StageContext,
+  worktree: string,
+  changed: readonly string[]
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }> => {
+  const { deps } = context;
+  const argv = aiInstallArgv(await worktreeInstalls(deps, context.state()));
+  const result = await deps.exec({ argv, cwd: worktree, timeoutMs: AI_INSTALL_TIMEOUT_MS });
+  if (result.code !== 0) {
+    return {
+      ok: false,
+      reason: `The change edits ${changed.filter((file) => file.startsWith(".ai/")).join(", ") || ".ai/"}, and ${argv.join(" ")} failed:\n${boundedTail(`${result.stdout}\n${result.stderr}`, 20, 2000)}`
+    };
+  }
+  return { ok: true };
 };
 
 /** Larger tickets are read from the artifact file. Inline text stays well under the prompt limit. */
@@ -728,11 +785,30 @@ const runAgentStageOnce = async <T>(
   }
   if (diffAfter === null) return stop(`Cannot inspect the worktree after the ${name} run.`);
 
-  // 5. Skill evidence, permission denials, forbidden commands, scope.
+  // 5. A change to `.ai/`: the engine regenerates the tracked files of `ai:install`, which no agent
+  // may write or run. They are then generator output, so the scope and protected-path checks skip them.
+  let generated = new Set<string>();
+  if (!input.readOnly && changedPaths(diffAfter).some(touchesAiSetup)) {
+    const regenerated = await regenerateAiOutputs(context, worktree, changedPaths(diffAfter));
+    if (!regenerated.ok) return stop(regenerated.reason);
+    try {
+      diffAfter = await deps.git.diffAgainstBase(worktree, baseSha);
+    } catch (error) {
+      return stop(`Cannot inspect the worktree after ai:install: ${message(error)}`);
+    }
+    generated = await generatedAiOutputs(worktree, changedPaths(diffAfter));
+    if (generated.size > 0) {
+      await context.record(state.stage, "ai-regenerated", [...generated].join(", "));
+    }
+  }
+
+  // 6. Skill evidence, permission denials, forbidden commands, scope.
   const verdict = verifyAgentRun({
     request,
     result: outcome.result,
-    changedFiles: input.readOnly ? undefined : changedPaths(diffAfter),
+    changedFiles: input.readOnly
+      ? undefined
+      : changedPaths(diffAfter).filter((file) => !generated.has(file)),
     plan: input.readOnly ? undefined : input.plan,
     receipts: await readReceipts(receiptsPath)
   });
@@ -761,7 +837,7 @@ const runAgentStageOnce = async <T>(
     );
   }
 
-  // 6. The refs as this stage leaves them. `ship` compares the worktree with them.
+  // 7. The refs as this stage leaves them. `ship` compares the worktree with them.
   if (input.checkout !== undefined)
     return { ok: true, result: outcome.result, diff: diffAfter, provider, model };
   try {

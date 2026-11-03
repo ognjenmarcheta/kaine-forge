@@ -48,6 +48,22 @@ export const normalizeRepoPath = (input: string): string | null => {
 export const isGeneratedOutput = (repoPath: string): boolean =>
   GENERATED_OUTPUT.some((pattern) => pattern.test(repoPath));
 
+/**
+ * The `.ai/` source a tracked file of `pnpm ai:install` is written from, or `null` for any other
+ * path. No agent may run the generator, so the engine runs it after a change to `.ai/`; a Serena
+ * memory without its source is no output, and stays protected.
+ */
+export const aiOutputSource = (repoPath: string): string | null => {
+  if (repoPath === "AGENTS.md" || repoPath === "CLAUDE.md") return ".ai/guide.md";
+  if (repoPath === "REVIEW.md") return ".ai/review.md";
+  const memory = /^\.serena\/memories\/([^/]+)$/.exec(repoPath)?.[1];
+  return memory === undefined ? null : `.ai/serena-memories/${memory}`;
+};
+
+/** A change here means the tracked files of `pnpm ai:install` may be out of date. */
+export const touchesAiSetup = (repoPath: string): boolean =>
+  repoPath.startsWith(".ai/") || aiOutputSource(repoPath) !== null;
+
 /** Why a path is off limits, or `null` when an agent may change it. */
 export const protectedPathReason = (repoPath: string): string | null => {
   const normalized = normalizeRepoPath(repoPath);
