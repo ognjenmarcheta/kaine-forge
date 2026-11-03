@@ -9,7 +9,7 @@
 // It rewrites only this worktree's .env, never the primary checkout's.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -105,13 +105,18 @@ export function runWorktreeEnv(argv, root) {
     );
   }
   const envPath = join(root, ".env");
-  if (!existsSync(envPath)) {
+  // Read first instead of checking existence, so no check-then-write race on .env.
+  let contents;
+  try {
+    contents = readFileSync(envPath, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
     execFileSync(process.execPath, [join(root, "scripts", "ensure-env.mjs")], {
       cwd: root,
       stdio: "inherit"
     });
+    contents = readFileSync(envPath, "utf8");
   }
-  const contents = readFileSync(envPath, "utf8");
   const next = rewriteWorktreeEnv(contents, ports);
   if (next === contents) return `.env already uses web ${ports.web} and API ${ports.api}.`;
   writeFileSync(envPath, next);
