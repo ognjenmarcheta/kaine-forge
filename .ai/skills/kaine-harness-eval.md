@@ -87,6 +87,27 @@ whether pasting a rule is worth the prompt space, or to test a **candidate**
 rule the repo has not adopted, where arm B is genuinely clean. Say which
 construction a run used; the two are not comparable.
 
+### Encoded-lesson arms — measures whether an encoding prevents its problem
+
+Use this for an encoding made from experience, for example a promoted desk
+lesson. It follows arXiv 2610.34938, where only encodings that covered the
+problem a later task met removed the repeated work, and some encodings added
+work on unrelated tasks. Build the arms with the injected-surface construction.
+
+- **Task.** Pick a later task that reproduces the targeted problem. Prove the
+  reproduction in a clean checkout before you spend a trial.
+- **Metrics.** Record three 0/1 metrics per trial, plus the elapsed time:
+  `encountered` (the trace shows the problem), `consulted` (the agent read the
+  encoding or ran the command it names), and `recurrence` (the agent did the
+  action the encoding is to prevent). Reading an encoding does not prove that
+  the agent acted on it.
+- **Informative run.** The run counts only when most without-arm trials have
+  `encountered: 1`. Otherwise the task did not test the encoding: record the
+  run as `inconclusive`.
+- **Control task.** Run both arms once more on an unrelated task in the same
+  area. More work in the with-arm, such as extra verification, is a cost of the
+  encoding. Write it in the ledger prose.
+
 ## Calibrate the noise floor first
 
 With `n = 3`, two arms can differ by a full rubric point by chance. A protocol 2
