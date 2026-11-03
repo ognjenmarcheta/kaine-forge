@@ -3,7 +3,9 @@ import path from "node:path";
 
 import { createAgentProcess } from "../agents/agent.process";
 import { createHostRunners } from "../agents/agent.runners";
+import { createProviderPort } from "../agents/provider.probe";
 import { loadDeskConfig } from "../config/config.load";
+import { allowCodexBuilderIn } from "../config/config.write";
 import {
   flowForLabels,
   type HealthFix,
@@ -124,6 +126,14 @@ export const createDefaultDeskRuntime =
     const store = createIssueStore(location.stateRoot);
     const github = createGitHubPort({ exec, cwd: location.repoRoot });
     const runners = createHostRunners();
+    // Setup's "Allow Codex to build" turns it on for this server too, without a restart.
+    let allowCodexBuilder = config.allowCodexBuilder;
+    const providers = createProviderPort({
+      exec,
+      cwd: location.repoRoot,
+      clock: systemClock,
+      allowCodexBuilder: () => allowCodexBuilder
+    });
     const log = (message: string): void => onEvent({ type: "log", issue: 0, message });
     const notifier = createNotifier({
       exec,
@@ -161,7 +171,9 @@ export const createDefaultDeskRuntime =
       exec,
       git: createGitPort(exec),
       github,
-      runner: runners.claude,
+      // A job runs on the CLI its request names.
+      runner: { run: (request) => runners[request.provider].run(request) },
+      providers,
       clock: systemClock,
       repoRoot: location.repoRoot,
       // Beside the issue worktrees: the folder of `KAINE-<n>` is the folder of `KAINE-job-<n>`.
@@ -174,6 +186,7 @@ export const createDefaultDeskRuntime =
       git: createGitPort(exec),
       github,
       runnerFor: (provider: Provider) => runners[provider],
+      providers,
       docker,
       store,
       clock: systemClock,
@@ -304,6 +317,11 @@ export const createDefaultDeskRuntime =
           return result.ok
             ? { ok: true, detail: `Built ${result.tag}.` }
             : { ok: false, detail: result.reason };
+        },
+        "allow-codex-builder": async () => {
+          const result = await allowCodexBuilderIn(configPath(location.repoRoot));
+          if (result.ok) allowCodexBuilder = true;
+          return result;
         },
         "agent-labels": async () => {
           for (const definition of LABEL_DEFINITIONS) await github.createLabel(definition);

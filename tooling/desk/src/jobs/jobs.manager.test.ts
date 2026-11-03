@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AgentRunOutcome, AgentRunRequest, AgentRunner } from "../agents/agent.runner";
+import type { ProviderPort } from "../agents/provider.probe";
 import type { ScorecardJobResult, ScorecardRun } from "../contracts";
 import { fakeExec, ok } from "../testing/exec.fake";
 import { createFakeGit } from "../testing/git.fake";
@@ -63,6 +64,8 @@ interface Harness {
   readonly requests: AgentRunRequest<unknown>[];
   readonly calls: () => string[];
   readonly worktree: string;
+  /** The CLIs each job worktree was set up for. */
+  readonly agents: (readonly string[])[];
 }
 
 let root: string;
@@ -78,6 +81,8 @@ interface HarnessOptions {
   readonly failIssues?: number;
   /** Setup waits for this before it makes the worktree. */
   readonly setupGate?: Promise<void>;
+  /** The provider CLIs found. Absent: the job runs on Claude. */
+  readonly providers?: ProviderPort;
 }
 
 const harness = (outcome: AgentRunOutcome<unknown>, options: HarnessOptions = {}): Harness => {
@@ -116,10 +121,14 @@ const harness = (outcome: AgentRunOutcome<unknown>, options: HarnessOptions = {}
     }
   };
   const worktree = path.join(root, "worktrees", "KAINE-job-1");
+  const agents: (readonly string[])[] = [];
   const prepareWorktree = async (
     _deps: unknown,
-    request: { readonly input: { readonly worktreeDir: string } }
+    request: {
+      readonly input: { readonly worktreeDir: string; readonly agents: readonly string[] };
+    }
   ): Promise<CreateWorktreeResult> => {
+    agents.push(request.input.agents);
     await options.setupGate;
     await git.port.worktreeAdd(repoRoot, {
       branch: "KAINE-chore-scorecard-2026-11-02-job-1",
@@ -140,6 +149,7 @@ const harness = (outcome: AgentRunOutcome<unknown>, options: HarnessOptions = {}
     git: git.port,
     github: githubPort,
     runner,
+    providers: options.providers,
     clock: { now: () => new Date("2026-11-02T12:00:00.000Z") },
     repoRoot,
     worktreesDir: path.join(root, "worktrees"),
@@ -152,7 +162,8 @@ const harness = (outcome: AgentRunOutcome<unknown>, options: HarnessOptions = {}
     github,
     requests,
     calls: () => exec.calls.map((call) => call.argv.join(" ")),
-    worktree
+    worktree,
+    agents
   };
 };
 
@@ -198,6 +209,24 @@ describe("the scorecard job", () => {
     const ledger = await readFile(path.join(h.worktree, LEDGER), "utf8");
     expect(ledger).toContain('"agent": "desk-job"');
     expect(ledger).toContain("### 2026-11-02 — desk job 1 (`bbbbbbb`, fan-out)");
+  });
+
+  it("runs on Codex when Claude is not installed, without the Claude model, and says so", async () => {
+    const codexOnly: ProviderPort = {
+      usable: () => Promise.resolve(new Set(["codex"] as const)),
+      forget: () => undefined,
+      allowCodexBuilder: () => false
+    };
+    const h = harness(success, { providers: codexOnly });
+    const id = await startScorecard(h);
+
+    expect(h.agents).toEqual([["codex"]]);
+    expect(h.requests[0]).toMatchObject({ role: "scorer", provider: "codex", model: undefined });
+    const job = await h.jobs.get(id);
+    expect(job?.status).toBe("waiting");
+    expect(job?.history.map((entry) => entry.message)).toContain(
+      "The job ran on codex: claude is not installed or does not work. codex does not stop at the budget; the time limit still holds."
+    );
   });
 
   it("files only the ticked issues, then pushes the ledger and opens a draft PR", async () => {

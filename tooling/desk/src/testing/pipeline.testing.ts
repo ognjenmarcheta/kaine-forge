@@ -21,6 +21,7 @@ import type {
   AgentRunRequest,
   AgentRunner
 } from "../agents/agent.runner";
+import type { ProviderPort } from "../agents/provider.probe";
 import {
   REVIEW_SECTIONS,
   deskConfigSchema,
@@ -319,6 +320,8 @@ export interface EnvOptions {
   readonly extraFiles?: Readonly<Record<string, string>>;
   /** The Docker isolation of the pipeline. Absent: host only. */
   readonly docker?: IsolationPort;
+  /** The provider CLIs found. Absent: every provider counts as installed. */
+  readonly providers?: ProviderPort;
 }
 
 export const REPO_FILES: Readonly<Record<string, string>> = {
@@ -370,6 +373,7 @@ export const createPipelineEnv = async (options: EnvOptions = {}): Promise<Pipel
     git: fake === null ? createGitPort(pnpm.exec) : fake.port,
     github,
     runnerFor: () => agentRunner,
+    providers: options.providers,
     docker: options.docker,
     store,
     clock: { now: () => new Date("2026-10-07T09:00:00Z") },
