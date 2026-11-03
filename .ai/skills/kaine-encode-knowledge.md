@@ -44,7 +44,7 @@ Ladder (prefer stronger automation when honest):
 6. For authorized changes, find the canonical home and implement the smallest encoding. Never edit generated outputs.
 7. When `.ai/` changes, run `pnpm ai:install` and `pnpm ai:doctor`.
 8. Point the original work PR at the encoding when applicable.
-   After the encoding merges, check that it works. For a promoted desk lesson, `pnpm desk lessons` shows whether its key came back after the promotion. `pnpm desk stats --by-harness` shows whether the cost per run went up. When the problem comes back, or the cost rises with no gain, revise the encoding or remove it. Measure a disputed one with `kaine-harness-eval`.
+   After the encoding merges, check that it works. For a promoted desk lesson, `pnpm desk lessons` shows whether its key came back after the promotion. The count starts at the promotion, not at the merge: promote the lesson when the encoding merges, or ignore the occurrences dated before the merge. `pnpm desk stats --by-harness` shows whether the cost per run went up. When the problem comes back, or the cost rises with no gain, revise the encoding or remove it. Measure a disputed one with `kaine-harness-eval`.
 9. For an authorized fix with a residual large automation gap only, follow the existing `docs/agents/automation-gap-audit.md` process. Do not use it as a log of recurring-work suggestions.
 
 ## Output

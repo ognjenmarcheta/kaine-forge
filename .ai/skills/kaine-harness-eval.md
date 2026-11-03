@@ -93,6 +93,8 @@ Use this for an encoding made from experience, for example a promoted desk
 lesson. It follows arXiv 2610.34938, where only encodings that covered the
 problem a later task met removed the repeated work, and some encodings added
 work on unrelated tasks. Build the arms with the injected-surface construction.
+When the encoding is in a skill under `.ai/skills/`, strip that copy too, run
+`pnpm ai:install`, and prove with the probe that the without arm cannot see it.
 
 - **Task.** Pick a later task that reproduces the targeted problem. Prove the
   reproduction in a clean checkout before you spend a trial.
@@ -103,7 +105,9 @@ work on unrelated tasks. Build the arms with the injected-surface construction.
   the agent acted on it.
 - **Informative run.** The run counts only when most without-arm trials have
   `encountered: 1`. Otherwise the task did not test the encoding: record the
-  run as `inconclusive`.
+  run as `inconclusive`. A counted run whose without-arm trials have no
+  `recurrence: 1` cannot show prevention, because nothing recurred to prevent.
+  It can still show harm: more `recurrence` in the with-arm.
 - **Control task.** Run both arms once more on an unrelated task in the same
   area. More work in the with-arm, such as extra verification, is a cost of the
   encoding. Write it in the ledger prose.
