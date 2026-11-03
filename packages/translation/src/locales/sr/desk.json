@@ -1344,6 +1344,7 @@
   "desk.stop.pr-round-limit": "PR krugovi su potrošeni",
   "desk.stop.intake": "prijem",
   "desk.stop.interrupted": "desk je prekinut",
+  "desk.stop.no-provider": "nijedan agent CLI ne može da ga pokrene",
   "desk.stop.contract": "format issue-a {{found}}/{{total}}",
   "desk.inbox.title": "Vi ste na potezu",
   "desk.inbox.sub.stopped": "zaustavljeno: {{count}}",

@@ -330,6 +330,26 @@ describe("stage selection", () => {
     expect(onDetails).toHaveBeenCalledWith("plan");
   });
 
+  it("names the provider that ran a step, which can differ from the one its agent asks for", async () => {
+    // The reviewer asks for Codex; on a machine without it, the review ran on Claude.
+    const runs = scenarioRuns()
+      .filter((run) => run.issue === 102)
+      .map((run) => (run.role === "reviewer" ? { ...run, provider: "claude" as const } : run));
+    const { detail } = detailOf(102, { runs });
+    renderDesk(
+      <StepsRail
+        model={detail.flow}
+        detail={detail}
+        graphOpen={false}
+        onToggleGraph={vi.fn()}
+        onDetails={vi.fn()}
+      />
+    );
+    const rail = screen.getByRole("complementary", { name: "Steps" });
+    await userEvent.click(within(rail).getByRole("button", { name: /^Review/ }));
+    expect(within(rail).getByText("claude · default model")).toBeTruthy();
+  });
+
   it("selects a graph node with Enter or Space", () => {
     renderDesk(<Selectable issueNumber={102} />);
     const node = document.querySelector('.react-flow__node[data-id="check"]');

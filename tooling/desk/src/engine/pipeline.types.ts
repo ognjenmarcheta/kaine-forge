@@ -9,6 +9,7 @@ import type {
   HistoryEvent,
   IssueDraft,
   IssueState,
+  NeedsYouCode,
   Provider,
   StageId
 } from "../contracts";
@@ -247,6 +248,8 @@ export type StageOutcome =
   | {
       readonly kind: "needs-you";
       readonly reason: string;
+      /** The stop code. Default: `error`. */
+      readonly code?: NeedsYouCode;
       readonly patch?: StatePatch;
     }
   /** The run was cancelled. The runner makes no transition. */

@@ -27,7 +27,8 @@ const timestampSchema = z.iso.datetime({ offset: true });
 /** `stage`: the step id or engine state the issue was at. */
 /**
  * Why an issue stopped in `needs-you`: the machine's reasons, plus `intake` (the issue failed
- * intake) and `interrupted` (the desk stopped mid-stage). The UI names a stop from it.
+ * intake), `interrupted` (the desk stopped mid-stage), and `no-provider` (no agent CLI on the
+ * machine can run the step). The UI names a stop from it.
  */
 export const NEEDS_YOU_CODES = [
   "loop-limit",
@@ -36,7 +37,8 @@ export const NEEDS_YOU_CODES = [
   "error",
   "pr-round-limit",
   "intake",
-  "interrupted"
+  "interrupted",
+  "no-provider"
 ] as const;
 export const needsYouCodeSchema = z.enum(NEEDS_YOU_CODES);
 export type NeedsYouCode = z.infer<typeof needsYouCodeSchema>;

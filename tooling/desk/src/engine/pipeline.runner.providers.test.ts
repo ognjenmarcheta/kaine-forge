@@ -97,4 +97,18 @@ describe("pipeline runner: a provider that is not installed", () => {
     expect(await stateOf(e)).toMatchObject({ stage: "pr-review", status: "waiting" });
     expect(e.runner.requests.slice(-2).map((run) => run.provider)).toEqual(["codex", "claude"]);
   });
+
+  it("stops with the no-provider code, and starts no agent, when no CLI runs", async () => {
+    const e = await open({ steps: STEPS, providers: installed() });
+    await e.pipeline.start(ISSUE, { override: false });
+
+    const state = await stateOf(e);
+    expect(state.stage).toBe("needs-you");
+    expect(state.history.at(-1)).toMatchObject({
+      event: "needs-you",
+      code: "no-provider",
+      note: expect.stringContaining("no agent CLI works on this machine")
+    });
+    expect(e.runner.requests).toEqual([]);
+  });
 });

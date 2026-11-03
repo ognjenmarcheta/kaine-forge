@@ -530,7 +530,12 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
         "needs-you",
         "needs-you",
         reason,
-        forced === null ? (moved.reasonCode ?? "error") : "error"
+        forced !== null
+          ? "error"
+          : // A handler's own code is more exact than the machine's `error`.
+            ((outcome.kind === "needs-you" ? outcome.code : undefined) ??
+              moved.reasonCode ??
+              "error")
       );
     }
     await finishMove(session, reason);

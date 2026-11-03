@@ -47,7 +47,17 @@ function StepFacts({
   const runs = agentRunsOf(node, detail);
   const costs = runs.flatMap((run) => (run.costUsd === null ? [] : [run.costUsd]));
   const usage = runs.flatMap((run) => (run.usage === null ? [] : [run.usage]));
-  const models = [...new Set(runs.map((run) => run.model ?? t("desk.rail.defaultModel")))];
+  // The provider that ran, which differs from the agent's when its CLI was missing.
+  const models = [
+    ...new Set(
+      runs.map((run) =>
+        t("desk.caps.providerValue", {
+          provider: run.provider,
+          model: run.model ?? t("desk.rail.defaultModel")
+        })
+      )
+    )
+  ];
   const tokens = usage.reduce(
     (sum, entry) => sum + entry.inputTokens + entry.cachedInputTokens + entry.outputTokens,
     0

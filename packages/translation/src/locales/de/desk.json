@@ -1344,6 +1344,7 @@
   "desk.stop.pr-round-limit": "PR-Runden aufgebraucht",
   "desk.stop.intake": "Aufnahme",
   "desk.stop.interrupted": "der Desk wurde unterbrochen",
+  "desk.stop.no-provider": "kein Agenten-CLI kann ihn ausführen",
   "desk.stop.contract": "Issue-Format {{found}}/{{total}}",
   "desk.inbox.title": "Sie sind dran",
   "desk.inbox.sub.stopped": "{{count}} angehalten",

@@ -237,6 +237,8 @@ export type AgentStageResult<T> =
       readonly aborted: boolean;
       /** The owner took the session over. `null`: the agent stopped before it had a session. */
       readonly takenOver?: { readonly sessionId: string | null } | undefined;
+      /** No agent CLI can run the step. */
+      readonly noProvider?: true;
     };
 
 const message = (error: unknown): string =>
@@ -356,7 +358,11 @@ export const agentStep =
             reason: run.reason,
             patch: { sessions: { ...state.sessions, [agent.id]: taken } }
           }
-        : { kind: "needs-you", reason: run.reason };
+        : {
+            kind: "needs-you",
+            reason: run.reason,
+            ...(run.noProvider === true ? { code: "no-provider" as const } : {})
+          };
     }
     const outcome = await spec.finish(context, step, agent, run);
     if (outcome.kind === "aborted") return outcome;
@@ -445,7 +451,7 @@ const runAgentStageOnce = async <T>(
   }
 
   const choice = await chooseRun(deps, role, agent, !input.readOnly);
-  if (!choice.ok) return stop(choice.reason);
+  if (!choice.ok) return { ok: false, reason: choice.reason, aborted: false, noProvider: true };
   const { provider, model } = choice;
   if (choice.note !== null) {
     context.log(choice.note);

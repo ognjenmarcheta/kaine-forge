@@ -1344,6 +1344,7 @@
   "desk.stop.pr-round-limit": "PR rounds used up",
   "desk.stop.intake": "intake",
   "desk.stop.interrupted": "the desk was interrupted",
+  "desk.stop.no-provider": "no agent CLI can run it",
   "desk.stop.contract": "issue format {{found}}/{{total}}",
   "desk.inbox.title": "Your turn",
   "desk.inbox.sub.stopped": "{{count}} stopped",

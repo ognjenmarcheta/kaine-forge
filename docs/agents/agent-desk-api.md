@@ -200,8 +200,9 @@ board never reads one detail for each card. Besides the stage, status, branch, l
 `needsYouReason`, `busy`, and times, a readable summary has:
 
 - `needsYouCode`: why the issue stopped while it is in `needs-you`, or `null`: `loop-limit`,
-  `same-failure`, `blocked`, `error`, `pr-round-limit`, `intake` (the issue failed intake), or
-  `interrupted`. The UI names the stop from it. A stop recorded before the code existed has `null`.
+  `same-failure`, `blocked`, `error`, `pr-round-limit`, `intake` (the issue failed intake),
+  `interrupted`, or `no-provider` (no agent CLI on the machine can run the step). The UI names the
+  stop from it. A stop recorded before the code existed has `null`.
 - `resumeStage`: the stage `continue` re-runs while the issue is in `needs-you`, or `null`.
 - `prUrl`: the draft PR once the ship opened it, or `null`.
 - `prRound` and `prRoundLimit`: the PR feedback rounds so far, and `maxPrRounds` of the config.
