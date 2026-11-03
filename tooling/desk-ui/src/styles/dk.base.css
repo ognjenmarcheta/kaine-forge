@@ -1,0 +1,199 @@
+/* Base: the app root, focus, text and layout utilities. Ported from the Agent Desk Redesign canvas; --ds-* roles only. */
+/*
+ * A @repo/ui Button that a desk class draws (a segment, a pick row, a filter chip, a link). Its
+ * own size and fill step back; the desk class after it sets the look. Unlayered, so it wins
+ * over the component layer without !important.
+ */
+.dk-bare {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--ds-space-075);
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: none;
+}
+.dk {
+  min-height: 100vh;
+  background: var(--ds-surface-sunken);
+  color: var(--ds-text);
+  font: var(--ds-type-body);
+  font-family: var(--ds-font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  align-items: stretch;
+}
+.dk * {
+  box-sizing: border-box;
+}
+:where(.dk) :where(h1, h2, h3, h4, p, ul, ol, dl, dd, figure, pre) {
+  margin: 0;
+}
+:where(.dk) :where(ul, ol) {
+  padding: 0;
+  list-style: none;
+}
+:where(.dk) :where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+:where(.dk) :where(a) {
+  color: var(--ds-link);
+}
+.dk :focus-visible {
+  outline: var(--ds-border-width-focused) solid var(--ds-border-focused);
+  outline-offset: var(--ds-space-025);
+  border-radius: var(--ds-radius-100);
+}
+.dk-mono {
+  font-family: var(--ds-font-family-mono);
+  font: var(--ds-type-mono);
+  font-family: var(--ds-font-family-mono);
+}
+.dk-t-sub {
+  color: var(--ds-text-subtle);
+}
+.dk-t-subtlest {
+  color: var(--ds-text-subtlest);
+}
+.dk-t-small {
+  font: var(--ds-type-label);
+}
+.dk-t-xs {
+  font: var(--ds-type-label);
+}
+.dk-t-danger {
+  color: var(--ds-text-danger);
+}
+.dk-t-success {
+  color: var(--ds-text-success);
+}
+.dk-t-warning {
+  color: var(--ds-text-warning);
+}
+.dk-num {
+  font-variant-numeric: tabular-nums;
+}
+.dk-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.dk-row {
+  display: flex;
+  gap: var(--ds-space-100);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dk-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-150);
+}
+.dk-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.dk-h-page {
+  font: var(--ds-type-title);
+  font-family: var(--ds-font-family-heading);
+}
+.dk-h-card {
+  font: var(--ds-type-heading);
+  font-family: var(--ds-font-family-heading);
+}
+.dk-h-sec {
+  font: var(--ds-type-heading);
+  font-family: var(--ds-font-family-heading);
+}
+.dk-h-xs {
+  font: var(--ds-type-label);
+  font-weight: var(--ds-font-weight-semibold);
+  font-family: var(--ds-font-family-heading);
+  color: var(--ds-text-subtlest);
+}
+
+/* Layout helpers for what the design set inline (the CSP allows no style attributes). */
+.dk-gap-050 {
+  gap: var(--ds-space-050);
+}
+.dk-gap-100 {
+  gap: var(--ds-space-100);
+}
+.dk-gap-200 {
+  gap: var(--ds-space-200);
+}
+.dk-gap-250 {
+  gap: var(--ds-space-250);
+}
+.dk-mb-100 {
+  margin-bottom: var(--ds-space-100);
+}
+.dk-mb-200 {
+  margin-bottom: var(--ds-space-200);
+}
+.dk-mb-250 {
+  margin-bottom: var(--ds-space-250);
+}
+.dk-end {
+  align-self: flex-end;
+}
+.dk-block {
+  display: block;
+}
+.dk-strong {
+  font-weight: var(--ds-font-weight-semibold);
+}
+.dk-span2 {
+  grid-column: 2 / -1;
+}
+.dk-grid3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--ds-space-150);
+}
+.dk-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.dk-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-050);
+  padding-left: var(--ds-space-250);
+  list-style: disc;
+}
+.dk-skip {
+  position: absolute;
+  inset-inline-start: var(--ds-space-200);
+  inset-block-start: calc(var(--ds-space-800) * -1);
+  padding: var(--ds-space-100) var(--ds-space-200);
+  background: var(--ds-surface-overlay);
+  border-radius: var(--ds-radius-100);
+  z-index: var(--ds-layer-toast);
+}
+.dk-skip:focus {
+  inset-block-start: var(--ds-space-100);
+}
+/* Separators and marks the page draws, so the words around them stay translatable. */
+.dk-dot::before {
+  content: "· ";
+}
+.dk-g-bang::before {
+  content: "!";
+}
+.dk-count.dk-bad::before {
+  content: "! ";
+}

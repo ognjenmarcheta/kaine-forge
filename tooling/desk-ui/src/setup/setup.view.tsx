@@ -180,7 +180,7 @@ function Checks({
  * The doctor, mirrored: what the desk needs and whether each part works. Text is the engine's
  * own. A failed check offers its command to copy, and the desk's own repair when one exists.
  */
-export function HealthView() {
+export function SetupView() {
   const t = useT();
   const { state, api, loadHealth } = useDesk();
   const [error, setError] = useState<{ code: FailureCode; detail: string | null } | null>(null);

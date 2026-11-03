@@ -21,8 +21,8 @@ import { NewFlowDialog, useFlowPaletteActions } from "./flows.view";
 import { CloneDialog } from "../agents/agents.clone-dialog";
 import { DefinitionBadges, DefinitionProblems } from "../agents/agents.view";
 import { toApiError, type DeskApiError } from "../api/api.client";
-import { StartDialog } from "../board/board.start-dialog";
 import { useT } from "../i18n/i18n.t";
+import { useNewWork } from "../shell/shell.newwork";
 import { RouteLink, useLeaveGuard, useRouter } from "../shell/shell.router";
 import { FailureText, LoadingLines, Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
@@ -67,7 +67,7 @@ function EditorBody({
   const [dialog, setDialog] = useState<Dialog>(null);
   const [overwriteDetail, setOverwriteDetail] = useState<string | null>(null);
   const [cloning, setCloning] = useState(false);
-  const [starting, setStarting] = useState(false);
+  const newWork = useNewWork();
 
   const dirty = editing && isChanged(draft, baseline);
   const problems = flowProblems(
@@ -222,7 +222,7 @@ function EditorBody({
             type="button"
             appearance="subtle"
             disabled={dirty}
-            onClick={() => setStarting(true)}
+            onClick={() => newWork.open({ tab: "issue", flowId })}
           >
             {t("desk.flows.start")}
           </Button>
@@ -424,7 +424,6 @@ function EditorBody({
         taken={flows.map((flow) => flow.definition.id)}
         onOpenChange={setCloning}
       />
-      <StartDialog open={starting} flowId={flowId} onOpenChange={setStarting} />
     </>
   );
 }

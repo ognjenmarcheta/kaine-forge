@@ -34,6 +34,7 @@ import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
 import { IssueStatusChip } from "../status/status.chip";
 import { canCancel, gateModeOf, hasEnded, type ReadableSummary } from "../status/status.model";
+import { issueKey } from "../work/work.model";
 
 /** The graph needs room: a phone gets the stepper only. */
 const PHONE_QUERY = "(max-width: 40rem)";
@@ -57,7 +58,7 @@ export interface IssueHeaderProps {
 /** Where the issue is in Your turn, and J and K to the previous and the next decision. */
 function QueueNav({ issueNumber }: { readonly issueNumber: number }) {
   const t = useT();
-  const queue = useTurnQueue(issueNumber);
+  const queue = useTurnQueue(issueKey(issueNumber));
   useShortcuts([
     { key: "j", run: () => queue.step(1), labelKey: "desk.board.keys.next" },
     { key: "k", run: () => queue.step(-1), labelKey: "desk.board.keys.previous" }
@@ -214,7 +215,7 @@ export function IssueHeader({
   return (
     <header className="desk-issue-head">
       <div className="desk-crumbs">
-        <RouteLink to={{ view: "board" }} className="desk-back">
+        <RouteLink to={{ view: "inbox" }} className="desk-back">
           {t("desk.issue.back")}
         </RouteLink>
         <QueueNav issueNumber={summary.issueNumber} />

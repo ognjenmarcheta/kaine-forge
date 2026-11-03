@@ -26,7 +26,7 @@ import { gateModeOf, hasEnded } from "../status/status.model";
 function BackLink() {
   const t = useT();
   return (
-    <RouteLink to={{ view: "board" }} className="desk-back">
+    <RouteLink to={{ view: "inbox" }} className="desk-back">
       {t("desk.issue.back")}
     </RouteLink>
   );
@@ -149,7 +149,7 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
       graphOpen={graphOpen}
       onToggleGraph={() => setGraphOpen((open) => !open)}
       actions={actions}
-      onRemoved={() => navigate({ view: "board" })}
+      onRemoved={() => navigate({ view: "inbox" })}
     />
   );
   if (detail === undefined || flow === undefined || trace === undefined) {

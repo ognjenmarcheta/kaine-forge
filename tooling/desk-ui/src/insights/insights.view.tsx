@@ -9,8 +9,8 @@ import type {
 import { Button, Card } from "@repo/ui";
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 
-import { LessonsPanel } from "./stats.lessons";
-import { costByAgent, sparkPoints, weekOf, type WeekSeries } from "./stats.model";
+import { LessonsPanel } from "./insights.lessons";
+import { costByAgent, sparkPoints, weekOf, type WeekSeries } from "./insights.model";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { agentName, issueFlowOf, loopsText, stageName, type IssueFlow } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
@@ -19,7 +19,7 @@ import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
 import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { issueStatusOf, type BoardGroup } from "../status/status.model";
+import { issueStatusOf, type InboxGroup } from "../status/status.model";
 
 /** A dash for a value no run reports, read as "none". */
 function Empty() {
@@ -192,7 +192,7 @@ function TodayDigest({
   const { language } = useLanguage();
   const id = useId();
   const groups = issues.map((summary) => issueStatusOf(summary).group);
-  const count = (group: BoardGroup): number => groups.filter((entry) => entry === group).length;
+  const count = (group: InboxGroup): number => groups.filter((entry) => entry === group).length;
   const cost = today?.costUsd ?? null;
   return (
     <section className="desk-digest" aria-labelledby={id}>
@@ -202,8 +202,8 @@ function TodayDigest({
       <ul className="desk-digest__items">
         <li>{t("desk.stats.today.runs", { count: today?.runs ?? 0 })}</li>
         <li>{t("desk.stats.today.shipped", { count: today?.shipped ?? 0 })}</li>
-        <li>{t("desk.stats.today.needsYou", { count: count("needs-you") })}</li>
-        <li>{t("desk.stats.today.waiting", { count: count("waiting") })}</li>
+        <li>{t("desk.stats.today.needsYou", { count: count("stopped") })}</li>
+        <li>{t("desk.stats.today.waiting", { count: count("decide") })}</li>
         <li>
           {cost === null
             ? t("desk.stats.today.noCost")
@@ -351,7 +351,7 @@ const failureOf = (failure: unknown): Failure => {
  * Agent runs compared by agent, provider, and model, from `runs.jsonl`, and the problems seen
  * in several issues, from `lessons.jsonl`. It reloads when an issue changes.
  */
-export function StatsView() {
+export function InsightsView() {
   const t = useT();
   const { api, state } = useDesk();
   const [stats, setStats] = useState<RunStats | null>(null);

@@ -3,7 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { StatsView } from "./stats.view";
+import { InsightsView } from "./insights.view";
 import { DeskApiError } from "../api/api.client";
 import { fakeApi, renderDesk } from "../test/test.render";
 
@@ -85,9 +85,9 @@ const STATS: RunStats = {
 const cells = (row: HTMLElement): string[] =>
   Array.from(row.querySelectorAll("th, td"), (cell) => cell.textContent ?? "");
 
-describe("StatsView", () => {
+describe("InsightsView", () => {
   it("shows one row per agent, provider, and model, and one per issue", async () => {
-    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
+    renderDesk(<InsightsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
 
     const groups = await screen.findByRole("table", { name: "By agent and model" });
     const [, builder, custom, reviewer] = within(groups).getAllByRole("row");
@@ -124,7 +124,7 @@ describe("StatsView", () => {
 
   it("explains an empty record", async () => {
     renderDesk(
-      <StatsView />,
+      <InsightsView />,
       fakeApi({
         stats: () =>
           Promise.resolve({ groups: [], issues: [], riskOutcomes: [], days: DAYS, invalidLines: 0 })
@@ -153,7 +153,7 @@ describe("StatsView", () => {
       invalidLines: 0
     };
     renderDesk(
-      <StatsView />,
+      <InsightsView />,
       fakeApi({
         stats: () => Promise.resolve(STATS),
         lessons: () => Promise.resolve(lessons)
@@ -176,7 +176,7 @@ describe("StatsView", () => {
   });
 
   it("keeps the run tables when the lessons cannot be loaded", async () => {
-    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
+    renderDesk(<InsightsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
 
     expect(await screen.findByRole("table", { name: "By agent and model" })).toBeTruthy();
     expect(screen.queryByRole("table", { name: "Lesson candidates" })).toBeNull();
@@ -187,7 +187,7 @@ describe("StatsView", () => {
       .fn<() => Promise<RunStats>>()
       .mockRejectedValueOnce(new DeskApiError("internal", 500, null))
       .mockResolvedValue(STATS);
-    renderDesk(<StatsView />, fakeApi({ stats }));
+    renderDesk(<InsightsView />, fakeApi({ stats }));
 
     await userEvent.click(await screen.findByRole("button", { name: "Load again" }));
 
@@ -201,7 +201,7 @@ describe("StatsView", () => {
       costUsd: index === 2 ? 1.5 : index === 4 ? 0.25 : null,
       shipped: index === 5 ? 1 : 0
     }));
-    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve({ ...STATS, days }) }));
+    renderDesk(<InsightsView />, fakeApi({ stats: () => Promise.resolve({ ...STATS, days }) }));
 
     const runs = await screen.findByRole("group", { name: "Agent runs" });
     expect(within(runs).getByText("7")).toBeTruthy();
@@ -221,7 +221,7 @@ describe("StatsView", () => {
   });
 
   it("shows none for a week in which no run reported a cost", async () => {
-    renderDesk(<StatsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
+    renderDesk(<InsightsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
 
     const cost = await screen.findByRole("group", { name: "Cost" });
     expect(within(cost).getByText("None", { selector: ".desk-sr-only" })).toBeTruthy();
@@ -263,12 +263,12 @@ const PROMOTED: LessonReport = {
   ]
 };
 
-describe("StatsView lessons", () => {
+describe("InsightsView lessons", () => {
   it("promotes a lesson with its note, then unpromotes it, from the server's answers", async () => {
     const lessonPromote = vi.fn(() => Promise.resolve(PROMOTED));
     const lessonUnpromote = vi.fn(() => Promise.resolve(LESSONS));
     renderDesk(
-      <StatsView />,
+      <InsightsView />,
       fakeApi({
         stats: () => Promise.resolve(STATS),
         lessons: () => Promise.resolve(LESSONS),
@@ -312,7 +312,7 @@ describe("StatsView lessons", () => {
       })
     );
     renderDesk(
-      <StatsView />,
+      <InsightsView />,
       fakeApi({
         stats: () => Promise.resolve(STATS),
         lessons: () => Promise.resolve(LESSONS),

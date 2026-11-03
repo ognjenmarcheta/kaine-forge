@@ -1,5 +1,5 @@
 import type { FlowView } from "@repo/desk/contracts";
-import { Badge, Label, RadioGroup, RadioGroupItem } from "@repo/ui";
+import { Label, RadioGroup, RadioGroupItem } from "@repo/ui";
 import { useId } from "react";
 
 import type { FlowListState } from "../flow/flow.use";
@@ -28,8 +28,8 @@ export function FlowPicker({
   const id = useId();
   const flows: readonly FlowView[] = state.status === "ok" ? state.list.flows : [];
   return (
-    <fieldset className="desk-fieldset desk-flowpick" aria-describedby={`${id}-help`}>
-      <legend>{t("desk.start.flow")}</legend>
+    <fieldset className="dk-fieldset dk-stack" aria-describedby={`${id}-help`}>
+      <legend className="dk-lbl">{t("desk.start.flow")}</legend>
       {state.status === "loading" && <Loading />}
       {state.status === "error" && <FailureText code={state.code} detail={state.detail} />}
       {state.status === "ok" && flows.length === 0 && <Muted>{t("desk.start.noFlows")}</Muted>}
@@ -39,34 +39,35 @@ export function FlowPicker({
           onValueChange={(next) => {
             if (flows.some((flow) => flow.definition.id === next)) onChange(next);
           }}
-          className="desk-flowpick__list"
+          className="dk-pickl"
         >
           {flows.map(({ definition, source }) => (
             <div
               key={definition.id}
-              className="desk-flowpick__item"
-              data-checked={definition.id === value ? "true" : undefined}
+              className="dk-pick"
+              aria-current={definition.id === value ? "true" : undefined}
             >
               <RadioGroupItem
                 value={definition.id}
                 id={`${id}-${definition.id}`}
                 aria-describedby={`${id}-${definition.id}-about`}
               />
-              <Label htmlFor={`${id}-${definition.id}`} className="desk-flowpick__name">
+              <Label htmlFor={`${id}-${definition.id}`} className="dk-strong">
                 {definition.name}
               </Label>
-              <span id={`${id}-${definition.id}-about`} className="desk-flowpick__about">
-                <Badge appearance="default">{t(`desk.flow.source.${source}`)}</Badge>
+              <span id={`${id}-${definition.id}-about`} className="dk-row">
+                <span className="dk-tag">{t(`desk.flow.source.${source}`)}</span>
                 {definition.id === suggested && (
-                  <Badge appearance="information">{t("desk.start.flowDefault")}</Badge>
+                  <span className="dk-st dk-st-information">{t("desk.start.flowDefault")}</span>
                 )}
-                <span className="desk-muted">{definition.description}</span>
               </span>
+              <span />
+              <span className="dk-t-small dk-t-sub dk-span2">{definition.description}</span>
             </div>
           ))}
         </RadioGroup>
       )}
-      <p id={`${id}-help`} className="desk-muted">
+      <p id={`${id}-help`} className="dk-hint">
         {t("desk.start.flowHelp")}
       </p>
     </fieldset>

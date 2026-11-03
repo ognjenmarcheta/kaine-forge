@@ -46,7 +46,7 @@ export function LanguageProvider({ children }: { readonly children: ReactNode })
   const [language, setLanguageState] = useState<SupportedLanguage>(currentLanguage);
 
   useEffect(() => {
-    document.documentElement.lang = language;
+    document.documentElement.lang = language === "sr" ? "sr-Latn" : language;
   }, [language]);
 
   const setLanguage = useCallback((next: SupportedLanguage) => {

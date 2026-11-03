@@ -9,14 +9,14 @@ import {
   type JobKind,
   type JobStartRequest
 } from "@repo/desk/contracts";
-import { Input, Label, Modal, Textarea } from "@repo/ui";
+import { Button, Input, Label, Textarea } from "@repo/ui";
 import { useId, useState } from "react";
 
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useT } from "../i18n/i18n.t";
-import { Segmented } from "../shell/shell.layout";
 import { useRouter } from "../shell/shell.router";
+import { Segmented } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 
 type ReferenceType = keyof typeof REFERENCE_TYPES;
@@ -39,14 +39,17 @@ const SCREEN_MODES = ["light", "dark"] as const;
  * Start a desk job: what to keep in mind, the model, and the limits. The limits start at the
  * kind's defaults; a run that reaches one stops and waits for the owner.
  */
-export function JobStartDialog({
+export function JobStartForm({
   kind,
-  open,
-  onOpenChange
+  screen = "",
+  onCancel,
+  onStarted
 }: {
   readonly kind: JobKind;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
+  /** The lab screen an audit starts on, when New work opened from that screen. */
+  readonly screen?: string;
+  readonly onCancel: () => void;
+  readonly onStarted: () => void;
 }) {
   const t = useT();
   const id = useId();
@@ -67,7 +70,7 @@ export function JobStartDialog({
   const [file, setFile] = useState<File | null>(null);
   const [componentName, setComponentName] = useState("");
   const [layer, setLayer] = useState<(typeof COMPONENT_LAYERS)[number]>("composed");
-  const [auditScreen, setAuditScreen] = useState("");
+  const [auditScreen, setAuditScreen] = useState(screen);
   const isScreen = kind === "screen";
   const isComponent = kind === "component";
   const isAudit = kind === "audit";
@@ -133,7 +136,7 @@ export function JobStartDialog({
         };
       }
       const job = await api.startJob(request);
-      onOpenChange(false);
+      onStarted();
       navigate({ view: "job", jobId: job.id });
     } catch (failure) {
       const converted = toApiError(failure);
@@ -144,33 +147,19 @@ export function JobStartDialog({
   };
 
   return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      title={t(`desk.job.start.title.${kind}`)}
-      description={t(`desk.job.start.description.${kind}`)}
-      closeButtonLabel={t("desk.common.close")}
-      size="md"
-      actions={[
-        {
-          appearance: "subtle",
-          label: t("desk.common.cancel"),
-          onClick: () => onOpenChange(false)
-        },
-        {
-          appearance: "default",
-          label: t("desk.job.start.confirm"),
-          loadingLabel: t("desk.job.start.starting"),
-          loading: pending,
-          disabled: !valid || pending,
-          onClick: () => void start()
-        }
-      ]}
+    <form
+      className="dk-stack dk-gap-200"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (valid && !pending) void start();
+      }}
     >
+      <p className="dk-t-sub dk-t-small">{t(`desk.job.start.description.${kind}`)}</p>
       {isScreen && (
         <>
-          <div className="desk-job-limits">
-            <div className="desk-field">
+          <div className="dk-grid3">
+            <div className="dk-field">
               <Label htmlFor={`${id}-screen`}>{t("desk.job.start.screen.id")}</Label>
               <Input
                 id={`${id}-screen`}
@@ -178,11 +167,11 @@ export function JobStartDialog({
                 aria-describedby={`${id}-screen-help`}
                 onChange={(event) => setScreenId(event.target.value.trim())}
               />
-              <p id={`${id}-screen-help`} className="desk-muted">
+              <p id={`${id}-screen-help`} className="dk-hint">
                 {t("desk.job.start.screen.idHelp")}
               </p>
             </div>
-            <div className="desk-field">
+            <div className="dk-field">
               <Label htmlFor={`${id}-title`}>{t("desk.job.start.screen.title")}</Label>
               <Input
                 id={`${id}-title`}
@@ -191,7 +180,7 @@ export function JobStartDialog({
               />
             </div>
           </div>
-          <div className="desk-field">
+          <div className="dk-field">
             <Label htmlFor={`${id}-file`}>{t("desk.job.start.screen.reference")}</Label>
             <Input
               id={`${id}-file`}
@@ -199,10 +188,10 @@ export function JobStartDialog({
               accept={Object.keys(REFERENCE_TYPES).join(",")}
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
-            {fileProblem !== null && <p className="desk-field__error">{fileProblem}</p>}
+            {fileProblem !== null && <p className="dk-hint dk-t-danger">{fileProblem}</p>}
           </div>
-          <div className="desk-job-limits">
-            <div className="desk-field">
+          <div className="dk-grid3">
+            <div className="dk-field">
               <Label htmlFor={`${id}-width`}>{t("desk.job.start.screen.width")}</Label>
               <Input
                 id={`${id}-width`}
@@ -211,7 +200,7 @@ export function JobStartDialog({
                 onChange={(event) => setWidth(event.target.value)}
               />
             </div>
-            <div className="desk-field">
+            <div className="dk-field">
               <Label htmlFor={`${id}-height`}>{t("desk.job.start.screen.height")}</Label>
               <Input
                 id={`${id}-height`}
@@ -220,8 +209,8 @@ export function JobStartDialog({
                 onChange={(event) => setHeight(event.target.value)}
               />
             </div>
-            <div className="desk-field">
-              <span className="desk-muted">{t("desk.job.start.screen.mode")}</span>
+            <div className="dk-field">
+              <span className="dk-hint">{t("desk.job.start.screen.mode")}</span>
               <Segmented
                 label={t("desk.job.start.screen.mode")}
                 value={mode}
@@ -234,8 +223,8 @@ export function JobStartDialog({
         </>
       )}
       {isComponent && (
-        <div className="desk-job-limits">
-          <div className="desk-field">
+        <div className="dk-grid3">
+          <div className="dk-field">
             <Label htmlFor={`${id}-component`}>{t("desk.job.start.component.name")}</Label>
             <Input
               id={`${id}-component`}
@@ -243,12 +232,12 @@ export function JobStartDialog({
               aria-describedby={`${id}-component-help`}
               onChange={(event) => setComponentName(event.target.value.trim())}
             />
-            <p id={`${id}-component-help`} className="desk-muted">
+            <p id={`${id}-component-help`} className="dk-hint">
               {t("desk.job.start.component.nameHelp")}
             </p>
           </div>
-          <div className="desk-field">
-            <span className="desk-muted">{t("desk.job.start.component.layer")}</span>
+          <div className="dk-field">
+            <span className="dk-hint">{t("desk.job.start.component.layer")}</span>
             <Segmented
               label={t("desk.job.start.component.layer")}
               value={layer}
@@ -260,7 +249,7 @@ export function JobStartDialog({
         </div>
       )}
       {isAudit && (
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={`${id}-audit`}>{t("desk.job.start.audit.screen")}</Label>
           <Input
             id={`${id}-audit`}
@@ -268,12 +257,12 @@ export function JobStartDialog({
             aria-describedby={`${id}-audit-help`}
             onChange={(event) => setAuditScreen(event.target.value.trim())}
           />
-          <p id={`${id}-audit-help`} className="desk-muted">
+          <p id={`${id}-audit-help`} className="dk-hint">
             {t("desk.job.start.audit.screenHelp")}
           </p>
         </div>
       )}
-      <div className="desk-field">
+      <div className="dk-field">
         <Label htmlFor={`${id}-note`}>
           {t(isComponent ? "desk.job.start.component.purpose" : "desk.job.start.note")}
         </Label>
@@ -284,8 +273,8 @@ export function JobStartDialog({
           onChange={(event) => setNote(event.target.value)}
         />
       </div>
-      <div className="desk-job-limits">
-        <div className="desk-field">
+      <div className="dk-grid3">
+        <div className="dk-field">
           <Label htmlFor={`${id}-model`}>{t("desk.job.start.model")}</Label>
           <Input
             id={`${id}-model`}
@@ -293,7 +282,7 @@ export function JobStartDialog({
             onChange={(event) => setModel(event.target.value)}
           />
         </div>
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={`${id}-budget`}>{t("desk.job.start.budget")}</Label>
           <Input
             id={`${id}-budget`}
@@ -302,7 +291,7 @@ export function JobStartDialog({
             onChange={(event) => setBudget(event.target.value)}
           />
         </div>
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={`${id}-minutes`}>{t("desk.job.start.minutes")}</Label>
           <Input
             id={`${id}-minutes`}
@@ -312,12 +301,20 @@ export function JobStartDialog({
           />
         </div>
       </div>
-      <p className="desk-muted">{t("desk.job.start.limitsHelp")}</p>
+      <p className="dk-hint">{t("desk.job.start.limitsHelp")}</p>
       {error !== null && (
-        <p className="desk-field__error" role="alert">
+        <p className="dk-hint dk-t-danger" role="alert">
           {error}
         </p>
       )}
-    </Modal>
+      <div className="dk-dialog-f">
+        <Button type="button" appearance="outline" onClick={onCancel}>
+          {t("desk.common.cancel")}
+        </Button>
+        <Button type="submit" disabled={!valid || pending}>
+          {pending ? t("desk.job.start.starting") : t("desk.job.start.confirm")}
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -25,7 +25,7 @@ function useJobAction(jobId: number) {
     try {
       const job = await api.jobAction(jobId, action);
       await reloadJobs();
-      if (job === null) navigate({ view: "board" });
+      if (job === null) navigate({ view: "inbox" });
     } catch (failure) {
       const converted = toApiError(failure);
       setError(converted.detail ?? t(failureMessageKey(converted.code)));

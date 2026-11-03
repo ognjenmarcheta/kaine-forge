@@ -17,7 +17,7 @@ import { useStageNames, type StageNames } from "../flow/flow.names";
 import { agentName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { formatClock, formatElapsed, formatUsd } from "../shell/shell.format";
-import { Segmented } from "../shell/shell.layout";
+import { Segmented } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 import { StatusChip } from "../status/status.chip";
 import { NODE_TONE, nodeStatusKey } from "../status/status.model";

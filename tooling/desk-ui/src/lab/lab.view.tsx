@@ -5,7 +5,7 @@ import { LabApp } from "./lab.app";
 import { installLabThemes, loadLabCatalog, type LabCatalog } from "./lab.registry";
 import { useT } from "../i18n/i18n.t";
 import { openJobOf } from "../jobs/job.model";
-import { JobStartDialog } from "../jobs/job.start-dialog";
+import { useNewWork } from "../shell/shell.newwork";
 import { RouteLink } from "../shell/shell.router";
 import { Loading } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
@@ -30,12 +30,12 @@ const LAB_JOBS = [
 function LabJob({ kind, start }: (typeof LAB_JOBS)[number]) {
   const t = useT();
   const { state } = useDesk();
-  const [starting, setStarting] = useState(false);
+  const newWork = useNewWork();
   const open = openJobOf(state.jobs, kind);
   return (
     <>
       {open === null ? (
-        <Button appearance="subtle" onClick={() => setStarting(true)}>
+        <Button appearance="subtle" onClick={() => newWork.open({ tab: "job", kind })}>
           {t(start)}
         </Button>
       ) : (
@@ -46,7 +46,6 @@ function LabJob({ kind, start }: (typeof LAB_JOBS)[number]) {
           })}
         </RouteLink>
       )}
-      <JobStartDialog kind={kind} open={starting} onOpenChange={setStarting} />
     </>
   );
 }

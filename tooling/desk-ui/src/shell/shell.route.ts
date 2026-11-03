@@ -1,15 +1,20 @@
 import { DEFINITION_ID_PATTERN } from "@repo/desk/contracts";
 
 export type Route =
-  | { readonly view: "board" }
+  /** What waits on the owner: stopped work, decisions, and PRs to merge. */
+  | { readonly view: "inbox" }
+  /** Every issue and desk job, as a list or in columns. */
+  | { readonly view: "work" }
   | { readonly view: "flows" }
   /** One flow in the editor. A new flow starts as a copy, so it always has an id. */
   | { readonly view: "flow"; readonly flowId: string }
   | { readonly view: "agents" }
   /** One agent in the editor; `null` is a new agent. */
   | { readonly view: "agent"; readonly agentId: string | null }
-  | { readonly view: "health" }
-  | { readonly view: "stats" }
+  /** The checks that this machine can run the desk. */
+  | { readonly view: "setup" }
+  /** How agents perform, what they cost, and the lessons that come back. */
+  | { readonly view: "insights" }
   /** With `jobId`: the preview of a scorecard job's ledger. */
   | { readonly view: "scorecard"; readonly jobId?: number }
   /** One desk job: a scorecard run started from the desk. */
@@ -20,7 +25,7 @@ export type Route =
 
 const POSITIVE_INTEGER = /^[1-9]\d{0,8}$/;
 
-/** Read the route from the query string. Anything unknown or malformed shows the board. */
+/** Read the route from the query string. Anything unknown or malformed shows the Inbox. */
 export function parseRoute(search: string): Route {
   const params = new URLSearchParams(search);
   const issue = params.get("issue");
@@ -45,22 +50,25 @@ export function parseRoute(search: string): Route {
       ? { view: "flow", flowId: flow }
       : { view: "flows" };
   }
-  if (view === "health") return { view: "health" };
-  if (view === "stats") return { view: "stats" };
+  if (view === "work") return { view: "work" };
+  if (view === "setup") return { view: "setup" };
+  if (view === "insights") return { view: "insights" };
   if (view === "scorecard") {
     return job !== null && POSITIVE_INTEGER.test(job)
       ? { view: "scorecard", jobId: Number(job) }
       : { view: "scorecard" };
   }
   if (view === "lab") return { view: "lab" };
-  return { view: "board" };
+  return { view: "inbox" };
 }
 
 /** The address of a route, relative to the current page. */
 export function routeHref(route: Route): string {
   switch (route.view) {
-    case "board":
+    case "inbox":
       return "?";
+    case "work":
+      return "?view=work";
     case "flows":
       return "?view=flows";
     case "flow":
@@ -71,10 +79,10 @@ export function routeHref(route: Route): string {
       return route.agentId === null
         ? "?view=agents&new=1"
         : `?view=agents&agent=${encodeURIComponent(route.agentId)}`;
-    case "health":
-      return "?view=health";
-    case "stats":
-      return "?view=stats";
+    case "setup":
+      return "?view=setup";
+    case "insights":
+      return "?view=insights";
     case "scorecard":
       return route.jobId === undefined
         ? "?view=scorecard"

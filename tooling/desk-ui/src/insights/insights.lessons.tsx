@@ -15,7 +15,7 @@ import {
   issueUrlFrom,
   lessonRank,
   type LessonRank
-} from "./stats.model";
+} from "./insights.model";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useLanguage, useT } from "../i18n/i18n.t";

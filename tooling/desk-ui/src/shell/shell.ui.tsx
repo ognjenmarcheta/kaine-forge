@@ -1,4 +1,4 @@
-import { Skeleton, Spinner } from "@repo/ui";
+import { Button, Skeleton, Spinner } from "@repo/ui";
 import type { ReactNode } from "react";
 
 import type { FailureCode } from "../api/api.client";
@@ -14,8 +14,8 @@ export function Section({
   readonly children: ReactNode;
 }) {
   return (
-    <section className="desk-section">
-      <h3>{title}</h3>
+    <section className="dk-sec">
+      <h3 className="dk-h-sec">{title}</h3>
       {children}
     </section>
   );
@@ -24,24 +24,20 @@ export function Section({
 /** Engine text, shown as text. React escapes it, so markup in a ticket or a log stays inert. */
 export function Pre({ children, label }: { readonly children: string; readonly label?: string }) {
   return (
-    <pre
-      className="desk-pre"
-      tabIndex={0}
-      {...(label === undefined ? {} : { "aria-label": label })}
-    >
+    <pre className="dk-out" tabIndex={0} {...(label === undefined ? {} : { "aria-label": label })}>
       {children}
     </pre>
   );
 }
 
 export function Muted({ children }: { readonly children: ReactNode }) {
-  return <p className="desk-muted">{children}</p>;
+  return <p className="dk-t-sub">{children}</p>;
 }
 
 export function Loading() {
   const t = useT();
   return (
-    <p className="desk-loading" role="status">
+    <p className="dk-row dk-t-sub" role="status">
       <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
       <span>{t("desk.common.loading")}</span>
     </p>
@@ -54,13 +50,13 @@ export function Loading() {
  */
 export function LoadingLines({ label, lines }: { readonly label: string; readonly lines: number }) {
   return (
-    <div className="desk-skel" role="status" aria-label={label}>
-      <p className="desk-skel__now">
+    <div className="dk-stack" role="status" aria-label={label}>
+      <p className="dk-row dk-t-sub">
         <Spinner size="sm" label={label} aria-hidden="true" />
         <span>{label}</span>
       </p>
       {Array.from({ length: lines }, (_, index) => (
-        <Skeleton key={index} className="desk-skel__line" aria-hidden="true" />
+        <Skeleton key={index} className="dk-skel" aria-hidden="true" />
       ))}
     </div>
   );
@@ -76,7 +72,7 @@ export function FailureText({
 }) {
   const t = useT();
   return (
-    <div className="desk-failure" role="alert">
+    <div className="dk-stack" role="alert">
       <p>{t(failureMessageKey(code))}</p>
       {detail !== null && detail !== "" && <Pre>{detail}</Pre>}
     </div>
@@ -105,10 +101,41 @@ export function ItemList<T>({
 }) {
   if (items.length === 0) return <Muted>{empty}</Muted>;
   return (
-    <ul className="desk-list">
+    <ul className="dk-list">
       {items.map((item, index) => (
         <li key={index}>{render(item)}</li>
       ))}
     </ul>
+  );
+}
+
+/** Pressed buttons in a pill: one choice of a few, all visible. */
+export function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  name,
+  onChange
+}: {
+  readonly label: string;
+  readonly value: T;
+  readonly options: readonly T[];
+  readonly name: (option: T) => string;
+  readonly onChange: (option: T) => void;
+}) {
+  return (
+    <div className="dk-seg" role="group" aria-label={label}>
+      {options.map((option) => (
+        <Button
+          key={option}
+          appearance="ghost"
+          className="dk-bare"
+          aria-pressed={option === value}
+          onClick={() => onChange(option)}
+        >
+          {name(option)}
+        </Button>
+      ))}
+    </div>
   );
 }

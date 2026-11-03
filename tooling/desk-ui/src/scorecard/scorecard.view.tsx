@@ -48,15 +48,15 @@ import {
 import { IssueCell, RecentlySolved, TrackingBar, useScorecardTracking } from "./scorecard.tracking";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
+import { sparkPoints } from "../insights/insights.model";
 import { openJobOf } from "../jobs/job.model";
-import { JobStartDialog } from "../jobs/job.start-dialog";
 import { formatCount } from "../shell/shell.format";
-import { Segmented } from "../shell/shell.layout";
+import { useNewWork } from "../shell/shell.newwork";
 import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
+import { Segmented } from "../shell/shell.ui";
 import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { sparkPoints } from "../stats/stats.model";
 import { StatusChip } from "../status/status.chip";
 
 const score = (value: number | null, language: string): string =>
@@ -869,7 +869,7 @@ const ledgerHint = (t: Translate, path: string): string => t("desk.scorecard.mis
 export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }) {
   const t = useT();
   const { api, state } = useDesk();
-  const [starting, setStarting] = useState(false);
+  const newWork = useNewWork();
   const openJob = openJobOf(state.jobs, "scorecard");
   const [data, setData] = useState<ScorecardData | null>(null);
   const [error, setError] = useState<Failure | null>(null);
@@ -905,7 +905,7 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
             {t("desk.scorecard.refresh")}
           </Button>
           {jobId === undefined && openJob === null && (
-            <Button onClick={() => setStarting(true)}>{t("desk.job.start.scorecard")}</Button>
+            <Button onClick={() => newWork.open({ tab: "job", kind: "scorecard" })}>{t("desk.job.start.scorecard")}</Button>
           )}
         </div>
       </div>
@@ -927,7 +927,6 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
           </RouteLink>
         </p>
       )}
-      <JobStartDialog kind="scorecard" open={starting} onOpenChange={setStarting} />
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {loading && data === null && (
         <Card className="desk-panel">
