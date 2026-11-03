@@ -150,6 +150,10 @@ _Avoid_: stage (for a definition), node, phase
 A desk definition of one kind of agent run: provider, model, **Output kind**, capabilities, and prompt, in a `<id>.md` file. It is not an AI assistant in general and not an organization role.
 _Avoid_: role, bot, worker
 
+**Provider**:
+The agent CLI a desk run uses: `claude`, `codex`, or `opencode`. The config and each **Agent** name the provider they ask for; the desk moves a run to another provider when that CLI does not run.
+_Avoid_: model (the model is chosen within a provider), vendor
+
 **Output kind**:
 What an **Agent** run produces, which selects its result schema and step handler: `plan`, `change`, `review`, `report`, or `intake`.
 _Avoid_: agent type, role

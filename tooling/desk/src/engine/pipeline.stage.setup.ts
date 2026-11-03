@@ -88,11 +88,13 @@ export const setupStage: StageHandler = async (context) => {
   // The base is fixed for the issue at its first setup. A later config change does not move it.
   const baseBranch = state.baseBranch ?? deps.config.baseBranch;
   // Every agent of the issue's flow gets its provider, servers and skills. A Docker run loads no server.
+  // Each installed CLI gets its files too: a role moves to one when the CLI it asks for is missing.
   const flowAgents = state.flowSnapshot.agents;
   const agents = [
     ...new Set<Provider>([
       ...Object.values(deps.config.providers),
-      ...flowAgents.map((agent) => agentProfileOf(deps.config, agent).provider)
+      ...flowAgents.map((agent) => agentProfileOf(deps.config, agent).provider),
+      ...((await deps.providers?.usable()) ?? [])
     ])
   ];
   const installs = installsForAgents(

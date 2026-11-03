@@ -59,7 +59,8 @@ stops the issue in `needs-you` and is never silent. The allowlist for agents is 
 and read-only for git. A recovered issue is never resumed by itself: `running` and
 `queued` become `needs-you`, and the owner continues. The Codex builder stays disabled
 until the config has an explicit opt-in, because Codex reports no permission denials and
-its sandbox is coarser than a Claude allowlist.
+its sandbox is coarser than a Claude allowlist. ADR 0023 adds that opt-in,
+`allowCodexBuilder`.
 
 The factory is frozen. After the first verified draft PR (Phase 3), the factory
 controller, its UI, and its docs are removed. Its Docker assets move into the desk

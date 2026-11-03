@@ -7,9 +7,12 @@ import { describeFailure, type AgentEvent, type AgentRunner } from "../agents/ag
 import { loadCapabilities } from "../agents/capabilities.load";
 import { CLAUDE_BUDGET_SUBTYPE } from "../agents/claude.runner";
 import { buildRunSettings } from "../agents/permissions";
+import { chooseProvider, type ProviderChoice } from "../agents/provider.choose";
+import type { ProviderPort } from "../agents/provider.probe";
 import {
   JOB_DEFAULT_MODEL,
   JOB_LIMITS,
+  PROVIDERS,
   auditJobResultSchema,
   componentJobResultSchema,
   componentPlanSchema,
@@ -82,7 +85,10 @@ export interface JobManagerDeps {
   readonly exec: Exec;
   readonly git: GitPort;
   readonly github: Pick<GitHubPort, "createIssue" | "createPullRequest" | "addPullRequestLabel">;
+  /** Runs a request on the CLI its `provider` names. */
   readonly runner: AgentRunner;
+  /** The provider CLIs found. Without it a job runs on Claude, as before providers were chosen. */
+  readonly providers?: ProviderPort | undefined;
   readonly clock: Clock;
   /** The main checkout. Job worktrees branch from `origin/<base>` here. */
   readonly repoRoot: string;
@@ -305,6 +311,21 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     )
   });
 
+  /**
+   * The provider of a job run: Claude when it runs, else the best other one. A run that writes
+   * files counts as a build, so Codex takes it only with the owner's opt-in.
+   */
+  const chooseFor = async (state: JobState, writes: boolean): Promise<ProviderChoice> =>
+    chooseProvider({
+      role: writes ? "builder" : "planner",
+      name: "job",
+      preferred: "claude",
+      model: state.input.model,
+      usable: (await deps.providers?.usable()) ?? new Set(PROVIDERS),
+      writes,
+      allowCodexBuilder: deps.providers?.allowCodexBuilder() ?? false
+    });
+
   const require = async (id: number): Promise<JobState> => {
     const state = await deps.store.read(id);
     if (state === null) throw new JobRefusal("unknown-job", `Job ${id} does not exist.`);
@@ -317,6 +338,15 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
 
   const setup = async (state: JobState): Promise<JobState> => {
     const worktreeDir = path.join(deps.worktreesDir, `KAINE-job-${state.id}`);
+    // Each CLI that runs gets its files: a job moves off Claude when Claude does not run.
+    const agents =
+      deps.providers === undefined ? ["claude" as const] : [...(await deps.providers.usable())];
+    if (agents.length === 0) {
+      throw new JobStop(
+        "failed",
+        "No agent CLI works on this machine. Install Claude Code, Codex, or OpenCode, then continue."
+      );
+    }
     const created = await (deps.prepareWorktree ?? createWorktree)(
       { exec: deps.exec, git: deps.git },
       {
@@ -327,7 +357,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           slug: branchSlugOf(state),
           base: deps.base,
           worktreeDir,
-          agents: ["claude"],
+          agents,
           skills: [...JOB_SKILLS[state.kind]],
           mcp: [...JOB_MCP[state.kind]]
         }
@@ -358,10 +388,20 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         );
       }
     }
-    return record(
+    const ready = record(
       { ...state, branch: created.branch, worktree: created.worktreePath },
       "setup",
       `Worktree ready on ${created.branch}.`
+    );
+    // Said once, where the job starts: where its agent runs when Claude does not.
+    const writes = state.kind === "screen" || state.kind === "component";
+    const choice = await chooseFor(state, writes);
+    if (!choice.ok || choice.note === null) return ready;
+    // Only the Claude CLI stops a run at a budget. The time limit holds on every CLI.
+    return record(
+      ready,
+      "setup",
+      `${choice.note} ${choice.provider} does not stop at the budget; the time limit still holds.`
     );
   };
 
@@ -411,6 +451,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         `The job has spent its $${state.input.budgetUsd} budget. Start a new job with a larger budget.`
       );
     }
+    const writes = (run.writes?.length ?? 0) > 0;
+    const choice = await chooseFor(state, writes);
+    if (!choice.ok) throw new JobStop("failed", choice.reason);
+    // Setup already told the owner when the job left Claude.
+    const { provider, model } = choice;
     const worktree = worktreeOf(state);
     const files = await deps.store.filesDir(state.id);
     const receiptsPath = path.join(files, "receipts.jsonl");
@@ -430,17 +475,19 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           tools: []
         }
       },
-      provider: "claude",
-      model: state.input.model,
+      provider,
+      model: model ?? null,
       checkout: worktree,
       isolation: "host"
     });
     const mcpConfig = path.join(worktree, ".mcp.json");
     let lastActivity = 0;
     const outcome = await deps.runner.run({
-      role: "scorer",
-      provider: "claude",
-      model: state.input.model,
+      // The Codex sandbox follows the role: only a builder may write, and only with the opt-in.
+      role: provider === "codex" && writes ? "builder" : "scorer",
+      provider,
+      model,
+      allowCodexBuilder: provider === "codex" && writes,
       prompt: run.prompt,
       systemAppend: JOB_RULES,
       outputSchema: z.toJSONSchema(run.schema, { target: "draft-7", io: "output" }),

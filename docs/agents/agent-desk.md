@@ -330,8 +330,10 @@ timeoutMinutes: 20
 Read the plan and the diff. Write the release notes.
 ```
 
-- `provider` is `claude` or `codex`. `model` is optional. Without it, the CLI uses its default
-  model. For a built-in id, `providers` and `models` of the desk config decide.
+- `provider` is `claude`, `codex`, or `opencode`. `model` is optional. Without it, the CLI uses
+  its default model. For a built-in id, `providers` and `models` of the desk config decide.
+- `provider` is a preference. When that CLI does not run on the machine, the run moves to another
+  provider (see "Providers").
 - `timeoutMinutes` is optional. Without it, the desk uses its default.
 - `capabilities.mcp` names servers of `.ai/mcp.json`. `capabilities.skills` names skills of
   `.ai/skills/`. A run does not get a name that the checkout does not have. The run records the
@@ -963,8 +965,13 @@ config file, and the `claude` and `codex` CLIs. It checks the `opencode` CLI onl
 uses it: the version must be 2.2.4 or later, `opencode run --help` must list the required flags,
 and a warning names each OpenCode role that has no `models.<role>`. Under a failed check it prints the command that
 repairs it (`run: gh auth login`). It reads `claude --help` and
-`codex exec --help` and checks that each required flag exists. A missing provider
-that a role uses is an error. A provider that no role uses is a warning.
+`codex exec --help` and checks that each required flag exists.
+
+A provider CLI that is missing, too old, or lacks a flag is a warning. The row says where its roles
+run instead, for example `codex is not installed. The reviewer runs on claude.` The **Agent
+roles** row shows the provider of each role. It is an error only when a role has no provider that
+can run it. When Codex is the only CLI and `allowCodexBuilder` is off, that row offers the fix
+**Allow Codex to build**.
 
 It also checks Docker: the daemon, the worker image, and the provider logins. With
 `isolation: "host"` a missing daemon or image is a warning. With `isolation: "docker"` it is an
@@ -1007,6 +1014,31 @@ defaults. A file that exists but is invalid is an error. Fields are listed in
   `"flowLabels": { "docs": "docs-only" }`. At `start` the first label of the issue that the map
   lists picks the flow. `start --flow` (or `flowId` in the API) overrides both. The Start
   dialog shows the pick for each open issue (`flowId` in `GET /api/github`).
+
+- `providers` and `models` set the provider and model each role asks for. The defaults are
+  Claude for intake, planner, and builder, and Codex for the reviewer. See "Providers".
+- `allowCodexBuilder` (default `false`) lets Codex change code: a Codex builder, and a screen or
+  component job on Codex. Setup's **Allow Codex to build** fix sets it.
+
+### Providers
+
+Before each agent run, the desk checks which provider CLIs run on the machine
+(`agents/provider.probe.ts`: `<cli> --version` and the required flags, cached for 60 seconds).
+Then it chooses (`agents/provider.choose.ts`):
+
+1. The provider the role asks for, when its CLI runs.
+2. Otherwise, the best other provider for the role. The reviewer ranks Codex, Claude, OpenCode,
+   and avoids the builder's provider when it has a choice, so a review stays a second opinion.
+   Intake, planner, and builder rank Claude, Codex, OpenCode.
+
+- Codex changes code only with `allowCodexBuilder`. Read-only roles run on Codex without it.
+- OpenCode runs only where a role names it with a `provider/model` model. It is never a fallback.
+- A run that moves drops the model of the provider it asked for, uses the CLI default, and starts a
+  new session. The issue history gets a `provider-moved` note, for example
+  `The reviewer ran on claude: codex is not installed or does not work.`
+- When a spawn still finds the CLI missing, the desk leaves that CLI out and chooses once more.
+- The run stops at `needs-you` only when no provider can run the step. The reason says what to
+  install or allow.
 
 The `docker` block sets the limits of the containers. All fields are optional:
 
@@ -1393,6 +1425,9 @@ runs at a time.
   limit, or a desk restart stops the job as **Needs you** with the reason. **Continue** runs the
   stopped step again. **Cancel job** stops it; **Remove job** deletes it and its worktree (a pushed
   branch and an open PR stay on GitHub).
+- **Provider.** A job runs on Claude. When Claude does not run, it moves to Codex (a screen or
+  component job needs `allowCodexBuilder` for that) and the job history says so. The budget then
+  does not stop the run; the time limit does. See "Providers".
 
 The **screen job** recreates a reference image as a lab screen:
 
