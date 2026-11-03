@@ -1325,7 +1325,7 @@
   "desk.newWork.kind": "Art",
   "desk.newWork.tab.issue": "GitHub-Issue",
   "desk.newWork.tab.job": "Desk-Job",
-  "desk.newWork.job": "Job",
+  "desk.newWork.job": "Job-Art",
   "desk.newWork.jobRule": "Von jeder Art läuft ein Job gleichzeitig. Ein Job hält an, wenn er sein Budget oder Zeitlimit erreicht.",
   "desk.newWork.jobText.scorecard": "Bewertet das Monorepo in zehn Dimensionen und legt die dringenden Befunde an.",
   "desk.newWork.jobText.screen": "Erstellt einen Labor-Bildschirm aus einem Referenzbild neu.",

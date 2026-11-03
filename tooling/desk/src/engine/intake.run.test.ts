@@ -43,6 +43,14 @@ const setup = (github: FakeGitHubOptions = {}, config: Record<string, unknown> =
   return { port, store, logs, run };
 };
 
+/** The fields of a needs-you history event that do not change between runs. */
+const NEEDS_YOU_EVENT = {
+  stage: "needs-you",
+  event: "needs-you",
+  at: expect.any(String),
+  note: expect.any(String)
+};
+
 describe("runIntake", () => {
   it("parks an authorized, well-formed issue at setup and writes the ticket", async () => {
     const { run, store } = setup();
@@ -204,7 +212,9 @@ describe("runIntake", () => {
     });
     expect(result).toMatchObject({ reason: expect.stringContaining("kaine-write-issue") });
     // The desk names this stop "issue format" from its code.
-    expect(result.state.history.at(-1)).toMatchObject({ event: "needs-you", code: "intake" });
+    expect(result).toMatchObject({
+      state: { history: expect.arrayContaining([{ ...NEEDS_YOU_EVENT, code: "intake" }]) }
+    });
     // The board still shows the title of an issue that stopped at intake.
     const summary: unknown = JSON.parse(
       await readFile(path.join(store.artifactsDir(7), "issue.json"), "utf8")
