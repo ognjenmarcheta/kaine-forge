@@ -584,6 +584,8 @@
   "desk.lessons.promotedTitle": "Übernommene Lektionen",
   "desk.lessons.promotedEmpty": "Noch keine übernommene Lektion.",
   "desk.lessons.promotedAt": "Übernommen {{when}}",
+  "desk.lessons.seenAgain": "Nach der Übernahme wieder gesehen: {{times}} · {{issues}}",
+  "desk.lessons.notSeenAgain": "Seit der Übernahme nicht wieder gesehen",
   "desk.lessons.unpromote": "Zurücknehmen",
   "desk.lessons.unpromoteLabel": "{{key}} zurücknehmen",
   "desk.lessons.unpromoted": "{{key}} ist wieder ein Kandidat.",

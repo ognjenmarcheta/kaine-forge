@@ -584,6 +584,8 @@
   "desk.lessons.promotedTitle": "Unapređene lekcije",
   "desk.lessons.promotedEmpty": "Još nema unapređenih lekcija.",
   "desk.lessons.promotedAt": "Unapređeno {{when}}",
+  "desk.lessons.seenAgain": "Ponovo viđeno posle unapređenja: {{times}} · {{issues}}",
+  "desk.lessons.notSeenAgain": "Nije ponovo viđeno od unapređenja",
   "desk.lessons.unpromote": "Poništi unapređenje",
   "desk.lessons.unpromoteLabel": "Poništi unapređenje: {{key}}",
   "desk.lessons.unpromoted": "{{key}} je ponovo kandidat.",
