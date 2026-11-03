@@ -584,6 +584,8 @@
   "desk.lessons.promotedTitle": "Promoted lessons",
   "desk.lessons.promotedEmpty": "No promoted lesson yet.",
   "desk.lessons.promotedAt": "Promoted {{when}}",
+  "desk.lessons.seenAgain": "Seen again after the promotion: {{times}} · {{issues}}",
+  "desk.lessons.notSeenAgain": "Not seen again since the promotion",
   "desk.lessons.unpromote": "Unpromote",
   "desk.lessons.unpromoteLabel": "Unpromote {{key}}",
   "desk.lessons.unpromoted": "{{key}} is a candidate again.",

@@ -3,7 +3,7 @@ import {
   type LessonCandidate,
   type LessonIssueDraft,
   type LessonReport,
-  type PromotedLesson
+  type PromotedLessonStatus
 } from "@repo/desk/contracts";
 import { Button, Card, Check, Label, Modal, Textarea } from "@repo/ui";
 import { useId, useState } from "react";
@@ -24,6 +24,7 @@ import { useNow } from "../shell/shell.now";
 import { RouteLink } from "../shell/shell.router";
 import { Muted, Pre, Section } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
+import { StatusChip } from "../status/status.chip";
 import { toneClass, type Tone } from "../status/status.model";
 
 const RANK_TONE = {
@@ -186,7 +187,7 @@ function PromotedList({
   busy,
   onUnpromote
 }: {
-  readonly promoted: readonly PromotedLesson[];
+  readonly promoted: readonly PromotedLessonStatus[];
   readonly issueUrl: (issue: number) => string | null;
   readonly busy: string | null;
   readonly onUnpromote: (key: string) => void;
@@ -218,6 +219,19 @@ function PromotedList({
                         when: relativeTime(lesson.at, now, language)
                       })}
                     </span>
+                    {/* A lesson that comes back was not covered by its encoding. */}
+                    {lesson.recurrence.lastSeen === null ? (
+                      <StatusChip tone="success">{t("desk.lessons.notSeenAgain")}</StatusChip>
+                    ) : (
+                      <StatusChip tone="warning">
+                        {t("desk.lessons.seenAgain", {
+                          times: formatCount(lesson.recurrence.occurrences, language),
+                          issues: lesson.recurrence.issues
+                            .map((issue) => t("desk.issue.number", { number: issue }))
+                            .join(" ")
+                        })}
+                      </StatusChip>
+                    )}
                     {lesson.issue !== null &&
                       (url === null ? (
                         <span>{t("desk.issue.number", { number: lesson.issue })}</span>
