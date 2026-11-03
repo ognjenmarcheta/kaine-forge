@@ -199,7 +199,9 @@ export const createDefaultDeskRuntime =
         draft: runner.draft,
         applyDraft: runner.applyDraft,
         pause: runner.pause,
-        resume: runner.resume
+        resume: runner.resume,
+        steer: runner.steer,
+        takeOver: runner.takeOver
       },
       readRuns: () => readRunRecords(location.stateRoot),
       prRoundLimit: config.maxPrRounds,

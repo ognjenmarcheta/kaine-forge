@@ -18,6 +18,7 @@ import {
 } from "../contracts";
 import { ISSUE_DRAFT_FILE, draftIssueFormat } from "./intake.draft";
 import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
+import { agentProfileOf } from "./pipeline.agent";
 import { ARTIFACTS, readArtifactJson, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
@@ -40,6 +41,7 @@ import type {
   AgentStepHandler,
   ApproveOptions,
   NotifyKind,
+  OwnerInterrupt,
   PipelineDeps,
   PipelineEvent,
   PipelineResult,
@@ -199,6 +201,18 @@ export interface PipelineRunner {
   readonly pause: (issue: number) => Promise<PipelineResult>;
   /** Clear the hold and drive on from where the issue stopped. Refused when it is not paused. */
   readonly resume: (issue: number) => Promise<PipelineResult>;
+  /**
+   * Stop the agent that runs now and run it again in the same session with the owner's note
+   * (ADR 0022). It answers at once with `steered`. Refused unless an agent of the issue runs in
+   * this process.
+   */
+  readonly steer: (issue: number, note: string) => Promise<PipelineResult>;
+  /**
+   * Stop the agent that runs now, so the owner works in its session. The stage ends in
+   * `needs-you`, and the agent's next run resumes that session. Only a plan or change agent on
+   * the host: a Docker session stays in the container. It answers when the stage has stopped.
+   */
+  readonly takeOver: (issue: number) => Promise<PipelineResult>;
   /** Stop the running agent (if this process drives the issue) and end the issue. The worktree stays. */
   readonly cancel: (issue: number) => Promise<PipelineResult>;
   /** Delete the issue's desk state and its worktree (unless `keepWorktree`). The branch stays. */
@@ -245,6 +259,8 @@ const machine = (state: IssueState, trigger: Trigger) =>
 interface Session {
   state: IssueState;
   readonly controller: AbortController;
+  /** The agent run the owner can reach now, and the owner's request to it. */
+  readonly owner: { run: AbortController | null; request: OwnerInterrupt | null };
 }
 
 const refused = (refusal: Refusal, reason: string, state: IssueState | null = null): Refused => ({
@@ -527,7 +543,21 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       await save(session);
     },
     emitAgent: (role, event) =>
-      emit({ type: "agent", issue: session.state.issueNumber, role, event })
+      emit({ type: "agent", issue: session.state.issueNumber, role, event }),
+    owner: {
+      arm: () => {
+        const run = new AbortController();
+        session.owner.run = run;
+        session.owner.request = null;
+        return run.signal;
+      },
+      disarm: () => {
+        const { request } = session.owner;
+        session.owner.run = null;
+        session.owner.request = null;
+        return request;
+      }
+    }
   });
 
   const runStage = async (
@@ -643,7 +673,9 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           );
         }
         const session: Session | null =
-          read.status === "ok" ? { state: read.state, controller } : null;
+          read.status === "ok"
+            ? { state: read.state, controller, owner: { run: null, request: null } }
+            : null;
         if (session !== null) live.set(issue, session);
         return await body(session, controller);
       } finally {
@@ -737,7 +769,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             options.isolation === undefined
               ? result.state
               : { ...result.state, isolation: options.isolation },
-          controller
+          controller,
+          owner: { run: null, request: null }
         };
         if (result.outcome === "needs-you") {
           const reason = result.reason;
@@ -861,6 +894,17 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     );
   };
 
+  /** The owner's words to an agent, kept in the issue's feedback artifact. */
+  const appendOwnerWords = async (issue: number, heading: string, text: string): Promise<void> => {
+    const dir = store.artifactsDir(issue);
+    await mkdir(dir, { recursive: true });
+    await appendFile(
+      path.join(dir, ARTIFACTS.feedback),
+      `\n## ${stamp()} ${heading}\n\n${text}\n`,
+      "utf8"
+    );
+  };
+
   const feedback: PipelineRunner["feedback"] = (issue, target, text) =>
     humanAction(
       issue,
@@ -873,13 +917,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           if (text.trim() === "") {
             return refused("invalid-transition", "Feedback needs text.", session.state);
           }
-          const dir = store.artifactsDir(issue);
-          await mkdir(dir, { recursive: true });
-          await appendFile(
-            path.join(dir, ARTIFACTS.feedback),
-            `\n## ${stamp()} to ${target}\n\n${text.trim()}\n`,
-            "utf8"
-          );
+          await appendOwnerWords(issue, `to ${target}`, text.trim());
           return null;
         }
       }
@@ -1561,6 +1599,75 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
+  // --- steer and take over (ADR 0022) ---------------------------------------
+
+  /** The live session whose agent the owner may reach now, or why not. */
+  const reachableAgent = (issue: number): Session | Refused => {
+    const session = live.get(issue);
+    if (session === undefined || session.owner.run === null) {
+      return refused(
+        "invalid-transition",
+        `No agent of #${issue} runs in this desk now. Give feedback when the issue stops.`,
+        session?.state ?? null
+      );
+    }
+    if (session.owner.request !== null) {
+      return refused(
+        "invalid-transition",
+        `The agent of #${issue} has not taken your last request yet. Try again in a moment.`,
+        session.state
+      );
+    }
+    return session;
+  };
+
+  const steer: PipelineRunner["steer"] = async (issue, note) => {
+    const text = note.trim();
+    if (text === "") return refused("invalid-transition", "A steer needs a note.");
+    const session = reachableAgent(issue);
+    if ("outcome" in session) return session;
+    const { stage } = session.state;
+    session.owner.request = { kind: "steer", note: text };
+    session.owner.run?.abort();
+    await appendOwnerWords(issue, `steer at ${stage}`, text);
+    await record(session, stage, "steered");
+    return {
+      outcome: "stopped",
+      stop: "steered",
+      state: session.state,
+      message: `The agent at '${stage}' goes on with your note.`
+    };
+  };
+
+  const takeOver: PipelineRunner["takeOver"] = async (issue) => {
+    const session = reachableAgent(issue);
+    if ("outcome" in session) return session;
+    const { stage, flowSnapshot: snapshot } = session.state;
+    const step = stepOf(snapshot, stage);
+    const agent = step?.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
+    if (agent === undefined || !agentProfileOf(config, agent).resumes) {
+      return refused(
+        "invalid-transition",
+        `The agent at '${stage}' starts a new session on each run, so there is no session to hand back. Steer it instead.`,
+        session.state
+      );
+    }
+    if (isolationOf(config, session.state) === "docker") {
+      return refused(
+        "invalid-transition",
+        `#${issue} runs in Docker: the agent session stays in the container. Steer it instead.`,
+        session.state
+      );
+    }
+    session.owner.request = { kind: "take-over" };
+    session.owner.run?.abort();
+    await record(session, stage, "taken-over");
+    // Answer once the stage has stopped: the action that drives the issue holds its queue.
+    return withLease(issue, async (loaded) => stopped(requireSession(loaded).state), {
+      needsState: true
+    });
+  };
+
   const remove: PipelineRunner["remove"] = async (issue, options = {}) => {
     controllers.get(issue)?.abort();
     const force = options.force === true;
@@ -1653,6 +1760,8 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     applyDraft,
     pause,
     resume,
+    steer,
+    takeOver,
     cancel,
     remove,
     status

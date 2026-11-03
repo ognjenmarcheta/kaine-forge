@@ -166,6 +166,14 @@ _Avoid_: default permissions, baseline
 The **Flow** and every **Agent** it names, frozen with a hash when an issue starts. The issue runs on its snapshot until it ends, so later definition edits do not reach it.
 _Avoid_: flow version, cached flow
 
+**Steer**:
+The owner's note to the **Agent** that runs now. The desk stops the agent and runs it again with the note: in the same session, or with its first prompt when it had no session yet (ADR 0022).
+_Avoid_: interrupt, nudge, chat
+
+**Take over**:
+The owner stops the running **Agent** and works in its session in a terminal. The stage ends in `needs-you`; continue or feedback hands the session back, and the agent's next run resumes it.
+_Avoid_: hijack, attach, hand off
+
 - An issue runs on exactly one **Flow snapshot**.
 - A **Flow snapshot** holds exactly one **Flow** and the **Agents** its agent **Steps** name.
 - An agent **Step** names exactly one **Agent**; one **Agent** can serve many steps and flows.

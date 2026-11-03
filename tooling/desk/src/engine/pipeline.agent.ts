@@ -17,6 +17,7 @@ import {
   type AgentEvent,
   type AgentFailure,
   type AgentRunOutcome,
+  type AgentRunPartial,
   type AgentRunRequest,
   type AgentRunResult
 } from "../agents/agent.runner";
@@ -77,6 +78,10 @@ import { defaultProcessStart } from "../store/store.lease";
  * A run that repeats the same failing tool call `STUCK_LIMIT` times is stopped
  * early. It ends in `needs-you` as a failed run, not as a cancel. Every run that
  * started appends one line to `runs.jsonl` (`desk stats`).
+ *
+ * The owner can reach a running agent (ADR 0022). A steer stops the process and runs the agent
+ * again in the same session with the owner's note; the invariants then cover both runs as one.
+ * A take over stops the process and ends the stage in `needs-you` with the session to resume.
  */
 
 const DEFAULT_TIMEOUTS_MS: Readonly<Record<AgentStageRole, number>> = {
@@ -187,6 +192,8 @@ export type AgentStageResult<T> =
       readonly reason: string;
       /** The run was cancelled. Make no transition. */
       readonly aborted: boolean;
+      /** The owner took the session over. `null`: the agent stopped before it had a session. */
+      readonly takenOver?: { readonly sessionId: string | null } | undefined;
     };
 
 const message = (error: unknown): string =>
@@ -234,6 +241,8 @@ interface ObservedRun {
   readonly stuckOn: string | null;
   readonly stuckReason: string | null;
   readonly checkout: string;
+  /** How often the owner steered the run. */
+  readonly steers: number;
 }
 
 /** Filled while a run is checked, for `runs.jsonl` and `lessons.jsonl`. */
@@ -294,7 +303,16 @@ export const agentStep =
       ...prepared
     });
     if (!run.ok) {
-      return run.aborted ? { kind: "aborted" } : { kind: "needs-you", reason: run.reason };
+      if (run.aborted) return { kind: "aborted" };
+      const taken = run.takenOver?.sessionId ?? null;
+      // The next run of this step resumes the session the owner worked in.
+      return taken !== null && profile.resumes
+        ? {
+            kind: "needs-you",
+            reason: run.reason,
+            patch: { sessions: { ...state.sessions, [agent.id]: taken } }
+          }
+        : { kind: "needs-you", reason: run.reason };
     }
     const outcome = await spec.finish(context, step, agent, run);
     if (outcome.kind === "aborted") return outcome;
@@ -388,7 +406,7 @@ const runAgentStageOnce = async <T>(
   const receiptsPath = path.join(context.artifactsDir, `receipts-${name}.jsonl`);
   const settingsPath = path.join(context.artifactsDir, `run-settings-${name}.json`);
   let pidRecorded: Promise<void> = Promise.resolve();
-  const stuck = createStuckDetector();
+  let stuck = createStuckDetector();
   const stuckStop = new AbortController();
   let stuckReason: string | null = null;
   let request: AgentRunRequest<T>;
@@ -491,29 +509,67 @@ const runAgentStageOnce = async <T>(
     return stop(`Cannot prepare the ${name} run: ${message(error)}`);
   }
 
-  // 3. The run. The agent slot is held only while the process runs.
+  // 3. The run. The agent slot is held only while the process runs. A steer by the owner stops
+  // the process and starts the agent again in its session; the runs count as one.
   let outcome: AgentRunOutcome<T>;
-  // Set when the agent slot is granted, so the queue wait is not counted.
+  // Set when the agent slot is first granted, so the queue wait is not counted.
   let startedAt = deps.clock.now();
-  try {
-    outcome = await context.scheduler.agent.run(() => {
-      startedAt = deps.clock.now();
-      return isolation.port
-        .runnerFor({
-          role,
-          provider,
-          issue: context.issue,
-          worktree,
-          baseSha,
-          artifactsDir: context.artifactsDir
-        })
-        .run(request);
-    });
-  } catch (error) {
-    await pidRecorded;
-    await context.patch({ activeProcess: null });
-    return stop(`The ${provider} runner failed before it returned a result: ${message(error)}`);
+  let attempt = request;
+  const earlier: AgentRunPartial[] = [];
+  let takenOver = false;
+  for (;;) {
+    const ownerStop = context.owner.arm();
+    const current: AgentRunRequest<T> = {
+      ...attempt,
+      signal: AbortSignal.any([signal, stuckStop.signal, ownerStop])
+    };
+    try {
+      outcome = await context.scheduler.agent.run(() => {
+        if (earlier.length === 0) startedAt = deps.clock.now();
+        return isolation.port
+          .runnerFor({
+            role,
+            provider,
+            issue: context.issue,
+            worktree,
+            baseSha,
+            artifactsDir: context.artifactsDir
+          })
+          .run(current);
+      });
+    } catch (error) {
+      context.owner.disarm();
+      await pidRecorded;
+      await context.patch({ activeProcess: null });
+      return stop(`The ${provider} runner failed before it returned a result: ${message(error)}`);
+    }
+    const owner = context.owner.disarm();
+    if (owner === null) break;
+    // A cancel or a stuck stop wins over the owner's request, and a run that ended first keeps
+    // its own outcome.
+    if (
+      outcome.ok ||
+      outcome.failure.kind !== "aborted" ||
+      signal.aborted ||
+      stuckReason !== null
+    ) {
+      context.log(`${name}: the run ended before the owner's ${owner.kind} reached it.`);
+      break;
+    }
+    if (owner.kind === "take-over") {
+      takenOver = true;
+      break;
+    }
+    earlier.push(outcome.partial);
+    stuck = createStuckDetector();
+    attempt = steeredRequest(request, outcome.partial.sessionId, owner.note);
+    context.log(
+      outcome.partial.sessionId === null
+        ? `${name}: starts again with the owner's note.`
+        : `${name}: goes on in its session with the owner's note.`
+    );
   }
+  outcome = withEarlierRuns(outcome, earlier);
   await pidRecorded;
   await context.patch({ activeProcess: null });
   // A cancel by the engineer wins over a stuck stop that raced it.
@@ -529,7 +585,8 @@ const runAgentStageOnce = async <T>(
     stuck: stuckStopped,
     stuckOn: stuckStopped ? stuck.stuckOn() : null,
     stuckReason: stuckStopped ? stuckReason : null,
-    checkout: worktree
+    checkout: worktree,
+    steers: earlier.length
   };
   const failureText = (failure: AgentFailure): string =>
     stuckStopped && stuckReason !== null ? stuckReason : describeFailure(failure);
@@ -540,7 +597,7 @@ const runAgentStageOnce = async <T>(
     runSummary(role, provider, outcome)
   );
 
-  if (!outcome.ok && outcome.failure.kind === "aborted" && !stuckStopped)
+  if (!outcome.ok && outcome.failure.kind === "aborted" && !stuckStopped && !takenOver)
     return stop(describeFailure(outcome.failure), true);
 
   // 4. The invariants. They hold whether the run succeeded or not.
@@ -571,6 +628,19 @@ const runAgentStageOnce = async <T>(
         outcome.ok ? "" : `\nThe run also failed: ${failureText(outcome.failure)}`
       }`
     );
+  }
+  if (!outcome.ok && takenOver) {
+    const { sessionId } = outcome.partial;
+    return {
+      ok: false,
+      reason:
+        sessionId === null
+          ? `The owner took over the ${name} before it had a session. Continue runs it again.`
+          : // No path or session id here: the reason reaches the GitHub status comment.
+            `The owner took over the ${name} session. 'pnpm desk resume ${context.issue}' prints the command that opens it. Work in it, then continue the stage or send it feedback: the ${name} goes on in this session.`,
+      aborted: false,
+      takenOver: { sessionId }
+    };
   }
   if (!outcome.ok) {
     // The stuck reason leads: the desk shows the first sentence of a reason.
@@ -619,6 +689,52 @@ const runAgentStageOnce = async <T>(
     return stop(`Cannot record the refs baseline after the ${name} run: ${message(error)}`);
   }
   return { ok: true, result: outcome.result, diff: diffAfter };
+};
+
+/**
+ * The run after a steer. With a session, the agent goes on in it and reads only the note; the
+ * flags, schema and permissions stay those of the first run. Without one, it starts again with
+ * the note after its prompt.
+ */
+const steeredRequest = <T>(
+  request: AgentRunRequest<T>,
+  sessionId: string | null,
+  note: string
+): AgentRunRequest<T> => {
+  const section = `## The owner's note\n\nThe owner stopped your run to give you this note. It is the owner's own words.\n\n${note}`;
+  if (sessionId === null) return { ...request, prompt: `${request.prompt}\n\n${section}` };
+  return {
+    ...request,
+    resumeSessionId: sessionId,
+    prompt: `${section}\n\nFollow the note, then go on with the same task from where you stopped.\n\n## Output\n\nReturn only the structured result for the whole task that matches the schema you were given. Put no text outside it.`
+  };
+};
+
+/** The outcome of the last run, with the trace and denials of the steered runs before it. */
+const withEarlierRuns = <T>(
+  outcome: AgentRunOutcome<T>,
+  earlier: readonly AgentRunPartial[]
+): AgentRunOutcome<T> => {
+  if (earlier.length === 0) return outcome;
+  const trace = earlier.flatMap((run) => run.trace);
+  const denials = earlier.flatMap((run) => run.denials);
+  return outcome.ok
+    ? {
+        ok: true,
+        result: {
+          ...outcome.result,
+          trace: [...trace, ...outcome.result.trace],
+          denials: [...denials, ...outcome.result.denials]
+        }
+      }
+    : {
+        ...outcome,
+        partial: {
+          ...outcome.partial,
+          trace: [...trace, ...outcome.partial.trace],
+          denials: [...denials, ...outcome.partial.denials]
+        }
+      };
 };
 
 const failureReason = (name: string, failure: AgentFailure): string => {
@@ -680,7 +796,8 @@ const recordRun = async <T>(
     denials: (outcome.ok ? outcome.result.denials : outcome.partial.denials).length,
     harness: run.harness,
     planRisk,
-    capabilities: run.capabilities
+    capabilities: run.capabilities,
+    ...(run.steers > 0 ? { steers: run.steers } : {})
   };
   try {
     await appendRunRecord(deps.location.stateRoot, record);

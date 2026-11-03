@@ -537,7 +537,9 @@ export const ACTION_NAMES = [
   "draft",
   "apply-draft",
   "pause",
-  "resume"
+  "resume",
+  "steer",
+  "take-over"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
@@ -599,7 +601,16 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict(),
   // Hold the issue after the running stage. It never stops a running agent: `cancel` does.
   z.object({ action: z.literal("pause") }).strict(),
-  z.object({ action: z.literal("resume") }).strict()
+  z.object({ action: z.literal("resume") }).strict(),
+  // The owner's note to the agent that runs now. It stops the agent and resumes its session (ADR 0022).
+  z
+    .object({
+      action: z.literal("steer"),
+      note: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS)
+    })
+    .strict(),
+  // Stop the agent that runs now so the owner works in its session (ADR 0022).
+  z.object({ action: z.literal("take-over") }).strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
@@ -637,8 +648,20 @@ export const actionTargetProblem = (
 /** How a runner call ended: at a gate, at `needs-you`, or at the end of the issue. */
 export const actionOutcomeSchema = z
   .object({
-    /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
-    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "finished", "removed", "paused"]),
+    /**
+     * `paused`: the issue holds (or holds once the running stage ends) until `resume`.
+     * `steered`: the running agent goes on in its session with the owner's note.
+     */
+    stop: z.enum([
+      "gate",
+      "needs-you",
+      "shipped",
+      "cancelled",
+      "finished",
+      "removed",
+      "paused",
+      "steered"
+    ]),
     stage: stageIdSchema.nullable(),
     message: z.string().nullable()
   })

@@ -66,6 +66,8 @@ export interface FakeRunner extends ServerRunner {
   readonly applyDraft: ReturnType<typeof vi.fn<ServerRunner["applyDraft"]>>;
   readonly pause: ReturnType<typeof vi.fn<ServerRunner["pause"]>>;
   readonly resume: ReturnType<typeof vi.fn<ServerRunner["resume"]>>;
+  readonly steer: ReturnType<typeof vi.fn<ServerRunner["steer"]>>;
+  readonly takeOver: ReturnType<typeof vi.fn<ServerRunner["takeOver"]>>;
 }
 
 export const makeFakeRunner = (): FakeRunner => {
@@ -87,7 +89,9 @@ export const makeFakeRunner = (): FakeRunner => {
     draft: vi.fn<ServerRunner["draft"]>((issue) => done(issue)),
     applyDraft: vi.fn<ServerRunner["applyDraft"]>((issue) => done(issue)),
     pause: vi.fn<ServerRunner["pause"]>((issue) => done(issue)),
-    resume: vi.fn<ServerRunner["resume"]>((issue) => done(issue))
+    resume: vi.fn<ServerRunner["resume"]>((issue) => done(issue)),
+    steer: vi.fn<ServerRunner["steer"]>((issue) => done(issue)),
+    takeOver: vi.fn<ServerRunner["takeOver"]>((issue) => done(issue))
   };
 };
 
