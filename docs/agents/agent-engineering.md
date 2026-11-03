@@ -76,8 +76,10 @@ filesystem, Context7, Playwright and Serena. Serena alone needs about 10 s, whic
 probe limit is now 30 s. After the change, Context7, Playwright, Serena and Chrome DevTools
 passed in one 7-second run.
 
-Playwright runs `--headless --isolated --output-dir=.ai.local/playwright`: no window per
-session, and no profile state shared between sessions. `--output-dir` applies only to
+Playwright runs `--headless --isolated --browser chrome --sandbox --output-dir=.ai.local/playwright`:
+no window per session, and no profile state shared between sessions. It drives the installed,
+auto-updated Google Chrome stable channel with the Chromium sandbox on, not a cached Playwright
+Chromium build, so install Google Chrome before you use it. `--output-dir` applies only to
 automatically named files: a screenshot with an explicit `filename` resolves against the
 workspace root, so give named captures a path under `.ai.local/playwright/` to keep them in
 ignored local state. Chrome DevTools runs `--headless --isolated --no-usage-statistics
