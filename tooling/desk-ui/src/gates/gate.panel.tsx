@@ -86,9 +86,13 @@ function SteerForm({ summary, send }: Pick<GateBodyProps, "summary" | "send">) {
     }
   };
   const steer = async (): Promise<void> => {
-    const text = note.trim();
+    const submitted = note;
+    const text = submitted.trim();
     if (text === "" || sending) return;
-    if (await run({ action: "steer", note: text })) setNote("");
+    // Clear only what was sent: the owner may have typed on while it was sent.
+    if (await run({ action: "steer", note: text })) {
+      setNote((current) => (current === submitted ? "" : current));
+    }
   };
 
   return (
@@ -181,7 +185,8 @@ function RunningGate({ summary, send }: GateBodyProps) {
           <span className="desk-muted">{t("desk.gate.working.pauseHelp")}</span>
         )}
       </div>
-      {!summary.paused && <SteerForm summary={summary} send={send} />}
+      {/* Keyed by stage, so a note written for one agent never goes to the next. */}
+      {!summary.paused && <SteerForm key={summary.stage} summary={summary} send={send} />}
     </>
   );
 }

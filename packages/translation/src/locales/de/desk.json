@@ -759,7 +759,7 @@
   "desk.action.done.pause": "Angehalten. Das Issue stoppt, wenn seine aktuelle Phase endet. Nichts geht verloren.",
   "desk.action.done.resume": "Fortgesetzt.",
   "desk.action.done.steer": "Notiz gesendet. Der Agent arbeitet mit Ihrer Notiz in seiner Sitzung weiter.",
-  "desk.action.done.take-over": "Die Sitzung gehört Ihnen. Die Phase ist gestoppt. Setzen Sie sie im Terminal fort, dann fahren Sie fort oder senden Sie Feedback.",
+  "desk.action.done.take-over": "Der Agent ist gestoppt. Das Issue wartet auf Sie: Die Meldung sagt, wie es weitergeht.",
   "desk.action.accepted.take-over": "Übernahme läuft. Der Agent stoppt, dann wartet das Issue auf Sie.",
   "desk.action.accepted.approve": "Plan genehmigt. Der Build hat begonnen.",
   "desk.risk.low": "Geringes Risiko",

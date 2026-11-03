@@ -167,7 +167,7 @@ The **Flow** and every **Agent** it names, frozen with a hash when an issue star
 _Avoid_: flow version, cached flow
 
 **Steer**:
-The owner's note to the **Agent** that runs now. The desk stops the agent and runs it again in the same session with the note (ADR 0022).
+The owner's note to the **Agent** that runs now. The desk stops the agent and runs it again with the note: in the same session, or with its first prompt when it had no session yet (ADR 0022).
 _Avoid_: interrupt, nudge, chat
 
 **Take over**:

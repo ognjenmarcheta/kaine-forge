@@ -147,12 +147,14 @@ desk acts on them only for an agent that this desk process runs, so the CLI has 
 them.
 
 - **Steer**: type a note and select **Steer**. The desk stops the agent and runs it again in
-  the same session with your note. The agent keeps what it read and did. The note goes into
+  the same session with your note. The agent keeps what it read and did. An agent stopped
+  before it had a session starts again with its first prompt and your note. The note goes into
   the issue's feedback artifact, and the history records `steered`. The engine checks the
   steered runs together, as one run, and `runs.jsonl` counts them in `steers`.
 - **Take over**: the desk stops the agent, and the issue goes to `needs-you`. The issue card
-  and `pnpm desk resume <n>` give the command that resumes the session in your terminal
-  (`cd <worktree> && claude --resume <id>`). The reason does not hold that command, because
+  and `pnpm desk resume <n>` give the command that resumes the session in your terminal:
+  `claude --resume <id>`, `codex resume <id>`, or `opencode --session <id>` in the worktree.
+  An agent stopped before it had a session has none to resume: **Continue** runs it again. The reason does not hold that command, because
   the reason goes to the GitHub status comment. Work in the session. Then select **Continue**, or
   send feedback to the step: the agent goes on in the session you worked in. The history
   records `taken-over`.

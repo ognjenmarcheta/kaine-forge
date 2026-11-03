@@ -759,7 +759,7 @@
   "desk.action.done.pause": "Pauzirano. Zadatak staje kada se njegova trenutna faza završi. Ništa nije izgubljeno.",
   "desk.action.done.resume": "Nastavljeno.",
   "desk.action.done.steer": "Napomena poslata. Agent nastavlja u svojoj sesiji sa vašom napomenom.",
-  "desk.action.done.take-over": "Sesija je vaša. Faza je zaustavljena. Nastavite je u terminalu, zatim nastavite ili pošaljite povratnu informaciju.",
+  "desk.action.done.take-over": "Agent je zaustavljen. Zadatak čeka na vas: poruka kaže kako da nastavite.",
   "desk.action.accepted.take-over": "Preuzimanje. Agent se zaustavlja, a zatim zadatak čeka na vas.",
   "desk.action.accepted.approve": "Plan je odobren. Izgradnja je počela.",
   "desk.risk.low": "Nizak rizik",

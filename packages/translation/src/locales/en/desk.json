@@ -759,7 +759,7 @@
   "desk.action.done.pause": "Paused. The issue stops after its current stage ends. Nothing is lost.",
   "desk.action.done.resume": "Resumed.",
   "desk.action.done.steer": "Steer sent. The agent goes on in its session with your note.",
-  "desk.action.done.take-over": "You have the session. The stage stopped. Resume it in a terminal, then continue or send feedback.",
+  "desk.action.done.take-over": "The agent stopped. The issue waits for you: the message says how to go on.",
   "desk.action.accepted.take-over": "Taking over. The agent stops, then the issue waits for you.",
   "desk.action.accepted.approve": "Plan approved. The build started.",
   "desk.risk.low": "Low risk",

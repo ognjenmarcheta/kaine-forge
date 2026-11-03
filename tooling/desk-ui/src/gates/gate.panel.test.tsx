@@ -241,6 +241,26 @@ describe("GatePanel while the engine works", () => {
     expect(actions.run).toHaveBeenLastCalledWith({ action: "take-over" });
   });
 
+  it("keeps what the owner typed while a steer was being sent", async () => {
+    let settle: (settled: ActionSettled) => void = () => undefined;
+    const run = vi.fn<IssueActions["run"]>(
+      () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        })
+    );
+    show({ stage: "build", status: "running" }, { busy: true, run }, { summary: { busy: true } });
+    const note = screen.getByLabelText("Steer the agent");
+    await userEvent.type(note, "Reuse the helper.");
+    await userEvent.click(screen.getByRole("button", { name: "Steer" }));
+    await userEvent.type(note, " Keep the API.");
+    await act(async () => {
+      settle(DONE);
+      await Promise.resolve();
+    });
+    expect((note as HTMLTextAreaElement).value).toBe("Reuse the helper. Keep the API.");
+  });
+
   it("offers no Take over for the reviewer, whose next run starts a new session", () => {
     show({ stage: "review", status: "running" }, actionsOf(), { summary: { busy: true } });
     expect(screen.getByRole("button", { name: "Steer" })).toBeTruthy();

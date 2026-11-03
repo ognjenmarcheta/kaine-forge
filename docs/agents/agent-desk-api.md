@@ -105,7 +105,7 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `apply-draft` | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                          |
 | `pause`       | none                                       | `pause(n)`: hold the issue after the running stage    |
 | `resume`      | none                                       | `resume(n)`: clear the hold and drive on              |
-| `steer`       | `note` (1 to 20000 characters after trim)  | `steer(n, note)`: resume the running agent with it    |
+| `steer`       | `note` (1 to 20000 characters after trim)  | `steer(n, note)`: run the agent again with it         |
 | `take-over`   | none                                       | `takeOver(n)`: stop the agent for the owner           |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
@@ -131,7 +131,8 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 - `resume` clears the pause and drives on from the stage where the issue waits. It refuses an
   issue that is not paused (`409 invalid-transition`). `cancel` clears a pause.
 - `steer` stops the agent that runs now and runs it again in the same session with `note`
-  (ADR 0022). It answers at once with `stop: "steered"`. `take-over` stops the agent and
+  (ADR 0022). An agent stopped before it had a session starts again with its first prompt and
+  `note`. It answers at once with `stop: "steered"`. `take-over` stops the agent and
   answers when the stage has stopped, with `stop: "needs-you"`. The issue detail's sessions
   give the resume command; the message names `pnpm desk resume <n>` and holds no path or
   session id, because it reaches the GitHub status comment. Both refuse (`409 invalid-transition`) when no agent of the issue runs in this
