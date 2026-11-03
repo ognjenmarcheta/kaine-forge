@@ -40,6 +40,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0018-postgres-job-runner.md`](adr/0018-postgres-job-runner.md): pg-boss background job runner on the app's Postgres.
 - [`adr/0019-own-billing-package.md`](adr/0019-own-billing-package.md): own provider-neutral billing package for Stripe and Paddle.
 - [`adr/0021-desk-jobs.md`](adr/0021-desk-jobs.md): owner-started desk jobs (the scorecard run), their trust boundary, and their limits.
+- [`adr/0024-worktrunk-worktree-manager.md`](adr/0024-worktrunk-worktree-manager.md): worktrunk as the optional worktree manager, per-worktree ports, and the `wt merge` denial.
 
 ## AI assistant docs
 

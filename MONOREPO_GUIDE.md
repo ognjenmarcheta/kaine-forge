@@ -415,6 +415,7 @@ Root commands:
 | `pnpm desk:ui`        | desk UI Vite dev server                                                                                               |
 | `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                     |
 | `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                             |
+| `pnpm worktree:env`   | give a linked worktree its own web and API ports (`--web N --api N`); worktrunk runs it (ADR 0024)                    |
 
 Use scoped commands from the repo root:
 

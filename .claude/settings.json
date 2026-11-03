@@ -9,6 +9,8 @@
       "Bash(pnpm reinstall-deps *)",
       "Bash(git reset --hard)",
       "Bash(git reset --hard *)",
+      "Bash(wt step prune)",
+      "Bash(wt step prune *)",
       "Bash(agent-desktop clipboard-get)",
       "Bash(agent-desktop clipboard-get *)",
       "Bash(agent-desktop close-app)",
@@ -30,7 +32,11 @@
       "Bash(but land)",
       "Bash(but land *)",
       "Bash(but pr auto-merge)",
-      "Bash(but pr auto-merge *)"
+      "Bash(but pr auto-merge *)",
+      "Bash(wt merge)",
+      "Bash(wt merge *)",
+      "Bash(wt step push)",
+      "Bash(wt step push *)"
     ],
     "allow": [
       "mcp__context7__resolve-library-id",
