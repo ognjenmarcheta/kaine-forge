@@ -224,7 +224,7 @@ describe("InsightsView", () => {
     renderDesk(<InsightsView />, fakeApi({ stats: () => Promise.resolve(STATS) }));
 
     const cost = await screen.findByRole("group", { name: "Cost" });
-    expect(within(cost).getByText("None", { selector: ".desk-sr-only" })).toBeTruthy();
+    expect(within(cost).getByText("None", { selector: ".dk-sr" })).toBeTruthy();
     // Cost by agent sums every model of an agent; one without a cost says so instead of $0.00.
     const bars = screen.getByRole("heading", { name: "Cost by agent" }).parentElement;
     if (bars === null) throw new Error("no Cost by agent card");

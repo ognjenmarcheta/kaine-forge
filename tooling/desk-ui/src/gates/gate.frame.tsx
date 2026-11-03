@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import type { ActionWords, IssueActions } from "./gate.actions";
 import { keyLabel, type PageKey } from "../shell/shell.keys";
-import type { ReadableSummary } from "../status/status.model";
+import { TONE_GLYPH, type ReadableSummary } from "../status/status.model";
 
 /** What every decision card body gets from the panel around it. */
 export interface GateBodyProps {
@@ -28,7 +28,7 @@ export interface GateBodyProps {
 /** A single-key shortcut, shown on the button that it presses. The button names it in `aria-keyshortcuts`. */
 export function Kbd({ shortcut }: { readonly shortcut: PageKey }) {
   return (
-    <kbd className="desk-kbd" aria-hidden="true">
+    <kbd className="dk-kbd" aria-hidden="true">
       {keyLabel(shortcut)}
     </kbd>
   );
@@ -48,9 +48,9 @@ export function DecideBar({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="desk-decide" role="group" aria-labelledby={labelledBy}>
+    <div className="dk-decide" role="group" aria-labelledby={labelledBy}>
       {children}
-      {hint !== undefined && <span className="desk-decide__hint">{hint}</span>}
+      {hint !== undefined && <span className="dk-note">{hint}</span>}
     </div>
   );
 }
@@ -62,13 +62,18 @@ export function RevisionNote({ title, text }: { readonly title: string; readonly
     .map((line) => line.replace(/^\s*[-*•]\s+/, "").trim())
     .filter((line) => line !== "");
   return (
-    <section className="desk-changed">
-      <h3>{title}</h3>
-      <ul>
-        {points.map((point, index) => (
-          <li key={index}>{point}</li>
-        ))}
-      </ul>
-    </section>
+    <div className="dk-banner dk-banner-information dk-mb-200">
+      <span className="dk-g" aria-hidden="true">
+        {TONE_GLYPH["warning-subtle"]}
+      </span>
+      <div className="dk-grow dk-stack dk-gap-050">
+        <b>{title}</b>
+        <ul className="dk-t-small dk-dashlist">
+          {points.map((point, index) => (
+            <li key={index}>{point}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }

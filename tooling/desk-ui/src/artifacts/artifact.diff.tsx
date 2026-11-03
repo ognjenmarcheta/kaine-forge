@@ -37,11 +37,11 @@ export function DiffArtifact({
           removed: stat.removed
         })}
       </p>
-      <ul className="desk-list">
+      <ul className="dk-list">
         {stat.files.map((file) => (
           <li key={file.path}>
             <code>{file.path}</code>{" "}
-            <span className="desk-muted">
+            <span className="dk-t-sub">
               {file.binary
                 ? t("desk.diff.binary")
                 : t("desk.diff.lines", { added: file.added, removed: file.removed })}
@@ -70,7 +70,7 @@ function Counts({ added, removed }: { readonly added: number; readonly removed: 
   const t = useT();
   return (
     <span className="desk-diffstat">
-      <span className="desk-sr-only">{t("desk.diff.lines", { added, removed })}</span>
+      <span className="dk-sr">{t("desk.diff.lines", { added, removed })}</span>
       <span aria-hidden="true">
         <span className="desk-diffstat__add">{added}</span>{" "}
         <span className="desk-diffstat__del">{removed}</span>
@@ -99,7 +99,7 @@ function ViewedBox({
       />
       <Label htmlFor={id}>
         {t("desk.diff.viewed")}
-        <span className="desk-sr-only"> {path}</span>
+        <span className="dk-sr"> {path}</span>
       </Label>
     </span>
   );
@@ -177,7 +177,7 @@ function InlineFinding({ finding }: { readonly finding: ReviewFile["findings"][n
       </span>
       <span>{finding.summary}</span>
       {finding.fix.trim() !== "" && (
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {t("desk.review.fix")} {finding.fix}
         </span>
       )}

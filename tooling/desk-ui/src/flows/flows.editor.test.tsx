@@ -172,7 +172,9 @@ describe("FlowEditor", () => {
       expect(review.textContent).toContain("The reviewer cannot run on this checkout")
     );
     expect((await stepItem("4. Check")).textContent).not.toContain("The reviewer");
-    expect(screen.getByText("The flow does not load.").closest(".desk-failure")).not.toBeNull();
+    expect(
+      screen.getByText("The flow does not load.").closest(".dk-banner dk-banner-danger dk-stack")
+    ).not.toBeNull();
   });
 
   it("promotes only after a yes, and names the uncommitted flow file", async () => {

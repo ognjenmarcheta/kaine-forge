@@ -49,7 +49,7 @@ function Steps({ job }: { readonly job: JobState }) {
         >
           <span className="desk-job-steps__dot" aria-hidden="true" />
           {t(`desk.job.stage.${step}`)}
-          <span className="desk-sr-only">{t(`desk.job.stepState.${states[index] ?? "todo"}`)}</span>
+          <span className="dk-sr">{t(`desk.job.stepState.${states[index] ?? "todo"}`)}</span>
         </li>
       ))}
     </ol>
@@ -72,11 +72,11 @@ function IssueChoice({
   const id = useId();
   return (
     <li className="desk-job-issue">
-      <div className="desk-check-row">
+      <div className="dk-check">
         <Checkbox id={id} checked={checked} onCheckedChange={(next) => onChange(next === true)} />
         <Label htmlFor={id}>{issue.title}</Label>
       </div>
-      <p className="desk-muted">
+      <p className="dk-t-sub">
         {detail ?? (
           <>
             <code>{issue.slug}</code> {issue.labels.join(", ")}
@@ -113,7 +113,7 @@ function PreviewLink({ job, label }: { readonly job: JobState; readonly label: s
   return (
     <p>
       {url === null ? (
-        <span className="desk-muted">{t("desk.job.screenReview.noServer")}</span>
+        <span className="dk-t-sub">{t("desk.job.screenReview.noServer")}</span>
       ) : (
         <a href={url} target="_blank" rel="noreferrer">
           {label}
@@ -163,7 +163,7 @@ function GateActions({
           {approveLabel}
         </Button>
       </div>
-      <div className="desk-field">
+      <div className="dk-field">
         <Label htmlFor={`${id}-note`}>{sendBackLabel}</Label>
         <Textarea
           id={`${id}-note`}
@@ -182,7 +182,7 @@ function GateActions({
         {t("desk.job.review.sendBack")}
       </Button>
       {action.error !== null && (
-        <p className="desk-field__error" role="alert">
+        <p className="dk-hint dk-t-danger" role="alert">
           {action.error}
         </p>
       )}
@@ -235,7 +235,7 @@ function Review({ job }: { readonly job: JobState }) {
   const { ticked, toggle } = useTicked();
   if (result === null) return null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.job.review.title")}</h2>
       <p className="desk-job-text">{result.summary}</p>
       <p>
@@ -281,7 +281,7 @@ function ScreenReview({ job }: { readonly job: JobState }) {
   if (result === null) return null;
   const diff = job.screen?.diffPercent ?? null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.job.screenReview.title")}</h2>
       <p className="desk-job-text">{result.summary}</p>
       <p>
@@ -312,7 +312,7 @@ function PlanReview({ job }: { readonly job: JobState }) {
   const plan = job.component?.plan ?? null;
   if (plan === null) return null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.job.planReview.title")}</h2>
       <p className="desk-job-text">{plan.summary}</p>
       <TextList title={t("desk.job.planReview.api")} items={plan.api} />
@@ -335,7 +335,7 @@ function ComponentReview({ job }: { readonly job: JobState }) {
   const result = job.component?.result ?? null;
   if (result === null) return null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.job.componentReview.title")}</h2>
       <p className="desk-job-text">{result.summary}</p>
       <PreviewLink job={job} label={t("desk.job.componentReview.preview")} />
@@ -362,7 +362,7 @@ function AuditReview({ job }: { readonly job: JobState }) {
   const { ticked, toggle } = useTicked();
   if (result === null) return null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.job.auditReview.title")}</h2>
       <p className="desk-job-text">{result.summary}</p>
       <p>
@@ -418,13 +418,13 @@ function Stopped({ job }: { readonly job: JobState }) {
   const action = useJobAction(job.id);
   if (job.stop === null) return null;
   return (
-    <div className="desk-failure" role="alert">
+    <div className="dk-banner dk-banner-danger dk-stack" role="alert">
       <p>{t(`desk.job.stop.${job.stop.reason}`)}</p>
       <Pre>{job.stop.detail}</Pre>
       <Button disabled={action.pending} onClick={() => void action.run({ action: "continue" })}>
         {t("desk.job.continue")}
       </Button>
-      {action.error !== null && <p className="desk-field__error">{action.error}</p>}
+      {action.error !== null && <p className="dk-hint dk-t-danger">{action.error}</p>}
     </div>
   );
 }
@@ -432,7 +432,7 @@ function Stopped({ job }: { readonly job: JobState }) {
 function Done({ job }: { readonly job: JobState }) {
   const t = useT();
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.job.done.title")}</h2>
       {job.pr !== null && (
         <p>
@@ -480,10 +480,10 @@ export function JobView({ jobId }: { readonly jobId: number }) {
   const latest = job.history.at(-1);
   return (
     <>
-      <div className="desk-heading">
+      <div className="dk-row dk-between">
         <div>
           <h1>{t(`desk.job.title.${job.kind}`, { id: job.id })}</h1>
-          <p className="desk-muted">
+          <p className="dk-t-sub">
             {t("desk.job.meta", {
               model: job.input.model,
               spent: formatUsd(job.spentUsd, language),
@@ -494,7 +494,7 @@ export function JobView({ jobId }: { readonly jobId: number }) {
         </div>
         <StatusChip tone={JOB_TONE[job.status]}>{t(`desk.job.status.${job.status}`)}</StatusChip>
       </div>
-      <Card className="desk-panel">
+      <Card className="dk-card">
         <Steps job={job} />
         {latest !== undefined && (
           <p className="desk-job-activity" aria-live="polite">
@@ -502,7 +502,7 @@ export function JobView({ jobId }: { readonly jobId: number }) {
           </p>
         )}
         {job.branch !== null && (
-          <p className="desk-muted">
+          <p className="dk-t-sub">
             <code>{job.branch}</code>
           </p>
         )}
@@ -510,7 +510,7 @@ export function JobView({ jobId }: { readonly jobId: number }) {
       {job.status === "needs-you" && <Stopped job={job} />}
       {job.status === "waiting" && <Gate job={job} />}
       {job.status === "done" && <Done job={job} />}
-      <Card className="desk-panel">
+      <Card className="dk-card">
         <h2>{t("desk.job.history")}</h2>
         <ol className="desk-job-history">
           {[...job.history].reverse().map((entry) => (
@@ -543,7 +543,7 @@ export function JobView({ jobId }: { readonly jobId: number }) {
         )}
       </div>
       {action.error !== null && (
-        <p className="desk-field__error" role="alert">
+        <p className="dk-hint dk-t-danger" role="alert">
           {action.error}
         </p>
       )}

@@ -37,10 +37,10 @@ export function LogPanel({ issueNumber }: { readonly issueNumber: number }) {
   }, [entries.length, following]);
 
   return (
-    <div className="desk-log-panel">
+    <div className="dk-stack dk-gap-100">
       <div
         ref={box}
-        className="desk-log"
+        className="dk-out dk-log"
         role="log"
         tabIndex={0}
         aria-label={t("desk.log.label")}
@@ -51,11 +51,11 @@ export function LogPanel({ issueNumber }: { readonly issueNumber: number }) {
         }}
       >
         {entries.length === 0 ? (
-          <p className="desk-muted">{t("desk.log.empty")}</p>
+          <p className="dk-t-sub">{t("desk.log.empty")}</p>
         ) : (
           entries.map((entry) => (
-            <div key={entry.seq} className="desk-log__line" data-kind={entry.kind}>
-              <time dateTime={entry.at} className="desk-log__time">
+            <div key={entry.seq} className="dk-logl" data-kind={entry.kind}>
+              <time dateTime={entry.at} className="dk-tm">
                 {formatClock(entry.at, language)}
               </time>{" "}
               <span>{entry.text}</span>
@@ -67,7 +67,7 @@ export function LogPanel({ issueNumber }: { readonly issueNumber: number }) {
         <Button
           appearance="secondary"
           spacing="compact"
-          className="desk-log__latest"
+          className="dk-end"
           onClick={() => {
             setFollowing(true);
           }}

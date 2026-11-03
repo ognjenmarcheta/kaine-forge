@@ -58,7 +58,7 @@ function Samples({ candidate }: { readonly candidate: LessonCandidate }) {
       {candidate.samples.map((sample, index) => (
         // Agent and issue text: rendered as text, never as markup.
         <li key={`${sample.issue}:${index}`}>
-          <span className="desk-muted">{t("desk.issue.number", { number: sample.issue })}</span>{" "}
+          <span className="dk-t-sub">{t("desk.issue.number", { number: sample.issue })}</span>{" "}
           {sample.file !== null && <code>{sample.file}</code>} {sample.detail}
         </li>
       ))}
@@ -83,21 +83,16 @@ function LessonsTable({
   const t = useT();
   const { language } = useLanguage();
   return (
-    <div
-      className="desk-table-scroll"
-      role="region"
-      tabIndex={0}
-      aria-label={t("desk.lessons.title")}
-    >
-      <table className="desk-table" aria-label={t("desk.lessons.title")}>
+    <div className="dk-tbl-wrap" role="region" tabIndex={0} aria-label={t("desk.lessons.title")}>
+      <table className="dk-tbl" aria-label={t("desk.lessons.title")}>
         <thead>
           <tr>
             <th scope="col">{t("desk.lessons.column.problem")}</th>
             <th scope="col">{t("desk.lessons.column.issues")}</th>
-            <th scope="col" className="desk-table__number">
+            <th scope="col" className="dk-n">
               {t("desk.lessons.column.times")}
             </th>
-            <th scope="col" className="desk-table__number">
+            <th scope="col" className="dk-n">
               {t("desk.lessons.column.now")}
             </th>
             <th scope="col">{t("desk.lessons.column.samples")}</th>
@@ -110,7 +105,7 @@ function LessonsTable({
               <th scope="row">
                 <code>{candidate.key}</code>
                 <div className="desk-lesson__meta">
-                  <span className="desk-muted">{t(`desk.lessons.source.${candidate.source}`)}</span>
+                  <span className="dk-t-sub">{t(`desk.lessons.source.${candidate.source}`)}</span>
                   <Rank rank={lessonRank(candidate, report.currentRepo !== null)} />
                 </div>
               </th>
@@ -123,10 +118,8 @@ function LessonsTable({
                   ))}
                 </span>
               </td>
-              <td className="desk-table__number">{formatCount(candidate.occurrences, language)}</td>
-              <td className="desk-table__number">
-                {formatCount(candidate.currentOccurrences, language)}
-              </td>
+              <td className="dk-n">{formatCount(candidate.occurrences, language)}</td>
+              <td className="dk-n">{formatCount(candidate.currentOccurrences, language)}</td>
               <td>
                 <Samples candidate={candidate} />
               </td>
@@ -168,12 +161,12 @@ function RankHelp({ minIssues }: { readonly minIssues: number }) {
   return (
     <section className="desk-subpanel">
       <h3>{t("desk.lessons.rankTitle")}</h3>
-      <p className="desk-muted">{t("desk.lessons.rankIntro")}</p>
+      <p className="dk-t-sub">{t("desk.lessons.rankIntro")}</p>
       <ul className="desk-rank-help">
         {LESSON_RANKS.map((rank) => (
           <li key={rank}>
             <Rank rank={rank} />
-            <span className="desk-muted">
+            <span className="dk-t-sub">
               {t(`desk.lessons.rankDetail.${rank}`, {
                 count: rank === "high" ? HIGH_RANK_ISSUES : minIssues
               })}
@@ -300,7 +293,7 @@ function PromoteDialog({
         aria-describedby={`${id}-help`}
         onChange={(event) => setNote(event.target.value)}
       />
-      <p id={`${id}-help`} className="desk-muted">
+      <p id={`${id}-help`} className="dk-t-sub">
         {t("desk.lessons.promoteNoteHelp")}
       </p>
     </Modal>
@@ -427,10 +420,10 @@ export function LessonsPanel({
 
   const createdUrl = created === null ? null : safeHttpUrl(created.url);
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.lessons.title")}</h2>
       {created !== null && (
-        <p className="desk-note" role="status">
+        <p className="dk-hint" role="status">
           {t("desk.lessons.issueCreated", { number: created.issue, key: created.key })}{" "}
           {createdUrl !== null && (
             <a href={createdUrl} target="_blank" rel="noopener noreferrer">

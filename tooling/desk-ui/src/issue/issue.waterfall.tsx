@@ -88,7 +88,7 @@ function Bar({ step, trace }: { readonly step: TraceStep; readonly trace: Trace 
 function Lines({ lines, label }: { readonly lines: readonly TraceLine[]; readonly label: string }) {
   const t = useT();
   const { language } = useLanguage();
-  if (lines.length === 0) return <p className="desk-muted">{t("desk.trace.noLines")}</p>;
+  if (lines.length === 0) return <p className="dk-t-sub">{t("desk.trace.noLines")}</p>;
   return (
     <ol className="desk-trace__log" aria-label={label}>
       {lines.map(({ entry, byTime }) => (
@@ -149,7 +149,7 @@ function StepRow({
           aria-controls={open ? linesId : undefined}
           onClick={onToggle}
         >
-          <ChevronRight aria-hidden="true" className="desk-icon desk-trace__caret" />
+          <ChevronRight aria-hidden="true" className="dk-ic desk-trace__caret" />
           <span className="desk-trace__kind" data-kind={step.kind}>
             {t(`desk.trace.kind.${step.kind === "stop" ? "human" : step.kind}`)}
           </span>
@@ -174,7 +174,7 @@ function StepRow({
         <div id={linesId} className="desk-trace__lines">
           <Lines lines={lines} label={t("desk.trace.lines", { step: name })} />
           <div className="desk-trace__foot">
-            <span className="desk-muted">
+            <span className="dk-t-sub">
               {t("desk.trace.started", { time: formatClock(step.at, language) })}
             </span>
             {node !== null && (
@@ -255,7 +255,7 @@ export function TraceView({
         )}
       </div>
       {shown.length === 0 ? (
-        <p className="desk-empty">
+        <p className="dk-empty">
           {t(
             filter === "problems"
               ? "desk.trace.empty.problems"
@@ -299,9 +299,9 @@ export function TraceView({
           </ol>
         </>
       )}
-      <p className="desk-muted desk-trace__note">{t("desk.trace.note")}</p>
+      <p className="dk-t-sub desk-trace__note">{t("desk.trace.note")}</p>
       {unassigned > 0 && (
-        <p className="desk-muted desk-trace__note">
+        <p className="dk-t-sub desk-trace__note">
           {t("desk.trace.unassigned", { count: unassigned })}
         </p>
       )}
@@ -342,7 +342,7 @@ export function Handoffs({ steps }: { readonly steps: readonly TraceStep[] }) {
           </li>
         ))}
       </ol>
-      <p className="desk-muted">{t("desk.handoff.note")}</p>
+      <p className="dk-t-sub">{t("desk.handoff.note")}</p>
     </section>
   );
 }

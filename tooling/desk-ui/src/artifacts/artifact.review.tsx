@@ -20,7 +20,7 @@ function FindingItem({ finding }: { readonly finding: Finding }) {
         <code>{location}</code>
       </p>
       <p>{finding.summary}</p>
-      <p className="desk-muted">{finding.section}</p>
+      <p className="dk-t-sub">{finding.section}</p>
       {finding.fix.trim() !== "" && (
         <p>
           <strong>{t("desk.review.fix")}</strong> {finding.fix}
@@ -94,11 +94,11 @@ export function ReviewView({ review }: { readonly review: ReviewSummary }) {
         <Badge appearance={appearanceOf(passTone(review.verdict === "approve"))}>
           {t(`desk.review.verdict.${review.verdict}`)}
         </Badge>{" "}
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {t("desk.review.blockingCount", { count: review.blocking })}
         </span>
       </p>
-      <p className="desk-muted">
+      <p className="dk-t-sub">
         {SEVERITIES.map(
           (severity) =>
             `${t(`desk.review.severity.${severity}`)}: ${String(review.bySeverity[severity])}`

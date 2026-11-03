@@ -66,7 +66,7 @@ export function FlowStepper({ model, selected, onSelect, needsYouReason }: FlowS
             >
               <span className="desk-stepper__dot" aria-hidden="true" />
               <span className="desk-stepper__name">{names.node(node.id)}</span>{" "}
-              <span className="desk-sr-only">{status}</span>
+              <span className="dk-sr">{status}</span>
             </Button>
           </li>
         );

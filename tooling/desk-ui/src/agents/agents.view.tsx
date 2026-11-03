@@ -37,7 +37,7 @@ export function DefinitionBadges({
         {t(`desk.flow.source.${view.source}`)}
       </Badge>
       {view.shadows !== null && (
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {t("desk.agents.shadows", { source: t(`desk.flow.source.${view.shadows}`) })}
         </span>
       )}
@@ -62,7 +62,7 @@ export function DefinitionProblems({
   const t = useT();
   if (problems.length === 0) return null;
   return (
-    <div className="desk-failure" role="alert">
+    <div className="dk-banner dk-banner-danger dk-stack" role="alert">
       <p>{t(kind === "agent" ? "desk.agents.problems" : "desk.flows.problems")}</p>
       <ul className="desk-agent__problems">
         {problems.map((problem) => (
@@ -226,16 +226,16 @@ export function AgentsView() {
 
   return (
     <>
-      <div className="desk-heading">
+      <div className="dk-row dk-between">
         <div>
           <h1>{t("desk.agents.title")}</h1>
-          <p className="desk-muted">{t("desk.agents.intro")}</p>
+          <p className="dk-t-sub">{t("desk.agents.intro")}</p>
         </div>
         <RouteLink
           to={{ view: "agent", agentId: null }}
           className={buttonVariants({ appearance: "default" })}
         >
-          <Plus aria-hidden="true" className="desk-icon" />
+          <Plus aria-hidden="true" className="dk-ic" />
           {t("desk.agents.new")}
         </RouteLink>
       </div>
@@ -246,7 +246,7 @@ export function AgentsView() {
           <DefinitionProblems problems={state.list.problems} />
           <div className="desk-toolbar">
             <div className="desk-search" role="search">
-              <Search aria-hidden="true" className="desk-icon desk-search__icon" />
+              <Search aria-hidden="true" className="dk-ic desk-search__icon" />
               <Input
                 ref={searchBox}
                 type="search"
@@ -267,7 +267,7 @@ export function AgentsView() {
                     searchBox.current?.focus();
                   }}
                 >
-                  <X aria-hidden="true" className="desk-icon" />
+                  <X aria-hidden="true" className="dk-ic" />
                 </Button>
               )}
             </div>
@@ -293,7 +293,7 @@ export function AgentsView() {
             />
           </div>
           {found.length === 0 ? (
-            <Card className="desk-panel">
+            <Card className="dk-card">
               <Muted>{t(agents.length === 0 ? "desk.agents.empty" : "desk.agents.noMatch")}</Muted>
             </Card>
           ) : (

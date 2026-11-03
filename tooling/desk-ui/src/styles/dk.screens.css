@@ -881,3 +881,92 @@
 .dk-meter::-moz-progress-bar {
   background: var(--ds-background-success-bold);
 }
+.dk-dashlist li::before {
+  content: "– ";
+  color: var(--ds-text-subtlest);
+}
+.dk-crumb a {
+  color: var(--ds-link);
+}
+.dk-slash::before {
+  content: "/";
+}
+.dk-crumb a::before {
+  content: "← ";
+}
+/* The live log: the engine's and the agent's lines, as text, newest at the bottom. */
+.dk-log {
+  max-height: 16rem;
+}
+.dk-logl .dk-tm {
+  color: var(--ds-text-subtlest);
+  margin-right: var(--ds-space-100);
+}
+.dk-logl[data-kind="agent"] {
+  color: var(--ds-text-surface-inverse);
+}
+/* History: each run of a step, then its events on one line each. */
+.dk-acth {
+  display: flex;
+  gap: var(--ds-space-100);
+  align-items: center;
+  padding: var(--ds-space-150) 0 var(--ds-space-075);
+  font: var(--ds-type-body);
+  font-weight: var(--ds-font-weight-semibold);
+}
+.dk-actrows {
+  display: flex;
+  flex-direction: column;
+}
+.dk-actr {
+  display: grid;
+  grid-template-columns: 4rem minmax(6rem, auto) minmax(0, 1fr) 5rem auto;
+  gap: var(--ds-space-150);
+  align-items: center;
+  padding: var(--ds-space-075) 0;
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+.dk-actn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dk-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-150);
+  margin-top: var(--ds-space-150);
+}
+.dk-tabs [role="tab"] {
+  padding: var(--ds-space-100) var(--ds-space-150);
+  color: var(--ds-text-subtle);
+  border-bottom: var(--ds-border-width-selected) solid transparent;
+  margin-bottom: calc(-1 * var(--ds-border-width));
+  white-space: nowrap;
+}
+.dk-tabs [role="tab"][aria-selected="true"] {
+  color: var(--ds-text);
+  border-bottom-color: var(--ds-text);
+  font-weight: var(--ds-font-weight-medium);
+}
+.dk-rail-card {
+  padding: var(--ds-space-200);
+}
+@media (width < 48rem) {
+  .dk-actr {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dk-actr > :nth-child(1),
+  .dk-actr > :nth-child(3) {
+    display: none;
+  }
+}
+.dk-choice .dk-body label {
+  display: inline-flex;
+  gap: var(--ds-space-100);
+  align-items: baseline;
+}
+.dk-tabs {
+  justify-content: flex-start;
+  width: 100%;
+}

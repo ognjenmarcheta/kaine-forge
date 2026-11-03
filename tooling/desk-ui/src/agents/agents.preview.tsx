@@ -9,7 +9,7 @@ import { CapabilityReceipt } from "../inspector/inspector.capabilities";
 function Names({ names }: { readonly names: readonly string[] }) {
   const t = useT();
   return names.length === 0 ? (
-    <span className="desk-muted">{t("desk.caps.noneListed")}</span>
+    <span className="dk-t-sub">{t("desk.caps.noneListed")}</span>
   ) : (
     <>{names.join(", ")}</>
   );
@@ -31,17 +31,17 @@ export function CapabilityPreview({
   const t = useT();
   const id = useId();
   return (
-    <Card className="desk-panel desk-editor__preview" aria-labelledby={id} role="region">
+    <Card className="dk-card desk-editor__preview" aria-labelledby={id} role="region">
       <h2 id={id}>{t("desk.agents.preview.title")}</h2>
       {resolved !== null ? (
         <>
-          <p className="desk-muted">{t("desk.agents.preview.resolved")}</p>
+          <p className="dk-t-sub">{t("desk.agents.preview.resolved")}</p>
           <CapabilityReceipt profile={resolved} />
         </>
       ) : (
         <>
-          <p className="desk-note">{t("desk.agents.preview.unsaved")}</p>
-          <dl className="desk-kv desk-caps__receipt">
+          <p className="dk-hint">{t("desk.agents.preview.unsaved")}</p>
+          <dl className="dk-kv desk-caps__receipt">
             <dt>{t("desk.caps.provider")}</dt>
             <dd>
               {t("desk.caps.providerValue", {

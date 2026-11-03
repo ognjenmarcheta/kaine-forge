@@ -27,7 +27,7 @@ function Empty() {
   return (
     <>
       <span aria-hidden="true">{t("desk.inspector.kpi.empty")}</span>
-      <span className="desk-sr-only">{t("desk.common.none")}</span>
+      <span className="dk-sr">{t("desk.common.none")}</span>
     </>
   );
 }
@@ -36,7 +36,7 @@ const orEmpty = (value: number | null, format: (value: number) => string): React
   value === null ? <Empty /> : format(value);
 
 function Num({ children }: { readonly children: ReactNode }) {
-  return <td className="desk-table__number">{children}</td>;
+  return <td className="dk-n">{children}</td>;
 }
 
 /** An agent in words: a built-in agent by its role, any other by its id. */
@@ -67,20 +67,15 @@ function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
   const count = (value: number): string => formatCount(value, language);
   const usd = (value: number): string => formatUsd(value, language);
   return (
-    <div
-      className="desk-table-scroll"
-      role="region"
-      tabIndex={0}
-      aria-label={t("desk.stats.groups")}
-    >
-      <table className="desk-table" aria-label={t("desk.stats.groups")}>
+    <div className="dk-tbl-wrap" role="region" tabIndex={0} aria-label={t("desk.stats.groups")}>
+      <table className="dk-tbl" aria-label={t("desk.stats.groups")}>
         <thead>
           <tr>
             {GROUP_COLUMNS.map((column) => (
               <th
                 key={column}
                 scope="col"
-                className={TEXT_COLUMNS.has(column) ? undefined : "desk-table__number"}
+                className={TEXT_COLUMNS.has(column) ? undefined : "dk-n"}
               >
                 {t(`desk.stats.column.${column}`)}
               </th>
@@ -93,7 +88,7 @@ function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
               <th scope="row">{agentText(t, group.agentId)}</th>
               <td>{group.provider}</td>
               <td>
-                {group.model ?? <span className="desk-muted">{t("desk.stats.defaultModel")}</span>}
+                {group.model ?? <span className="dk-t-sub">{t("desk.stats.defaultModel")}</span>}
               </td>
               <Num>{group.runs}</Num>
               <Num>{group.accepted}</Num>
@@ -124,22 +119,17 @@ function IssuesTable({ issues }: { readonly issues: readonly IssueRollup[] }) {
     return summary?.readable === true ? issueFlowOf(summary) : null;
   };
   return (
-    <div
-      className="desk-table-scroll"
-      role="region"
-      tabIndex={0}
-      aria-label={t("desk.stats.issues")}
-    >
-      <table className="desk-table" aria-label={t("desk.stats.issues")}>
+    <div className="dk-tbl-wrap" role="region" tabIndex={0} aria-label={t("desk.stats.issues")}>
+      <table className="dk-tbl" aria-label={t("desk.stats.issues")}>
         <thead>
           <tr>
             <th scope="col">{t("desk.stats.column.issue")}</th>
             <th scope="col">{t("desk.stats.column.stage")}</th>
             <th scope="col">{t("desk.stats.column.loops")}</th>
-            <th scope="col" className="desk-table__number">
+            <th scope="col" className="dk-n">
               {t("desk.stats.column.runs")}
             </th>
-            <th scope="col" className="desk-table__number">
+            <th scope="col" className="dk-n">
               {t("desk.stats.column.cost")}
             </th>
           </tr>
@@ -158,7 +148,7 @@ function IssuesTable({ issues }: { readonly issues: readonly IssueRollup[] }) {
               </th>
               <td>
                 {issue.stage === null ? (
-                  <span className="desk-muted">{t("desk.stats.removed")}</span>
+                  <span className="dk-t-sub">{t("desk.stats.removed")}</span>
                 ) : (
                   stageName(t, flowOf(issue.issue), issue.stage)
                 )}
@@ -249,7 +239,7 @@ function WeekCard({
       <span className="desk-stat__note">
         {t("desk.stats.week.today", { value: text(series.values.at(-1) ?? null) })}
       </span>
-      <span className="desk-sr-only">
+      <span className="dk-sr">
         {t("desk.stats.week.series", { values: series.values.map(text).join(", ") })}
       </span>
     </div>
@@ -285,7 +275,7 @@ function CostByAgent({ groups }: { readonly groups: readonly RunGroup[] }) {
   const t = useT();
   const { language } = useLanguage();
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.stats.costByAgent")}</h2>
       <ul className="desk-bars">
         {costByAgent(groups).map((entry) => (
@@ -318,13 +308,13 @@ function Report({ stats }: { readonly stats: RunStats }) {
   if (stats.groups.length === 0) return <Muted>{t("desk.stats.empty")}</Muted>;
   return (
     <>
-      <Card className="desk-panel">
+      <Card className="dk-card">
         <h2>{t("desk.stats.groups")}</h2>
         <GroupsTable groups={stats.groups} />
         <Muted>{t("desk.stats.groupsHint")}</Muted>
       </Card>
       <div className="desk-split">
-        <Card className="desk-panel">
+        <Card className="dk-card">
           <h2>{t("desk.stats.issues")}</h2>
           <IssuesTable issues={stats.issues} />
         </Card>
@@ -396,10 +386,10 @@ export function InsightsView() {
 
   return (
     <>
-      <div className="desk-heading">
+      <div className="dk-row dk-between">
         <div>
           <h1>{t("desk.stats.title")}</h1>
-          <p className="desk-muted">{t("desk.stats.intro")}</p>
+          <p className="dk-t-sub">{t("desk.stats.intro")}</p>
         </div>
         <Button appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.stats.refresh")}
@@ -413,7 +403,7 @@ export function InsightsView() {
         </>
       )}
       {loading && (asked || stats === null) && (
-        <Card className="desk-panel">
+        <Card className="dk-card">
           <LoadingLines label={t("desk.stats.loading")} lines={3} />
         </Card>
       )}

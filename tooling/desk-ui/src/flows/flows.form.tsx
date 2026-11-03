@@ -66,13 +66,13 @@ function Hint({
 }) {
   if (error !== null) {
     return (
-      <p id={`${id}-hint`} className="desk-field__error">
+      <p id={`${id}-hint`} className="dk-hint dk-t-danger">
         {error}
       </p>
     );
   }
   return help === null ? null : (
-    <p id={`${id}-hint`} className="desk-muted">
+    <p id={`${id}-hint`} className="dk-t-sub">
       {help}
     </p>
   );
@@ -100,11 +100,11 @@ function TextField({
   readonly onChange: (value: string) => void;
 }) {
   return (
-    <div className="desk-field">
+    <div className="dk-field">
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
-        className={mono ? "desk-mono" : undefined}
+        className={mono ? "dk-mono" : undefined}
         autoComplete="off"
         spellCheck={!mono && !numeric}
         inputMode={numeric ? "numeric" : undefined}
@@ -143,7 +143,7 @@ function StepSelect({
   const t = useT();
   const listed = options.some((step) => step.id.trim() === value);
   return (
-    <div className="desk-field">
+    <div className="dk-field">
       <Label htmlFor={id}>{label}</Label>
       <Select value={value} onValueChange={onChange} disabled={!editable}>
         <SelectTrigger id={id} aria-describedby={help === null ? undefined : `${id}-hint`}>
@@ -185,13 +185,13 @@ export function AddStepMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" appearance={appearance} spacing="compact" aria-label={label}>
-          <Plus aria-hidden="true" className="desk-icon" />
+          <Plus aria-hidden="true" className="dk-ic" />
           {appearance === "default" ? label : t("desk.flows.addAfterShort")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="desk-menu"
+        className="dk-ddmenu"
         onCloseAutoFocus={(event) => {
           const kind = picked.current;
           picked.current = null;
@@ -258,7 +258,7 @@ function KindFields({
       const choices = agents.filter(({ definition }) => definition.output !== "intake");
       const known = choices.some(({ definition }) => definition.id === step.agent);
       return (
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={id("agent")}>{t("desk.flows.field.agent")}</Label>
           <Select value={step.agent} onValueChange={(agent) => set({ agent })} disabled={!editable}>
             <SelectTrigger id={id("agent")} aria-describedby={`${id("agent")}-hint`}>
@@ -290,17 +290,17 @@ function KindFields({
         (target) => !earlier.some((entry) => entry.id.trim() === target)
       );
       return (
-        <fieldset className="desk-fieldset" aria-describedby={`${id("sendBack")}-hint`}>
+        <fieldset className="dk-fieldset" aria-describedby={`${id("sendBack")}-hint`}>
           <legend>{t("desk.flows.field.sendBack")}</legend>
           {earlier.length === 0 && extra.length === 0 ? (
-            <p className="desk-muted">{t("desk.flows.noEarlier")}</p>
+            <p className="dk-t-sub">{t("desk.flows.noEarlier")}</p>
           ) : (
             <ul className="desk-namelist">
               {earlier.map((entry) => {
                 const target = entry.id.trim();
                 const optionId = id(`sendBack-${entry.key}`);
                 return (
-                  <li key={entry.key} className="desk-check-row">
+                  <li key={entry.key} className="dk-check">
                     <Checkbox
                       id={optionId}
                       checked={step.sendBack.includes(target)}
@@ -323,7 +323,7 @@ function KindFields({
               {extra.map((target) => {
                 const optionId = id(`sendBack-extra-${target}`);
                 return (
-                  <li key={target} className="desk-check-row">
+                  <li key={target} className="dk-check">
                     <Checkbox
                       id={optionId}
                       checked
@@ -346,7 +346,7 @@ function KindFields({
       const commands = parseCommands(step.commands);
       const error = fieldError("commands");
       return (
-        <fieldset className="desk-fieldset">
+        <fieldset className="dk-fieldset">
           <legend id={`${id("commandSet")}-legend`}>{t("desk.flows.field.commands")}</legend>
           <RadioGroup
             value={step.commandSet}
@@ -374,7 +374,7 @@ function KindFields({
                   <Label htmlFor={optionId} className="desk-flowpick__name">
                     {t(`desk.flows.commandSet.${option}`)}
                   </Label>
-                  <span id={`${optionId}-about`} className="desk-flowpick__about desk-muted">
+                  <span id={`${optionId}-about`} className="desk-flowpick__about dk-t-sub">
                     {t(`desk.flows.commandSetAbout.${option}`)}
                   </span>
                 </div>
@@ -382,11 +382,11 @@ function KindFields({
             })}
           </RadioGroup>
           {step.commandSet === "custom" && (
-            <div className="desk-field">
+            <div className="dk-field">
               <Label htmlFor={id("commands")}>{t("desk.flows.field.commandLines")}</Label>
               <Textarea
                 id={id("commands")}
-                className="desk-mono"
+                className="dk-mono"
                 rows={3}
                 spellCheck={false}
                 value={step.commands}
@@ -418,8 +418,8 @@ function KindFields({
     }
     case "ship":
       return (
-        <div className="desk-field">
-          <div className="desk-check-row">
+        <div className="dk-field">
+          <div className="dk-check">
             <Checkbox
               id={id("auto")}
               checked={step.auto}
@@ -430,11 +430,11 @@ function KindFields({
             <Label htmlFor={id("auto")}>{t("desk.flows.field.auto")}</Label>
           </div>
           {step.auto ? (
-            <p id={`${id("auto")}-hint`} className="desk-warning" role="status">
+            <p id={`${id("auto")}-hint`} className="dk-banner dk-banner-warning" role="status">
               {t("desk.flows.autoWarning")}
             </p>
           ) : (
-            <p id={`${id("auto")}-hint`} className="desk-muted">
+            <p id={`${id("auto")}-hint`} className="dk-t-sub">
               {t("desk.flows.field.autoHelp")}
             </p>
           )}
@@ -479,9 +479,9 @@ function LoopBackFields({
   const id = (field: string): string => stepFieldId(base, step.key, field);
   const { loopBack } = step;
   return (
-    <fieldset className="desk-fieldset desk-flows-step__loop">
-      <legend className="desk-sr-only">{t("desk.flows.field.loopBack")}</legend>
-      <div className="desk-check-row">
+    <fieldset className="dk-fieldset desk-flows-step__loop">
+      <legend className="dk-sr">{t("desk.flows.field.loopBack")}</legend>
+      <div className="dk-check">
         <Checkbox
           id={id("loopBack")}
           checked={loopBack !== null}
@@ -497,7 +497,7 @@ function LoopBackFields({
         />
         <Label htmlFor={id("loopBack")}>{t("desk.flows.field.loopBack")}</Label>
       </div>
-      <p id={`${id("loopBack")}-hint`} className="desk-muted">
+      <p id={`${id("loopBack")}-hint`} className="dk-t-sub">
         {t("desk.flows.field.loopBackHelp")}
       </p>
       {loopBack !== null && (
@@ -525,7 +525,7 @@ function LoopBackFields({
               onChange(updateStep(draft, step.key, { loopBack: { ...loopBack, limit } }))
             }
           />
-          <div className="desk-check-row">
+          <div className="dk-check">
             <Checkbox
               id={id("sameFailure")}
               checked={loopBack.stopOnSameFailure}
@@ -762,7 +762,7 @@ export function FlowForm({
           />
         )}
       </div>
-      <p className="desk-muted">
+      <p className="dk-t-sub">
         {t(editable ? "desk.flows.stepsHelp" : "desk.flows.stepsHelpReadOnly")}
       </p>
       <ol className="desk-flows-steps" aria-labelledby={`${base}-steps`}>
@@ -773,7 +773,7 @@ export function FlowForm({
             </span>
             <h3 className="desk-flows-step__title">{t("desk.stage.setup")}</h3>
           </div>
-          <p className="desk-muted">{t("desk.flows.setupNote")}</p>
+          <p className="dk-t-sub">{t("desk.flows.setupNote")}</p>
         </li>
         {draft.steps.map((step, index) => (
           <StepCard

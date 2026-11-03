@@ -1,11 +1,12 @@
 import { buildFlowModel, type FlowNodeId } from "@repo/desk/contracts";
-import { Card, Skeleton } from "@repo/ui";
+import { Skeleton } from "@repo/ui";
 import { useMemo, useRef, useState } from "react";
 
 import { useIssueDetail } from "./issue.detail.use";
-import { IssueHeader } from "./issue.header";
+import { Details, useDetailsControl } from "./issue.details";
+import { Crumb, IssueHeader } from "./issue.header";
 import { useIssueLog } from "./issue.log";
-import { IssueHistory, useHistoryControl } from "./issue.tabs";
+import { StepsRail } from "./issue.rail";
 import { buildTrace, jumpTargetOf, type TraceLive } from "./issue.trace";
 import { FlowGraph } from "../flow/flow.graph";
 import { IssueFlowProvider } from "../flow/flow.names";
@@ -14,37 +15,31 @@ import { issueFlowOf } from "../flow/flow.steps";
 import { useIssueActions } from "../gates/gate.actions";
 import { GatePanel } from "../gates/gate.panel";
 import { useT } from "../i18n/i18n.t";
+import { useMarkSeen } from "../inbox/inbox.unread";
 import { resolveSelection } from "../inspector/inspector.model";
 import { StageSheet } from "../inspector/inspector.panel";
 import { useNow } from "../shell/shell.now";
 import { usePaletteActions } from "../shell/shell.palette";
-import { RouteLink, useRouter } from "../shell/shell.router";
+import { useRouter } from "../shell/shell.router";
 import { FailureText, Loading, Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 import { gateModeOf, hasEnded } from "../status/status.model";
-
-function BackLink() {
-  const t = useT();
-  return (
-    <RouteLink to={{ view: "inbox" }} className="desk-back">
-      {t("desk.issue.back")}
-    </RouteLink>
-  );
-}
+import { issueItem, issueKey } from "../work/work.model";
 
 /** Placeholders of the right size while the detail loads, so nothing jumps when it arrives. */
 function DetailSkeleton() {
   const t = useT();
   return (
-    <div className="desk-issue-main" aria-busy="true">
-      <Card className="desk-panel">
-        <Skeleton className="desk-skeleton desk-skeleton--title" />
-        <Skeleton className="desk-skeleton desk-skeleton--block" />
-        <span className="desk-sr-only" role="status">
+    <section className="dk-card" aria-busy="true">
+      <div className="dk-stack">
+        <Skeleton className="dk-skel dk-w60" />
+        <Skeleton className="dk-skel dk-w80" />
+        <Skeleton className="dk-skel dk-w40" />
+        <span className="dk-sr" role="status">
           {t("desk.common.loading")}
         </span>
-      </Card>
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -55,18 +50,17 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
   const now = useNow();
   const { summary, detail, revision, error } = useIssueDetail(issueNumber);
   const actions = useIssueActions(issueNumber, summary?.busy ?? false);
-  /** The stage open in the side sheet, or `null` when the sheet is closed. */
+  /** The step open in the side sheet, or `null` when the sheet is closed. */
   const [sheet, setSheet] = useState<FlowNodeId | null>(null);
   const [graphOpen, setGraphOpen] = useState(false);
-  const historyRef = useRef<HTMLElement>(null);
+  const detailsRef = useRef<HTMLElement>(null);
   const readable = summary?.readable === true ? summary : undefined;
   const mode = readable === undefined ? "idle" : gateModeOf(readable);
   const running = mode === "working";
-  const history = useHistoryControl(
-    running || mode === "needs-you" || readable?.stage === "intake" || readable?.stage === "setup"
-  );
+  const details = useDetailsControl();
   useIssueLog(issueNumber);
-  // The page rebuilds the model with the page clock, so the running stage's duration ticks.
+  useMarkSeen(summary === undefined ? null : issueItem(summary));
+  // The page rebuilds the model with the page clock, so the running step's duration ticks.
   const flow = useMemo(
     () => (detail === undefined ? undefined : buildFlowModel(detail.state, now)),
     [detail, now]
@@ -82,13 +76,11 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
   const jumpTarget = trace === undefined ? null : jumpTargetOf(trace.steps, mode === "needs-you");
 
   const showTrace = (stepId: string | null): void => {
-    history.showTrace(stepId);
+    details.showTrace(stepId);
     if (stepId !== null) return;
-    historyRef.current?.scrollIntoView({ block: "start" });
-    historyRef.current?.focus({ preventScroll: true });
+    detailsRef.current?.scrollIntoView({ block: "start" });
+    detailsRef.current?.focus({ preventScroll: true });
   };
-  /** A stage from the stepper or the graph: open it in the sheet, or close the sheet on it. */
-  const toggleStage = (id: FlowNodeId): void => setSheet((open) => (open === id ? null : id));
 
   usePaletteActions(
     flow === undefined
@@ -115,11 +107,12 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
   );
 
   if (!state.issuesLoaded) return <Loading />;
+  const label = t("desk.issue.number", { number: issueNumber });
   if (summary === undefined) {
     return (
       <>
-        <BackLink />
-        <p className="desk-empty" role="status">
+        <Crumb itemKey={issueKey(issueNumber)} label={label} />
+        <p className="dk-empty" role="status">
           {t("desk.issue.notFound", { number: issueNumber })}
         </p>
       </>
@@ -128,11 +121,11 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
   if (!summary.readable) {
     return (
       <>
-        <BackLink />
-        <h1>{t("desk.issue.number", { number: issueNumber })}</h1>
-        <div className="desk-failure" role="alert">
+        <Crumb itemKey={issueKey(issueNumber)} label={label} />
+        <h1 className="dk-h-page">{label}</h1>
+        <div className="dk-banner dk-banner-danger dk-stack" role="alert">
           <p>{t("desk.issue.unreadable")}</p>
-          <p className="desk-muted">{summary.reason}</p>
+          <p className="dk-t-sub">{summary.reason}</p>
           <Pre>{summary.detail}</Pre>
         </div>
       </>
@@ -143,9 +136,6 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     <IssueHeader
       summary={summary}
       detail={detail}
-      flow={flow}
-      selected={sheet}
-      onSelect={toggleStage}
       graphOpen={graphOpen}
       onToggleGraph={() => setGraphOpen((open) => !open)}
       actions={actions}
@@ -165,43 +155,52 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     <IssueFlowProvider flow={issueFlowOf(summary)}>
       {header}
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
-      {graphOpen && (
-        <Card className="desk-panel desk-pipeline">
-          <div className="desk-panel__head">
-            <h2>{t("desk.flow.title")}</h2>
-            <FlowLegend />
-          </div>
-          <FlowGraph
-            model={flow}
-            selected={sheet}
-            onSelect={toggleStage}
-            needsYouReason={summary.needsYouReason}
+      <div className="dk-ilayout">
+        <div className="dk-icol">
+          {graphOpen && (
+            <section className="dk-card" aria-label={t("desk.flow.title")}>
+              <div className="dk-card-h">
+                <h2 className="dk-h-sec dk-grow">{t("desk.flow.title")}</h2>
+                <FlowLegend />
+              </div>
+              <FlowGraph
+                model={flow}
+                selected={sheet}
+                onSelect={(id) => setSheet((open) => (open === id ? null : id))}
+                needsYouReason={summary.needsYouReason}
+              />
+            </section>
+          )}
+          <GatePanel
+            detail={detail}
+            summary={summary}
+            revision={revision}
+            actions={actions}
+            onOpenResult={(node) => {
+              details.setOutput(node);
+              details.setTab("outputs");
+              detailsRef.current?.scrollIntoView({ block: "start" });
+            }}
+            onShowTrace={() => showTrace(jumpTarget?.id ?? null)}
           />
-        </Card>
-      )}
-      <div className="desk-issue-main">
-        <GatePanel
+          <Details
+            detail={detail}
+            flow={flow}
+            trace={trace}
+            revision={revision}
+            running={running}
+            needsYou={mode === "needs-you"}
+            control={details}
+            onInspect={setSheet}
+            sectionRef={detailsRef}
+          />
+        </div>
+        <StepsRail
+          model={flow}
           detail={detail}
-          summary={summary}
-          revision={revision}
-          actions={actions}
-          onOpenResult={setSheet}
-          onShowTrace={() => showTrace(jumpTarget?.id ?? null)}
-        />
-        <IssueHistory
-          issueNumber={issueNumber}
-          history={detail.state.history}
-          flow={flow}
-          snapshot={detail.state.flowSnapshot}
-          trace={trace}
-          running={running}
-          needsYou={mode === "needs-you"}
-          control={history}
-          onJump={() => {
-            if (jumpTarget !== null) showTrace(jumpTarget.id);
-          }}
-          onInspect={setSheet}
-          sectionRef={historyRef}
+          graphOpen={graphOpen}
+          onToggleGraph={() => setGraphOpen((open) => !open)}
+          onDetails={setSheet}
         />
       </div>
       {sheet !== null && (

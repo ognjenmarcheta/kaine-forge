@@ -32,14 +32,14 @@ function Readiness({ ship }: { readonly ship: ShipReadiness }) {
   if (ship.ready) {
     return (
       <p className="desk-ready">
-        <Check aria-hidden="true" className="desk-icon" /> {t("desk.gate.ready.yes")}{" "}
-        <span className="desk-muted">{t("desk.gate.ready.why")}</span>
+        <Check aria-hidden="true" className="dk-ic" /> {t("desk.gate.ready.yes")}{" "}
+        <span className="dk-t-sub">{t("desk.gate.ready.why")}</span>
       </p>
     );
   }
   const open = READINESS.filter(([field]) => ship[field] !== true);
   return (
-    <div className="desk-warning">
+    <div className="dk-banner dk-banner-warning">
       <strong>{t("desk.gate.ready.no")}</strong>
       <ul className="desk-ready__open">
         {open.map(([field, key]) => (
@@ -125,18 +125,18 @@ export function ReviewGate({
         <RevisionNote title={t("desk.gate.pr.changed")} text={detail.buildRevision} />
       )}
       <RiskRecord risk={summary.planRisk} />
-      <section className="desk-sec">
+      <section className="dk-sec">
         <h3>{t("desk.review.findings")}</h3>
         <FindingLinks findings={findings} onGo={(finding) => select(finding.file, finding.line)} />
       </section>
-      <section className="desk-sec">
+      <section className="dk-sec">
         <h3>{t("desk.diff.title")}</h3>
         {diff.status === "loading" && <Loading />}
         {diff.status === "missing" && <Muted>{t("desk.artifact.missing")}</Muted>}
         {diff.status === "error" && <FailureText code={diff.code} detail={diff.detail} />}
         {diff.status === "ok" && (
           <>
-            <p className="desk-muted">{t("desk.diff.order")}</p>
+            <p className="dk-t-sub">{t("desk.diff.order")}</p>
             <DiffReview
               files={files}
               viewed={viewed}

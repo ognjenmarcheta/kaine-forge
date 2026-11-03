@@ -190,7 +190,7 @@ function EditorBody({
 
   return (
     <>
-      <div className="desk-heading desk-editor__heading">
+      <div className="dk-row dk-between desk-editor__heading">
         <div>
           <RouteLink to={{ view: "flows" }} className="desk-editor__back">
             {t("desk.flows.back")}
@@ -229,16 +229,14 @@ function EditorBody({
         </div>
       </div>
       <DefinitionProblems problems={view.problems} kind="flow" />
-      {view.source === "builtin" && <p className="desk-note">{t("desk.flows.builtinNote")}</p>}
-      {view.source === "repo" && !editing && (
-        <p className="desk-note">{t("desk.flows.repoNote")}</p>
-      )}
+      {view.source === "builtin" && <p className="dk-hint">{t("desk.flows.builtinNote")}</p>}
+      {view.source === "repo" && !editing && <p className="dk-hint">{t("desk.flows.repoNote")}</p>}
       {view.source === "repo" && editing && (
-        <p className="desk-warning">{t("desk.flows.overrideNote")}</p>
+        <p className="dk-banner dk-banner-warning">{t("desk.flows.overrideNote")}</p>
       )}
       {failure !== null && <FailureText code={failure.code} detail={failure.detail} />}
       {editing && (blocked || flowRules.length > 0) && (
-        <div className="desk-failure" role="status">
+        <div className="dk-banner dk-banner-danger dk-stack" role="status">
           <p>
             {blocked
               ? t("desk.flows.problemSummary", { count: total })
@@ -254,7 +252,7 @@ function EditorBody({
         </div>
       )}
       <div className="desk-flows-editor">
-        <Card className="desk-panel">
+        <Card className="dk-card">
           <FlowForm
             base={base}
             draft={draft}
@@ -313,12 +311,12 @@ function EditorBody({
                   </>
                 )}
                 {blocked && (
-                  <p id={reason} className="desk-muted">
+                  <p id={reason} className="dk-t-sub">
                     {t("desk.flows.saveBlocked")}
                   </p>
                 )}
                 {view.source === "local" && dirty && (
-                  <p id={`${base}-save-first`} className="desk-muted">
+                  <p id={`${base}-save-first`} className="dk-t-sub">
                     {t("desk.agents.promote.saveFirst")}
                   </p>
                 )}
@@ -328,7 +326,7 @@ function EditorBody({
         </Card>
         <section className="desk-flows-editor__canvas" aria-labelledby={`${base}-graph`}>
           <h2 id={`${base}-graph`}>{t("desk.flows.graph")}</h2>
-          <p className="desk-muted">
+          <p className="dk-t-sub">
             {t(editing ? "desk.flows.graphHelp" : "desk.flows.graphHelpReadOnly")}
           </p>
           <FlowCanvas
@@ -448,7 +446,7 @@ export function FlowEditor({ flowId }: { readonly flowId: string }) {
           {t("desk.flows.back")}
         </RouteLink>
         <h1>{t("desk.flows.missingTitle")}</h1>
-        <p className="desk-muted">{t("desk.flows.missing", { id: flowId })}</p>
+        <p className="dk-t-sub">{t("desk.flows.missing", { id: flowId })}</p>
         {dialog}
       </>
     );
@@ -456,7 +454,7 @@ export function FlowEditor({ flowId }: { readonly flowId: string }) {
   return (
     <>
       {promoted !== null && (
-        <p className="desk-note" role="status">
+        <p className="dk-hint" role="status">
           {t("desk.agents.uncommitted", { path: promoted })}
         </p>
       )}

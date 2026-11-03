@@ -79,7 +79,7 @@ describe("ScorecardView", () => {
     renderDesk(<DeskApp />, fakeApi({ scorecard: () => Promise.resolve(READY) }));
 
     const table = (await screen.findByRole("heading", { name: "Dimensions" })).closest(
-      "div.desk-panel"
+      "div.dk-card"
     );
     if (!(table instanceof HTMLElement)) throw new Error("no dimensions panel");
     const toggles = within(table).getAllByRole("button", { expanded: false });
@@ -152,7 +152,7 @@ describe("Scorecard tracking", () => {
     );
 
     const recent = (await screen.findByRole("heading", { name: "Recently solved" })).closest(
-      "div.desk-panel"
+      "div.dk-card"
     );
     if (!(recent instanceof HTMLElement)) throw new Error("no Recently solved panel");
     expect(within(recent).getByText("old finding")).toBeTruthy();

@@ -183,7 +183,7 @@ const browseEntries = (entries: readonly Entry[]): Entry[] =>
   );
 
 function Kbd({ children }: { readonly children: string }) {
-  return <kbd className="desk-kbd">{children}</kbd>;
+  return <kbd className="dk-kbd">{children}</kbd>;
 }
 
 function PaletteBody({ onClose }: { readonly onClose: () => void }) {

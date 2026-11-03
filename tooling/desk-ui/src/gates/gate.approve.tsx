@@ -46,9 +46,9 @@ export function ApproveGate({ summary, actions, send, titleId }: GateBodyProps) 
 
   return (
     <>
-      <p className="desk-plain">{t("desk.gate.intro.gate")}</p>
+      <p className="dk-lede">{t("desk.gate.intro.gate")}</p>
       {targets.length > 0 && (
-        <p className="desk-muted">
+        <p className="dk-t-sub">
           {t("desk.gate.approve.targets", {
             targets: targets.map((id) => targetLabel(t, flow, id)).join(", ")
           })}

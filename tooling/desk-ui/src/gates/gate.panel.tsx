@@ -5,16 +5,7 @@ import {
   type IssueDetail,
   type LogEntry
 } from "@repo/desk/contracts";
-import {
-  Button,
-  Card,
-  ExternalLink,
-  GitPullRequest,
-  Label,
-  Spinner,
-  Textarea,
-  buttonVariants
-} from "@repo/ui";
+import { Button, ExternalLink, GitPullRequest, Label, Textarea, buttonVariants } from "@repo/ui";
 import { useId, useRef, useState } from "react";
 
 import type { ActionWords, IssueActions } from "./gate.actions";
@@ -27,9 +18,10 @@ import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
 import { ReportArtifact } from "../artifacts/artifact.report";
 import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
-import { flowStepOf, issueFlowOf } from "../flow/flow.steps";
+import { agentName, flowStepOf, issueFlowOf } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { ranReports } from "../inspector/inspector.model";
+import { LogPanel } from "../issue/issue.log";
 import { formatClock, relativeTime, safeHttpUrl } from "../shell/shell.format";
 import { useShortcuts } from "../shell/shell.keys";
 import { useNow } from "../shell/shell.now";
@@ -37,7 +29,12 @@ import { usePaletteActions } from "../shell/shell.palette";
 import { TimeInStage } from "../shell/shell.time";
 import { useDesk } from "../state/desk.provider";
 import { StatusChip } from "../status/status.chip";
-import { gateModeOf, type GateMode, type ReadableSummary } from "../status/status.model";
+import {
+  TONE_GLYPH,
+  gateModeOf,
+  type GateMode,
+  type ReadableSummary
+} from "../status/status.model";
 
 const PR_LINK = buttonVariants({ appearance: "default" });
 const PR_SUBTLE_LINK = buttonVariants({ appearance: "subtle" });
@@ -62,89 +59,88 @@ const BYLINE: Partial<Record<CardMode, string>> = {
 /** Cards whose button opens the full result of the gate's stage. */
 const SHOWS_RESULT: ReadonlySet<CardMode> = new Set(["plan-gate", "pr-review"]);
 
-/** Agents that go on in their session on the next run, so the owner can take theirs over. */
-const RESUMING_OUTPUTS: ReadonlySet<string> = new Set(["plan", "change"]);
-
 /**
- * The owner's way into the agent that runs now (ADR 0022): a note that it reads in the same
- * session, or Take over, which stops it so the owner works in its session.
+ * The owner's note to the agent that runs now (ADR 0022): it stops, reads the note, and goes on
+ * in the same session. The note shows in the live log; a sent note cannot be taken back.
  */
-function SteerForm({ summary, send }: Pick<GateBodyProps, "summary" | "send">) {
+function TellForm({
+  agent,
+  send,
+  onClose
+}: {
+  readonly agent: string;
+  readonly send: GateBodyProps["send"];
+  readonly onClose: () => void;
+}) {
   const t = useT();
   const id = useId();
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
-  const agent = flowStepOf(issueFlowOf(summary), summary.stage)?.agent ?? null;
-  if (agent === null) return null;
 
-  const run = async (request: ActionRequestInput): Promise<boolean> => {
-    setSending(true);
-    try {
-      return await send(request);
-    } finally {
-      setSending(false);
-    }
-  };
   const steer = async (): Promise<void> => {
     const submitted = note;
     const text = submitted.trim();
     if (text === "" || sending) return;
-    // Clear only what was sent: the owner may have typed on while it was sent.
-    if (await run({ action: "steer", note: text })) {
-      setNote((current) => (current === submitted ? "" : current));
+    setSending(true);
+    try {
+      // Clear only what was sent: the owner may have typed on while it was sent.
+      if (await send({ action: "steer", note: text })) {
+        setNote((current) => (current === submitted ? "" : current));
+        onClose();
+      }
+    } finally {
+      setSending(false);
     }
   };
 
   return (
-    <section className="desk-sec">
-      <Label htmlFor={`${id}-steer`}>{t("desk.gate.working.steer.label")}</Label>
-      <Textarea
-        id={`${id}-steer`}
-        value={note}
-        rows={2}
-        maxLength={MAX_FEEDBACK_CHARS}
-        onChange={(event) => setNote(event.target.value)}
-      />
-      <p className="desk-muted">{t("desk.gate.working.steer.help")}</p>
-      <div className="desk-gate__row">
-        <Button
-          spacing="compact"
-          disabled={sending || note.trim() === ""}
-          onClick={() => void steer()}
-        >
+    <div className="dk-sec">
+      <div className="dk-field">
+        <Label htmlFor={`${id}-tell`}>{t("desk.gate.working.tell.label", { agent })}</Label>
+        <Textarea
+          id={`${id}-tell`}
+          value={note}
+          rows={2}
+          maxLength={MAX_FEEDBACK_CHARS}
+          aria-describedby={`${id}-tell-help`}
+          onChange={(event) => setNote(event.target.value)}
+        />
+        <p id={`${id}-tell-help`} className="dk-hint">
+          {t("desk.gate.working.steer.help")}
+        </p>
+      </div>
+      <div className="dk-row">
+        <Button disabled={sending || note.trim() === ""} onClick={() => void steer()}>
           {t("desk.gate.working.steer.send")}
         </Button>
-        {RESUMING_OUTPUTS.has(agent.output) && (
-          <>
-            <Button
-              appearance="subtle"
-              spacing="compact"
-              disabled={sending}
-              onClick={() => void run({ action: "take-over" })}
-            >
-              {t("desk.gate.working.takeOver")}
-            </Button>
-            <span className="desk-muted">{t("desk.gate.working.takeOverHelp")}</span>
-          </>
-        )}
+        <Button appearance="ghost" onClick={onClose}>
+          {t("desk.common.cancel")}
+        </Button>
       </div>
-    </section>
+    </div>
   );
 }
 
-/** What the issue does now: the stage, the latest agent line, the time, and Pause or Resume (P). */
+/**
+ * What the item does now: the step, the latest line, and the live log. Pause or Resume (P) and
+ * "Tell the agent…" sit side by side: nothing waits on the owner, so neither is primary.
+ */
 function RunningGate({ summary, send }: GateBodyProps) {
   const t = useT();
   const names = useStageNames();
   const { language } = useLanguage();
   const now = useNow();
   const { state } = useDesk();
+  const [telling, setTelling] = useState(false);
   const logs = state.logs[summary.issueNumber] ?? EMPTY;
+  const step = flowStepOf(issueFlowOf(summary), summary.stage);
+  const agent = step?.agent ?? null;
+  const who = agent === null ? null : agentName(t, agent, null);
   // What the agent said last; before its first line, what the engine said last.
   const latest =
     logs.filter((entry) => entry.kind === "agent").at(-1) ??
     logs.filter((entry) => entry.kind === "log").at(-1);
-  // Pause and Resume stop work rather than start it, so they stay available while a stage runs.
+  // Pause and Resume stop work rather than start it, so they stay available while a step runs.
   const toggle = (): void => {
     void send(summary.paused ? { action: "resume" } : { action: "pause" });
   };
@@ -155,38 +151,61 @@ function RunningGate({ summary, send }: GateBodyProps) {
 
   return (
     <>
-      <p className="desk-nowline" role="status">
-        {!summary.paused && (
-          <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
-        )}
-        <strong>{names.stage(summary.stage)}</strong>
-        <span className="desk-nowline__text">
-          {latest === undefined ? t("desk.gate.working.starting") : latest.text}
-        </span>
-        <span className="desk-muted">
-          <TimeInStage summary={summary} now={now} />
-        </span>
-      </p>
-      <p className="desk-muted">{t("desk.gate.intro.working")}</p>
-      <div className="desk-gate__row">
-        <Button appearance="secondary" aria-keyshortcuts="P" onClick={toggle}>
+      {summary.paused ? (
+        <div className="dk-banner dk-banner-information" role="status">
+          <span className="dk-g" aria-hidden="true">
+            {TONE_GLYPH.neutral}
+          </span>
+          <div className="dk-grow">
+            <b>
+              {summary.pausedAt === null
+                ? t("desk.gate.working.paused")
+                : t("desk.gate.working.pausedAt", {
+                    time: formatClock(summary.pausedAt, language)
+                  })}
+            </b>{" "}
+            <span>{t("desk.gate.working.pausedBack")}</span>
+          </div>
+        </div>
+      ) : (
+        <p className="dk-row" role="status">
+          <span className="dk-spin" aria-hidden="true" />
+          <b>{names.stage(summary.stage)}</b>
+          <span className="dk-t-sub">
+            {latest === undefined ? t("desk.gate.working.starting") : latest.text}
+          </span>
+          <span className="dk-t-subtlest">
+            <TimeInStage summary={summary} now={now} />
+          </span>
+        </p>
+      )}
+      <div className="dk-sec">
+        <h3 className="dk-h-sec">{t("desk.gate.working.liveLog")}</h3>
+        <LogPanel issueNumber={summary.issueNumber} />
+      </div>
+      {telling && who !== null && (
+        // Keyed by step, so a note written for one agent never goes to the next.
+        <TellForm key={summary.stage} agent={who} send={send} onClose={() => setTelling(false)} />
+      )}
+      <div className="dk-decide">
+        <Button appearance="outline" spacing="spacious" aria-keyshortcuts="P" onClick={toggle}>
           {label}
           <Kbd shortcut="p" />
         </Button>
-        {summary.paused ? (
-          <span className="desk-paused-note">
-            {summary.pausedAt === null
-              ? t("desk.gate.working.paused")
-              : t("desk.gate.working.pausedAt", {
-                  time: formatClock(summary.pausedAt, language)
-                })}
-          </span>
-        ) : (
-          <span className="desk-muted">{t("desk.gate.working.pauseHelp")}</span>
+        {who !== null && !summary.paused && (
+          <Button
+            appearance="outline"
+            aria-expanded={telling}
+            onClick={() => setTelling((open) => !open)}
+          >
+            {t("desk.gate.working.tell.open", { agent: who })}
+          </Button>
         )}
+        <span className="dk-note">
+          {who === null ? `${t("desk.gate.working.noAgent")} ` : ""}
+          {t("desk.gate.working.pauseHelp")} {t("desk.gate.working.moreHelp")}
+        </span>
       </div>
-      {/* Keyed by stage, so a note written for one agent never goes to the next. */}
-      {!summary.paused && <SteerForm key={summary.stage} summary={summary} send={send} />}
     </>
   );
 }
@@ -201,7 +220,7 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
   const prUrl = safeHttpUrl(detail.state.prUrl);
   return (
     <>
-      <p className="desk-plain">{t("desk.gate.intro.pr-open")}</p>
+      <p className="dk-lede">{t("desk.gate.intro.pr-open")}</p>
       {feedbackOpen && (
         <FeedbackForm
           targets={[]}
@@ -217,9 +236,9 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
           }}
         />
       )}
-      <p className="desk-note">{t("desk.gate.prOpen.youMerge")}</p>
+      <p className="dk-hint">{t("desk.gate.prOpen.youMerge")}</p>
       {check !== null && check !== undefined && (
-        <p className="desk-muted">
+        <p className="dk-t-sub">
           {t("desk.pulls.checked", {
             when: relativeTime(check.at, now, language),
             failing: check.failingChecks.length,
@@ -251,9 +270,9 @@ function PrOpenGate({ detail, actions, send, titleId }: GateBodyProps) {
         </Button>
         {prUrl !== null && (
           <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_SUBTLE_LINK}>
-            <GitPullRequest aria-hidden="true" className="desk-icon" />
+            <GitPullRequest aria-hidden="true" className="dk-ic" />
             {t("desk.gate.prOpen.openPr")}
-            <ExternalLink aria-hidden="true" className="desk-icon" />
+            <ExternalLink aria-hidden="true" className="dk-ic" />
           </a>
         )}
       </DecideBar>
@@ -274,7 +293,7 @@ function FinishedReports({ detail, revision, onOpenResult }: GateBodyProps) {
   const others = reports.slice(0, -1);
   return (
     <>
-      <section className="desk-sec">
+      <section className="dk-sec">
         <h3>{t("desk.gate.finished.report", { step: names.stage(last.stepId) })}</h3>
         <ReportArtifact
           issueNumber={detail.summary.issueNumber}
@@ -283,9 +302,9 @@ function FinishedReports({ detail, revision, onOpenResult }: GateBodyProps) {
         />
       </section>
       {others.length > 0 && (
-        <section className="desk-sec">
+        <section className="dk-sec">
           <h3>{t("desk.gate.finished.otherReports")}</h3>
-          <div className="desk-gate__row">
+          <div className="dk-row">
             {others.map((report) => (
               <Button
                 key={report.stepId}
@@ -310,14 +329,14 @@ function EndedGate(props: GateBodyProps) {
   const prUrl = safeHttpUrl(detail.state.prUrl);
   return (
     <>
-      <p className="desk-plain">{t(`desk.gate.intro.${mode}`)}</p>
+      <p className="dk-lede">{t(`desk.gate.intro.${mode}`)}</p>
       {mode === "finished" && <FinishedReports {...props} />}
       {prUrl !== null && (
         <p>
           <a href={prUrl} target="_blank" rel="noreferrer noopener" className={PR_LINK}>
-            <GitPullRequest aria-hidden="true" className="desk-icon" />
+            <GitPullRequest aria-hidden="true" className="dk-ic" />
             {t("desk.gate.shipped.openPr")}
-            <ExternalLink aria-hidden="true" className="desk-icon" />
+            <ExternalLink aria-hidden="true" className="dk-ic" />
           </a>
         </p>
       )}
@@ -380,11 +399,16 @@ function DecisionCard(props: GatePanelProps) {
   };
 
   return (
-    <Card className="desk-panel desk-decision" data-mode={mode}>
-      <section aria-labelledby={titleId}>
-        <div className="desk-decision__head">
-          <h2 ref={heading} tabIndex={-1} id={titleId} className="desk-decision__title">
-            {t(`desk.gate.title.${titleMode}`, { stage: names.stage(summary.stage) })}
+    <section className="dk-card dk-decision" data-mode={mode} aria-labelledby={titleId}>
+      <div>
+        <div className="dk-card-h">
+          <h2 ref={heading} tabIndex={-1} id={titleId} className="dk-h-card dk-grow">
+            {t(`desk.gate.title.${titleMode}`, {
+              // A stop names the step it stopped in; every other card names its own step.
+              stage: names.stage(
+                mode === "needs-you" ? (summary.resumeStage ?? summary.stage) : summary.stage
+              )
+            })}
           </h2>
           {mode === "intake" && <StatusChip tone="danger">{t("desk.intake.stopped")}</StatusChip>}
           {mode === "pr-open" && (
@@ -395,12 +419,12 @@ function DecisionCard(props: GatePanelProps) {
               })}
             </StatusChip>
           )}
-          {byline !== undefined && <span className="desk-decision__by">{t(byline)}</span>}
+          {byline !== undefined && <span className="dk-t-sub dk-t-small">{t(byline)}</span>}
           {resultNode !== undefined && (
             <Button
               appearance="ghost"
               spacing="compact"
-              className="desk-decision__open"
+              className="dk-btn"
               onClick={() => onOpenResult(resultNode)}
             >
               {t("desk.inspector.openResult")}
@@ -417,8 +441,8 @@ function DecisionCard(props: GatePanelProps) {
         {(mode === "shipped" || mode === "cancelled" || mode === "finished") && (
           <EndedGate {...body} />
         )}
-        {mode === "idle" && <p className="desk-muted">{t("desk.gate.intro.idle")}</p>}
-      </section>
+        {mode === "idle" && <p className="dk-t-sub">{t("desk.gate.intro.idle")}</p>}
+      </div>
       <ShipDialog
         issueNumber={summary.issueNumber}
         pullRequest={detail.state.prNumber ?? null}
@@ -427,6 +451,6 @@ function DecisionCard(props: GatePanelProps) {
         actions={actions}
         unviewed={ship.unviewed}
       />
-    </Card>
+    </section>
   );
 }

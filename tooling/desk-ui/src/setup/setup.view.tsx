@@ -116,7 +116,7 @@ function Summary({ report }: { readonly report: HealthReport }) {
       <StatusChip tone={passTone(report.ok)}>
         {t(report.ok ? "desk.health.ok" : "desk.health.problems")}
       </StatusChip>
-      <span className="desk-muted">
+      <span className="dk-t-sub">
         {t("desk.health.checked", { when: relativeTime(report.generatedAt, now, language) })}
       </span>
     </p>
@@ -134,7 +134,7 @@ function SetupProgress({ report }: { readonly report: HealthReport }) {
     <div className="desk-setup">
       <p className="desk-setup__line">
         <strong id={id}>{t("desk.health.setup", { ready, total })}</strong>
-        {blocked && <span className="desk-muted">{t("desk.health.setupHint")}</span>}
+        {blocked && <span className="dk-t-sub">{t("desk.health.setupHint")}</span>}
       </p>
       <progress
         className="desk-setup__bar"
@@ -237,10 +237,10 @@ export function SetupView() {
   const report = state.health;
   return (
     <>
-      <div className="desk-heading">
+      <div className="dk-row dk-between">
         <div>
           <h1>{t("desk.health.title")}</h1>
-          <p className="desk-muted">{t("desk.health.intro")}</p>
+          <p className="dk-t-sub">{t("desk.health.intro")}</p>
         </div>
         <Button appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.health.refresh")}
@@ -248,7 +248,7 @@ export function SetupView() {
       </div>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {(report !== null || loading) && (
-        <Card className="desk-panel">
+        <Card className="dk-card">
           {report !== null && <Summary report={report} />}
           {report !== null && <SetupProgress report={report} />}
           {loading ? (

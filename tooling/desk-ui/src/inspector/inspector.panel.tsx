@@ -165,7 +165,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           disabled={previous === null}
           onClick={goPrevious}
         >
-          <ArrowRight aria-hidden="true" className="desk-icon desk-icon--back" />
+          <ArrowRight aria-hidden="true" className="dk-ic desk-icon--back" />
         </Button>
         <Button
           appearance="ghost"
@@ -175,7 +175,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           disabled={next === null}
           onClick={goNext}
         >
-          <ArrowRight aria-hidden="true" className="desk-icon" />
+          <ArrowRight aria-hidden="true" className="dk-ic" />
         </Button>
         <Button
           appearance="ghost"
@@ -184,7 +184,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           aria-keyshortcuts="Escape"
           onClick={onClose}
         >
-          <X aria-hidden="true" className="desk-icon" />
+          <X aria-hidden="true" className="dk-ic" />
         </Button>
       </div>
       <div className="desk-sheet__body">

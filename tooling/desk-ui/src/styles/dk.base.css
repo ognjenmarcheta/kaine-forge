@@ -197,3 +197,18 @@
 .dk-count.dk-bad::before {
   content: "! ";
 }
+.dk-ic {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+.dk-between {
+  justify-content: space-between;
+}
+.dk-lede {
+  font: var(--ds-type-body);
+  max-width: var(--ds-layout-measure);
+}
+.dk-tooltip {
+  max-width: 24rem;
+}
