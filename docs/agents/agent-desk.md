@@ -140,6 +140,33 @@ runs recovery: each `running` or `queued` issue becomes `needs-you` with a note,
 leftover agent process group is stopped. Then run `pnpm desk continue <n>`. Recovery never
 resumes by itself, and it skips an issue that a live desk process drives.
 
+### Steer and take over
+
+While an agent runs, the issue card in the desk UI shows two more controls (ADR 0022). The
+desk acts on them only for an agent that this desk process runs, so the CLI has no command for
+them.
+
+- **Steer**: type a note and select **Steer**. The desk stops the agent and runs it again in
+  the same session with your note. The agent keeps what it read and did. The note goes into
+  the issue's feedback artifact, and the history records `steered`. The engine checks the
+  steered runs together, as one run, and `runs.jsonl` counts them in `steers`.
+- **Take over**: the desk stops the agent, and the issue goes to `needs-you`. The issue card
+  and `pnpm desk resume <n>` give the command that resumes the session in your terminal
+  (`cd <worktree> && claude --resume <id>`). The reason does not hold that command, because
+  the reason goes to the GitHub status comment. Work in the session. Then select **Continue**, or
+  send feedback to the step: the agent goes on in the session you worked in. The history
+  records `taken-over`.
+
+Limits:
+
+- Take over is only for plan and change agents. A review or report agent starts a new
+  session on each run, so steer it instead.
+- Take over is refused under Docker isolation: the session stays in the container. Steer works.
+- After a take over, your edits are part of the worktree. The plan scope still applies: if you
+  edit a file that the plan does not list, the next build fails verification.
+- A stopped run reports no cost, so `runs.jsonl` has the cost of the last run only.
+- Desk jobs do not offer steer or take over.
+
 ## Logs
 
 Each issue has `agent.log.jsonl` in its state folder. The driving commands append one JSON

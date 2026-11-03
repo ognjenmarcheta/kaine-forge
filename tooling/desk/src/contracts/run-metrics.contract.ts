@@ -88,7 +88,12 @@ export const runRecordSchema = z
      * What the run actually got: the resolved capabilities it started with. Absent on records
      * written before it existed.
      */
-    capabilities: capabilityProfileSchema.optional()
+    capabilities: capabilityProfileSchema.optional(),
+    /**
+     * How often the owner steered the run (ADR 0022): each steer stopped the agent and resumed
+     * it with a note. Absent when the owner did not steer, and on records written before it existed.
+     */
+    steers: count.optional()
   })
   .strict();
 export type RunRecord = z.infer<typeof runRecordSchema>;

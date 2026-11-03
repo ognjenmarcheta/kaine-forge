@@ -146,10 +146,11 @@ export const createScriptedRunner = (steps: readonly ScriptedStep[]): ScriptedRu
           ]);
         }
         if (request.signal?.aborted === true) {
+          // A real runner knows its session once the process has started.
           return {
             ok: false,
             failure: { kind: "aborted" },
-            partial: { trace: [], sessionId: null, denials: [] }
+            partial: { trace: [], sessionId: step.sessionId ?? null, denials: [] }
           };
         }
         const output = step.outputFor === undefined ? step.output : step.outputFor(recorded);

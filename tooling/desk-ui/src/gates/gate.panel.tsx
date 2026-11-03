@@ -1,5 +1,20 @@
-import type { ActionRequestInput, FlowNodeId, IssueDetail, LogEntry } from "@repo/desk/contracts";
-import { Button, Card, ExternalLink, GitPullRequest, Spinner, buttonVariants } from "@repo/ui";
+import {
+  MAX_FEEDBACK_CHARS,
+  type ActionRequestInput,
+  type FlowNodeId,
+  type IssueDetail,
+  type LogEntry
+} from "@repo/desk/contracts";
+import {
+  Button,
+  Card,
+  ExternalLink,
+  GitPullRequest,
+  Label,
+  Spinner,
+  Textarea,
+  buttonVariants
+} from "@repo/ui";
 import { useId, useRef, useState } from "react";
 
 import type { ActionWords, IssueActions } from "./gate.actions";
@@ -12,7 +27,7 @@ import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
 import { ReportArtifact } from "../artifacts/artifact.report";
 import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
-import { issueFlowOf } from "../flow/flow.steps";
+import { flowStepOf, issueFlowOf } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { ranReports } from "../inspector/inspector.model";
 import { formatClock, safeHttpUrl } from "../shell/shell.format";
@@ -46,6 +61,72 @@ const BYLINE: Partial<Record<CardMode, string>> = {
 
 /** Cards whose button opens the full result of the gate's stage. */
 const SHOWS_RESULT: ReadonlySet<CardMode> = new Set(["plan-gate", "pr-review"]);
+
+/** Agents that go on in their session on the next run, so the owner can take theirs over. */
+const RESUMING_OUTPUTS: ReadonlySet<string> = new Set(["plan", "change"]);
+
+/**
+ * The owner's way into the agent that runs now (ADR 0022): a note that it reads in the same
+ * session, or Take over, which stops it so the owner works in its session.
+ */
+function SteerForm({ summary, send }: Pick<GateBodyProps, "summary" | "send">) {
+  const t = useT();
+  const id = useId();
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const agent = flowStepOf(issueFlowOf(summary), summary.stage)?.agent ?? null;
+  if (agent === null) return null;
+
+  const run = async (request: ActionRequestInput): Promise<boolean> => {
+    setSending(true);
+    try {
+      return await send(request);
+    } finally {
+      setSending(false);
+    }
+  };
+  const steer = async (): Promise<void> => {
+    const text = note.trim();
+    if (text === "" || sending) return;
+    if (await run({ action: "steer", note: text })) setNote("");
+  };
+
+  return (
+    <section className="desk-sec">
+      <Label htmlFor={`${id}-steer`}>{t("desk.gate.working.steer.label")}</Label>
+      <Textarea
+        id={`${id}-steer`}
+        value={note}
+        rows={2}
+        maxLength={MAX_FEEDBACK_CHARS}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <p className="desk-muted">{t("desk.gate.working.steer.help")}</p>
+      <div className="desk-gate__row">
+        <Button
+          spacing="compact"
+          disabled={sending || note.trim() === ""}
+          onClick={() => void steer()}
+        >
+          {t("desk.gate.working.steer.send")}
+        </Button>
+        {RESUMING_OUTPUTS.has(agent.output) && (
+          <>
+            <Button
+              appearance="subtle"
+              spacing="compact"
+              disabled={sending}
+              onClick={() => void run({ action: "take-over" })}
+            >
+              {t("desk.gate.working.takeOver")}
+            </Button>
+            <span className="desk-muted">{t("desk.gate.working.takeOverHelp")}</span>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
 
 /** What the issue does now: the stage, the latest agent line, the time, and Pause or Resume (P). */
 function RunningGate({ summary, send }: GateBodyProps) {
@@ -100,6 +181,7 @@ function RunningGate({ summary, send }: GateBodyProps) {
           <span className="desk-muted">{t("desk.gate.working.pauseHelp")}</span>
         )}
       </div>
+      {!summary.paused && <SteerForm summary={summary} send={send} />}
     </>
   );
 }

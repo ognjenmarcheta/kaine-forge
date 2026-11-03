@@ -713,6 +713,16 @@ describe("POST /api/issues/:n/actions", () => {
       name: "resume",
       body: { action: "resume" },
       check: (h: Harness) => expect(h.runner.resume).toHaveBeenCalledWith(3)
+    },
+    {
+      name: "steer",
+      body: { action: "steer", note: "reuse the CSV helper" },
+      check: (h: Harness) => expect(h.runner.steer).toHaveBeenCalledWith(3, "reuse the CSV helper")
+    },
+    {
+      name: "take-over",
+      body: { action: "take-over" },
+      check: (h: Harness) => expect(h.runner.takeOver).toHaveBeenCalledWith(3)
     }
   ])("calls the runner for $name", async ({ body, check }) => {
     await harness.seed(3);
@@ -933,7 +943,7 @@ describe("single flight per issue", () => {
     });
   });
 
-  it("lets cancel, remove and pause through while an action runs", async () => {
+  it("lets cancel, remove, pause, steer and take-over through while an action runs", async () => {
     await harness.seed(3);
     const slow = pending();
     harness.runner.approvePlan.mockReturnValueOnce(slow.promise);
@@ -947,6 +957,12 @@ describe("single flight per issue", () => {
     expect(harness.runner.remove).toHaveBeenCalledWith(3, { force: true });
     expect((await api.post("/api/issues/3/actions", { action: "pause" })).status).toBe(200);
     expect(harness.runner.pause).toHaveBeenCalledWith(3);
+    expect(
+      (await api.post("/api/issues/3/actions", { action: "steer", note: "reuse the helper" }))
+        .status
+    ).toBe(200);
+    expect((await api.post("/api/issues/3/actions", { action: "take-over" })).status).toBe(200);
+    expect(harness.runner.takeOver).toHaveBeenCalledWith(3);
     // Other actions still wait.
     expect((await api.post("/api/issues/3/actions", { action: "approve" })).status).toBe(409);
     slow.finish(stoppedAt(makeState(3)));

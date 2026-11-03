@@ -225,6 +225,27 @@ describe("GatePanel while the engine works", () => {
     await userEvent.click(screen.getByRole("button", { name: "Resume" }));
     expect(actions.run).toHaveBeenLastCalledWith({ action: "resume" });
   });
+  it("steers the running builder with a note and offers Take over, while the engine is busy", async () => {
+    const actions = actionsOf({ busy: true });
+    show({ stage: "build", status: "running" }, actions, { summary: { busy: true } });
+    const note = screen.getByLabelText("Steer the agent");
+    await userEvent.type(note, "Reuse the CSV helper.");
+    await userEvent.click(screen.getByRole("button", { name: "Steer" }));
+    expect(actions.run).toHaveBeenLastCalledWith({
+      action: "steer",
+      note: "Reuse the CSV helper."
+    });
+    await waitFor(() => expect((note as HTMLTextAreaElement).value).toBe(""));
+
+    await userEvent.click(screen.getByRole("button", { name: "Take over" }));
+    expect(actions.run).toHaveBeenLastCalledWith({ action: "take-over" });
+  });
+
+  it("offers no Take over for the reviewer, whose next run starts a new session", () => {
+    show({ stage: "review", status: "running" }, actionsOf(), { summary: { busy: true } });
+    expect(screen.getByRole("button", { name: "Steer" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Take over" })).toBeNull();
+  });
 });
 
 describe("GatePanel at PR review", () => {

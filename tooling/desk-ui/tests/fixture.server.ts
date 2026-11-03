@@ -225,6 +225,20 @@ const buildRunner = (
       record(issue, "resume", {});
       return gate(await change(store, issue, { pauseRequested: false, pausedAt: null }));
     },
+    steer: async (issue, note) => {
+      record(issue, "steer", { note });
+      const state = await readState(store, issue);
+      return { outcome: "stopped", stop: "steered", state, message: null };
+    },
+    takeOver: async (issue) => {
+      record(issue, "take-over", {});
+      return {
+        outcome: "stopped",
+        stop: "needs-you",
+        state: await readState(store, issue),
+        message: null
+      };
+    },
     cancel: async (issue) => {
       record(issue, "cancel", {});
       const state = await change(

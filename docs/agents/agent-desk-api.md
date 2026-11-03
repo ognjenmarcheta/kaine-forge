@@ -105,6 +105,8 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 | `apply-draft` | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                          |
 | `pause`       | none                                       | `pause(n)`: hold the issue after the running stage    |
 | `resume`      | none                                       | `resume(n)`: clear the hold and drive on              |
+| `steer`       | `note` (1 to 20000 characters after trim)  | `steer(n, note)`: resume the running agent with it    |
+| `take-over`   | none                                       | `takeOver(n)`: stop the agent for the owner           |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
 - `start` without `flowId` runs the issue on the flow of its first label in the config's
@@ -128,6 +130,13 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   `cancelled`, or `finished` (`409 invalid-transition`). A second `pause` changes nothing.
 - `resume` clears the pause and drives on from the stage where the issue waits. It refuses an
   issue that is not paused (`409 invalid-transition`). `cancel` clears a pause.
+- `steer` stops the agent that runs now and runs it again in the same session with `note`
+  (ADR 0022). It answers at once with `stop: "steered"`. `take-over` stops the agent and
+  answers when the stage has stopped, with `stop: "needs-you"`. The issue detail's sessions
+  give the resume command; the message names `pnpm desk resume <n>` and holds no path or
+  session id, because it reaches the GitHub status comment. Both refuse (`409 invalid-transition`) when no agent of the issue runs in this
+  server, or when the last request has not reached the agent yet. `take-over` also refuses a
+  review or report agent and an issue in Docker isolation.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.
 - `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
   at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a
@@ -147,11 +156,11 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   answer is `200 { status: "done", outcome }`. A refusal is an error answer. If the call
   is still running, the answer is `202 { status: "accepted" }`. The result then arrives
   as an `action-result` event.
-- One issue runs one action at a time. A second one gets `409 busy`. `cancel`, `remove`, and
-  `pause` are the exception: they act on a running action. `pause` changes the running action's
+- One issue runs one action at a time. A second one gets `409 busy`. `cancel`, `remove`,
+  `pause`, `steer`, and `take-over` are the exception: they act on a running action. `pause` changes the running action's
   state at once, so it answers `done` with `stop: "paused"` while the stage still runs.
-- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `finished`, `removed`, or
-  `paused`. `finished`: a flow without a ship step ran every step, and nothing shipped. Like
+- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `finished`, `removed`,
+  `paused`, or `steered`. `finished`: a flow without a ship step ran every step, and nothing shipped. Like
   `shipped` and `cancelled`, the stage `finished` is terminal: no action drives the issue again.
 
 ## Errors
