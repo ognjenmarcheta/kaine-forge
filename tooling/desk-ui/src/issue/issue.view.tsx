@@ -86,7 +86,11 @@ export function IssueView({ issueNumber }: { readonly issueNumber: number }) {
     flow === undefined
       ? []
       : [
-          { id: "issue-trace", label: t("desk.palette.action.trace"), run: () => showTrace(null) },
+          {
+            id: "issue-trace",
+            label: t("desk.palette.action.trace"),
+            run: () => showTrace(trace?.steps.at(-1)?.id ?? null)
+          },
           ...(jumpTarget === null
             ? []
             : [

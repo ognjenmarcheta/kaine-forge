@@ -1,6 +1,7 @@
 import type { GithubPull } from "@repo/desk/contracts";
 import { Button } from "@repo/ui";
 
+import { BUILTIN_FLOW_ID } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { formatElapsed } from "../shell/shell.format";
 import { RouteLink, useRouter } from "../shell/shell.router";
@@ -79,6 +80,12 @@ export function InboxRow({
           {risk === "high" && (
             <StatusChip tone={PLAN_RISK_TONE.high}>{t(PLAN_RISK_KEY.high)}</StatusChip>
           )}
+          {item.kind === "issue" &&
+            item.summary.readable &&
+            item.summary.flowId !== BUILTIN_FLOW_ID && (
+              // A row names its flow only when it is not the built-in default.
+              <span className="dk-tag">{t("desk.card.flow", { name: item.summary.flowName })}</span>
+            )}
         </div>
         <p className="dk-why">{whyOf(t, item, pull)}</p>
         <div className="dk-row dk-rmeta dk-t-small dk-t-subtlest">

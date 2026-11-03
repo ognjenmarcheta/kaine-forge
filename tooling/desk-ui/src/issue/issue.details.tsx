@@ -121,7 +121,7 @@ function AgentRuns({
   const [traced, setTraced] = useState<number | null>(null);
   const [filter, setFilter] = useState<TraceFilter>("all");
   const none = t("desk.inspector.kpi.empty");
-  if (detail.runs.length === 0) {
+  if (detail.runs.length === 0 && control.focus === null) {
     return (
       <div className="dk-empty">
         <p>{t("desk.details.noRuns")}</p>
@@ -130,6 +130,19 @@ function AgentRuns({
   }
   return (
     <div className="dk-stack">
+      {control.focus !== null && (
+        // "See it in the trace" and the palette open the trace on the step they name.
+        <TraceView
+          issueNumber={detail.summary.issueNumber}
+          trace={trace}
+          needsYou={needsYou}
+          filter={filter}
+          onFilter={setFilter}
+          focus={control.focus}
+          onJump={() => control.showTrace(control.focus?.id ?? null)}
+          onInspect={onInspect}
+        />
+      )}
       <div className="dk-tbl-wrap">
         <table className="dk-tbl">
           <thead>
