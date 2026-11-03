@@ -167,12 +167,40 @@ The **Flow** and every **Agent** it names, frozen with a hash when an issue star
 _Avoid_: flow version, cached flow
 
 **Steer**:
-The owner's note to the **Agent** that runs now. The desk stops the agent and runs it again with the note: in the same session, or with its first prompt when it had no session yet (ADR 0022).
+The owner's note to the **Agent** that runs now. The desk stops the agent and runs it again with the note: in the same session, or with its first prompt when it had no session yet (ADR 0022). The desk UI labels it "Tell the ‹agent›…".
 _Avoid_: interrupt, nudge, chat
 
 **Take over**:
-The owner stops the running **Agent** and works in its session in a terminal. The stage ends in `needs-you`; continue or feedback hands the session back, and the agent's next run resumes it.
+The owner stops the running **Agent** and works in its session in a terminal. The stage ends in `needs-you`; continue or feedback hands the session back, and the agent's next run resumes it. The desk UI labels it "Open the agent session in a terminal".
 _Avoid_: hijack, attach, hand off
+
+**Inbox**:
+The desk page of the work that waits on the owner, titled **Your turn**: **Stopped**, **Your decision** (at a gate), and **Merge on GitHub**, in that order. Running and finished work sit in side panels, not in the Inbox groups.
+_Avoid_: board, queue (for the page)
+
+**All work**:
+The desk page of every issue and **Desk job**, as a list or in columns.
+_Avoid_: board, backlog
+
+**Desk job**:
+Work the owner starts on the desk without a GitHub issue: a scorecard run, a recreated screen, a built component, or an audited screen (ADR 0021). It waits at its own gate like an issue does.
+_Avoid_: task, run (for the job itself)
+
+**New work**:
+Starting a GitHub issue on a **Flow**, or a **Desk job**, from one dialog.
+_Avoid_: start issue (for the whole action)
+
+**Issue format**:
+The six sections that intake reads from an issue body, counted as "issue format N/6".
+_Avoid_: issue contract (in the UI)
+
+**Item state**:
+The one name of where an issue or a **Desk job** is, everywhere on the desk: "Stopped · ‹reason›", "‹gate› · your turn", "‹step› · running" or "paused", "Merge on GitHub · your turn", or **Shipped**, **Cancelled**, **Finished**. The built-in gates read **Approve plan** (`plan-gate`), **Approve & ship** (`pr-review`), and **Merge on GitHub** (`pr-open`); the engine ids stay. "Done" names only a step outcome in the history.
+_Avoid_: needs you, waiting for you, done (as an item state)
+
+**Setup** and **Insights**:
+The desk pages of the doctor checks on this machine, and of how agents perform and what they cost. The health of the repository is the **Scorecard**.
+_Avoid_: health (for the doctor page), runs (for the page)
 
 - An issue runs on exactly one **Flow snapshot**.
 - A **Flow snapshot** holds exactly one **Flow** and the **Agents** its agent **Steps** name.

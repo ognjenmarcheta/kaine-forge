@@ -23,7 +23,12 @@ import {
   type FlowSnapshot
 } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
-import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
+import {
+  issueStateSchema,
+  issueStatusSchema,
+  loopCountersSchema,
+  needsYouCodeSchema
+} from "./issue-state.contract";
 import { jobStateSchema } from "./job.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 import { stepRoleOf, stepRoleSchema } from "./step-role.contract";
@@ -216,6 +221,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       prRoundLimit: z.number().int().positive(),
       /** The engine's reason while the issue is in `needs-you`. */
       needsYouReason: z.string().nullable(),
+      /** Why the issue stopped, while it is in `needs-you`. `null` otherwise or when unknown. */
+      needsYouCode: needsYouCodeSchema.nullable(),
       /** The stage that `continue` re-runs while the issue is in `needs-you`. */
       resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */

@@ -46,9 +46,9 @@ export function ApproveGate({ summary, actions, send, titleId }: GateBodyProps) 
 
   return (
     <>
-      <p className="desk-plain">{t("desk.gate.intro.gate")}</p>
+      <p className="dk-lede">{t("desk.gate.intro.gate")}</p>
       {targets.length > 0 && (
-        <p className="desk-muted">
+        <p className="dk-t-sub">
           {t("desk.gate.approve.targets", {
             targets: targets.map((id) => targetLabel(t, flow, id)).join(", ")
           })}
@@ -67,12 +67,13 @@ export function ApproveGate({ summary, actions, send, titleId }: GateBodyProps) 
         />
       )}
       <DecideBar labelledBy={titleId} hint={t("desk.gate.approve.hint")}>
-        <Button disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
+        <Button type="button" disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
           {t("desk.gate.approve.button")}
           <Kbd shortcut="a" />
         </Button>
         {targets.length > 0 && (
           <Button
+            type="button"
             appearance="secondary"
             disabled={actions.busy}
             aria-expanded={feedbackOpen}

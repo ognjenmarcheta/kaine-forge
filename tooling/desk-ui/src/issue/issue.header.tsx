@@ -1,8 +1,6 @@
-import type { FlowModel, FlowNodeId, IssueDetail } from "@repo/desk/contracts";
+import type { IssueDetail } from "@repo/desk/contracts";
 import {
-  Badge,
   Button,
-  Copy,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,15 +13,16 @@ import {
   TooltipTrigger,
   useMediaQuery
 } from "@repo/ui";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useTurnQueue } from "./issue.queue";
 import { useStageNames } from "../flow/flow.names";
-import { FlowStepper } from "../flow/flow.stepper";
-import { issueFlowOf, loopsText, shortHash } from "../flow/flow.steps";
+import { flowStepOf, issueFlowOf, loopsText, shortHash } from "../flow/flow.steps";
 import type { IssueActions } from "../gates/gate.actions";
-import { CancelDialog, RemoveDialog } from "../gates/gate.confirm";
+import { CancelDialog, RemoveDialog, TakeOverDialog } from "../gates/gate.confirm";
 import { Kbd } from "../gates/gate.frame";
+import { RESUMING_OUTPUTS } from "../gates/gate.model";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { copyText, openExternal } from "../shell/shell.copy";
 import { formatElapsed, formatUsd, safeHttpUrl } from "../shell/shell.format";
@@ -34,6 +33,7 @@ import { RouteLink } from "../shell/shell.router";
 import { TimeInStage } from "../shell/shell.time";
 import { IssueStatusChip } from "../status/status.chip";
 import { canCancel, gateModeOf, hasEnded, type ReadableSummary } from "../status/status.model";
+import { issueKey } from "../work/work.model";
 
 /** The graph needs room: a phone gets the stepper only. */
 const PHONE_QUERY = "(max-width: 40rem)";
@@ -43,10 +43,6 @@ export interface IssueHeaderProps {
   readonly summary: ReadableSummary;
   /** `undefined` while the detail loads: the stepper and the cost wait for it. */
   readonly detail: IssueDetail | undefined;
-  readonly flow: FlowModel | undefined;
-  /** The stage open in the side sheet, or `null`. */
-  readonly selected: FlowNodeId | null;
-  readonly onSelect: (id: FlowNodeId) => void;
   readonly graphOpen: boolean;
   readonly onToggleGraph: () => void;
   readonly actions: IssueActions;
@@ -54,10 +50,10 @@ export interface IssueHeaderProps {
   readonly onRemoved: () => void;
 }
 
-/** Where the issue is in Your turn, and J and K to the previous and the next decision. */
-function QueueNav({ issueNumber }: { readonly issueNumber: number }) {
+/** Where the item is in the Inbox, and J and K to the previous and the next decision. */
+export function QueueNav({ itemKey }: { readonly itemKey: string }) {
   const t = useT();
-  const queue = useTurnQueue(issueNumber);
+  const queue = useTurnQueue(itemKey);
   useShortcuts([
     { key: "j", run: () => queue.step(1), labelKey: "desk.board.keys.next" },
     { key: "k", run: () => queue.step(-1), labelKey: "desk.board.keys.previous" }
@@ -65,36 +61,53 @@ function QueueNav({ issueNumber }: { readonly issueNumber: number }) {
   if (queue.total === 0) return null;
   const alone = queue.total === 1 && queue.position !== null;
   return (
-    <div className="desk-crumbs__queue">
-      <span className="desk-crumbs__where">
+    <span className="dk-qnav">
+      <span className="dk-t-sub">
         {queue.position === null
           ? t("desk.issue.queue.waiting", { total: queue.total })
           : t("desk.issue.queue.position", { position: queue.position, total: queue.total })}
       </span>
       <Button
+        type="button"
         appearance="ghost"
         spacing="compact"
-        className="desk-crumbs__prev"
+        className="dk-btn"
         aria-label={t("desk.issue.queue.previous")}
         aria-keyshortcuts="K"
         disabled={alone}
         onClick={() => queue.step(-1)}
       >
+        <ArrowLeft aria-hidden="true" className="dk-ic" />
         <Kbd shortcut="k" />
       </Button>
       <Button
+        type="button"
         appearance="ghost"
         spacing="compact"
-        className="desk-crumbs__next"
+        className="dk-btn"
         aria-label={t("desk.issue.queue.next")}
         aria-keyshortcuts="J"
         disabled={alone}
         onClick={() => queue.step(1)}
       >
-        <span aria-hidden="true">{t("desk.issue.queue.nextShort")}</span>
         <Kbd shortcut="j" />
+        <ArrowRight aria-hidden="true" className="dk-ic" />
       </Button>
-    </div>
+    </span>
+  );
+}
+
+/** The way back to the Inbox, where the item is, and the walk through the decisions. */
+export function Crumb({ itemKey, label }: { readonly itemKey: string; readonly label: string }) {
+  const t = useT();
+  return (
+    <nav className="dk-crumb" aria-label={t("desk.item.crumb")}>
+      <RouteLink to={{ view: "inbox" }}>{t("desk.item.back")}</RouteLink>
+      <span aria-hidden="true" className="dk-slash" />
+      <span>{label}</span>
+      <span className="dk-grow" />
+      <QueueNav itemKey={itemKey} />
+    </nav>
   );
 }
 
@@ -115,15 +128,12 @@ function FlowBadge({ summary }: { readonly summary: ReadableSummary }) {
       <TooltipTrigger asChild>
         {/* Focusable, so the steps reach a keyboard too. */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a tooltip trigger, not a control */}
-        <span className="desk-imeta__item desk-imeta__flow" tabIndex={0}>
-          <span className="desk-sr-only">{t("desk.issue.flow.label")} </span>
-          <Badge appearance="default">
-            {t("desk.issue.flow.badge", { name: summary.flowName, hash })}
-          </Badge>
-          <span className="desk-muted">{source}</span>
+        <span tabIndex={0}>
+          <span className="dk-sr">{t("desk.issue.flow.label")} </span>
+          {t("desk.issue.flow.badge", { name: summary.flowName, hash })}
         </span>
       </TooltipTrigger>
-      <TooltipContent className="desk-tooltip">
+      <TooltipContent className="dk-tooltip">
         {t("desk.issue.flow.title", { name: summary.flowName, source, hash, steps })}
       </TooltipContent>
     </Tooltip>
@@ -151,15 +161,12 @@ function WaitFact({ summary, now }: { readonly summary: ReadableSummary; readonl
 }
 
 /**
- * The top of the issue page: the way back and through Your turn, the title with a menu for the
- * rare actions, one line of status, and the stages as a compact stepper.
+ * The top of the issue page: the way back and through the Inbox, the title with a menu for the
+ * rare actions, and one line of status. The steps are in the rail beside the page.
  */
 export function IssueHeader({
   summary,
   detail,
-  flow,
-  selected,
-  onSelect,
   graphOpen,
   onToggleGraph,
   actions,
@@ -172,7 +179,12 @@ export function IssueHeader({
   const moreButton = useRef<HTMLButtonElement>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [takeOverOpen, setTakeOverOpen] = useState(false);
   const mode = gateModeOf(summary);
+  const agent = flowStepOf(issueFlowOf(summary), summary.stage)?.agent ?? null;
+  // Only an agent that goes on in its session on the next run can be taken over (ADR 0022).
+  const canTakeOver =
+    mode === "working" && !summary.paused && agent !== null && RESUMING_OUTPUTS.has(agent.output);
   const issueUrl = safeHttpUrl(summary.url);
   const prUrl = safeHttpUrl(summary.prUrl);
   const prNumber = prUrl === null ? null : (PR_NUMBER.exec(prUrl)?.[1] ?? null);
@@ -212,42 +224,70 @@ export function IssueHeader({
   };
 
   return (
-    <header className="desk-issue-head">
-      <div className="desk-crumbs">
-        <RouteLink to={{ view: "board" }} className="desk-back">
-          {t("desk.issue.back")}
-        </RouteLink>
-        <QueueNav issueNumber={summary.issueNumber} />
-      </div>
-      <div className="desk-issue-head__title">
-        <h1>
-          <span className="desk-issue-number">
-            {t("desk.issue.number", { number: summary.issueNumber })}
-          </span>{" "}
-          {summary.title ?? t("desk.issue.untitled")}
-        </h1>
+    <>
+      <Crumb
+        itemKey={issueKey(summary.issueNumber)}
+        label={t("desk.issue.number", { number: summary.issueNumber })}
+      />
+      <header className="dk-ihead">
+        <div className="dk-grow">
+          <h1>
+            <span className="dk-idn">
+              {t("desk.issue.number", { number: summary.issueNumber })}
+            </span>{" "}
+            {summary.title ?? t("desk.issue.untitled")}
+          </h1>
+          <p className="dk-meta">
+            <IssueStatusChip summary={summary} />
+            <span>
+              <WaitFact summary={summary} now={now} />
+            </span>
+            <FlowBadge summary={summary} />
+            {cost !== null && (
+              <span>{t("desk.issue.meta.cost", { cost: formatUsd(cost, language) })}</span>
+            )}
+            {looped !== null && <span>{looped}</span>}
+            {branch !== null && (
+              <span className="dk-ihead-more">
+                <span className="dk-sr">{t("desk.issue.branch")} </span>
+                <code className="dk-mono" title={branch}>
+                  {branch}
+                </code>
+              </span>
+            )}
+            {prUrl !== null && (
+              <span>
+                <a href={prUrl} target="_blank" rel="noreferrer noopener">
+                  {prNumber === null
+                    ? t("desk.issue.openPr")
+                    : t("desk.issue.meta.pr", { number: prNumber })}{" "}
+                  <ExternalLink aria-hidden="true" className="dk-ic" />
+                </a>
+              </span>
+            )}
+          </p>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
+              type="button"
               ref={moreButton}
-              appearance="subtle"
-              className="desk-issue-head__more"
+              appearance="outline"
+              spacing="icon"
               aria-label={t("desk.gate.more")}
             >
-              <Ellipsis aria-hidden="true" className="desk-icon" />
+              <Ellipsis aria-hidden="true" className="dk-ic" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="desk-menu">
-            <DropdownMenuItem
-              destructive
-              disabled={!canCancel(mode)}
-              onSelect={() => setCancelOpen(true)}
-            >
-              {t("desk.gate.cancel.button")}
-            </DropdownMenuItem>
+          <DropdownMenuContent align="end">
             {!phone && (
               <DropdownMenuItem onSelect={onToggleGraph}>
                 {t(graphOpen ? "desk.issue.graph.hide" : "desk.issue.graph.show")}
+              </DropdownMenuItem>
+            )}
+            {canTakeOver && (
+              <DropdownMenuItem onSelect={() => setTakeOverOpen(true)}>
+                {t("desk.gate.working.takeOver")}
               </DropdownMenuItem>
             )}
             {branch !== null && (
@@ -259,63 +299,31 @@ export function IssueHeader({
               <DropdownMenuItem asChild>
                 <a href={issueUrl} target="_blank" rel="noreferrer noopener">
                   {t("desk.issue.openOnGithub")}
-                  <ExternalLink aria-hidden="true" className="desk-icon" />
+                  <ExternalLink aria-hidden="true" className="dk-ic" />
                 </a>
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              destructive
+              disabled={!canCancel(mode)}
+              onSelect={() => setCancelOpen(true)}
+            >
+              {t("desk.gate.cancel.button")}
+            </DropdownMenuItem>
             <DropdownMenuItem destructive onSelect={() => setRemoveOpen(true)}>
               {t("desk.gate.remove.button")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
-      <p className="desk-imeta">
-        <IssueStatusChip summary={summary} />
-        <span className="desk-imeta__item">
-          <WaitFact summary={summary} now={now} />
-        </span>
-        <FlowBadge summary={summary} />
-        {cost !== null && (
-          <span className="desk-imeta__item">
-            {t("desk.issue.meta.cost", { cost: formatUsd(cost, language) })}
-          </span>
-        )}
-        {looped !== null && <span className="desk-imeta__item">{looped}</span>}
-        {branch !== null && (
-          <span className="desk-imeta__item desk-imeta__branch">
-            <span className="desk-sr-only">{t("desk.issue.branch")} </span>
-            <code title={branch}>{branch}</code>
-            <Button
-              appearance="ghost"
-              spacing="compact"
-              className="desk-imeta__copy"
-              aria-label={t("desk.issue.copyBranch")}
-              onClick={copyBranch}
-            >
-              <Copy aria-hidden="true" className="desk-icon" />
-            </Button>
-          </span>
-        )}
-        {prUrl !== null && (
-          <span className="desk-imeta__item">
-            <a href={prUrl} target="_blank" rel="noreferrer noopener">
-              {prNumber === null
-                ? t("desk.issue.openPr")
-                : t("desk.issue.meta.pr", { number: prNumber })}{" "}
-              <ExternalLink aria-hidden="true" className="desk-icon" />
-            </a>
-          </span>
-        )}
-      </p>
-      {flow !== undefined && (
-        <FlowStepper
-          model={flow}
-          selected={selected}
-          onSelect={onSelect}
-          needsYouReason={summary.needsYouReason}
-        />
-      )}
+      </header>
+      <TakeOverDialog
+        issueNumber={summary.issueNumber}
+        open={takeOverOpen}
+        onOpenChange={setTakeOverOpen}
+        onCloseAutoFocus={backToMenu}
+        onConfirm={() => void actions.run({ action: "take-over" })}
+      />
       <CancelDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
@@ -332,6 +340,6 @@ export function IssueHeader({
           });
         }}
       />
-    </header>
+    </>
   );
 }

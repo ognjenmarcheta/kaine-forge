@@ -38,10 +38,10 @@ const rowOf = async (label: string): Promise<HTMLElement> => {
   return row;
 };
 
-beforeEach(() => window.history.replaceState(null, "", "?view=health"));
+beforeEach(() => window.history.replaceState(null, "", "?view=setup"));
 afterEach(() => window.history.replaceState(null, "", "/"));
 
-describe("HealthView remedies", () => {
+describe("SetupView remedies", () => {
   it("offers the command of a failed check to copy, and nothing on a passed check", async () => {
     renderDesk(<DeskApp />, fakeApi({ health: () => Promise.resolve(REPORT) }));
 
@@ -87,7 +87,7 @@ describe("HealthView remedies", () => {
   });
 });
 
-describe("HealthView setup", () => {
+describe("SetupView setup", () => {
   it("counts the passed checks of all checks, and says that errors come first", async () => {
     renderDesk(<DeskApp />, fakeApi({ health: () => Promise.resolve(REPORT) }));
 

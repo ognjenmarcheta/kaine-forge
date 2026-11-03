@@ -3,6 +3,8 @@ import {
   Button,
   Checkbox,
   Label,
+  RadioGroup,
+  RadioGroupItem,
   Select,
   SelectContent,
   SelectItem,
@@ -14,11 +16,12 @@ import {
 import { useId, useState } from "react";
 
 import { DraftDialog } from "./gate.draft-dialog";
-import { Kbd, type GateBodyProps } from "./gate.frame";
+import { DecideBar, Kbd, type GateBodyProps } from "./gate.frame";
 import { builderStepOf, incidentOf, resumeCommandOf, retryTargets } from "./gate.model";
 import { useStageNames } from "../flow/flow.names";
 import { issueFlowOf } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
+import { stepPassed } from "../inspector/inspector.model";
 import { copyText } from "../shell/shell.copy";
 import { useShortcuts } from "../shell/shell.keys";
 import { usePaletteActions } from "../shell/shell.palette";
@@ -26,46 +29,61 @@ import { useDesk } from "../state/desk.provider";
 
 const AUTO_STAGE = "auto";
 
-/** What stopped, the engine's reason, the likely cause when facts show one, and a way to the trace. */
+/** What stopped, the engine's reason, the failing command, the likely cause, and the trace. */
 function IncidentCard({ detail, onShowTrace }: Pick<GateBodyProps, "detail" | "onShowTrace">) {
   const t = useT();
-  const names = useStageNames();
-  const id = useId();
   const incident = incidentOf(detail);
+  const failing = detail.check?.steps.find((step) => !stepPassed(step)) ?? null;
   return (
-    <section className="desk-incident" aria-labelledby={`${id}-head`}>
-      <div className="desk-incident__top">
-        <span className="desk-incident__mark" aria-hidden="true" />
-        <h3 id={`${id}-head`} className="desk-incident__head">
-          {incident.stage === null
-            ? t("desk.incident.headUnknown")
-            : t("desk.incident.head", { stage: names.stage(incident.stage) })}
-        </h3>
-      </div>
-      {incident.reason !== null && (
-        <p className="desk-incident__reason" aria-label={t("desk.gate.needsYou.reason")}>
-          {incident.reason}
-        </p>
-      )}
-      <div className="desk-incident__foot">
-        {incident.cause !== null && (
-          <span className="desk-why-chip">{t(`desk.incident.cause.${incident.cause}`)}</span>
+    <div
+      className="dk-banner dk-banner-danger"
+      role="group"
+      aria-label={t("desk.gate.needsYou.reason")}
+    >
+      <span className="dk-g dk-g-bang" aria-hidden="true" />
+      <div className="dk-grow dk-stack dk-gap-100">
+        {incident.reason !== null && <b>{incident.reason}</b>}
+        {failing !== null && (
+          <p className="dk-t-small">
+            {t("desk.incident.failing", {
+              command: failing.argv.join(" "),
+              code: failing.code ?? "–"
+            })}
+          </p>
         )}
-        <Button appearance="link" spacing="compact" onClick={onShowTrace}>
-          {t("desk.incident.trace")}
-        </Button>
+        <p className="dk-t-small dk-row">
+          {incident.cause !== null && <span>{t(`desk.incident.cause.${incident.cause}`)}</span>}
+          <Button
+            type="button"
+            appearance="link"
+            spacing="compact"
+            className="dk-bare dk-linkbtn"
+            onClick={onShowTrace}
+          >
+            {t("desk.incident.trace")}
+          </Button>
+        </p>
       </div>
-    </section>
+    </div>
   );
 }
 
+type Choice = "tell" | "retry" | "terminal";
+
 /**
- * The desk stopped. The incident says what and why. Three ways on, each with what happens next:
- * tell the builder (recommended: it gets the note and the failing output), retry a stage of the
- * issue's flow, or open the agent session in a terminal. C continues. A flow without a change
- * step has no builder to tell.
+ * The desk stopped. The incident says what and why. Three ways on in one list, each with what
+ * happens next: tell the builder (recommended: it gets the note and the failing output), retry
+ * from a step of the item's flow, or open the agent session in a terminal. One primary button
+ * acts on the choice; C presses it. A flow without a change step has no builder to tell.
  */
-export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: GateBodyProps) {
+export function NeedsYouGate({
+  detail,
+  summary,
+  actions,
+  send,
+  onShowTrace,
+  titleId
+}: GateBodyProps) {
   const t = useT();
   const names = useStageNames();
   const id = useId();
@@ -74,6 +92,7 @@ export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: Ga
   const command = resumeCommandOf(detail);
   const targets = retryTargets(detail.state.flowSnapshot.flow);
   const builder = builderStepOf(issueFlowOf(summary), summary.resumeStage);
+  const [choice, setChoice] = useState<Choice>(builder === null ? "retry" : "tell");
   const chosen = targets.find((stage) => stage === resume);
   const retryStage = chosen ?? summary.resumeStage;
 
@@ -86,103 +105,126 @@ export function NeedsYouGate({ detail, summary, actions, send, onShowTrace }: Ga
     if (text === "" || actions.busy || builder === null) return;
     if (await send({ action: "feedback", to: builder, text })) setNote("");
   };
+  const copyCommand = (): void => {
+    if (command !== null) {
+      copyText(command, t("desk.incident.session.copied"), t("desk.issue.copyFailed"));
+    }
+  };
+  const act = (): void => {
+    if (choice === "tell") void tellBuilder();
+    else if (choice === "retry") continueRun();
+    else copyCommand();
+  };
+  const cta =
+    choice === "tell"
+      ? t("desk.incident.tell.send")
+      : choice === "retry"
+        ? t("desk.gate.needsYou.continue")
+        : t("desk.incident.session.copy");
+  const disabled = actions.busy || (choice === "tell" && note.trim() === "");
 
-  useShortcuts([{ key: "c", run: continueRun, labelKey: "desk.board.keys.continue" }]);
+  useShortcuts([{ key: "c", run: act, labelKey: "desk.board.keys.continue" }]);
   usePaletteActions([
     { id: "gate-continue", label: t("desk.gate.needsYou.continue"), hint: "C", run: continueRun }
   ]);
 
+  const options: readonly { readonly id: Choice; readonly show: boolean }[] = [
+    { id: "tell", show: builder !== null },
+    { id: "retry", show: true },
+    { id: "terminal", show: command !== null }
+  ];
+
   return (
     <>
       <IncidentCard detail={detail} onShowTrace={onShowTrace} />
-      <section className="desk-sec">
-        <h3>{t("desk.incident.options")}</h3>
-        <div className="desk-opts">
-          {builder !== null && (
-            <div className="desk-opt" data-recommended="true">
-              <h4>
-                {t("desk.incident.tell.title")}{" "}
-                <span className="desk-recommended">{t("desk.incident.recommended")}</span>
-              </h4>
-              <p>{t("desk.incident.tell.text")}</p>
-              <Label htmlFor={`${id}-note`}>{t("desk.incident.tell.label")}</Label>
-              <Textarea
-                id={`${id}-note`}
-                value={note}
-                rows={3}
-                maxLength={MAX_FEEDBACK_CHARS}
-                onChange={(event) => setNote(event.target.value)}
-              />
-              <p className="desk-next">{t("desk.incident.tell.next")}</p>
-              <Button
-                spacing="compact"
-                disabled={actions.busy || note.trim() === ""}
-                onClick={() => void tellBuilder()}
-              >
-                {t("desk.incident.tell.send")}
-              </Button>
-            </div>
-          )}
-          <div className="desk-opt">
-            <h4>{t("desk.incident.retry.title")}</h4>
-            <p>{t("desk.incident.retry.text")}</p>
-            <Label htmlFor={`${id}-resume`}>{t("desk.gate.needsYou.resume")}</Label>
-            <Select value={resume} onValueChange={setResume}>
-              <SelectTrigger id={`${id}-resume`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={AUTO_STAGE}>
-                  {summary.resumeStage === null
-                    ? t("desk.gate.needsYou.resumeAuto")
-                    : t("desk.gate.needsYou.resumeRemembered", {
-                        stage: names.stage(summary.resumeStage)
-                      })}
-                </SelectItem>
-                {targets.map((stage) => (
-                  <SelectItem key={stage} value={stage}>
-                    {names.stage(stage)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="desk-next">
-              {retryStage === null
-                ? t("desk.incident.retry.nextAuto")
-                : t("desk.incident.retry.next", { stage: names.stage(retryStage) })}
-            </p>
-            <Button
-              appearance="secondary"
-              spacing="compact"
-              disabled={actions.busy}
-              aria-keyshortcuts="C"
-              onClick={continueRun}
-            >
-              {t("desk.gate.needsYou.continue")}
-              <Kbd shortcut="c" />
-            </Button>
-          </div>
-          {command !== null && (
-            <div className="desk-opt">
-              <h4>{t("desk.incident.session.title")}</h4>
-              <p>{t("desk.incident.session.text")}</p>
-              <code className="desk-command">{command}</code>
-              <p className="desk-next">
-                {t("desk.incident.session.next", { number: summary.issueNumber })}
-              </p>
-              <Button
-                appearance="subtle"
-                spacing="compact"
-                onClick={() =>
-                  copyText(command, t("desk.incident.session.copied"), t("desk.issue.copyFailed"))
-                }
-              >
-                {t("desk.incident.session.copy")}
-              </Button>
-            </div>
-          )}
-        </div>
-      </section>
+      <div className="dk-sec">
+        <h3 className="dk-h-sec" id={`${id}-what`}>
+          {t("desk.incident.options")}
+        </h3>
+        <RadioGroup
+          value={choice}
+          onValueChange={(next) => {
+            const picked = options.find((option) => option.id === next);
+            if (picked !== undefined) setChoice(picked.id);
+          }}
+          className="dk-choices"
+          aria-labelledby={`${id}-what`}
+        >
+          {options
+            .filter((option) => option.show)
+            .map((option) => (
+              <div key={option.id} className={`dk-choice${choice === option.id ? " dk-on" : ""}`}>
+                <RadioGroupItem value={option.id} id={`${id}-${option.id}`} />
+                <div className="dk-body">
+                  <Label htmlFor={`${id}-${option.id}`}>
+                    <b>{t(`desk.incident.${option.id}.title`)}</b>
+                    {option.id === "tell" && (
+                      <span className="dk-rec">{t("desk.incident.recommended")}</span>
+                    )}
+                  </Label>
+                  <span className="dk-t-small dk-t-sub">
+                    {option.id === "retry"
+                      ? retryStage === null
+                        ? t("desk.incident.retry.nextAuto")
+                        : t("desk.incident.retry.next", { stage: names.stage(retryStage) })
+                      : option.id === "terminal"
+                        ? t("desk.incident.session.next", { number: summary.issueNumber })
+                        : t("desk.incident.tell.text")}
+                  </span>
+                  {choice === "tell" && option.id === "tell" && (
+                    <Textarea
+                      aria-label={t("desk.incident.tell.label")}
+                      value={note}
+                      rows={3}
+                      maxLength={MAX_FEEDBACK_CHARS}
+                      placeholder={t("desk.incident.tell.placeholder")}
+                      onChange={(event) => setNote(event.target.value)}
+                    />
+                  )}
+                  {choice === "retry" && option.id === "retry" && (
+                    <span className="dk-field">
+                      <Label htmlFor={`${id}-resume`}>{t("desk.gate.needsYou.resume")}</Label>
+                      <Select value={resume} onValueChange={setResume}>
+                        <SelectTrigger id={`${id}-resume`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={AUTO_STAGE}>
+                            {summary.resumeStage === null
+                              ? t("desk.gate.needsYou.resumeAuto")
+                              : t("desk.gate.needsYou.resumeRemembered", {
+                                  stage: names.stage(summary.resumeStage)
+                                })}
+                          </SelectItem>
+                          {targets.map((stage) => (
+                            <SelectItem key={stage} value={stage}>
+                              {names.stage(stage)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </span>
+                  )}
+                  {choice === "terminal" && option.id === "terminal" && command !== null && (
+                    <code className="dk-out dk-block">{command}</code>
+                  )}
+                </div>
+              </div>
+            ))}
+        </RadioGroup>
+      </div>
+      <DecideBar labelledBy={titleId} hint={t("desk.incident.hint")}>
+        <Button
+          type="button"
+          spacing="spacious"
+          disabled={disabled}
+          aria-keyshortcuts="C"
+          onClick={act}
+        >
+          {cta}
+          <Kbd shortcut="c" />
+        </Button>
+      </DecideBar>
     </>
   );
 }
@@ -221,30 +263,35 @@ export function IntakeGate({ detail, summary, actions, send, titleId }: GateBody
   return (
     <>
       {summary.needsYouReason !== null && (
-        <p className="desk-reason" aria-label={t("desk.gate.needsYou.reason")}>
+        <p className="dk-lede" aria-label={t("desk.gate.needsYou.reason")}>
           {summary.needsYouReason}
         </p>
       )}
       {contract !== null && (
-        <section className="desk-sec">
-          <h3>{t("desk.intake.contract", { found: contract.found, total: contract.total })}</h3>
+        <section className="dk-sec">
+          <h3 className="dk-h-sec">
+            {t("desk.intake.contract", { found: contract.found, total: contract.total })}
+          </h3>
           {contract.missing.length > 0 && (
-            <ul className="desk-criteria">
+            <ul className="dk-checks dk-cols2">
               {contract.missing.map((section) => (
-                <li key={section} className="desk-criteria__missing">
-                  <strong>{section}</strong>
-                  <span className="desk-muted">{t("desk.intake.missing")}</span>
+                <li key={section}>
+                  <span className="dk-gl dk-bad dk-g-bang" aria-hidden="true" />
+                  <div>
+                    <b>{section}</b>
+                    <div className="dk-t-small dk-t-sub">{t("desk.intake.missing")}</div>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </section>
       )}
-      <section className="desk-sec">
-        <h3>{t("desk.intake.fix")}</h3>
-        <p className="desk-muted">{t("desk.draft.help")}</p>
-        <div className="desk-draft__actions">
-          <Button disabled={actions.busy} onClick={() => void draft()}>
+      <section className="dk-sec">
+        <h3 className="dk-h-sec">{t("desk.intake.fix")}</h3>
+        <p className="dk-t-sub">{t("desk.draft.help")}</p>
+        <div className="dk-row">
+          <Button type="button" disabled={actions.busy} onClick={() => void draft()}>
             {drafting ? (
               <>
                 <Spinner size="sm" label={t("desk.draft.drafting")} aria-hidden="true" />
@@ -255,16 +302,18 @@ export function IntakeGate({ detail, summary, actions, send, titleId }: GateBody
             )}
           </Button>
           {hasDraft && (
-            <Button appearance="secondary" onClick={() => setDraftOpen(true)}>
+            <Button type="button" appearance="secondary" onClick={() => setDraftOpen(true)}>
               {t("desk.draft.review")}
             </Button>
           )}
         </div>
       </section>
-      <section className="desk-sec" aria-labelledby={`${id}-again`}>
-        <h3 id={`${id}-again`}>{t("desk.intake.again")}</h3>
-        <p className="desk-muted">{t("desk.gate.needsYou.restartHelp")}</p>
-        <div className="desk-check-row">
+      <section className="dk-sec" aria-labelledby={`${id}-again`}>
+        <h3 id={`${id}-again`} className="dk-h-sec">
+          {t("desk.intake.again")}
+        </h3>
+        <p className="dk-t-sub">{t("desk.gate.needsYou.restartHelp")}</p>
+        <div className="dk-check">
           <Checkbox
             id={`${id}-override`}
             checked={override}
@@ -272,8 +321,9 @@ export function IntakeGate({ detail, summary, actions, send, titleId }: GateBody
           />
           <Label htmlFor={`${id}-override`}>{t("desk.start.override")}</Label>
         </div>
-        <div className="desk-draft__actions" role="group" aria-labelledby={titleId}>
+        <div className="dk-row" role="group" aria-labelledby={titleId}>
           <Button
+            type="button"
             appearance="secondary"
             disabled={actions.busy}
             onClick={() => void send({ action: "start", override })}

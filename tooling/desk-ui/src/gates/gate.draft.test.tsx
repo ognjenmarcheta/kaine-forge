@@ -66,7 +66,7 @@ describe("Draft the issue format", () => {
 
     expect(run).toHaveBeenCalledWith({ action: "draft" });
     const dialog = await screen.findByRole("dialog", { name: "Draft of #7" });
-    expect(within(dialog).getByText("Contract 6/6")).toBeTruthy();
+    expect(within(dialog).getByText("Issue format 6/6")).toBeTruthy();
     expect(within(dialog).getByText("Needs information")).toBeTruthy();
     expect(within(dialog).getByText("Which release fixes it?")).toBeTruthy();
     // The fit score: confidence is the weakest grade, and it warns at 1.

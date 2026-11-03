@@ -225,7 +225,7 @@ export function DraftDialog({ issueNumber, open, onOpenChange, actions }: DraftD
     >
       <div className="desk-draft" aria-live="polite">
         {phase.kind === "loading" && (
-          <p className="desk-loading">
+          <p className="dk-row dk-t-sub">
             <Spinner size="sm" label={t("desk.common.loading")} aria-hidden="true" />
             <span>{t("desk.common.loading")}</span>
           </p>
@@ -233,7 +233,7 @@ export function DraftDialog({ issueNumber, open, onOpenChange, actions }: DraftD
         {phase.kind === "review" && <DraftReview draft={phase.draft} current={phase.current} />}
         {phase.kind === "confirm" && <p>{t("desk.draft.confirmText", { number: issueNumber })}</p>}
         {phase.kind === "applying" && (
-          <p className="desk-loading">
+          <p className="dk-row dk-t-sub">
             <Spinner size="sm" label={t("desk.draft.applying")} aria-hidden="true" />
             <span>{t("desk.draft.applying")}</span>
           </p>

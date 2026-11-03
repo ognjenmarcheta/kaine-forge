@@ -112,26 +112,6 @@ small {
 
 /* ── Shell ────────────────────────────────────────────────────────────── */
 
-.desk-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.desk-skip {
-  position: absolute;
-  inset-inline-start: var(--ds-space-200);
-  inset-block-start: calc(var(--ds-space-800) * -1);
-  padding: var(--ds-space-100) var(--ds-space-200);
-  background: var(--ds-surface-overlay);
-  border-radius: var(--ds-radius-100);
-  z-index: 100;
-}
-
-.desk-skip:focus {
-  inset-block-start: var(--ds-space-100);
-}
-
 /*
  * The masthead stays on top while the page scrolls: the top bar and, while the live stream
  * reconnects, the amber banner under it. One row at every width: brand, navigation, then
@@ -143,196 +123,11 @@ small {
   z-index: 30;
 }
 
-.desk-topbar {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: calc(var(--ds-space-150) + var(--ds-space-025));
-  min-width: 0;
-  padding: calc(var(--ds-space-100) + var(--ds-space-025)) var(--ds-space-300);
-  background: var(--ds-surface);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
-  position: relative;
-}
-
 /* The brand gives way first: its name shrinks before the navigation or the controls do. */
-.desk-brand {
-  display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  min-width: 0;
-  overflow: hidden;
-}
-
-.desk-brand__mark {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: calc(var(--ds-space-300) + var(--ds-space-075));
-  height: calc(var(--ds-space-300) + var(--ds-space-075));
-  color: var(--ds-text-brand-inverse);
-  background: var(--ds-background-brand-bold);
-  border-radius: var(--ds-radius-100);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-brand__name {
-  display: grid;
-  min-width: 0;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.desk-brand__name strong {
-  overflow: hidden;
-  font-weight: var(--ds-font-weight-semibold);
-  letter-spacing: var(--ds-letter-spacing-heading);
-  text-overflow: ellipsis;
-}
-
-.desk-brand__name small {
-  overflow: hidden;
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-small);
-  line-height: 1.2;
-  text-overflow: ellipsis;
-}
-
-.desk-nav {
-  display: flex;
-  flex: none;
-  gap: var(--ds-space-050);
-  padding: calc(var(--ds-space-025) + var(--ds-border-width));
-  background: var(--ds-surface-sunken);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-pill);
-}
-
-.desk-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  padding: var(--ds-space-075) calc(var(--ds-space-150) + var(--ds-space-025));
-  color: var(--ds-text-subtle);
-  text-decoration: none;
-  white-space: nowrap;
-  border-radius: var(--ds-radius-pill);
-  transition:
-    background-color var(--ds-motion-control) var(--ds-motion-easing),
-    color var(--ds-motion-control) var(--ds-motion-easing);
-}
-
-.desk-nav a:hover {
-  color: var(--ds-text);
-  background: var(--ds-background-neutral-hovered);
-}
 
 /* Calm accent: the active page is a raised neutral pill. Orange is kept for what you act on. */
-.desk-nav a[aria-current="page"] {
-  color: var(--ds-text);
-  background: var(--ds-surface-raised);
-  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-border-strong);
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-nav .desk-count {
-  font-size: 0.71875rem;
-}
-
-.desk-topbar__end {
-  display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  gap: calc(var(--ds-space-150) + var(--ds-space-025));
-  min-width: 0;
-  margin-inline-start: auto;
-}
 
 /* Search or jump: a quiet pill with the shortcut at its end. */
-.desk-cmdk.ui-button {
-  justify-content: flex-start;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  width: 15rem;
-  min-width: var(--ds-control-large);
-  flex: 0 1 auto;
-  height: calc(var(--ds-control-medium) + var(--ds-space-050));
-  padding: 0 calc(var(--ds-space-100) + var(--ds-space-025)) 0 var(--ds-space-150);
-  color: var(--ds-text-subtlest);
-  background: var(--ds-surface-sunken);
-  border-color: var(--ds-border);
-  font: var(--ds-font-body-comfortable);
-}
-
-.desk-cmdk.ui-button:hover:not(:disabled) {
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface-sunken);
-  border-color: var(--ds-border-strong);
-}
-
-.desk-cmdk__text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desk-kbd {
-  display: inline-block;
-  min-width: calc(var(--ds-space-200) + var(--ds-space-025));
-  margin-inline-start: var(--ds-space-025);
-  padding: 0 calc(var(--ds-space-050) + var(--ds-border-width));
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface);
-  border: var(--ds-border-width) solid var(--ds-border-strong);
-  border-bottom-width: calc(var(--ds-border-width) * 2);
-  border-radius: var(--ds-radius-050);
-  font: var(--ds-font-body-xsmall);
-  font-family: var(--ds-font-family-mono);
-  font-weight: var(--ds-font-weight-medium);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.desk-cmdk .desk-cmdk__kbd {
-  margin-inline-start: auto;
-  padding-inline: var(--ds-space-075);
-  background: transparent;
-  border-bottom-width: var(--ds-border-width);
-  line-height: 1.125rem;
-}
-
-.desk-live {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--ds-space-075);
-  margin: 0;
-  padding: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
-  color: var(--ds-text-warning);
-  background: var(--ds-background-warning);
-  border-radius: var(--ds-radius-pill);
-  font: var(--ds-font-body-compact);
-  font-weight: var(--ds-font-weight-medium);
-  white-space: nowrap;
-}
-
-.desk-live[data-connection="live"] {
-  color: var(--ds-text-success);
-  background: var(--ds-background-success);
-}
-
-.desk-live__dot {
-  flex: none;
-  width: calc(var(--ds-space-075) + var(--ds-border-width));
-  height: calc(var(--ds-space-075) + var(--ds-border-width));
-  border-radius: var(--ds-radius-round);
-  background: currentcolor;
-}
-
-.desk-live[data-connection="reconnecting"] .desk-live__dot {
-  animation: desk-pulse 1.4s var(--ds-motion-easing) infinite;
-}
 
 .desk-icon {
   width: var(--ds-space-200);
@@ -340,53 +135,7 @@ small {
   flex: none;
 }
 
-.desk-icon-button.ui-button {
-  flex: none;
-  width: calc(var(--ds-control-medium) + var(--ds-space-050));
-  height: calc(var(--ds-control-medium) + var(--ds-space-050));
-  padding: 0;
-  border-radius: calc(var(--ds-radius-100) + var(--ds-space-025));
-}
-
-.desk-icon-button.ui-button:hover:not(:disabled) {
-  background: var(--ds-surface-sunken);
-  border-color: var(--ds-border);
-}
-
 /* Preferences: a small panel under the top bar, at its end. */
-.desk-prefs {
-  position: absolute;
-  inset-inline-end: var(--ds-space-200);
-  top: calc(100% + var(--ds-space-025));
-  z-index: 40;
-  display: grid;
-  gap: var(--ds-space-150);
-  width: 17.5rem;
-  padding: calc(var(--ds-space-150) + var(--ds-space-025));
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: calc(var(--ds-radius-200) + var(--ds-space-025));
-  box-shadow: var(--ds-shadow-overlay);
-}
-
-.desk-prefs__title {
-  margin: 0;
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-compact);
-  font-weight: var(--ds-font-weight-semibold);
-  letter-spacing: 0;
-}
-
-.desk-prefs__help {
-  margin: 0;
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-compact);
-}
-
-.desk-prefs .desk-check-row {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-snug);
-}
 
 /* One choice of a few, all visible: the chosen one is ink. */
 .desk-seg {
@@ -398,42 +147,7 @@ small {
   border-radius: var(--ds-radius-pill);
 }
 
-.desk-seg .desk-seg__item.ui-button {
-  height: auto;
-  padding: var(--ds-space-075) calc(var(--ds-space-150) + var(--ds-space-025));
-  color: var(--ds-text-subtle);
-  border: 0;
-  font: var(--ds-font-body-comfortable);
-  white-space: nowrap;
-}
-
-.desk-seg .desk-seg__item.ui-button[aria-pressed="true"] {
-  color: var(--ds-surface);
-  background: var(--ds-text);
-}
-
 /* While the live stream reconnects: the page may be out of date. */
-.desk-connbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  padding: var(--ds-space-100) var(--ds-space-300);
-  color: var(--ds-text-warning);
-  background: var(--ds-background-warning);
-  border-bottom: var(--ds-border-width) solid var(--ds-border-warning);
-  font: var(--ds-font-body-snug);
-}
-
-.desk-connbar__spin {
-  flex: none;
-  width: var(--ds-space-150);
-  height: var(--ds-space-150);
-  border: calc(var(--ds-border-width) * 2) solid var(--ds-background-warning);
-  border-top-color: var(--ds-text-warning);
-  border-radius: var(--ds-radius-round);
-  animation: desk-spin 0.9s linear infinite;
-}
 
 @keyframes desk-spin {
   to {
@@ -562,44 +276,6 @@ small {
 }
 
 /* Toasts: ink on the inverse surface. An error keeps its danger tint: it must be read. */
-.ui-toaster [data-sonner-toast].desk-toast:not([data-type="error"]) {
-  color: var(--ds-text-surface-inverse);
-  background: var(--ds-surface-inverse);
-  border-color: var(--ds-surface-inverse);
-  border-radius: var(--ds-radius-200);
-  box-shadow: var(--ds-shadow-floating-bold);
-  font: var(--ds-font-body);
-}
-
-.ui-toaster [data-sonner-toast].desk-toast:not([data-type="error"]) .desk-toast__description {
-  color: var(--ds-text-surface-inverse);
-  opacity: 0.75;
-}
-
-.ui-toaster [data-sonner-toast].desk-toast:not([data-type="error"]) [data-close-button] {
-  color: var(--ds-text-surface-inverse);
-  background: var(--ds-surface-inverse);
-  border-color: var(--ds-border-strong);
-}
-
-.ui-toaster [data-sonner-toast] [data-button].desk-toast__undo {
-  padding: var(--ds-space-025) var(--ds-space-050);
-  color: var(--ds-background-brand-bold);
-  background: none;
-  font-weight: var(--ds-font-weight-semibold);
-  text-decoration: underline;
-  text-underline-offset: 0.1875rem;
-}
-
-.desk-menu {
-  min-width: 12rem;
-}
-
-.desk-tooltip {
-  max-width: 24rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 
 main {
   /* The stage side sheet's width, and the room the page makes for it on a wide screen. */
@@ -616,60 +292,9 @@ main:focus {
   outline: none;
 }
 
-@media (max-width: 64rem) {
-  .desk-brand__name small,
-  .desk-cmdk__text {
-    display: none;
-  }
-
-  .desk-cmdk.ui-button {
-    width: auto;
-  }
-}
-
 /* A phone: the mark only, icon-only search, no live pill, and 44 px (2.75 rem) touch targets. */
 @media (max-width: 40rem) {
   /* The controls at the end close up too, so the row fits 375 px with the count on Board. */
-  .desk-topbar,
-  .desk-topbar__end {
-    gap: var(--ds-space-100);
-  }
-
-  .desk-topbar {
-    padding: var(--ds-space-100) var(--ds-space-150);
-  }
-
-  .desk-brand__name,
-  .desk-live,
-  .desk-cmdk__kbd {
-    display: none;
-  }
-
-  .desk-nav a {
-    min-height: 2.75rem;
-    padding-inline: calc(var(--ds-space-100) + var(--ds-space-025));
-  }
-
-  .desk-cmdk.ui-button {
-    justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    padding: 0;
-  }
-
-  .desk-icon-button.ui-button {
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
-  .desk-prefs {
-    inset-inline: var(--ds-space-100);
-    width: auto;
-  }
-
-  .desk-connbar {
-    padding: var(--ds-space-100) var(--ds-space-200);
-  }
 
   main {
     padding: var(--ds-space-200);
@@ -678,196 +303,25 @@ main:focus {
 
 /* ── Shared pieces ────────────────────────────────────────────────────── */
 
-.desk-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-200);
-}
-
-.desk-muted {
-  color: var(--ds-text-subtle);
-}
-
 /* Read by screen readers, not shown. */
-.desk-sr-only {
-  position: absolute;
-  width: var(--ds-border-width);
-  height: var(--ds-border-width);
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.desk-empty {
-  padding: var(--ds-space-400);
-  text-align: center;
-  color: var(--ds-text-subtle);
-  border: var(--ds-border-width) dashed var(--ds-border);
-  border-radius: var(--ds-radius-200);
-}
 
 /* A card: a hairline frame and no shadow, so the page stays flat and calm. */
-.desk-panel {
-  padding: var(--ds-space-250);
-  margin-block-end: var(--ds-space-300);
-  background: var(--ds-surface-raised);
-  border-radius: var(--ds-radius-250);
-  box-shadow: none;
-}
 
-.desk-panel > h2 {
-  margin-block-start: 0;
-  font: var(--ds-font-heading-card);
-  letter-spacing: var(--ds-letter-spacing-heading);
-}
-
-.desk-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-200);
-}
-
-.desk-loading {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-}
-
-.desk-note {
-  padding: var(--ds-space-150);
-  color: var(--ds-text-information);
-  background: var(--ds-background-information);
-  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-information);
-  border-radius: var(--ds-radius-100);
-}
-
-.desk-warning {
-  padding: var(--ds-space-150);
-  color: var(--ds-text-warning);
-  background: var(--ds-background-warning);
-  border-radius: var(--ds-radius-100);
-}
-
-.desk-failure {
-  padding: var(--ds-space-150);
-  color: var(--ds-text-danger);
-  background: var(--ds-background-danger);
-  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-danger);
-  border-radius: var(--ds-radius-100);
-  margin-block: var(--ds-space-150);
-}
-
-.desk-failure p {
-  margin-block: var(--ds-space-050);
-}
-
-.desk-pre {
-  margin: var(--ds-space-100) 0;
-  padding: var(--ds-space-150);
-  max-height: 24rem;
-  overflow: auto;
-  color: var(--ds-text);
-  background: var(--ds-surface-sunken);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-100);
-  font: var(--ds-font-code-small);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.desk-list,
 .desk-findings,
 .desk-steps,
 .desk-checks,
-.desk-cards,
 .desk-legend,
 .desk-checklist,
-.desk-anomalies,
-.desk-stepper,
-.desk-activity,
-.desk-activity__rows {
+.desk-anomalies {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.desk-list li {
-  padding-block: var(--ds-space-050);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.desk-section h3 {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-semibold);
-  margin-block-start: var(--ds-space-300);
-}
-
-.desk-field {
-  display: grid;
-  gap: var(--ds-space-050);
-  margin-block-end: var(--ds-space-150);
-}
-
-.desk-field__error {
-  color: var(--ds-text-danger);
-}
-
-.desk-check-row {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-}
-
-.desk-fieldset {
-  border: 0;
-  margin: 0 0 var(--ds-space-150);
-  padding: 0;
-}
-
-.desk-fieldset legend {
-  padding: 0;
-  font-weight: var(--ds-font-weight-semibold);
 }
 
 /*
  * A count of things to act on is orange. `--quiet` (or `data-empty`) makes it neutral, for a
  * zero or a count that asks for nothing.
  */
-.desk-count {
-  display: inline-block;
-  min-width: var(--ds-space-250);
-  height: var(--ds-space-250);
-  padding-inline: var(--ds-space-075);
-  color: var(--ds-text-brand-inverse);
-  background: var(--ds-background-brand-bold);
-  border-radius: var(--ds-radius-pill);
-  font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-semibold);
-  line-height: var(--ds-space-250);
-  text-align: center;
-}
-
-.desk-count--quiet,
-.desk-count[data-empty] {
-  color: var(--ds-text);
-  background: var(--ds-surface-sunken-bold);
-}
-
-.desk-session {
-  max-width: 40rem;
-  margin: var(--ds-space-600) auto;
-  padding: var(--ds-space-400);
-  background: var(--ds-surface-raised);
-  border: var(--ds-border-width) solid var(--ds-border-danger);
-  border-radius: var(--ds-radius-200);
-}
 
 /* ── Board ────────────────────────────────────────────────────────────── */
 
@@ -913,24 +367,12 @@ main:focus {
   padding: 0;
 }
 
-.desk-toolbar__start {
-  gap: var(--ds-space-100);
-  height: var(--ds-control-large);
-  margin-inline-start: auto;
-}
-
-.desk-board {
-  display: grid;
-  gap: var(--ds-space-300);
-}
-
 .desk-start {
   display: grid;
   gap: var(--ds-space-100);
 }
 
 /* Intake draft: the buttons in the decision, and the facts on top of the review. */
-.desk-draft__actions,
 .desk-draft__facts {
   display: flex;
   flex-wrap: wrap;
@@ -945,76 +387,10 @@ main:focus {
 }
 
 /* Start dialog: the open issues of the repository, to pick one. */
-.desk-picker {
-  display: grid;
-  gap: var(--ds-space-100);
-  margin-block-end: var(--ds-space-150);
-}
-
-.desk-picker__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-100);
-}
-
-.desk-picker__head h3 {
-  margin: 0;
-  font: var(--ds-font-heading-xsmall);
-}
-
-.desk-picker__list {
-  display: grid;
-  gap: var(--ds-space-050);
-  max-height: 16rem;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
 
 /* A @repo/ui button laid out as a list row: the same pattern as `.ui-todos__title.ui-button`. */
-.desk-picker__item.ui-button {
-  display: grid;
-  justify-content: stretch;
-  justify-items: start;
-  gap: var(--ds-space-050);
-  width: 100%;
-  height: auto;
-  font-weight: inherit;
-  white-space: normal;
-  padding: var(--ds-space-100) var(--ds-space-150);
-  color: var(--ds-text);
-  text-align: start;
-  background: var(--ds-surface-sunken);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
-  cursor: pointer;
-}
-
-.desk-picker__item.ui-button:hover:not(:disabled) {
-  border-color: var(--ds-border-bold);
-}
 
 /* The ghost button's hover and press fills, which the background above would otherwise hide. */
-.desk-picker__item.ui-button:not([aria-pressed="true"]):hover:not(:disabled) {
-  background: var(--ds-background-neutral-hovered);
-}
-
-.desk-picker__item.ui-button:not([aria-pressed="true"]):active:not(:disabled) {
-  background: var(--ds-background-neutral-pressed);
-}
-
-.desk-picker__item.ui-button[aria-pressed="true"] {
-  border-color: var(--ds-border-selected);
-  background: var(--ds-background-selected);
-}
-
-.desk-picker__item.ui-button:disabled {
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface-sunken);
-  border-color: var(--ds-border);
-}
 
 /* The flow of a start: one row for each flow, its name beside the radio, its source below. */
 .desk-flowpick__list {
@@ -1054,289 +430,23 @@ main:focus {
 }
 
 /* The flow an issue runs on, named only when it is not the built-in default. */
-.desk-flow-tag {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-  overflow-wrap: anywhere;
-}
-
-.desk-picker__name {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.desk-picker__meta,
-.desk-pulls__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-  font: var(--ds-font-body-small);
-}
-
-.desk-picker__note {
-  margin: 0;
-  color: var(--ds-text-warning);
-}
 
 /* Board: the open pull requests, read-only. */
-.desk-pulls {
-  margin-block-start: var(--ds-space-300);
-}
-
-.desk-pulls__list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.desk-pulls__row {
-  display: grid;
-  gap: var(--ds-space-075);
-  padding-block: var(--ds-space-150);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
-}
-
-.desk-pulls__title {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
 
 /* A desk PR's last check and its actions: check now, or send to a fix round. */
-.desk-pulls__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-  font: var(--ds-font-body-small);
-}
-
-.desk-pulls__meta code {
-  overflow-wrap: anywhere;
-}
 
 .desk-start p {
   margin: 0;
 }
 
-.desk-column__head {
-  padding-block-end: var(--ds-space-150);
-  border-bottom: var(--ds-border-width) solid var(--ds-border-strong);
-}
-
-.desk-column__head h2 {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin-block: 0 var(--ds-space-050);
-  font: var(--ds-font-body-comfortable);
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-column__head p {
-  margin: 0;
-  font: var(--ds-font-body-small);
-}
-
-.desk-column__body {
-  display: grid;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  align-content: start;
-  padding-block: var(--ds-space-150);
-}
-
-.desk-column__empty {
-  margin: 0;
-  padding: var(--ds-space-200);
-  color: var(--ds-text-subtle);
-  text-align: center;
-  border: var(--ds-border-width) dashed var(--ds-border);
-  border-radius: var(--ds-radius-200);
-  font: var(--ds-font-body-small);
-}
-
 /* A column count is a neutral tally: the cards carry the status, not the header. */
-.desk-column__head .desk-count {
-  color: var(--ds-text-subtlest);
-  background: var(--ds-surface-sunken-bold);
-  font-weight: var(--ds-font-weight-medium);
-}
 
 /* Side by side from 64 rem: a stable board height, and each column scrolls by itself. */
-@media (min-width: 64rem) {
-  .desk-board {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--ds-space-200);
-    height: max(28rem, calc(100dvh - 15rem));
-  }
-
-  .desk-column {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .desk-column__head {
-    min-height: calc(var(--ds-space-800) + var(--ds-space-100));
-  }
-
-  .desk-column__body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding-inline: var(--ds-space-050);
-    overscroll-behavior: contain;
-  }
-}
-
-.desk-cards {
-  display: grid;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-}
 
 /* A compact card. Only the title and the buttons are interactive, not the card itself. */
-.desk-card {
-  display: grid;
-  gap: var(--ds-space-100);
-  padding: calc(var(--ds-space-150) + var(--ds-space-025));
-  background: var(--ds-surface-raised);
-  border-radius: var(--ds-radius-200);
-  box-shadow: none;
-  transition:
-    background-color var(--ds-motion-control) var(--ds-motion-easing),
-    border-color var(--ds-motion-control) var(--ds-motion-easing);
-}
-
-.desk-card:hover {
-  background: var(--ds-surface-raised-hovered);
-}
-
-.desk-card:active {
-  background: var(--ds-surface-raised-pressed);
-}
-
-.desk-card:focus-within {
-  border-color: var(--ds-border-bold);
-}
-
-.desk-card[data-group="needs-you"] {
-  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-danger);
-}
-
-.desk-card__title {
-  margin: 0;
-  font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-card__title a {
-  color: var(--ds-text);
-  text-decoration: none;
-}
-
-.desk-card__title a:hover {
-  color: var(--ds-text);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-card__clamp,
-.desk-card__reason {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.desk-card__reason {
-  margin: 0;
-  color: var(--ds-text-danger);
-  font: var(--ds-font-body-compact);
-}
-
-.desk-card .desk-chip {
-  justify-self: start;
-}
-
-.desk-card__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  min-width: 0;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-}
-
-.desk-card__branch {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
-  flex: 0 1 auto;
-  padding: 0 var(--ds-space-050);
-  background: var(--ds-surface-sunken-bold);
-  border-radius: var(--ds-radius-050);
-  font: var(--ds-font-code-small);
-}
-
-.desk-card__meta time {
-  flex: none;
-  white-space: nowrap;
-}
-
-.desk-card__pr {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  margin-inline-start: auto;
-  width: var(--ds-control-small);
-  height: var(--ds-control-small);
-  color: var(--ds-icon-subtle);
-  border-radius: var(--ds-radius-100);
-}
-
-.desk-card__pr:hover {
-  color: var(--ds-link);
-  background: var(--ds-background-neutral-subtle-hovered);
-}
-
-.desk-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-}
-
-.desk-card__actions:empty {
-  display: none;
-}
-
-.desk-card__actions a {
-  text-decoration: none;
-}
-
-.desk-card__actions a.ui-button--primary,
-.desk-card__actions a.ui-button--primary:hover {
-  color: var(--ds-text-brand-inverse);
-}
-
-.desk-card__actions a.ui-button--subtle,
-.desk-card__actions a.ui-button--subtle:hover {
-  color: var(--ds-text);
-}
-
-.desk-card__actions .ui-button:not(:disabled):active {
-  transform: scale(var(--ds-motion-press-scale));
-}
 
 @media (max-width: 48rem) {
-  .desk-card__actions .ui-button,
-  .desk-search .desk-search__input,
-  .desk-toolbar__start {
+  .desk-search .desk-search__input {
     min-height: 2.75rem;
   }
 
@@ -1347,102 +457,9 @@ main:focus {
 
 /* ── Board: head, banner, onboarding, filters ─────────────────────────── */
 
-.desk-board-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--ds-space-200);
-  margin-block-end: var(--ds-space-200);
-}
-
-.desk-board-head__text {
-  flex: 1 1 20rem;
-  min-width: 0;
-}
-
-.desk-board-head__text h1 {
-  margin-block: 0 var(--ds-space-050);
-}
-
-.desk-board-head__text p {
-  margin: 0;
-}
-
-.desk-board-head .desk-toolbar__start {
-  margin-inline-start: 0;
-}
-
 /* A failed health check: one quiet danger line on top of the board. */
-.desk-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-150);
-  padding: var(--ds-space-100) calc(var(--ds-space-150) + var(--ds-space-025));
-  margin-block-end: var(--ds-space-200);
-  color: var(--ds-text);
-  background: var(--ds-background-danger);
-  border: var(--ds-border-width) solid var(--ds-border-danger);
-  border-radius: var(--ds-radius-200);
-  font: var(--ds-font-body);
-}
-
-.desk-banner strong {
-  color: var(--ds-text-danger);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-banner a,
-.desk-banner .ui-button--link {
-  height: auto;
-  padding: 0;
-  color: var(--ds-text);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-banner__spacer {
-  flex: 1;
-}
 
 /* No issue yet: three steps and one way to start. */
-.desk-onboard {
-  display: grid;
-  gap: calc(var(--ds-space-150) + var(--ds-space-025));
-  max-width: 47.5rem;
-  margin: var(--ds-space-300) auto;
-  padding: var(--ds-space-400);
-  border-radius: var(--ds-radius-250);
-  box-shadow: none;
-}
-
-.desk-onboard h2 {
-  margin: 0;
-  font: var(--ds-font-heading-large);
-  letter-spacing: var(--ds-letter-spacing-heading);
-}
-
-.desk-onboard p {
-  margin: 0;
-}
-
-.desk-onboard__steps {
-  display: grid;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  margin: 0;
-  padding-inline-start: var(--ds-space-250);
-  list-style: decimal;
-}
-
-.desk-onboard__steps a {
-  color: var(--ds-text);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-onboard__steps b {
-  font-weight: var(--ds-font-weight-semibold);
-}
 
 /* Filter chips of the Columns layout: the chosen one is information blue. */
 .desk-chips {
@@ -1477,316 +494,15 @@ main:focus {
 
 /* ── Board: Your turn ─────────────────────────────────────────────────── */
 
-.desk-inbox {
-  display: grid;
-  gap: var(--ds-space-250);
-  align-items: start;
-}
-
-@media (min-width: 64rem) {
-  .desk-inbox {
-    grid-template-columns: minmax(0, 1fr) 23.75rem;
-  }
-}
-
-.desk-turn {
-  overflow: hidden;
-  border-radius: var(--ds-radius-250);
-  box-shadow: none;
-}
-
-.desk-turn__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  padding: calc(var(--ds-space-150) + var(--ds-space-025)) var(--ds-space-250) var(--ds-space-100);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
-}
-
-.desk-turn__head h2 {
-  margin: 0;
-  font: var(--ds-font-body-comfortable);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-turn__group[data-group="needs-you"] .desk-turn__head h2 {
-  color: var(--ds-text-danger);
-}
-
-.desk-turn__count {
-  color: var(--ds-text-subtle);
-  font-weight: var(--ds-font-weight-regular);
-}
-
-.desk-turn__note {
-  flex: 1;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-compact);
-}
-
-.desk-turn__batch.ui-button {
-  height: auto;
-  padding: 0;
-  color: var(--ds-text);
-  font: var(--ds-font-body-compact);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-turn__rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* Two lines: the title, then why it waits. The actions sit on the right. */
-.desk-turn__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ds-space-050) var(--ds-space-200);
-  padding: var(--ds-space-150) var(--ds-space-250);
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
-}
-
-.desk-turn__group:last-of-type .desk-turn__row:last-child {
-  border-bottom: 0;
-}
 
 /* Next up: an orange bar on the inside edge, and a label. Not a fill. */
-.desk-turn__row[data-first] {
-  box-shadow: inset var(--ds-border-width-thick) 0 0 var(--ds-border-brand);
-}
-
-.desk-turn__main {
-  min-width: 0;
-}
-
-.desk-turn__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-}
-
-.desk-turn__next {
-  color: var(--ds-text-brand);
-  font: var(--ds-font-body-xsmall);
-  font-weight: var(--ds-font-weight-semibold);
-  line-height: var(--ds-space-250);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.desk-turn__title {
-  min-width: 0;
-  color: var(--ds-text);
-  font: var(--ds-font-heading-row);
-  letter-spacing: -0.01em;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.desk-turn__title:hover {
-  color: var(--ds-text);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-turn__title .desk-issue-number {
-  font-weight: var(--ds-font-weight-regular);
-}
-
-.desk-turn__why {
-  margin: var(--ds-space-025) 0 0;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-snug);
-  overflow-wrap: anywhere;
-}
-
-.desk-turn__row[data-group="needs-you"] .desk-turn__why {
-  color: var(--ds-text-danger);
-}
-
-.desk-turn__acts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--ds-space-100);
-}
-
-.desk-turn__wait {
-  min-width: 2.75rem;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-compact);
-  font-variant-numeric: tabular-nums;
-  text-align: end;
-}
-
-.desk-turn__acts a {
-  text-decoration: none;
-}
-
-.desk-turn__acts a.ui-button--primary,
-.desk-turn__acts a.ui-button--primary:hover {
-  color: var(--ds-text-brand-inverse);
-}
 
 /* Every row but the first asks quietly: an outline, no fill. */
-.desk-turn__acts .ui-button--subtle,
-.desk-turn__acts .ui-button--subtle:hover {
-  color: var(--ds-text);
-  background: transparent;
-  border-color: var(--ds-border-bold);
-}
-
-.desk-turn__acts .ui-button--subtle:hover:not(:disabled) {
-  border-color: var(--ds-text);
-}
-
-.desk-turn__acts .ui-button:not(:disabled):active {
-  transform: scale(var(--ds-motion-press-scale));
-}
-
-.desk-turn__empty {
-  margin: 0;
-  padding: var(--ds-space-500) var(--ds-space-250);
-  color: var(--ds-text-subtle);
-  text-align: center;
-}
 
 /* ── Board: side list ─────────────────────────────────────────────────── */
 
-.desk-side {
-  display: grid;
-  gap: var(--ds-space-200);
-}
-
-.desk-side__card {
-  padding: var(--ds-space-250);
-  border-radius: var(--ds-radius-250);
-  box-shadow: none;
-}
-
-.desk-side__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-}
-
-.desk-side__head .ui-button--link {
-  height: auto;
-  margin-inline-start: auto;
-  padding: 0;
-  color: var(--ds-text);
-  font: var(--ds-font-body-compact);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-side__title {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin: 0 0 var(--ds-space-050);
-  font: var(--ds-font-body-comfortable);
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-side__count {
-  color: var(--ds-text-subtle);
-  font-weight: var(--ds-font-weight-regular);
-}
-
-.desk-side__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.desk-side__item {
-  display: grid;
-  gap: var(--ds-space-050);
-  padding-block: var(--ds-space-150);
-  border-top: var(--ds-border-width) solid var(--ds-border);
-}
-
-.desk-side__name {
-  min-width: 0;
-  color: var(--ds-text);
-  font-weight: var(--ds-font-weight-medium);
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.desk-side__name:hover {
-  color: var(--ds-text);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
-
-.desk-side__number {
-  color: var(--ds-text-brand);
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-side__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-compact);
-}
-
 /* A running issue spins; a paused one shows two bars. The words say which. */
-.desk-side__glyph {
-  flex: none;
-  width: var(--ds-space-150);
-  height: var(--ds-space-150);
-  border: calc(var(--ds-border-width) * 2) solid var(--ds-background-information);
-  border-top-color: var(--ds-text-information);
-  border-radius: var(--ds-radius-round);
-  animation: desk-spin 0.9s linear infinite;
-}
-
-.desk-side__meta[data-paused] .desk-side__glyph {
-  display: inline-grid;
-  place-items: center;
-  border: 0;
-  animation: none;
-  font: var(--ds-font-body-xsmall);
-}
-
-.desk-side__meta[data-paused] .desk-side__glyph::before {
-  content: "\275A\275A";
-  font-size: 0.5625rem;
-  letter-spacing: -0.0625rem;
-}
-
-.desk-side__meta .desk-chip {
-  min-height: var(--ds-control-xsmall);
-}
-
-.desk-side__empty {
-  margin: 0;
-  padding-block-start: var(--ds-space-050);
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-compact);
-}
-
-.desk-side__more.ui-button {
-  height: auto;
-  margin-block-start: var(--ds-space-100);
-  padding: 0;
-  color: var(--ds-text);
-  font: var(--ds-font-body-compact);
-  text-decoration: underline;
-  text-underline-offset: var(--ds-space-050);
-}
 
 /* The low-risk plans a batch approves, listed in its dialog. */
 .desk-batch {
@@ -1800,52 +516,6 @@ main:focus {
  * A phone: Your turn only. The side list, the pull requests, and the layout switch go; each
  * row stacks, and the next decision's buttons sit in a bar at the bottom of the screen.
  */
-@media (max-width: 40rem) {
-  .desk-side,
-  .desk-board-head__layout,
-  .desk-board-page .desk-pulls {
-    display: none;
-  }
-
-  .desk-board-page[data-layout="turn"] {
-    padding-block-end: var(--ds-space-1000);
-  }
-
-  .desk-turn__row {
-    grid-template-columns: minmax(0, 1fr);
-    padding-inline: var(--ds-space-200);
-  }
-
-  .desk-turn__acts {
-    justify-content: stretch;
-  }
-
-  .desk-turn__acts > * {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .desk-turn__acts .ui-button,
-  .desk-turn__acts a {
-    min-height: 2.75rem;
-  }
-
-  .desk-turn__wait {
-    flex: 0 0 auto;
-  }
-
-  .desk-turn__row[data-first] .desk-turn__acts {
-    position: fixed;
-    inset-inline: 0;
-    inset-block-end: 0;
-    z-index: 20;
-    flex-wrap: nowrap;
-    padding: var(--ds-space-150) var(--ds-space-200);
-    background: var(--ds-surface-raised);
-    border-top: var(--ds-border-width) solid var(--ds-border);
-    box-shadow: var(--ds-shadow-overlay);
-  }
-}
 
 /* The status of an issue: a pill with a glyph of the same role, so color is never alone. */
 .desk-chip {
@@ -1859,236 +529,16 @@ main:focus {
  * Calm status glyph, in place of the dot: a shape for each tone of `.desk-chip[data-tone]`,
  * so the status also reads without color. The element is `aria-hidden`; the words carry it.
  */
-.desk-chip__glyph {
-  display: inline-grid;
-  flex: none;
-  place-items: center;
-  min-width: var(--ds-space-150);
-  font: var(--ds-font-body-small);
-  line-height: 1;
-}
-
-.desk-chip[data-tone="success"] .desk-chip__glyph::before {
-  content: "\2713";
-  font: var(--ds-font-body-xsmall);
-  font-weight: var(--ds-font-weight-bold);
-}
-
-.desk-chip[data-tone="danger"] .desk-chip__glyph {
-  width: 0.875rem;
-  min-width: 0;
-  height: 0.875rem;
-  color: var(--ds-text-inverse);
-  background: var(--ds-background-danger-bold);
-  border-radius: var(--ds-radius-round);
-}
-
-.desk-chip[data-tone="danger"] .desk-chip__glyph::before {
-  content: "!";
-  font-size: 0.625rem;
-  font-weight: var(--ds-font-weight-bold);
-}
-
-.desk-chip[data-tone="warning"] .desk-chip__glyph::before {
-  content: "\25F7";
-}
-
-.desk-chip[data-tone="warning-subtle"] .desk-chip__glyph::before {
-  content: "\21BA";
-}
-
-.desk-chip[data-tone="information"] .desk-chip__glyph::before {
-  content: "\21BB";
-}
-
-.desk-chip[data-tone="neutral"] .desk-chip__glyph::before {
-  content: "\2013";
-}
 
 /* Eight segments, one for each flow node. The current one is taller, not only darker. */
-.desk-progress {
-  display: grid;
-  /* One column for each node of the issue's own flow, however many it has. */
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  align-items: center;
-  gap: var(--ds-space-050);
-  height: var(--ds-space-150);
-}
-
-.desk-progress__segment {
-  height: var(--ds-space-075);
-  background: var(--tone-solid);
-  border-radius: var(--ds-radius-pill);
-}
-
-.desk-progress__segment[data-status="idle"] {
-  background: var(--ds-background-neutral);
-}
-
-.desk-progress__segment[data-current="true"] {
-  height: var(--ds-space-150);
-  box-shadow: 0 0 0 var(--ds-border-width) var(--ds-surface-raised);
-}
-
-.desk-issue-number {
-  color: var(--ds-text-subtle);
-  font-weight: var(--ds-font-weight-medium);
-}
 
 /* ── Issue page ───────────────────────────────────────────────────────── */
 
-.desk-back {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--ds-control-medium);
-  font: var(--ds-font-body-small);
-}
-
-.desk-back::before {
-  content: "\2190";
-  margin-inline-end: var(--ds-space-075);
-}
-
-.desk-issue-head {
-  margin-block-end: var(--ds-space-050);
-}
-
-.desk-issue-head__title {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--ds-space-200);
-  margin-block-end: var(--ds-space-150);
-}
-
-.desk-issue-head__title h1 {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin-block: var(--ds-space-050);
-  overflow-wrap: anywhere;
-}
-
 /* The way back, and where this issue sits in Your turn with J and K to move through it. */
-.desk-crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin-block-end: var(--ds-space-100);
-}
-
-.desk-crumbs__queue {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-075);
-  margin-inline-start: auto;
-}
-
-.desk-crumbs__where {
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-small);
-}
-
-.desk-crumbs__queue .ui-button {
-  gap: var(--ds-space-075);
-}
-
-.desk-crumbs__prev::before {
-  content: "\2190";
-}
-
-.desk-crumbs__next::after {
-  content: "\2192";
-}
-
-.desk-issue-head__more.ui-button {
-  flex: none;
-  width: var(--ds-control-medium);
-  height: var(--ds-control-medium);
-  margin-inline-start: auto;
-  padding: 0;
-}
 
 /* One line of status: the chip, then facts joined by a quiet dot. */
-.desk-imeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-075) 0;
-  margin-block: 0 var(--ds-space-300);
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-snug);
-}
-
-.desk-imeta .desk-chip {
-  margin-inline-end: var(--ds-space-150);
-}
-
-.desk-imeta__item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-050);
-  min-width: 0;
-  max-width: 100%;
-}
-
-.desk-imeta__item + .desk-imeta__item::before {
-  content: "·";
-  margin-inline: var(--ds-space-100);
-  color: var(--ds-text-subtlest);
-}
-
-.desk-imeta__branch code {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ds-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
-}
-
-.desk-imeta__copy.ui-button {
-  width: var(--ds-control-xsmall);
-  height: var(--ds-control-xsmall);
-  min-height: var(--ds-control-xsmall);
-  padding: 0;
-  color: var(--ds-text-subtlest);
-}
-
-.desk-imeta a {
-  color: var(--ds-text-subtle);
-  text-decoration: none;
-}
-
-.desk-imeta a:hover {
-  color: var(--ds-text);
-  text-decoration: underline;
-}
 
 /* The decision and the history. A stage opens in a side sheet beside them. */
-.desk-issue-main {
-  display: grid;
-  gap: var(--ds-space-250);
-  min-width: 0;
-}
-
-.desk-issue-main > .desk-panel,
-.desk-history > .desk-panel {
-  margin: 0;
-}
-
-.desk-history:focus {
-  outline: none;
-}
-
-.desk-panel__head h2 {
-  margin: 0;
-  font: var(--ds-font-heading-card);
-}
-
-.desk-pipeline .desk-panel__head {
-  flex-wrap: wrap;
-}
 
 .desk-legend {
   display: flex;
@@ -2123,99 +573,10 @@ main:focus {
 }
 
 /* The stages as one compact row: a dot and a name each, joined by a line in the run's color. */
-.desk-stepper {
-  display: flex;
-  margin-block: 0 var(--ds-space-250);
-  overflow-x: auto;
-}
-
-.desk-stepper__item {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 5.25rem;
-}
-
-.desk-stepper__item::before {
-  content: "";
-  position: absolute;
-  inset-block-start: calc(var(--ds-space-150) - var(--ds-border-width));
-  inset-inline: -50% 50%;
-  height: calc(var(--ds-border-width) * 2);
-  background: var(--ds-border-strong);
-}
-
-.desk-stepper__item:first-child::before {
-  display: none;
-}
-
-.desk-stepper__item:not([data-status="idle"])::before {
-  background: var(--ds-background-success-bold);
-}
-
-.desk-stepper .desk-stepper__button.ui-button {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: var(--ds-space-075);
-  width: 100%;
-  height: auto;
-  min-height: 0;
-  padding: var(--ds-space-050) var(--ds-space-025) var(--ds-space-075);
-  color: var(--ds-text-subtle);
-  background: none;
-  border: 0;
-  border-radius: var(--ds-radius-100);
-  font-weight: var(--ds-font-weight-regular);
-  white-space: normal;
-  cursor: pointer;
-  transition: background-color var(--ds-motion-control) var(--ds-motion-easing);
-}
-
-.desk-stepper .desk-stepper__button.ui-button:hover {
-  background: var(--ds-surface-sunken);
-}
 
 /* The selected stage is ink, not orange: selection is not an action. */
-.desk-stepper .desk-stepper__button.ui-button[aria-pressed="true"] {
-  background: var(--ds-surface-raised);
-  box-shadow: inset 0 0 0 var(--ds-border-width) var(--ds-text);
-}
-
-.desk-stepper__dot {
-  width: var(--ds-space-200);
-  height: var(--ds-space-200);
-  background: var(--ds-surface-sunken);
-  border: calc(var(--ds-border-width) * 2) solid var(--ds-border-strong);
-  border-radius: var(--ds-radius-round);
-}
-
-.desk-stepper__item:not([data-status="idle"]) .desk-stepper__dot {
-  background: var(--tone-solid);
-  border-color: var(--tone-solid);
-}
-
-.desk-stepper__item[data-status="running"] .desk-stepper__dot,
-.desk-stepper__item[data-status="waiting"] .desk-stepper__dot,
-.desk-stepper__item[data-status="failed"] .desk-stepper__dot {
-  box-shadow: 0 0 0 var(--ds-space-050) var(--tone-bg);
-}
-
-.desk-stepper__item[data-status="running"] .desk-stepper__dot,
-.desk-stepper__item[data-status="waiting"] .desk-stepper__dot {
-  background: var(--ds-surface);
-}
 
 /* A flow's own step names can be long: wrap them under the dot, never into the next stage. */
-.desk-stepper__name {
-  font: var(--ds-font-body-small);
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
-.desk-stepper__button[aria-current="step"] .desk-stepper__name {
-  color: var(--ds-text);
-  font-weight: var(--ds-font-weight-semibold);
-}
 
 /* ── Inspector ────────────────────────────────────────────────────────── */
 
@@ -2444,69 +805,7 @@ main:focus {
 
 /* ── Decision card ────────────────────────────────────────────────────── */
 
-.desk-decision__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100) var(--ds-space-150);
-  margin-block-end: var(--ds-space-150);
-}
-
-.desk-decision__title {
-  margin: 0;
-  font: var(--ds-font-heading-card);
-}
-
-.desk-decision__title:focus {
-  outline: none;
-}
-
-.desk-decision__by {
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-code-small);
-}
-
-.desk-decision__open.ui-button {
-  margin-inline-start: auto;
-}
-
 /* A block of the card: a hairline above, its title small and bold. */
-.desk-sec {
-  display: grid;
-  gap: var(--ds-space-100);
-  padding-block: var(--ds-space-200);
-  border-top: var(--ds-border-width) solid var(--ds-border);
-}
-
-.desk-sec h3 {
-  margin: 0;
-  font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-plain {
-  max-width: 72ch;
-  margin-block: 0 var(--ds-space-200);
-  font: var(--ds-font-body-large);
-}
-
-.desk-reason {
-  margin-block: 0 var(--ds-space-200);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.desk-riskline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-075) var(--ds-space-150);
-  margin-block-end: var(--ds-space-200);
-  padding: var(--ds-space-100) var(--ds-space-150);
-  background: var(--ds-surface-sunken);
-  border-radius: var(--ds-radius-200);
-  font: var(--ds-font-body-snug);
-}
 
 .desk-record {
   margin: 0;
@@ -2515,25 +814,6 @@ main:focus {
 }
 
 /* What a new round changed: an information rule on the inside edge. */
-.desk-changed {
-  margin-block: var(--ds-space-150) var(--ds-space-200);
-  padding-inline-start: var(--ds-space-150);
-  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-information);
-}
-
-.desk-changed h3 {
-  margin: 0 0 var(--ds-space-050);
-  color: var(--ds-text-information);
-  font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-changed ul {
-  display: grid;
-  gap: var(--ds-space-025);
-  margin: 0;
-  padding-inline-start: var(--ds-space-250);
-}
 
 .desk-question {
   display: grid;
@@ -2562,10 +842,6 @@ main:focus {
   gap: var(--ds-space-025);
   padding-inline-start: var(--ds-space-150);
   border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-success);
-}
-
-.desk-criteria .desk-criteria__missing {
-  border-inline-start-color: var(--ds-border-danger);
 }
 
 /* Folded by default: the details that matter less to the decision. */
@@ -2607,58 +883,10 @@ main:focus {
   color: var(--ds-text-subtlest);
 }
 
-.desk-kv {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--ds-space-100) var(--ds-space-200);
-  margin: 0;
-}
-
-.desk-kv dt {
-  color: var(--ds-text-subtle);
-}
-
-.desk-kv dd {
-  margin: 0;
-}
-
 /*
  * The decision's buttons: at the bottom of the card, sticky while the card scrolls past. On a
  * phone they are a bar fixed to the bottom of the screen.
  */
-.desk-decide {
-  position: sticky;
-  inset-block-end: 0;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin: var(--ds-space-200) calc(var(--ds-space-250) * -1) calc(var(--ds-space-250) * -1);
-  padding: var(--ds-space-150) var(--ds-space-250);
-  background: var(--ds-surface-raised);
-  border-top: var(--ds-border-width) solid var(--ds-border);
-  border-end-start-radius: var(--ds-radius-250);
-  border-end-end-radius: var(--ds-radius-250);
-}
-
-.desk-decide .ui-button,
-.desk-decide a {
-  gap: var(--ds-space-075);
-  white-space: nowrap;
-}
-
-.desk-decide .ui-button--primary .desk-kbd {
-  color: var(--ds-text-brand-inverse);
-  background: transparent;
-  border-color: var(--ds-text-brand-inverse);
-}
-
-.desk-decide__hint {
-  flex: 1 1 15rem;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-compact);
-}
 
 .desk-vprog {
   display: inline-flex;
@@ -2672,53 +900,7 @@ main:focus {
   width: 5rem;
 }
 
-.desk-decision a.ui-button--primary,
-.desk-decision a.ui-button--primary:hover {
-  color: var(--ds-text-brand-inverse);
-  text-decoration: none;
-}
-
-.desk-decision .ui-button:not(:disabled):active {
-  transform: scale(var(--ds-motion-press-scale));
-}
-
-.desk-gate__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-150);
-  margin-block-start: var(--ds-space-150);
-}
-
 /* Running: what the agent does now, in one tinted line. */
-.desk-nowline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin-block: 0 var(--ds-space-150);
-  padding: var(--ds-space-150);
-  background: var(--ds-background-information);
-  border-radius: var(--ds-radius-200);
-}
-
-.desk-nowline__text {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.desk-nowline__text::before,
-.desk-nowline > .desk-muted::before {
-  content: "· ";
-}
-
-.desk-paused-note {
-  padding: var(--ds-space-025) var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface-sunken);
-  border-radius: var(--ds-radius-pill);
-  font: var(--ds-font-body-small);
-}
 
 /* Review: the verdict, ready to ship in one line, and the findings as links into the diff. */
 .desk-verdict {
@@ -2737,10 +919,6 @@ main:focus {
   margin-block: 0 var(--ds-space-100);
   color: var(--ds-text-success);
   font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-ready .desk-muted {
-  font: var(--ds-font-body-small);
 }
 
 .desk-ready__open {
@@ -2996,145 +1174,6 @@ main:focus {
 }
 
 /* Needs you: the incident on a danger tint, then the ways on, each with what happens next. */
-.desk-incident {
-  display: grid;
-  gap: var(--ds-space-100);
-  margin-block-end: var(--ds-space-100);
-  padding: var(--ds-space-150) var(--ds-space-200);
-  background: var(--ds-background-danger);
-  border: var(--ds-border-width) solid var(--ds-border-danger);
-  border-radius: var(--ds-radius-200);
-}
-
-.desk-incident__top {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-}
-
-.desk-incident__mark {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: var(--ds-space-300);
-  height: var(--ds-space-300);
-  color: var(--ds-text-inverse);
-  background: var(--ds-background-danger-bold);
-  border-radius: var(--ds-radius-round);
-  font-weight: var(--ds-font-weight-bold);
-}
-
-.desk-incident__mark::before {
-  content: "!";
-}
-
-.desk-incident__head {
-  margin: 0;
-  font: var(--ds-font-heading-small);
-}
-
-.desk-incident__reason {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.desk-incident__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100);
-}
-
-.desk-why-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--ds-space-300);
-  padding-inline: var(--ds-space-100);
-  color: var(--ds-text-subtle);
-  background: var(--ds-surface);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-pill);
-  font: var(--ds-font-body-small);
-}
-
-.desk-opts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ds-space-150);
-}
-
-@media (max-width: 56.25rem) {
-  .desk-opts {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.desk-opt {
-  display: grid;
-  gap: var(--ds-space-100);
-  align-content: start;
-  justify-items: start;
-  padding: var(--ds-space-150);
-  background: var(--ds-surface-sunken);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-200);
-}
-
-.desk-opt[data-recommended="true"] {
-  border-color: var(--ds-border-success);
-}
-
-.desk-opt > * {
-  max-width: 100%;
-}
-
-.desk-opt textarea,
-.desk-opt [role="combobox"] {
-  width: 100%;
-}
-
-.desk-opt h4 {
-  margin: 0;
-  font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-opt p {
-  margin: 0;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-snug);
-}
-
-.desk-opt .desk-next {
-  padding: var(--ds-space-100) var(--ds-space-150);
-  color: var(--ds-text);
-  background: var(--ds-surface);
-  border: var(--ds-border-width) dashed var(--ds-border-strong);
-  border-radius: var(--ds-radius-100);
-}
-
-.desk-recommended {
-  padding-inline: var(--ds-space-075);
-  color: var(--ds-text-success);
-  background: var(--ds-background-success);
-  border-radius: var(--ds-radius-pill);
-  font: var(--ds-font-body-xsmall);
-  font-weight: var(--ds-font-weight-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  vertical-align: middle;
-}
-
-.desk-command {
-  display: block;
-  width: 100%;
-  padding: var(--ds-space-100) var(--ds-space-150);
-  background: var(--ds-surface);
-  border: var(--ds-border-width) solid var(--ds-border);
-  border-radius: var(--ds-radius-100);
-  overflow-wrap: anywhere;
-}
 
 /* The ship dialog says when files are not marked viewed. It warns; it does not block. */
 .desk-ship__unviewed {
@@ -3149,54 +1188,8 @@ main:focus {
  * or the key hints. The page leaves room under its end, so the bar never covers it.
  */
 @media (max-width: 40rem) {
-  .desk-decide {
-    position: fixed;
-    inset-inline: 0;
-    inset-block-end: 0;
-    z-index: 20;
-    margin: 0;
-    padding: var(--ds-space-100) var(--ds-space-200)
-      calc(var(--ds-space-100) + env(safe-area-inset-bottom, var(--ds-space-0)));
-    border-radius: 0;
-    box-shadow: var(--ds-shadow-overlay);
-  }
-
-  .desk-decide .ui-button,
-  .desk-decide a {
-    flex: 1 1 auto;
-    justify-content: center;
-    min-height: 2.75rem;
-  }
-
-  .desk-decide__hint,
-  .desk-decide .desk-kbd,
-  .desk-crumbs .desk-kbd,
-  .desk-crumbs__where {
-    display: none;
-  }
-
-  main:has(.desk-decide) {
-    padding-block-end: 8rem;
-  }
-
-  html:has(.desk-decide) {
-    scroll-padding-block-end: 8rem;
-  }
-
   .desk-files__row {
     grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .desk-files__row > .desk-muted {
-    grid-column: 1 / -1;
-  }
-
-  .desk-kv {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .desk-issue-head__title h1 {
-    font: var(--ds-font-heading-large);
   }
 }
 
@@ -3273,79 +1266,6 @@ main:focus {
 
 .desk-tabs__panel {
   padding-block-start: var(--ds-space-150);
-}
-
-.desk-activity {
-  display: grid;
-  gap: var(--ds-space-200);
-}
-
-.desk-activity__head {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin: 0 0 var(--ds-space-050);
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-activity__row {
-  display: grid;
-  grid-template-columns: 5.5rem 11rem minmax(0, 1fr) 6.5rem 8.5rem;
-  align-items: center;
-  gap: var(--ds-space-150);
-  min-height: var(--ds-control-medium);
-  padding-block: calc(var(--ds-space-100) + var(--ds-border-width));
-  border-bottom: var(--ds-border-width) solid var(--ds-border);
-  font: var(--ds-font-body);
-}
-
-.desk-activity__time,
-.desk-activity__duration {
-  color: var(--ds-text-subtle);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.desk-activity__duration {
-  text-align: end;
-}
-
-.desk-activity__note {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ds-text-subtle);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desk-activity__pill {
-  justify-self: end;
-}
-
-@media (max-width: 48rem) {
-  .desk-activity__row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: var(--ds-space-050) var(--ds-space-100);
-  }
-
-  .desk-activity__note {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .desk-activity__duration {
-    display: none;
-  }
-}
-
-.desk-skeleton--title {
-  height: var(--ds-space-400);
-}
-
-.desk-skeleton--block {
-  height: 6rem;
 }
 
 .desk-finding {
@@ -3459,29 +1379,6 @@ main:focus {
 }
 
 /* Placeholder lines while a report loads again. */
-.desk-skel {
-  display: grid;
-  gap: calc(var(--ds-space-100) + var(--ds-space-025));
-  padding-block: var(--ds-space-200);
-}
-
-.desk-skel__now {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-100);
-  margin: 0;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-compact);
-}
-
-.desk-skel__line {
-  height: calc(var(--ds-space-150) + var(--ds-space-025));
-  border-radius: var(--ds-radius-050);
-}
-
-.desk-skel__line:nth-child(even) {
-  width: 70%;
-}
 
 /* ── Log ──────────────────────────────────────────────────────────────── */
 
@@ -3496,71 +1393,11 @@ main:focus {
   line-height: var(--ds-space-250);
 }
 
-.desk-log__line {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.desk-log__line[data-kind="history"] span {
-  color: var(--ds-text-information);
-}
-
 .desk-log__time {
   color: var(--ds-text-subtlest);
 }
 
-.desk-log-panel {
-  position: relative;
-}
-
-.desk-log__latest {
-  position: absolute;
-  inset-inline-end: var(--ds-space-200);
-  inset-block-end: var(--ds-space-150);
-}
-
 /* ── History: one line of summary, then the trace and the live log ──────── */
-
-.desk-history__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--ds-space-050) var(--ds-space-150);
-}
-
-.desk-history__head h2 {
-  margin: 0;
-  font: var(--ds-font-heading-card);
-}
-
-.desk-history__summary {
-  flex: 1 1 16rem;
-  min-width: 0;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-}
-
-.desk-history__toggle.ui-button {
-  margin-inline-start: auto;
-}
-
-.desk-history__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ds-space-100) var(--ds-space-200);
-  margin-block-start: var(--ds-space-150);
-}
-
-.desk-history__bar .desk-tabs__list {
-  flex: 1 1 auto;
-  width: auto;
-}
-
-.desk-history__every {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-}
 
 /* ── Trace: each step on one time axis, newest first ─────────────────────── */
 
@@ -3575,11 +1412,6 @@ main:focus {
   align-items: center;
   justify-content: flex-end;
   gap: var(--ds-space-100);
-}
-
-.desk-trace__top .desk-seg__item.ui-button {
-  padding: var(--ds-space-050) calc(var(--ds-space-100) + var(--ds-space-025));
-  font: var(--ds-font-body-small);
 }
 
 /* Name, bar, duration, cost, outcome: the axis above shares the first two columns. */
@@ -4114,11 +1946,10 @@ main:focus {
 
 .desk-node__title {
   min-width: 0;
-  overflow: hidden;
   font: var(--ds-font-body-small);
   font-weight: var(--ds-font-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* The gate names are longer now ("Merge on GitHub"): a title wraps rather than cut. */
+  overflow-wrap: anywhere;
 }
 
 .desk-node__status {
@@ -4244,27 +2075,14 @@ main:focus {
 @media (prefers-reduced-motion: reduce) {
   .react-flow .desk-edge--active .desk-edge__path,
   .desk-node[data-status="running"] .desk-node__dot,
-  .desk-live[data-connection="reconnecting"] .desk-live__dot,
-  .desk-connbar__spin,
-  .desk-side__glyph,
-  .desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"],
-  .desk-skel__line {
+  .desk-trace__step[data-live="true"] .desk-trace__bar[data-bar="run"] {
     animation: none;
   }
 
-  .desk-card,
-  .desk-nav a,
   .desk-node,
-  .desk-stepper__button,
-  .desk-card__actions .ui-button,
   .desk-tabs__list [role="tab"],
   .desk-trace__caret {
     transition: none;
-  }
-
-  .desk-card__actions .ui-button:not(:disabled):active,
-  .desk-decision .ui-button:not(:disabled):active {
-    transform: none;
   }
 }
 
@@ -4273,41 +2091,6 @@ main:focus {
  * scroller is the containing block of the screen-reader-only text in its cells; without it
  * that absolute text would widen the page.
  */
-.desk-table-scroll {
-  position: relative;
-  overflow-x: auto;
-  margin-block-end: var(--ds-space-150);
-}
-
-.desk-table {
-  width: 100%;
-  border-collapse: collapse;
-  font: var(--ds-font-body-snug);
-  font-variant-numeric: tabular-nums;
-}
-
-.desk-table th,
-.desk-table td {
-  padding: calc(var(--ds-space-100) + var(--ds-border-width))
-    calc(var(--ds-space-100) + var(--ds-space-025));
-  text-align: start;
-  white-space: nowrap;
-  border-block-end: var(--ds-border-width) solid var(--ds-border);
-}
-
-.desk-table thead th {
-  color: var(--ds-text-subtlest);
-  font: var(--ds-font-body-small);
-  font-weight: var(--ds-font-weight-medium);
-}
-
-.desk-table tbody th {
-  font-weight: inherit;
-}
-
-.desk-table .desk-table__number {
-  text-align: end;
-}
 
 /* Runs view: lesson candidates. A key or sample can be long, so it wraps instead of widening the table. */
 .desk-lesson__issues {
@@ -4323,10 +2106,6 @@ main:focus {
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-wrap: anywhere;
-}
-
-.desk-table tbody th code {
   overflow-wrap: anywhere;
 }
 
@@ -4456,10 +2235,6 @@ main:focus {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--ds-space-200);
   margin-block-end: var(--ds-space-300);
-}
-
-.desk-split > .desk-panel {
-  margin-block-end: 0;
 }
 
 .desk-split--inner {
@@ -4597,7 +2372,6 @@ main:focus {
     grid-template-columns: 5.5rem minmax(0, 1fr) auto;
   }
 
-  .desk-heading .ui-button,
   .desk-remedy .ui-button,
   .desk-lesson__actions .ui-button,
   .desk-promoted .ui-button {
@@ -4726,11 +2500,6 @@ main:focus {
   }
 }
 
-.desk-editor__back {
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-body-small);
-}
-
 .desk-editor__facts {
   display: flex;
   flex-wrap: wrap;
@@ -4769,12 +2538,6 @@ main:focus {
   min-width: 0;
 }
 
-.desk-agent-form .desk-field > p,
-.desk-agent-form .desk-fieldset > p {
-  margin: 0;
-  font: var(--ds-font-body-small);
-}
-
 .desk-agent-form__pair {
   display: grid;
   gap: var(--ds-space-100) var(--ds-space-300);
@@ -4804,10 +2567,6 @@ main:focus {
   margin: var(--ds-space-100) 0;
   padding: 0;
   list-style: none;
-}
-
-.desk-mono {
-  font-family: var(--ds-font-family-mono);
 }
 
 .desk-prompt {
@@ -4986,12 +2745,6 @@ main:focus {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: var(--ds-space-100) var(--ds-space-200);
   align-items: start;
-}
-
-.desk-flows-step .desk-field > p,
-.desk-flows-step .desk-fieldset > p {
-  margin: 0;
-  font: var(--ds-font-body-small);
 }
 
 /* A parsed command: each word a chip, so the owner sees where the words split. */
@@ -5253,23 +3006,6 @@ main:focus {
  * A phone or a narrow tablet: the navigation scrolls sideways inside its pill, not the page.
  * The brand name still gives way first, down to the mark.
  */
-@media (max-width: 48rem) {
-  .desk-brand {
-    flex-shrink: 100;
-    min-width: calc(var(--ds-space-300) + var(--ds-space-075));
-  }
-
-  .desk-nav {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .desk-topbar__end {
-    flex: none;
-  }
-}
 
 @media (max-width: 40rem) {
   .desk-agent__actions .ui-button,
@@ -5607,68 +3343,6 @@ main:focus {
   border-radius: var(--ds-radius-200);
 }
 
-.desk-job-limits {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ds-space-150);
-}
-
-@media (max-width: 40rem) {
-  .desk-job-limits {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.desk-job-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-100) var(--ds-space-250);
-  margin: 0 0 var(--ds-space-150);
-  padding: 0;
-  list-style: none;
-  font: var(--ds-font-body-snug);
-}
-
-.desk-job-steps li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-075);
-  color: var(--ds-text-subtlest);
-}
-
-.desk-job-steps li[data-state="done"] {
-  color: var(--ds-text-subtle);
-}
-
-.desk-job-steps li[data-state="current"] {
-  color: var(--ds-text);
-  font-weight: var(--ds-font-weight-semibold);
-}
-
-.desk-job-steps__dot {
-  width: var(--ds-space-100);
-  height: var(--ds-space-100);
-  border: var(--ds-border-width) solid var(--ds-border-bold);
-  border-radius: var(--ds-radius-round);
-}
-
-.desk-job-steps li[data-state="done"] .desk-job-steps__dot {
-  background: var(--ds-background-success-bold);
-  border-color: var(--ds-background-success-bold);
-}
-
-.desk-job-steps li[data-state="current"] .desk-job-steps__dot {
-  background: var(--ds-background-information-bold);
-  border-color: var(--ds-background-information-bold);
-}
-
-.desk-job-activity {
-  margin: 0;
-  overflow-wrap: anywhere;
-  color: var(--ds-text-subtle);
-  font: var(--ds-font-code-small);
-}
-
 .desk-job-issues {
   display: grid;
   gap: var(--ds-space-150);
@@ -5681,28 +3355,6 @@ main:focus {
   margin: var(--ds-space-050) 0;
 }
 
-.desk-job-history {
-  display: grid;
-  gap: var(--ds-space-075);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font: var(--ds-font-body-compact);
-}
-
-.desk-job-history li {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  gap: var(--ds-space-100);
-  overflow-wrap: anywhere;
-}
-
-.desk-job-history time,
-.desk-job-history li > span:nth-child(2) {
-  color: var(--ds-text-subtle);
-  font-variant-numeric: tabular-nums;
-}
-
 /* An agent's summary keeps its own line breaks and bullets, as text. */
 .desk-job-text {
   max-width: 48rem;
@@ -5710,11 +3362,6 @@ main:focus {
 }
 
 /* The lab's job bar: start a screen job, or follow the one that runs. */
-.desk-lab-jobs {
-  justify-content: flex-end;
-  margin-block: 0;
-  padding: var(--ds-space-150) var(--ds-space-200) 0;
-}
 
 /* Scorecard tracking: the read time and actions, a finding's issue cell, and solved findings. */
 .desk-score-trackbar,

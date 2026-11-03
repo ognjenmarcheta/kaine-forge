@@ -17,6 +17,7 @@ export const colors = {
     discovery: "var(--ds-text-discovery)",
     selected: "var(--ds-text-selected)",
     "surface-inverse": "var(--ds-text-surface-inverse)",
+    attention: "var(--ds-text-attention)",
     "chart-1": "var(--ds-text-chart-1)",
     "chart-2": "var(--ds-text-chart-2)",
     "chart-3": "var(--ds-text-chart-3)",
@@ -56,6 +57,8 @@ export const colors = {
     "warning-bold": "var(--ds-background-warning-bold)",
     "warning-bold-hovered": "var(--ds-background-warning-bold-hovered)",
     "warning-bold-pressed": "var(--ds-background-warning-bold-pressed)",
+    attention: "var(--ds-background-attention)",
+    "attention-bold": "var(--ds-background-attention-bold)",
     information: "var(--ds-background-information)",
     "information-bold": "var(--ds-background-information-bold)",
     discovery: "var(--ds-background-discovery)",
@@ -69,6 +72,21 @@ export const colors = {
     "chart-5": "var(--ds-background-chart-5)",
     "chart-6": "var(--ds-background-chart-6)"
   },
+  "ds-border": {
+    attention: "var(--ds-border-attention)",
+    DEFAULT: "var(--ds-border)",
+    strong: "var(--ds-border-strong)",
+    bold: "var(--ds-border-bold)",
+    state: "var(--ds-border-state)",
+    focused: "var(--ds-border-focused)",
+    selected: "var(--ds-border-selected)",
+    brand: "var(--ds-border-brand)",
+    success: "var(--ds-border-success)",
+    danger: "var(--ds-border-danger)",
+    warning: "var(--ds-border-warning)",
+    information: "var(--ds-border-information)",
+    discovery: "var(--ds-border-discovery)"
+  },
   "ds-surface": {
     DEFAULT: "var(--ds-surface)",
     sunken: "var(--ds-surface-sunken)",
@@ -78,19 +96,6 @@ export const colors = {
     "raised-hovered": "var(--ds-surface-raised-hovered)",
     "raised-pressed": "var(--ds-surface-raised-pressed)",
     overlay: "var(--ds-surface-overlay)"
-  },
-  "ds-border": {
-    DEFAULT: "var(--ds-border)",
-    strong: "var(--ds-border-strong)",
-    bold: "var(--ds-border-bold)",
-    focused: "var(--ds-border-focused)",
-    selected: "var(--ds-border-selected)",
-    brand: "var(--ds-border-brand)",
-    success: "var(--ds-border-success)",
-    danger: "var(--ds-border-danger)",
-    warning: "var(--ds-border-warning)",
-    information: "var(--ds-border-information)",
-    discovery: "var(--ds-border-discovery)"
   },
   "ds-blanket": {
     DEFAULT: "var(--ds-blanket)"

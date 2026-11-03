@@ -25,12 +25,30 @@ export type IssueStatus = z.infer<typeof issueStatusSchema>;
 const timestampSchema = z.iso.datetime({ offset: true });
 
 /** `stage`: the step id or engine state the issue was at. */
+/**
+ * Why an issue stopped in `needs-you`: the machine's reasons, plus `intake` (the issue failed
+ * intake) and `interrupted` (the desk stopped mid-stage). The UI names a stop from it.
+ */
+export const NEEDS_YOU_CODES = [
+  "loop-limit",
+  "same-failure",
+  "blocked",
+  "error",
+  "pr-round-limit",
+  "intake",
+  "interrupted"
+] as const;
+export const needsYouCodeSchema = z.enum(NEEDS_YOU_CODES);
+export type NeedsYouCode = z.infer<typeof needsYouCodeSchema>;
+
 export const historyEventSchema = z
   .object({
     at: timestampSchema,
     stage: stageIdSchema,
     event: z.string().min(1),
-    note: z.string().optional()
+    note: z.string().optional(),
+    /** On a `needs-you` event: why. Older events have none. */
+    code: needsYouCodeSchema.optional()
   })
   .strict();
 export type HistoryEvent = z.infer<typeof historyEventSchema>;

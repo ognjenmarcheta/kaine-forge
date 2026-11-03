@@ -161,7 +161,7 @@ export function ShipDialog({
     >
       <div className="desk-ship" aria-live="polite">
         {phase.kind === "checking" && (
-          <p className="desk-loading">
+          <p className="dk-row dk-t-sub">
             <Spinner size="sm" label={t("desk.ship.checking")} aria-hidden="true" />
             <span>{t("desk.ship.checking")}</span>
           </p>
@@ -183,23 +183,23 @@ export function ShipDialog({
                 pr: pullRequest ?? 0
               })}
             </p>
-            <p className="desk-note">{t("desk.ship.youMerge")}</p>
+            <p className="dk-hint">{t("desk.ship.youMerge")}</p>
           </>
         )}
         {phase.kind === "shipping" && (
-          <p className="desk-loading">
+          <p className="dk-row dk-t-sub">
             <Spinner size="sm" label={t("desk.ship.shipping")} aria-hidden="true" />
             <span>{t("desk.ship.shipping")}</span>
           </p>
         )}
         {phase.kind === "shipped" && (
           <>
-            <p className="desk-note">
+            <p className="dk-hint">
               {pullRequest === null
                 ? t("desk.ship.done")
                 : t("desk.ship.updated", { pr: pullRequest })}
             </p>
-            <p className="desk-muted">{t("desk.ship.youMerge")}</p>
+            <p className="dk-t-sub">{t("desk.ship.youMerge")}</p>
           </>
         )}
         {phase.kind === "failed" && <FailureText code={phase.code} detail={phase.detail} />}
@@ -223,9 +223,9 @@ function ShipReview({
   return (
     <div className="desk-artifact">
       <Section title={t("desk.ship.gate")}>
-        {plan.gate.ok && <p className="desk-note">{t("desk.ship.gateOk")}</p>}
+        {plan.gate.ok && <p className="dk-hint">{t("desk.ship.gateOk")}</p>}
         {unviewed.length > 0 && (
-          <div className="desk-warning desk-ship__unviewed">
+          <div className="dk-banner dk-banner-warning desk-ship__unviewed">
             <strong>{t("desk.ship.unviewed")}</strong>
             <span>
               {t("desk.ship.unviewedText", {
@@ -236,7 +236,7 @@ function ShipReview({
           </div>
         )}
         {!plan.gate.ok && (
-          <div className="desk-failure" role="alert">
+          <div className="dk-banner dk-banner-danger dk-stack" role="alert">
             <p>{t("desk.ship.gateFailed")}</p>
             <ItemList
               empty=""
@@ -254,7 +254,7 @@ function ShipReview({
         <p>
           <code>{plan.commitHeader}</code>
         </p>
-        <p className="desk-muted">
+        <p className="dk-t-sub">
           {t("desk.ship.branch")} <code>{plan.branch ?? t("desk.common.unknown")}</code>
         </p>
       </Section>
@@ -262,7 +262,7 @@ function ShipReview({
         {pullRequest === null ? (
           <>
             <p>{plan.pullRequest.title}</p>
-            <p className="desk-muted">{t("desk.ship.draft", { base: plan.pullRequest.base })}</p>
+            <p className="dk-t-sub">{t("desk.ship.draft", { base: plan.pullRequest.base })}</p>
           </>
         ) : (
           <p>{t("desk.ship.updatesPr", { pr: pullRequest })}</p>
@@ -271,7 +271,7 @@ function ShipReview({
       <Section title={t("desk.ship.changeset")}>
         <p>
           <strong>{t(`desk.ship.changesetKind.${plan.changeset.kind}`)}</strong>{" "}
-          <span className="desk-muted">{plan.changeset.reason}</span>
+          <span className="dk-t-sub">{plan.changeset.reason}</span>
         </p>
         {plan.changesetText !== null && (
           <Pre label={t("desk.ship.changeset")}>{plan.changesetText}</Pre>

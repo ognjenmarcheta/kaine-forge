@@ -99,7 +99,7 @@ function Specimen() {
     <div className="grid gap-ds-400">
       <PageHeader
         actions={
-          <Button>
+          <Button type="button">
             <Plus aria-hidden className="size-ds-200" />
             New report
           </Button>
@@ -125,12 +125,22 @@ function Specimen() {
 
       <Section title="Actions">
         <div className="flex flex-wrap items-center gap-ds-100">
-          <Button>Primary</Button>
-          <Button appearance="subtle">Subtle</Button>
-          <Button appearance="ghost">Ghost</Button>
-          <Button appearance="link">Link</Button>
-          <Button appearance="danger">Delete</Button>
-          <Button disabled>Disabled</Button>
+          <Button type="button">Primary</Button>
+          <Button type="button" appearance="subtle">
+            Subtle
+          </Button>
+          <Button type="button" appearance="ghost">
+            Ghost
+          </Button>
+          <Button type="button" appearance="link">
+            Link
+          </Button>
+          <Button type="button" appearance="danger">
+            Delete
+          </Button>
+          <Button type="button" disabled>
+            Disabled
+          </Button>
           <SegmentedControl aria-label="Range" value={range} onValueChange={setRange}>
             <SegmentedControlItem value="week">Week</SegmentedControlItem>
             <SegmentedControlItem value="month">Month</SegmentedControlItem>
@@ -288,7 +298,7 @@ function Specimen() {
           </TabsList>
           <TabsContent value="all">
             <EmptyState
-              action={<Button>Create invoice</Button>}
+              action={<Button type="button">Create invoice</Button>}
               description="Invoices you create show here."
               icon={Inbox}
               title="No invoices yet"

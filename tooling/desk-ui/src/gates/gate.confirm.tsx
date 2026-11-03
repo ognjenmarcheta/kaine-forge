@@ -79,7 +79,7 @@ export function RemoveDialog({ open, onOpenChange, onConfirm, ...rest }: RemoveD
         }
       ]}
     >
-      <div className="desk-check-row">
+      <div className="dk-check">
         <Checkbox
           id={`${id}-force`}
           checked={force}
@@ -87,7 +87,7 @@ export function RemoveDialog({ open, onOpenChange, onConfirm, ...rest }: RemoveD
         />
         <Label htmlFor={`${id}-force`}>{t("desk.gate.remove.force")}</Label>
       </div>
-      <p className="desk-muted">{t("desk.gate.remove.forceHelp")}</p>
+      <p className="dk-t-sub">{t("desk.gate.remove.forceHelp")}</p>
     </Modal>
   );
 }
@@ -135,5 +135,45 @@ export function ApproveBatchDialog({
         ))}
       </ul>
     </Modal>
+  );
+}
+
+export interface TakeOverDialogProps extends ReturnFocus {
+  readonly issueNumber: number;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onConfirm: () => void;
+}
+
+/** Open the agent session in a terminal: the desk stops the agent and pauses its runs first. */
+export function TakeOverDialog({
+  issueNumber,
+  open,
+  onOpenChange,
+  onConfirm,
+  ...rest
+}: TakeOverDialogProps) {
+  const t = useT();
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      {...returnFocus(rest)}
+      title={t("desk.gate.takeOver.title")}
+      description={t("desk.gate.takeOver.description", { number: issueNumber })}
+      closeButtonLabel={t("desk.common.close")}
+      size="sm"
+      actions={[
+        { appearance: "subtle", label: t("desk.common.back"), onClick: () => onOpenChange(false) },
+        {
+          appearance: "default",
+          label: t("desk.gate.takeOver.confirm"),
+          onClick: () => {
+            onOpenChange(false);
+            onConfirm();
+          }
+        }
+      ]}
+    />
   );
 }

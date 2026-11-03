@@ -1,0 +1,237 @@
+/* Shell: sidebar, main column, page header, connection bar. Ported from the Agent Desk Redesign canvas; --ds-* roles only. */
+
+.dk-side {
+  width: var(--ds-layout-sidebar);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-200);
+  padding: var(--ds-space-200) var(--ds-space-150);
+  background: var(--ds-surface);
+  border-right: var(--ds-border-width) solid var(--ds-border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.dk-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  padding: 0 var(--ds-space-100);
+}
+.dk-logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--ds-radius-100);
+  background: var(--ds-background-brand-bold);
+  color: var(--ds-text-brand-inverse);
+  display: grid;
+  place-items: center;
+  font: var(--ds-type-body);
+  font-weight: var(--ds-font-weight-semibold);
+  flex: none;
+}
+.dk-brand b {
+  font: var(--ds-type-body);
+  font-weight: var(--ds-font-weight-semibold);
+  font-family: var(--ds-font-family-heading);
+}
+.dk-brand-t span {
+  display: block;
+  font: var(--ds-type-label);
+  color: var(--ds-text-subtlest);
+}
+.dk-search-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  width: 100%;
+  min-height: var(--ds-control-medium);
+  padding: 0 var(--ds-space-100);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-100);
+  background: var(--ds-surface-sunken);
+  color: var(--ds-text-subtle);
+  cursor: pointer;
+  text-align: left;
+}
+.dk-search-trigger .dk-kbd {
+  margin-left: auto;
+}
+.dk-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-025);
+}
+.dk-nav-h {
+  font: var(--ds-type-label);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text-subtlest);
+  padding: var(--ds-space-100) var(--ds-space-100) var(--ds-space-050);
+}
+.dk-nav a,
+.dk-nav button {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  min-height: var(--ds-control-medium);
+  padding: 0 var(--ds-space-100);
+  border-radius: var(--ds-radius-100);
+  border: var(--ds-border-width) solid transparent;
+  background: none;
+  color: var(--ds-text-subtle);
+  text-decoration: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font: var(--ds-type-body);
+}
+.dk-nav a:hover,
+.dk-nav button:hover {
+  background: var(--ds-background-neutral-subtle-hovered);
+  color: var(--ds-text);
+}
+.dk-nav [aria-current="page"] {
+  background: var(--ds-surface-raised);
+  border-color: var(--ds-border-state);
+  color: var(--ds-text);
+  font-weight: var(--ds-font-weight-medium);
+}
+.dk-nav .dk-ic {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
+}
+.dk-nav .dk-count {
+  margin-left: auto;
+}
+.dk-nav .dk-lab {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dk-side-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-100);
+  padding-top: var(--ds-space-150);
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+.dk-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  font: var(--ds-type-label);
+  color: var(--ds-text-subtle);
+}
+.dk-conn i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-round);
+  background: var(--ds-background-success-bold);
+}
+.dk-conn.dk-re i {
+  background: var(--ds-background-warning-bold);
+}
+.dk-conn.dk-co i {
+  background: var(--ds-border-bold);
+}
+.dk-health-dot {
+  margin-left: auto;
+  font: var(--ds-type-label);
+  font-weight: var(--ds-font-weight-bold);
+  color: var(--ds-text-danger);
+}
+
+.dk-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dk-connbar {
+  display: flex;
+  gap: var(--ds-space-100);
+  align-items: center;
+  padding: var(--ds-space-100) var(--ds-space-300);
+  background: var(--ds-background-warning);
+  color: var(--ds-text-warning);
+  border-bottom: var(--ds-border-width) solid var(--ds-border-warning);
+  font: var(--ds-type-label);
+}
+.dk-page {
+  width: 100%;
+  max-width: var(--ds-layout-page);
+  margin: 0 auto;
+  padding: var(--ds-space-300) var(--ds-space-400) var(--ds-space-800);
+}
+.dk-ph {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ds-space-200);
+  flex-wrap: wrap;
+  margin-bottom: var(--ds-space-250);
+}
+.dk-ph .dk-lead {
+  color: var(--ds-text-subtle);
+  margin-top: var(--ds-space-050);
+}
+.dk-crumb {
+  display: flex;
+  gap: var(--ds-space-100);
+  align-items: center;
+  margin-bottom: var(--ds-space-150);
+  font: var(--ds-type-label);
+  color: var(--ds-text-subtle);
+}
+.dk-crumb button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ds-link);
+  cursor: pointer;
+  font: inherit;
+}
+.dk-nav-g {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-025);
+}
+/* Sonner draws the toasts; these give them the design's inverse surface. Errors keep their own. */
+.ui-toaster [data-sonner-toast].dk-toast:not([data-type="error"]) {
+  color: var(--ds-text-surface-inverse);
+  background: var(--ds-surface-inverse);
+  border-color: var(--ds-surface-inverse);
+  border-radius: var(--ds-radius-200);
+  font: var(--ds-type-body);
+}
+.ui-toaster [data-sonner-toast].dk-toast:not([data-type="error"]) .dk-toast-d {
+  color: var(--ds-text-surface-inverse);
+  opacity: 0.75;
+}
+.ui-toaster [data-sonner-toast].dk-toast:not([data-type="error"]) [data-close-button] {
+  color: var(--ds-text-surface-inverse);
+  background: var(--ds-surface-inverse);
+  border-color: var(--ds-border-strong);
+}
+.ui-toaster [data-sonner-toast] [data-button].dk-undo {
+  padding: var(--ds-space-025) var(--ds-space-050);
+  color: var(--ds-text-surface-inverse);
+  background: none;
+  font-weight: var(--ds-font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.dk-backlink {
+  display: inline-block;
+  margin-bottom: var(--ds-space-150);
+  font: var(--ds-type-label);
+  color: var(--ds-link);
+}
+.dk-backlink::before {
+  content: "← ";
+}

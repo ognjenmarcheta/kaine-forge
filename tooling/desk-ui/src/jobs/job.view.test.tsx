@@ -107,7 +107,13 @@ describe("Scorecard jobs on the Scorecard view", () => {
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "Run scorecard" }));
-    const dialog = screen.getByRole("dialog", { name: "Run the scorecard" });
+    // The start opens New work on the desk job tab, with the job kind picked.
+    const dialog = screen.getByRole("dialog", { name: "New work" });
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Run the scorecard/ })
+        .getAttribute("aria-checked")
+    ).toBe("true");
     const budget = within(dialog).getByLabelText("Budget in US dollars");
     await userEvent.clear(budget);
     await userEvent.type(budget, "9");
@@ -151,7 +157,13 @@ describe("Screen jobs", () => {
     const user = userEvent.setup({ applyAccept: false });
 
     await user.click(await screen.findByRole("button", { name: "Recreate screen" }));
-    const dialog = screen.getByRole("dialog", { name: "Recreate a screen" });
+    // The start opens New work on the desk job tab, with the job kind picked.
+    const dialog = screen.getByRole("dialog", { name: "New work" });
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Recreate a screen/ })
+        .getAttribute("aria-checked")
+    ).toBe("true");
     await user.type(within(dialog).getByLabelText("Screen id"), "10-sample");
     await user.type(within(dialog).getByLabelText("Screen title"), "Sample");
     const file = within(dialog).getByLabelText(/Reference image/);
@@ -237,7 +249,13 @@ describe("Component and audit jobs", () => {
     renderDesk(<DeskApp />, fakeApi({ startJob }));
 
     await userEvent.click(await screen.findByRole("button", { name: "Build component" }));
-    const dialog = screen.getByRole("dialog", { name: "Build a component" });
+    // The start opens New work on the desk job tab, with the job kind picked.
+    const dialog = screen.getByRole("dialog", { name: "New work" });
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Build a component/ })
+        .getAttribute("aria-checked")
+    ).toBe("true");
     await userEvent.type(within(dialog).getByLabelText("Component name"), "RatingStars");
     const startButton = within(dialog).getByRole("button", { name: "Start" });
     expect(startButton).toHaveProperty("disabled", true);

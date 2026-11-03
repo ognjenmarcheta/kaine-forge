@@ -62,7 +62,7 @@ export function FeedbackForm({
       }}
     >
       {targets.length > 1 && (
-        <fieldset className="desk-fieldset">
+        <fieldset className="dk-fieldset">
           <legend>{t("desk.feedback.to")}</legend>
           <RadioGroup
             value={target}
@@ -90,7 +90,7 @@ export function FeedbackForm({
           </RadioGroup>
         </fieldset>
       )}
-      {fromPr && <p className="desk-muted">{t("desk.prFeedback.intro")}</p>}
+      {fromPr && <p className="dk-t-sub">{t("desk.prFeedback.intro")}</p>}
       <Label htmlFor={`${id}-text`}>
         {t(fromPr ? "desk.prFeedback.label" : "desk.feedback.label")}
       </Label>
@@ -102,7 +102,7 @@ export function FeedbackForm({
         onChange={(event) => setText(event.target.value)}
         aria-describedby={`${id}-help`}
       />
-      <p id={`${id}-help`} className="desk-muted desk-feedback__help">
+      <p id={`${id}-help`} className="dk-t-sub desk-feedback__help">
         {t("desk.feedback.help", { count: text.length, max: MAX_FEEDBACK_CHARS })}
       </p>
       <div className="desk-feedback__actions">

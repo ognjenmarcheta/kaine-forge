@@ -11,10 +11,10 @@ export const itemText = (t: Translate, text: ItemText): string =>
   text.kind === "raw" ? text.text : t(text.key, text.values);
 
 const STATE_ICON: Readonly<Record<CheckState, ReactNode>> = {
-  pass: <Check aria-hidden="true" className="desk-icon" />,
-  fail: <X aria-hidden="true" className="desk-icon" />,
-  warn: <TriangleAlert aria-hidden="true" className="desk-icon" />,
-  pending: <Minus aria-hidden="true" className="desk-icon" />
+  pass: <Check aria-hidden="true" className="dk-ic" />,
+  fail: <X aria-hidden="true" className="dk-ic" />,
+  warn: <TriangleAlert aria-hidden="true" className="dk-ic" />,
+  pending: <Minus aria-hidden="true" className="dk-ic" />
 };
 
 /**
@@ -42,7 +42,7 @@ export function Checklist({
             {STATE_ICON[item.state]}
           </span>
           <span className="desk-checklist__body">
-            <span className="desk-sr-only">
+            <span className="dk-sr">
               {t("desk.inspector.stateLabel", {
                 state: t(`desk.inspector.state.${item.state}`)
               })}
@@ -110,14 +110,14 @@ function KpiValueText({ kpi }: { readonly kpi: Kpi }) {
       return (
         <>
           <span aria-hidden="true">{t("desk.inspector.kpi.empty")}</span>
-          <span className="desk-sr-only">{t("desk.common.none")}</span>
+          <span className="dk-sr">{t("desk.common.none")}</span>
         </>
       );
     case "loading":
       return (
         <>
           <Skeleton className="desk-kpi__skeleton" aria-hidden="true" />
-          <span className="desk-sr-only">{t("desk.common.loading")}</span>
+          <span className="dk-sr">{t("desk.common.loading")}</span>
         </>
       );
   }
@@ -168,7 +168,7 @@ export function Anomalies({ anomalies }: { readonly anomalies: readonly Anomaly[
             key={`${anomaly.kind}-${String(index)}`}
             className={`desk-anomaly ${toneClass(ANOMALY_TONE[anomaly.kind])}`}
           >
-            <TriangleAlert aria-hidden="true" className="desk-icon" />
+            <TriangleAlert aria-hidden="true" className="dk-ic" />
             <span>{anomalyText(t, anomaly)}</span>
           </li>
         ))}

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
-import { planRound, sendBackTargets, shipsWithoutReview } from "./gate.model";
+import { lastAsked, planRound, sendBackTargets, shipsWithoutReview } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { PlanGateBody } from "../artifacts/artifact.plan";
 import { useJsonArtifact } from "../artifacts/artifact.use";
@@ -29,10 +29,20 @@ function RiskLine({
   if (risk === null) return null;
   const reasons = detail.plan?.riskReasons ?? [];
   return (
-    <div className="desk-riskline">
-      <StatusChip tone={PLAN_RISK_TONE[risk]}>{t(PLAN_RISK_KEY[risk])}</StatusChip>
-      {reasons.length > 0 && <span>{reasons.join(" · ")}</span>}
-      <RiskRecord risk={risk} />
+    <div className={risk === "high" ? "dk-riskbox dk-high" : "dk-riskbox"}>
+      <span>
+        <StatusChip tone={PLAN_RISK_TONE[risk]}>{t(PLAN_RISK_KEY[risk])}</StatusChip>
+      </span>
+      <div className="dk-stack dk-gap-100">
+        {reasons.length > 0 && (
+          <ul className="dk-t-small">
+            {reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        )}
+        <RiskRecord risk={risk} />
+      </div>
     </div>
   );
 }
@@ -49,6 +59,8 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
   const plan = useJsonArtifact(summary.issueNumber, "plan", plannerOutputSchema, revision);
   const round = planRound(detail.state.history);
   const changed = detail.plan?.revision ?? null;
+  // Without the planner's own list, a later round shows what the owner asked for.
+  const asked = changed === null && round > 1 ? lastAsked(detail.state.history) : null;
 
   const approve = (): void => {
     if (actions.busy) return;
@@ -70,6 +82,12 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
         <RevisionNote
           title={t("desk.gate.plan.changed", { round: Math.max(1, round - 1) })}
           text={changed}
+        />
+      )}
+      {asked !== null && (
+        <RevisionNote
+          title={t("desk.gate.plan.asked", { round: Math.max(1, round - 1) })}
+          text={asked}
         />
       )}
       {plan.status === "loading" && <Loading />}
@@ -98,12 +116,20 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
             : "desk.gate.plan.hint"
         )}
       >
-        <Button disabled={actions.busy} aria-keyshortcuts="A" onClick={approve}>
+        <Button
+          type="button"
+          spacing="spacious"
+          disabled={actions.busy}
+          aria-keyshortcuts="A"
+          onClick={approve}
+        >
           {t("desk.gate.plan.approve")}
           <Kbd shortcut="a" />
         </Button>
         <Button
-          appearance="secondary"
+          type="button"
+          appearance="outline"
+          spacing="spacious"
           disabled={actions.busy}
           aria-expanded={feedbackOpen}
           onClick={() => setFeedbackOpen((open) => !open)}

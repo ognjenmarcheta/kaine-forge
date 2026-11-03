@@ -91,7 +91,7 @@ function CloneForm({
           .finally(() => onPending(false));
       }}
     >
-      <div className="desk-field">
+      <div className="dk-field">
         <Label htmlFor={`${id}-id`}>{t("desk.agents.field.id")}</Label>
         <Input
           id={`${id}-id`}
@@ -103,16 +103,16 @@ function CloneForm({
           aria-describedby={`${id}-id-help`}
         />
         {shownProblem === null ? (
-          <p id={`${id}-id-help`} className="desk-muted">
+          <p id={`${id}-id-help`} className="dk-t-sub">
             {t("desk.agents.field.idHelp")}
           </p>
         ) : (
-          <p id={`${id}-id-help`} className="desk-field__error">
+          <p id={`${id}-id-help`} className="dk-hint dk-t-danger">
             {shownProblem}
           </p>
         )}
       </div>
-      <div className="desk-field">
+      <div className="dk-field">
         <Label htmlFor={`${id}-name`}>{t("desk.agents.clone.name")}</Label>
         <Input
           id={`${id}-name`}
@@ -122,7 +122,7 @@ function CloneForm({
           onChange={(event) => setName(event.target.value)}
           aria-describedby={`${id}-name-help`}
         />
-        <p id={`${id}-name-help`} className="desk-muted">
+        <p id={`${id}-name-help`} className="dk-t-sub">
           {t("desk.agents.clone.nameHelp", { name: placeholder })}
         </p>
       </div>

@@ -123,6 +123,7 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     prRound: state.prRounds ?? 0,
     prRoundLimit: 3,
     needsYouReason: null,
+    needsYouCode: null,
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
     mergedAt: state.mergedAt ?? null,

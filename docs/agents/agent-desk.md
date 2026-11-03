@@ -729,16 +729,16 @@ fails. Outside `pr-open` it refuses with `invalid-transition`.
 `shipped` means one thing: the desk saw the PR merged during a `refresh`. You run one, or the
 server runs one when its **Open pull requests** list is read fresh from GitHub (at most once a
 minute, or on **Refresh**) and a desk PR is no longer in it. The desk stores GitHub's merge time
-as `mergedAt`, and the Board's Done list shows it. The desk never polls in the background. At
+as `mergedAt`, and the Inbox's Finished panel shows it. The desk never polls in the background. At
 `pr-open`, as everywhere, it never merges, approves, marks the PR ready, enables auto-merge, or
 force-pushes.
 
 **Check CI and comments** (`check-pr`) reads the PR once, the same way a PR feedback round would:
 the failing checks on the PR head, and the comments of trusted people and review bots since the
 desk's last push. It stores a summary on the issue state (`prCheck`) and changes no stage. The
-issue page and the Board's **Open pull requests** list show it. There, a desk PR also offers
-**Address feedback**, which runs the PR feedback round below, once a check found something and
-while rounds remain. A check made on an older PR head no longer counts: the desk's next push
+item page and the Inbox's **Merge on GitHub** row show it ("1 failing check, 2 new comments").
+On the item page, **Send PR feedback** runs the PR feedback round below, once a check found
+something and while rounds remain. A check made on an older PR head no longer counts: the desk's next push
 clears it.
 
 A new PR gets the issue's `source:*` labels (for example `source:scorecard`), so work from the
@@ -1108,75 +1108,93 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents**, **Health**,
-**Scorecard**, **Lab**, and **Runs**.
+developer tooling. A sidebar holds its pages in four groups: **Work** (**Inbox**, **All work**),
+**Configure** (**Flows**, **Agents**, **Setup**), **Insights** (**Insights**, **Scorecard**), and
+**Developer** (**Lab**). Each issue and each desk job has its own item page. On a phone the
+sidebar becomes four tabs at the bottom. **New work** (in the sidebar, on the Inbox, and on
+**N**) starts an issue or a desk job. **G** then **I W F A S N C L** goes to a page.
 
-- **Board.** The board opens on **Your turn**: the issues that wait on you, and nothing else.
-  - _Needs you_ comes first (stopped issues, with the engine's reason), then _Your decisions_
-    (issues at a gate, oldest first). The first row is **Next up** and holds the one primary
-    button. A plan the planner graded high risk has a chip that says so. A low-risk plan has a
-    quick **Approve** on its row; with two or more of them, **Approve N low-risk plans…** asks
-    first and lists the plans. A card has the progress bar of its flow, one segment for each node
-    of the issue's own flow, and its name says the stage in words ("Stage 4 of 9: Build
-    (Running)"). A row or card names the flow ("Flow: Quick fix") only when it is not the
-    built-in default.
-  - A side list shows the running issues (a paused issue says so), the open pull requests of the
-    repository (read-only: number, title, draft, branch, author), and the done issues, folded.
-    The desk does not continue a pull request; you review and merge on GitHub.
-  - **Columns** is the kanban: _Needs you_, _Waiting for you_, _Running_, and _Done_, with filter
-    chips. The board keeps your choice of layout in the browser. The search filters both layouts
-    by number (with or without `#`) or by words of the title.
-  - **Start issue** opens a dialog with the open issues of the repository (`GET /api/github`),
-    the number, the flow, and the `override` box. Each issue shows whether it carries
-    `ready-for-agent` and its contract count. Picking an issue fills the number and selects the
-    flow the desk picks for it (its label rule, else the default flow), marked "Default for this
-    issue". The flow list (`GET /api/flows`) shows each valid flow with its source (built-in,
-    repository, or local); the start sends the chosen `flowId`. Without a choice the desk picks.
-    The dialog never checks the override box for you. A refusal keeps the dialog open.
-  - `tooling/desk-ui/src/status/status.model.ts` is the one mapping from a summary to the board
-    group, the tone, the chip words, the gate mode, and the next action. Every view reads it.
-    The gate mode follows the step kind in the issue's own flow: a gate right after a plan agent
-    is the plan approval, a gate right before a ship the owner confirms is the review and ship,
-    and any other gate approves or sends back. Stage names come from the flow: a built-in step
-    has translated words, and a step the owner wrote shows its own label as it is.
-- **Issue.** A short header, the decision, then the history.
-  - The header has the way back, the place of the issue in Your turn (**J** and **K** go to the
-    next and the previous decision), the number and title, and a **More** menu (Cancel run,
-    Show graph, Copy branch name, Open on GitHub, Remove). Below it is one status line (the
-    chip, the time in the stage, the flow as "name · short hash" with its source and its steps
-    on hover or focus, the cost) and the stages of the issue's flow as a compact stepper.
-  - **Show graph** shows the React Flow graph of the flow model. It is read-only, and it fits
-    itself on the first size and on a resize only. A phone has the stepper only.
-  - A stage of the stepper or the graph opens the **stage side sheet**. The sheet is not modal:
-    the page stays usable. It shows who works in the stage, its status, its tiles (for an agent
-    stage, the agent usage of all runs), its checklists, what went wrong, and the full result.
-    An agent stage also lists **Capabilities**: for each run, the receipt of what it got. That
-    is the provider and model, the tool set, where it ran (isolated in a container, or on your
-    machine under the Claude allowlist or the Codex sandbox), the network, the MCP servers and
-    skills, the allowed and denied tool rules (counted, listed on request), what it asked for
-    and did not get with the reason, and the engine's notes. A run from before the receipt
-    says so.
-    **←** and **→** step through the stages, **Esc** closes it, and focus returns to its opener.
-    On a phone the sheet covers the screen.
-  - The decision card follows the gate mode. At the plan gate: the plan risk and its reasons,
-    the track record of that risk, the revision note of a later round, **Approve plan** (**A**;
-    an optional note and the answer to the planner's question go with it), and **Request
-    changes**. At PR review: the files ordered by risk, with viewed progress. **Ship as draft
-    PR…** (**S**) stays secondary until you viewed every file; **N** opens the next file not
-    viewed. The ship dialog runs the dry run first, then asks for the final yes. Only that yes
-    sends `confirm: true`. At any other gate of a flow: **Approve** (**A**) and **Request
-    changes**, which sends the work back to one of the steps the gate names, by label. When the
-    desk needs you: an incident card with the engine's reason, a jump to the failure in the
-    trace, **Resume from** (the stages of the issue's flow that the server restarts), and
-    **Continue** (**C**). While an agent
-    runs: **Pause** (**P**) stops the issue after its current stage, and **Resume** continues it.
-    After a stop at intake: **Draft the issue format**, the review of the draft, and **Apply to
-    GitHub…**, which asks a second time. On a phone the decision's buttons are a bar fixed to the
-    bottom of the screen.
-  - **History** has the **Trace**: one row per stage and round on one time axis, with a bar, the
-    duration, the agent cost, the outcome, and its log lines. Filters show the problems or the
-    agent steps only. A link shows every raw event. The live **Log** has a local `<time>` per
-    row. The card opens by itself when the issue runs, needs you, or is in intake.
+- **Words.** One name for each state, everywhere. A stop is "Stopped · ‹reason›" ("Stopped · same
+  failure twice", "Stopped · issue format 0/6"); the reason comes from the summary's
+  `needsYouCode`. A gate is "‹gate› · your turn" ("Approve plan · your turn"). Running work is
+  "‹step› · running" or "‹step› · paused". An open PR is "Merge on GitHub · your turn". Work that
+  ended is **Shipped**, **Cancelled**, or **Finished**. "Done" is only a step outcome in the
+  history. The built-in gates are **Approve plan** (`plan-gate`), **Approve & ship**
+  (`pr-review`), and **Merge on GitHub** (`pr-open`); the engine ids do not change. A status
+  always shows a glyph beside its words: ✓ passed, ◷ your turn, ▲ warning, ! stopped, ↻ running,
+  – cancelled.
+- **Inbox.** What waits on you, and nothing else: **Your turn** with its count.
+  - Three groups, in this order: **Stopped** (nothing runs until you act), **Your decision** (at a
+    gate, oldest first), and **Merge on GitHub** (the desk never merges; a row says how many checks
+    fail and how many comments are new). A desk job at its gate or stopped sits in the same groups.
+  - The first row is **Next up** and holds the page's one primary button: **Diagnose**, **Fix the
+    issue**, **Review plan**, **Review and ship**, **Check PR**, **Pick findings**, or **Review
+    scorecard**. A low-risk plan has a quick **Approve** with an 8-second undo; with two or more,
+    **Approve N low-risk plans…** on the Your decision heading asks first, lists the plans, and
+    one undo covers the batch. A high-risk plan has a chip that says so.
+  - An item is **New** (a dot and the word) when it changed after you last opened it. The marks
+    live in this browser (`localStorage`); a first visit takes what it sees as read.
+  - Side panels show what runs (the latest log line; a paused item says so) and the newest few
+    that finished. A setup error shows as a banner with the way to Setup. Until an issue gets past
+    its plan, a **Get started** guide shows the three steps: fix the setup, start an issue,
+    approve its plan.
+  - **J** and **K** move between rows, **A** approves a low-risk plan (any other plan opens), and
+    **C** continues a stopped issue.
+- **All work.** Every issue and desk job, newest first, as a **List** or in **Columns**. Filters:
+  All, Stopped, Your decision, On GitHub, Running, Finished, Jobs; a filter with no match hides.
+  The search matches a number (with or without `#`) or words of the title. The list shows the
+  status, the flow, the steps done, the cost, and when it changed. The columns put a PR to merge
+  among the decisions. The choice of view is kept in the browser.
+- **New work.** One dialog with two tabs. **GitHub issue** lists the open issues of the
+  repository (`GET /api/github`) with their ready label and issue format count, the number, the
+  flow (`GET /api/flows`, the one the desk would pick marked "Default for this issue"), and **Run
+  without the ready label**, which the dialog never checks for you. A refusal keeps it open.
+  **Desk job** picks the kind (scorecard, recreate a screen, build a component, audit a screen)
+  and its limits. The Lab, the Scorecard, and a flow's page open the same dialog on their kind or
+  flow.
+- **Item page.** The way back to the Inbox with the place in the queue (**J**, **K**), the title,
+  one status line (the status, the wait, the flow as "name · short hash", the cost, the loops,
+  the branch, the PR), and a **⋯** menu: Show the flow map, Open the agent session in a
+  terminal… (while an agent that resumes its session runs; it asks first), Copy the branch name,
+  Open on GitHub, Cancel…, Remove from the desk….
+  - Beside the page, the **Steps** rail lists the steps of the item's frozen flow with a glyph,
+    the runs and time, and who works there (Agent · name, You decide, or Engine). A step opens in
+    place with its facts (status, runs, time, cost, tokens, model); **Open details** opens the
+    stage side sheet. The sheet is not modal and shows the step's tiles, checklists, what went
+    wrong, the full result, and for an agent step the capability receipt of each run. **←** and
+    **→** step through the stages and **Esc** closes it.
+  - **Show the flow map** opens the read-only React Flow graph above the decision, with the
+    current step and the loop counts on the edges. A phone has the rail only.
+  - The decision card follows the gate mode. At **Approve plan**: the plan risk with its reasons
+    and record, what changed since the last round (the planner's own list, else what you asked
+    for), the plan, **Approve plan** (**A**; the answer to the planner's questions goes with
+    it), and **Send back…**. At **Approve & ship**: readiness, findings, and the changed files
+    by risk with viewed progress. **N** opens the next file not viewed; **Ship as draft PR…**
+    (**S**) turns primary when every file is viewed and runs the dry run before the final yes.
+    A **+** on a diff line starts a comment for the builder; the comments go with **Send
+    back…**, or alone with **Send line comments to the builder**. Nothing is sent before that.
+    When the desk stopped: the reason, the failing command, the likely cause, a link to the
+    trace, and **What to do**: **Tell the builder** (recommended), **Retry from a step**, or
+    **Open the agent session in a terminal**; one primary button acts on the choice (**C**).
+    While an item runs: the step, its latest line, the live log, **Pause** or **Resume** (**P**),
+    and **Tell the ‹agent›…** for a note to the running agent (not on a step the engine runs).
+    At **Merge on GitHub**: check the PR, read its failing checks and new comments, and send them
+    back to build. After a stop at intake: the issue format, **Draft the issue format**, and
+    **Start again**.
+  - Below the decision, **Details** has three tabs: **History** (every run of a step with its
+    events), **Files and outputs** (what each step wrote), and **Agent runs** (each run's agent,
+    model, time, tokens, turns, cost, and result; a run opens its capability receipt, and
+    **Show trace** opens the trace of its step).
+- **Desk jobs** use the same item page: their steps in the rail, the gate's card, the history,
+  and Cancel and Remove in the ⋯ menu. Filing issues from an audit or a scorecard asks first;
+  filed issues cannot be unfiled from the desk.
+- **Preferences** (the sliders in the sidebar): theme (Byte Forge, Moss), color mode, density
+  (Comfortable or Compact, through `data-density` on the root), language, keeping a message with
+  Undo on screen while the pointer is on it, and browser notifications for Stopped and Your turn
+  (off by default; the browser asks on the toggle). The tab title always shows the count.
+- `tooling/desk-ui/src/status/status.model.ts` maps a summary to its Inbox group, tone, words,
+  gate mode, and next action, and `tooling/desk-ui/src/work/work.model.ts` puts issues and desk
+  jobs in one list. Every view reads them.
 - **Flows.** The flows the desk can run an issue on (`GET /api/flows`).
   - Each row has the name, the id, the source badge, "Overrides ..." when it overrides a lower
     source, **Read-only** for a built-in flow, the number of problems, and **Default** for the
@@ -1215,7 +1233,8 @@ developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents
     config of the desk now; before a save it shows only what the agent asks for.
   - Clone, Edit locally, Save, Promote, and Delete work as on Flows. Delete refuses an agent
     that a flow uses and lists those flows.
-- **Health.** The doctor report.
+- **Setup.** The doctor report: the checks that this machine can run the desk. The health of
+  the repository is the Scorecard.
   - A summary chip (Ready or Problems found), the time of the check, and **Setup X of Y ready**
     with a progress bar. While errors remain, a line says to fix them first: they stop a run.
   - Each check has its status in words, its label, and the engine's detail. A failed check shows
@@ -1254,13 +1273,16 @@ developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents
     every issue labelled `source:scorecard`. **Recently solved** lists the findings whose issue a
     merged PR closed, newest merge first, with the dimension's score in the last run before the
     merge and the first run after it. In **Findings**, the issue cell shows the issue, its PR,
-    and its desk run, and an open issue without a run offers **Fix with desk** (the Board's
-    Start). **Sort** orders the findings by severity, recently solved, recently opened,
+    and its desk run, and an open issue without a run offers **Fix with desk** (New
+    work). **Sort** orders the findings by severity, recently solved, recently opened,
     dimension, or state. **Label N older issues** adds `source:scorecard` to tracked issues
     without it, after a preview you confirm.
-- **Lab.** The UI lab (`?view=lab`): every `@repo/ui` component under every theme, the component
-  options, the chart primitives, and the recreated screens with their compare view. Its pages are
-  `#/…` routes on that address (`?view=lab#/charts`). The lab calls no desk API, so it opens
+- **Lab.** The UI lab (`?view=lab`), under Developer, in four tabs: **Components** (every
+  `@repo/ui` component under every theme, their options, the new components' specimens, and the
+  chart primitives), **Tokens** (the five text styles, the chart colors, the status roles with
+  their glyphs, the densities, and the named layers and widths, read from the page), **Screens**
+  (the recreated screens), and **Compare**. Its pages are `#/…` routes on that address
+  (`?view=lab#/charts`). The lab calls no desk API, so it opens
   without a session: `pnpm lab` starts only the desk UI dev server, at
   `http://localhost:5174/?view=lab`.
   - Each recreated screen lives in `tooling/desk-ui/src/lab/screens/<id>/`, and its reference
@@ -1274,9 +1296,10 @@ developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents
   - Lab themes reach the page as a constructed stylesheet, because the CSP blocks a `<style>`
     element. A screen sets its theme on `<html>` while it shows, and the desk theme comes back
     when it closes.
-- **Runs.** `GET /api/stats` and `GET /api/lessons`.
+- **Insights.** `GET /api/stats` and `GET /api/lessons`. "Agent runs" is now only the tab of an
+  item page.
   - **Today** is one line from the last day of `days`: agent runs, shipped issues, and the cost,
-    with the issues that need you or wait for you now.
+    with the issues that stopped or wait for your decision now.
   - **Last 7 days** has three cards: agent runs, cost, and shipped issues. Each card has the
     total, a line of the seven days, and today's value. The line is decorative; a text for a
     screen reader gives each day's value. A day without a reported cost reads "none", not zero.
@@ -1302,16 +1325,18 @@ developer tooling. It has eight views: **Board**, **Issue**, **Flows**, **Agents
 
 The shell is the same on every view.
 
-- The top bar is one row at every width: the brand mark, the **Board**, **Flows**, **Agents**,
-  **Health**, **Scorecard**, **Lab**, and **Runs**
-  pills (Board has the count of Your turn), the search, one polite "Live"/"Reconnecting" status,
-  and a preferences menu. A banner shows while the connection is lost.
+- The sidebar has the brand, the search, the four groups of pages (the Inbox has the count of
+  Your turn, Setup the count of its errors), **New work**, one polite "Live"/"Reconnecting"
+  status, and the preferences. A bar shows while the connection is lost. Below 64 rem the sidebar
+  keeps its icons; below 48 rem it becomes four tabs at the bottom.
 - **Ctrl+K** (or **⌘K**) or **/** opens the command palette: actions of this page (for example
-  **Check again** on Health and **Load again** on Runs), recent issues, Your turn, the views,
-  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **F**, **A**,
-  **H**, **S**, **L**, or **R** goes to Board, Flows, Agents, Health, Scorecard, Lab, or Runs. A single-key shortcut does nothing while you type or while a
-  dialog or a menu is open.
-- Approve, Request changes, Continue, Cancel run, and Remove wait 8 seconds before they are
+  **New work** on the Inbox, **Check again** on Setup, and **Load again** on Insights), recent
+  issues, Your turn, the pages, and every issue. Its footer lists the shortcuts of the page.
+  **G** then **I**, **W**, **F**, **A**, **S**, **N**, **C**, or **L** goes to Inbox, All work,
+  Flows, Agents, Setup, Insights, Scorecard, or Lab. **N** alone opens New work where the page
+  does not use it. A single-key shortcut does nothing while you type or while a dialog or a
+  menu is open.
+- Approve, Send back, Continue, Cancel, and Remove wait 8 seconds before they are
   sent. A toast says what will happen and offers **Undo**; Undo sends nothing. A page that closes
   in that time sends the action at once. Cancel and Remove also ask first. A ship and the lesson
   actions have no undo window: the ship asks twice, and the lesson actions act at once.
@@ -1319,8 +1344,9 @@ The shell is the same on every view.
   turn on browser notifications: the browser then notifies when an issue newly needs you or
   reaches a gate. Appearance (light, dark, or system), theme (Byte Forge or Moss, every theme
   that `@repo/theme` registers), and language (English, German, Serbian) switch there at once and keep what you typed and where you scrolled.
-- A phone (below 40 rem) is for triage: the board shows Your turn only, the issue page shows the
-  stepper without the graph, Runs hides the week cards, and touch targets are at least 44 px.
+- A phone (below 48 rem) is for triage: the Inbox and the item page fit it, the decision's
+  buttons sit in a bar at the bottom, the item page drops the steps rail and the flow map, and
+  touch targets are at least 44 px.
   No view scrolls sideways; a wide table scrolls inside its card.
 
 The page needs no polling. It loads `GET /api/issues` once, opens `GET /api/events`, and
@@ -1335,7 +1361,7 @@ because the CSP blocks those.
 
 A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). There are
 four kinds: the **scorecard job**, and the lab's **screen job**, **component job**, and **audit
-job**. A job's page is `?job=<n>`; the Board lists jobs in a **Jobs** card. One job of each kind
+job**. A job's page is `?job=<n>`; the Inbox and All work list jobs with the issues. One job of each kind
 runs at a time.
 
 - **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model

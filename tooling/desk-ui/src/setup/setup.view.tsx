@@ -34,6 +34,7 @@ function CopyCommand({ command }: { readonly command: string }) {
     <>
       <code className="desk-remedy__command">{command}</code>
       <Button
+        type="button"
         appearance="subtle"
         spacing="compact"
         onClick={copy}
@@ -63,6 +64,7 @@ function Remedy({ check, running, onFix }: RemedyProps) {
       {fix !== null && (
         <>
           <Button
+            type="button"
             appearance="default"
             spacing="compact"
             disabled={running !== null}
@@ -116,7 +118,7 @@ function Summary({ report }: { readonly report: HealthReport }) {
       <StatusChip tone={passTone(report.ok)}>
         {t(report.ok ? "desk.health.ok" : "desk.health.problems")}
       </StatusChip>
-      <span className="desk-muted">
+      <span className="dk-t-sub">
         {t("desk.health.checked", { when: relativeTime(report.generatedAt, now, language) })}
       </span>
     </p>
@@ -134,7 +136,7 @@ function SetupProgress({ report }: { readonly report: HealthReport }) {
     <div className="desk-setup">
       <p className="desk-setup__line">
         <strong id={id}>{t("desk.health.setup", { ready, total })}</strong>
-        {blocked && <span className="desk-muted">{t("desk.health.setupHint")}</span>}
+        {blocked && <span className="dk-t-sub">{t("desk.health.setupHint")}</span>}
       </p>
       <progress
         className="desk-setup__bar"
@@ -180,7 +182,7 @@ function Checks({
  * The doctor, mirrored: what the desk needs and whether each part works. Text is the engine's
  * own. A failed check offers its command to copy, and the desk's own repair when one exists.
  */
-export function HealthView() {
+export function SetupView() {
   const t = useT();
   const { state, api, loadHealth } = useDesk();
   const [error, setError] = useState<{ code: FailureCode; detail: string | null } | null>(null);
@@ -237,18 +239,18 @@ export function HealthView() {
   const report = state.health;
   return (
     <>
-      <div className="desk-heading">
-        <div>
-          <h1>{t("desk.health.title")}</h1>
-          <p className="desk-muted">{t("desk.health.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.health.title")}</h1>
+          <p className="dk-lead">{t("desk.health.intro")}</p>
         </div>
-        <Button appearance="subtle" onClick={refresh} disabled={loading}>
+        <Button type="button" appearance="subtle" onClick={refresh} disabled={loading}>
           {t("desk.health.refresh")}
         </Button>
-      </div>
+      </header>
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {(report !== null || loading) && (
-        <Card className="desk-panel">
+        <Card className="dk-card">
           {report !== null && <Summary report={report} />}
           {report !== null && <SetupProgress report={report} />}
           {loading ? (

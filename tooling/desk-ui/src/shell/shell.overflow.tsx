@@ -42,7 +42,7 @@ export function OverflowTooltip({
   return (
     <Tooltip open={overflowing && open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent className="desk-tooltip">{text}</TooltipContent>
+      <TooltipContent className="dk-tooltip">{text}</TooltipContent>
     </Tooltip>
   );
 }

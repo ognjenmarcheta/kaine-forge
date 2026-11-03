@@ -13,6 +13,7 @@ import {
   JOB_STAGES,
   JOB_STATUSES,
   JOB_STOP_REASONS,
+  NEEDS_YOU_CODES,
   ISSUE_SECTIONS,
   FLOW_NODE_IDS,
   LOOP_KINDS,
@@ -33,10 +34,13 @@ import { describe, expect, it } from "vitest";
 import { BACK_KINDS } from "../flows/flows.model";
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
+import { DETAIL_TABS } from "../issue/issue.details";
 import { TRACE_FILTERS } from "../issue/issue.trace";
 import { BANDS, FINDING_FILTERS, FINDING_SORTS, SORTS } from "../scorecard/scorecard.model";
-import { THEMES } from "../shell/shell.preferences";
-import { CHIP_STATES } from "../status/status.model";
+import { DENSITIES, THEMES, WORK_VIEWS } from "../shell/shell.preferences";
+import { CHIP_STATES, INBOX_GROUPS } from "../status/status.model";
+import { TURN_GROUPS } from "../work/work.model";
+import { WORK_FILTERS } from "../work/work.view";
 
 const SRC = path.resolve(import.meta.dirname, "..");
 const LOCALES = path.resolve(SRC, "../../../packages/translation/src/locales");
@@ -100,9 +104,22 @@ describe("desk translations", () => {
         "finished",
         "idle"
       ],
-      "desk.board.group.": ["needs-you", "waiting", "running", "done"],
-      "desk.board.groupHelp.": ["needs-you", "waiting", "running", "done"],
-      "desk.board.columnEmpty.": ["needs-you", "waiting", "running", "done"],
+      "desk.inbox.group.": INBOX_GROUPS,
+      "desk.inbox.groupNote.": TURN_GROUPS,
+      "desk.stop.": NEEDS_YOU_CODES,
+      "desk.work.filter.": WORK_FILTERS,
+      "desk.work.view.": WORK_VIEWS,
+      "desk.work.jobKind.": JOB_KINDS,
+      "desk.job.gate.": JOB_KINDS,
+      "desk.job.stopShort.": JOB_STOP_REASONS,
+      "desk.inbox.action.job.": JOB_KINDS,
+      "desk.inbox.reason.job.": JOB_KINDS,
+      "desk.newWork.jobText.": JOB_KINDS,
+      "desk.newWork.tab.": ["issue", "job"],
+      "desk.details.tab.": DETAIL_TABS,
+      "desk.prefs.density.": DENSITIES,
+      "desk.nav.": ["inbox", "work", "flows", "agents", "setup", "insights", "scorecard", "lab"],
+      "desk.nav.group.": ["work", "configure", "insights", "developer"],
       "desk.connection.": ["connecting", "live", "reconnecting"],
       "desk.review.severity.": ["Critical", "Consider", "Nit", "FYI"],
       "desk.review.verdict.": ["approve", "changes-requested"],
@@ -176,9 +193,6 @@ describe("desk translations", () => {
       "desk.job.status.": JOB_STATUSES,
       "desk.job.stop.": JOB_STOP_REASONS,
       "desk.job.stepState.": ["done", "current", "todo"],
-      "desk.pulls.ci.": ["passing", "failing", "running", "none"],
-      "desk.pulls.review.": ["approved", "changes-requested", "required"],
-      "desk.board.side.doneSort.": ["recent", "number"],
       "desk.job.start.component.layer.": COMPONENT_LAYERS,
       "desk.job.auditReview.severity.": ["must", "should", "could"],
       "desk.job.": [

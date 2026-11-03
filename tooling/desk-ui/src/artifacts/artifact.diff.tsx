@@ -4,6 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef } from "react";
 import { clipLines, parseDiffStat, type DiffLine } from "./artifact.diffstat";
 import { FilePath } from "./artifact.plan";
 import { useTextArtifact } from "./artifact.use";
+import { LineAdd, LineNotesAt } from "../gates/gate.lines";
 import type { ReviewFile } from "../gates/gate.model";
 import { useT } from "../i18n/i18n.t";
 import { FailureText, Loading, Muted, Pre, Section } from "../shell/shell.ui";
@@ -37,11 +38,11 @@ export function DiffArtifact({
           removed: stat.removed
         })}
       </p>
-      <ul className="desk-list">
+      <ul className="dk-list">
         {stat.files.map((file) => (
           <li key={file.path}>
             <code>{file.path}</code>{" "}
-            <span className="desk-muted">
+            <span className="dk-t-sub">
               {file.binary
                 ? t("desk.diff.binary")
                 : t("desk.diff.lines", { added: file.added, removed: file.removed })}
@@ -70,7 +71,7 @@ function Counts({ added, removed }: { readonly added: number; readonly removed: 
   const t = useT();
   return (
     <span className="desk-diffstat">
-      <span className="desk-sr-only">{t("desk.diff.lines", { added, removed })}</span>
+      <span className="dk-sr">{t("desk.diff.lines", { added, removed })}</span>
       <span aria-hidden="true">
         <span className="desk-diffstat__add">{added}</span>{" "}
         <span className="desk-diffstat__del">{removed}</span>
@@ -99,7 +100,7 @@ function ViewedBox({
       />
       <Label htmlFor={id}>
         {t("desk.diff.viewed")}
-        <span className="desk-sr-only"> {path}</span>
+        <span className="dk-sr"> {path}</span>
       </Label>
     </span>
   );
@@ -143,8 +144,11 @@ function Patch({
           <Fragment key={index}>
             <div
               ref={lit ? marked : undefined}
-              className={`desk-ln desk-ln--${line.kind}${lit ? " desk-ln--lit" : ""}`}
+              className={`dk-ln desk-ln desk-ln--${line.kind}${lit ? " desk-ln--lit" : ""}`}
             >
+              {line.kind !== "del" && line.newLine !== null && (
+                <LineAdd path={file.path} line={line.newLine} />
+              )}
               <span className="desk-ln__no" aria-hidden="true">
                 {line.newLine ?? line.oldLine ?? ""}
               </span>
@@ -156,6 +160,9 @@ function Patch({
             {here.map((finding, at) => (
               <InlineFinding key={`${String(index)}-${String(at)}`} finding={finding} />
             ))}
+            {line.kind !== "del" && line.newLine !== null && (
+              <LineNotesAt path={file.path} line={line.newLine} />
+            )}
           </Fragment>
         );
       })}
@@ -177,7 +184,7 @@ function InlineFinding({ finding }: { readonly finding: ReviewFile["findings"][n
       </span>
       <span>{finding.summary}</span>
       {finding.fix.trim() !== "" && (
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {t("desk.review.fix")} {finding.fix}
         </span>
       )}
@@ -241,6 +248,7 @@ export function DiffReview({
                   data-viewed={viewed.has(path) ? "true" : undefined}
                 >
                   <Button
+                    type="button"
                     appearance="ghost"
                     spacing="compact"
                     className="desk-diff__name"
@@ -274,6 +282,7 @@ export function DiffReview({
             <p className="desk-patch__folded">
               {t("desk.diff.folded")}{" "}
               <Button
+                type="button"
                 appearance="link"
                 spacing="compact"
                 onClick={() => onViewed(open.file.path, false)}

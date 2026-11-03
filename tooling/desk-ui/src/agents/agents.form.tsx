@@ -48,13 +48,13 @@ function Hint({
 }) {
   if (error !== null) {
     return (
-      <p id={`${id}-hint`} className="desk-field__error">
+      <p id={`${id}-hint`} className="dk-hint dk-t-danger">
         {error}
       </p>
     );
   }
   return help === null ? null : (
-    <p id={`${id}-hint`} className="desk-muted">
+    <p id={`${id}-hint`} className="dk-t-sub">
       {help}
     </p>
   );
@@ -83,11 +83,11 @@ function TextField({
 }) {
   const id = fieldId(base, field);
   return (
-    <div className="desk-field">
+    <div className="dk-field">
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
-        className={mono ? "desk-mono" : undefined}
+        className={mono ? "dk-mono" : undefined}
         autoComplete="off"
         spellCheck={!mono}
         value={value}
@@ -130,7 +130,7 @@ function Choices<T extends string>({
 }) {
   const id = fieldId(base, field);
   return (
-    <fieldset className="desk-fieldset">
+    <fieldset className="dk-fieldset">
       <legend id={`${id}-legend`}>{legend}</legend>
       <RadioGroup
         value={value}
@@ -164,7 +164,7 @@ function Choices<T extends string>({
                 {name(option)}
               </Label>
               {text !== null && (
-                <span id={`${optionId}-about`} className="desk-flowpick__about desk-muted">
+                <span id={`${optionId}-about`} className="desk-flowpick__about dk-t-sub">
                   {text}
                 </span>
               )}
@@ -203,17 +203,17 @@ function NameList({
   const id = fieldId(base, field);
   const names = [...new Set([...installed, ...value])].sort();
   return (
-    <fieldset className="desk-fieldset" aria-describedby={`${id}-hint`}>
+    <fieldset className="dk-fieldset" aria-describedby={`${id}-hint`}>
       <legend>{legend}</legend>
       {names.length === 0 ? (
-        <p className="desk-muted">{t("desk.agents.field.noneKnown")}</p>
+        <p className="dk-t-sub">{t("desk.agents.field.noneKnown")}</p>
       ) : (
         <ul className="desk-namelist">
           {names.map((name, index) => {
             const optionId = index === 0 ? id : `${id}-${name}`;
             const missing = !installed.includes(name);
             return (
-              <li key={name} className="desk-check-row">
+              <li key={name} className="dk-check">
                 <Checkbox
                   id={optionId}
                   checked={value.includes(name)}
@@ -226,7 +226,7 @@ function NameList({
                     )
                   }
                 />
-                <Label htmlFor={optionId} className="desk-mono">
+                <Label htmlFor={optionId} className="dk-mono">
                   {name}
                 </Label>
                 {missing && <Badge appearance="warning">{t("desk.agents.notInstalled")}</Badge>}
@@ -261,13 +261,13 @@ function ToolList({
   const id = fieldId(base, "tools");
   const allowed = draft.preset === "edit-code";
   return (
-    <fieldset className="desk-fieldset" aria-describedby={`${id}-hint`}>
+    <fieldset className="dk-fieldset" aria-describedby={`${id}-hint`}>
       <legend>{t("desk.agents.field.tools")}</legend>
       <ul className="desk-namelist">
         {AGENT_TOOLS.map((tool, index) => {
           const optionId = index === 0 ? id : `${id}-${tool}`;
           return (
-            <li key={tool} className="desk-check-row">
+            <li key={tool} className="dk-check">
               <Checkbox
                 id={optionId}
                 checked={draft.tools.includes(tool)}
@@ -281,10 +281,10 @@ function ToolList({
                   )
                 }
               />
-              <Label htmlFor={optionId} className="desk-mono">
+              <Label htmlFor={optionId} className="dk-mono">
                 {tool}
               </Label>
-              <span id={`${optionId}-about`} className="desk-muted">
+              <span id={`${optionId}-about`} className="dk-t-sub">
                 {t(`desk.agents.toolAbout.${tool}`)}
               </span>
             </li>
@@ -461,7 +461,7 @@ export function AgentForm({
         error={errorOf("timeoutMinutes")}
         onChange={(value) => set("timeoutMinutes", "timeout", value)}
       />
-      <div className="desk-field">
+      <div className="dk-field">
         <Label htmlFor={promptId}>{t("desk.agents.field.prompt")}</Label>
         <Textarea
           id={promptId}
@@ -474,7 +474,7 @@ export function AgentForm({
           aria-describedby={`${promptId}-hint ${promptId}-count`}
           onChange={(event) => set("prompt", "prompt", event.target.value)}
         />
-        <p className="desk-agent-form__count desk-muted">
+        <p className="desk-agent-form__count dk-t-sub">
           <span id={`${promptId}-count`}>
             {t("desk.agents.field.promptCount", { count: draft.prompt.length })}
           </span>

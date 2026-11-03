@@ -194,6 +194,7 @@ describe("issue summary", () => {
     prRound: 0,
     prRoundLimit: 3,
     needsYouReason: null,
+    needsYouCode: null,
     resumeStage: null,
     prUrl: null,
     mergedAt: null,
