@@ -555,7 +555,8 @@ const runAgentStageOnce = async <T>(
       model: model ?? null,
       checkout: worktree,
       isolation: isolationOf(deps.config, state),
-      workspaces: input.workspaces
+      workspaces: input.workspaces,
+      approvedCommands: state.approvedCommands
     });
     const { skills } = capabilities;
     const ticket = (await readArtifactText(context.artifactsDir, ARTIFACTS.ticket)) ?? "";

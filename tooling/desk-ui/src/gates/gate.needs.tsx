@@ -68,13 +68,15 @@ function IncidentCard({ detail, onShowTrace }: Pick<GateBodyProps, "detail" | "o
   );
 }
 
-type Choice = "tell" | "retry" | "terminal";
+type Choice = "allow" | "skip" | "tell" | "retry" | "terminal";
 
 /**
- * The desk stopped. The incident says what and why. Three ways on in one list, each with what
- * happens next: tell the builder (recommended: it gets the note and the failing output), retry
- * from a step of the item's flow, or open the agent session in a terminal. One primary button
- * acts on the choice; C presses it. A flow without a change step has no builder to tell.
+ * The desk stopped. The incident says what and why. Ways on in one list, each with what happens
+ * next: when the desk refused a command to the agent, allow that exact command and retry
+ * (recommended) or skip it; tell the builder (recommended otherwise: it gets the note and the
+ * failing output), retry from a step of the item's flow, or open the agent session in a terminal.
+ * One primary button acts on the choice; C presses it. A flow without a change step has no
+ * builder to tell.
  */
 export function NeedsYouGate({
   detail,
@@ -92,7 +94,11 @@ export function NeedsYouGate({
   const command = resumeCommandOf(detail);
   const targets = retryTargets(detail.state.flowSnapshot.flow);
   const builder = builderStepOf(issueFlowOf(summary), summary.resumeStage);
-  const [choice, setChoice] = useState<Choice>(builder === null ? "retry" : "tell");
+  // One refused command at a time: the next one, if the agent asks again, is the next stop.
+  const denied = detail.deniedCommands[0] ?? null;
+  const [choice, setChoice] = useState<Choice>(
+    denied !== null ? "allow" : builder === null ? "retry" : "tell"
+  );
   const chosen = targets.find((stage) => stage === resume);
   const retryStage = chosen ?? summary.resumeStage;
 
@@ -105,22 +111,29 @@ export function NeedsYouGate({
     if (text === "" || actions.busy || builder === null) return;
     if (await send({ action: "feedback", to: builder, text })) setNote("");
   };
+  const resolveDenial = (resolution: "allow" | "skip"): void => {
+    if (actions.busy || denied === null) return;
+    void send({ action: "resolve-denial", command: denied, resolution });
+  };
   const copyCommand = (): void => {
     if (command !== null) {
       copyText(command, t("desk.incident.session.copied"), t("desk.issue.copyFailed"));
     }
   };
   const act = (): void => {
-    if (choice === "tell") void tellBuilder();
+    if (choice === "allow" || choice === "skip") resolveDenial(choice);
+    else if (choice === "tell") void tellBuilder();
     else if (choice === "retry") continueRun();
     else copyCommand();
   };
-  const cta =
-    choice === "tell"
-      ? t("desk.incident.tell.send")
-      : choice === "retry"
-        ? t("desk.gate.needsYou.continue")
-        : t("desk.incident.session.copy");
+  const CTA_KEYS: Readonly<Record<Choice, string>> = {
+    allow: "desk.incident.allow.cta",
+    skip: "desk.incident.skip.cta",
+    tell: "desk.incident.tell.send",
+    retry: "desk.gate.needsYou.continue",
+    terminal: "desk.incident.session.copy"
+  };
+  const cta = t(CTA_KEYS[choice]);
   const disabled = actions.busy || (choice === "tell" && note.trim() === "");
 
   useShortcuts([{ key: "c", run: act, labelKey: "desk.board.keys.continue" }]);
@@ -129,6 +142,8 @@ export function NeedsYouGate({
   ]);
 
   const options: readonly { readonly id: Choice; readonly show: boolean }[] = [
+    { id: "allow", show: denied !== null },
+    { id: "skip", show: denied !== null },
     { id: "tell", show: builder !== null },
     { id: "retry", show: true },
     { id: "terminal", show: command !== null }
@@ -158,7 +173,7 @@ export function NeedsYouGate({
                 <div className="dk-body">
                   <Label htmlFor={`${id}-${option.id}`}>
                     <b>{t(`desk.incident.${option.id}.title`)}</b>
-                    {option.id === "tell" && (
+                    {option.id === (denied === null ? "tell" : "allow") && (
                       <span className="dk-rec">{t("desk.incident.recommended")}</span>
                     )}
                   </Label>
@@ -169,8 +184,13 @@ export function NeedsYouGate({
                         : t("desk.incident.retry.next", { stage: names.stage(retryStage) })
                       : option.id === "terminal"
                         ? t("desk.incident.session.next", { number: summary.issueNumber })
-                        : t("desk.incident.tell.text")}
+                        : option.id === "allow" || option.id === "skip"
+                          ? t(`desk.incident.${option.id}.next`, { number: summary.issueNumber })
+                          : t("desk.incident.tell.text")}
                   </span>
+                  {(option.id === "allow" || option.id === "skip") && denied !== null && (
+                    <code className="dk-out dk-block">{denied}</code>
+                  )}
                   {choice === "tell" && option.id === "tell" && (
                     <Textarea
                       aria-label={t("desk.incident.tell.label")}

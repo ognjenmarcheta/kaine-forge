@@ -203,6 +203,7 @@ export const createDefaultDeskRuntime =
         approvePlan: runner.approvePlan,
         feedback: runner.feedback,
         continueFrom: runner.continueFrom,
+        resolveDenial: runner.resolveDenial,
         cancel: runner.cancel,
         remove: runner.remove,
         ship: runner.ship,

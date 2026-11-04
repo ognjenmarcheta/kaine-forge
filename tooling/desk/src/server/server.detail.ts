@@ -27,6 +27,7 @@ import {
 import { indexArtifacts, readArtifact } from "./server.artifacts";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "../engine/intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "../engine/pipeline.artifacts";
+import { deniedCommands } from "../engine/pipeline.denials";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
 import { activeMs, needsYouCode, needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
 import type { Clock } from "../ports";
@@ -378,6 +379,7 @@ export const buildIssueDetail = async (
           : { risk: plan.risk, riskReasons: plan.riskReasons, revision: plan.revision },
       buildRevision: build?.status === "ok" ? build.value.revision : null,
       approveNote: state.approveNote ?? null,
+      deniedCommands: await deniedCommands(dir, state),
       resume,
       runs: runs.records.filter((record) => record.issue === issueNumber)
     }

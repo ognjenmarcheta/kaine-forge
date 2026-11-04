@@ -179,6 +179,7 @@ export const makeDetail = (
       plan: null,
       buildRevision: null,
       approveNote: null,
+      deniedCommands: [],
       resume: { worktreePath: null, sessions: [] },
       runs: []
     }

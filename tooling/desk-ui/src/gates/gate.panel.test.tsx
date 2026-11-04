@@ -485,6 +485,54 @@ describe("GatePanel when the desk needs you", () => {
     expect(actions.run).toHaveBeenCalledWith({ action: "continue" });
   });
 
+  it("offers to allow a refused command first, and sends that exact command", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    show({ stage: "needs-you", resumeStage: "build" }, actions, {
+      detail: { deniedCommands: [command] }
+    });
+
+    const allow = screen.getByRole("radio", { name: /Allow this command and retry/ });
+    expect(allow.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Allow this command and retry").closest("label")?.textContent).toBe(
+      "Allow this command and retryRecommended"
+    );
+    // The tell option stays, but it is no longer the recommended one.
+    expect(screen.getByText("Tell the builder").closest("label")?.textContent).toBe(
+      "Tell the builder"
+    );
+    expect(screen.getAllByText(command).length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Allow and retry" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "allow"
+    });
+  });
+
+  it("skips the refused command with one click and no note", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    show({ stage: "needs-you", resumeStage: "build" }, actions, {
+      detail: { deniedCommands: [command] }
+    });
+
+    await userEvent.click(screen.getByRole("radio", { name: /Skip it and continue/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Skip and continue" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "skip"
+    });
+  });
+
+  it("shows no command choice when the desk refused nothing", () => {
+    show({ stage: "needs-you", resumeStage: "build" }, actionsOf());
+    expect(screen.queryByRole("radio", { name: /Allow this command/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /Skip it and continue/ })).toBeNull();
+  });
+
   it("recommends telling the builder first, and sends the note to build", async () => {
     const actions = actionsOf();
     show({ stage: "needs-you", resumeStage: "build" }, actions);

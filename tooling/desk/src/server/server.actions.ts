@@ -8,6 +8,7 @@ export interface ServerRunner {
   readonly approvePlan: PipelineRunner["approvePlan"];
   readonly feedback: PipelineRunner["feedback"];
   readonly continueFrom: PipelineRunner["continueFrom"];
+  readonly resolveDenial: PipelineRunner["resolveDenial"];
   readonly cancel: PipelineRunner["cancel"];
   readonly remove: PipelineRunner["remove"];
   readonly ship: PipelineRunner["ship"];
@@ -160,6 +161,8 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
         return runner.steer(issueNumber, request.note);
       case "take-over":
         return runner.takeOver(issueNumber);
+      case "resolve-denial":
+        return runner.resolveDenial(issueNumber, request.command, request.resolution);
     }
   };
 

@@ -92,24 +92,25 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 
 ## Actions
 
-| `action`      | Extra fields                               | Runner call                                           |
-| ------------- | ------------------------------------------ | ----------------------------------------------------- |
-| `start`       | `override?: boolean`, `flowId?: <flow id>` | `start(n, { override, flowId })`                      |
-| `approve`     | `note?` (1 to 20000 characters after trim) | `approvePlan(n, { note })`                            |
-| `feedback`    | `to: <step id>`, `text`                    | `feedback(n, to, text)`                               |
-| `continue`    | `from?: <step id>`, or `intake`, `setup`   | `continueFrom(n, from)`                               |
-| `cancel`      | none                                       | `cancel(n)`                                           |
-| `remove`      | `force?: boolean`                          | `remove(n, { force })`                                |
-| `ship`        | `confirm: boolean`, `dryRun?: boolean`     | `ship(n, { confirm, dryRun })`                        |
-| `refresh-pr`  | none                                       | `refreshPr(n)`: read the PR at `pr-open` once         |
-| `check-pr`    | none                                       | `checkPr(n)`: read the PR's checks and comments once  |
-| `pr-feedback` | `text?` (1 to 20000 characters after trim) | `feedbackFromPr(n, { text })`                         |
-| `draft`       | none                                       | `draft(n)`: done means `needs-you` with "Draft ready" |
-| `apply-draft` | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                          |
-| `pause`       | none                                       | `pause(n)`: hold the issue after the running stage    |
-| `resume`      | none                                       | `resume(n)`: clear the hold and drive on              |
-| `steer`       | `note` (1 to 20000 characters after trim)  | `steer(n, note)`: run the agent again with it         |
-| `take-over`   | none                                       | `takeOver(n)`: stop the agent for the owner           |
+| `action`         | Extra fields                               | Runner call                                                       |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `start`          | `override?: boolean`, `flowId?: <flow id>` | `start(n, { override, flowId })`                                  |
+| `approve`        | `note?` (1 to 20000 characters after trim) | `approvePlan(n, { note })`                                        |
+| `feedback`       | `to: <step id>`, `text`                    | `feedback(n, to, text)`                                           |
+| `continue`       | `from?: <step id>`, or `intake`, `setup`   | `continueFrom(n, from)`                                           |
+| `cancel`         | none                                       | `cancel(n)`                                                       |
+| `remove`         | `force?: boolean`                          | `remove(n, { force })`                                            |
+| `ship`           | `confirm: boolean`, `dryRun?: boolean`     | `ship(n, { confirm, dryRun })`                                    |
+| `refresh-pr`     | none                                       | `refreshPr(n)`: read the PR at `pr-open` once                     |
+| `check-pr`       | none                                       | `checkPr(n)`: read the PR's checks and comments once              |
+| `pr-feedback`    | `text?` (1 to 20000 characters after trim) | `feedbackFromPr(n, { text })`                                     |
+| `draft`          | none                                       | `draft(n)`: done means `needs-you` with "Draft ready"             |
+| `apply-draft`    | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                                      |
+| `pause`          | none                                       | `pause(n)`: hold the issue after the running stage                |
+| `resume`         | none                                       | `resume(n)`: clear the hold and drive on                          |
+| `steer`          | `note` (1 to 20000 characters after trim)  | `steer(n, note)`: run the agent again with it                     |
+| `take-over`      | none                                       | `takeOver(n)`: stop the agent for the owner                       |
+| `resolve-denial` | `command`, `resolution: "allow" \| "skip"` | `resolveDenial(n, command, resolution)`: answer a refused command |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
 - `start` without `flowId` runs the issue on the flow of its first label in the config's
@@ -141,6 +142,14 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   session id, because it reaches the GitHub status comment. Both refuse (`409 invalid-transition`) when no agent of the issue runs in this
   server, or when the last request has not reached the agent yet. `take-over` also refuses a
   review or report agent and an issue in Docker isolation.
+- `resolve-denial` answers a command the desk refused to an agent, from `needs-you` at an agent
+  step. The issue detail lists the candidates as `deniedCommands`: the exact commands the last run
+  of the stage to retry tried and the desk refused. The server checks `command` against that list
+  again, so a client cannot allow a command the desk never refused (`409 invalid-transition`).
+  `allow` keeps the command in `approvedCommands` of the issue state, and the stage runs again with
+  it as one exact allow rule. `skip` sends feedback that tells the agent to leave the command out.
+  The desk never offers a chained, piped or pattern command, `gh`, a forbidden git or pnpm script,
+  `pnpm exec`, `pnpm dlx`, or any command that the deny rules or `.ai/permissions.json` deny.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.
 - `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
   at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a

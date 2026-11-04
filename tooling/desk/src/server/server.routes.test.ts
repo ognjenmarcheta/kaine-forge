@@ -723,6 +723,12 @@ describe("POST /api/issues/:n/actions", () => {
       name: "take-over",
       body: { action: "take-over" },
       check: (h: Harness) => expect(h.runner.takeOver).toHaveBeenCalledWith(3)
+    },
+    {
+      name: "resolve-denial",
+      body: { action: "resolve-denial", command: "pnpm turbo run lint", resolution: "skip" },
+      check: (h: Harness) =>
+        expect(h.runner.resolveDenial).toHaveBeenCalledWith(3, "pnpm turbo run lint", "skip")
     }
   ])("calls the runner for $name", async ({ body, check }) => {
     await harness.seed(3);

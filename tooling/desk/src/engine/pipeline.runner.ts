@@ -22,6 +22,7 @@ import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
 import { agentProfileOf } from "./pipeline.agent";
 import { ARTIFACTS, readArtifactJson, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
+import { deniedCommands, skippedCommandNote } from "./pipeline.denials";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
 import { recoverIssue, stopLeftoverProcess, type RecoveryDeps } from "./pipeline.recovery";
 import { createScheduler } from "./pipeline.scheduler";
@@ -156,6 +157,17 @@ export interface PipelineRunner {
   readonly feedback: (issue: number, target: StageId, text: string) => Promise<PipelineResult>;
   /** Retry the recorded stage (or `stage`) from `needs-you`, then drive. Never automatic. */
   readonly continueFrom: (issue: number, stage?: StageId) => Promise<PipelineResult>;
+  /**
+   * From `needs-you`, answer a command the desk refused to the agent of the stage to retry.
+   * `allow` keeps the exact command on the issue and retries the stage. `skip` sends feedback that
+   * tells the agent to leave it out. The command must be one the last run of that stage tried and
+   * the desk refused, and one that `approvalRefusal` accepts. Then drive.
+   */
+  readonly resolveDenial: (
+    issue: number,
+    command: string,
+    resolution: "allow" | "skip"
+  ) => Promise<PipelineResult>;
   /**
    * Ship from `pr-review`: commit, push, open a draft PR. It needs `confirm`.
    * A dry run writes the ship plan and the PR body and changes no state.
@@ -1113,6 +1125,61 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
       { needsState: true }
     );
 
+  const resolveDenial: PipelineRunner["resolveDenial"] = async (issue, command, resolution) => {
+    const wanted = command.trim();
+    const read = await store.read(issue);
+    const target = read.status === "ok" ? read.state.resumeStage : null;
+    if (target === null) {
+      // No state, or no stage to retry: the plain retry gives the right refusal.
+      return continueFrom(issue);
+    }
+    // Under the lease: only a command the last run was refused, and one that may be allowed.
+    const verify = async (session: Session): Promise<PipelineResult | null> => {
+      const offered = await deniedCommands(store.artifactsDir(issue), session.state);
+      return offered.includes(wanted)
+        ? null
+        : refused(
+            "invalid-transition",
+            `'${wanted}' is not a command the desk refused to #${issue} that can be allowed. Nothing was changed.`,
+            session.state
+          );
+    };
+    if (resolution === "skip") {
+      const text = skippedCommandNote(wanted);
+      return humanAction(
+        issue,
+        { type: "feedback", target },
+        {
+          event: "feedback",
+          note: `to ${target}: skip '${wanted}'`,
+          patch: { pendingFeedback: { target, source: "human", text } },
+          prepare: async (session) => {
+            const refusal = await verify(session);
+            if (refusal !== null) return refusal;
+            await appendOwnerWords(issue, `to ${target}`, text);
+            return null;
+          }
+        }
+      );
+    }
+    let approved: string[] = [];
+    return humanAction(
+      issue,
+      { type: "continue" },
+      {
+        event: "continued",
+        note: `allowed '${wanted}'; retry '${target}'`,
+        patch: () => ({ approvedCommands: approved }),
+        prepare: async (session) => {
+          const refusal = await verify(session);
+          if (refusal !== null) return refusal;
+          approved = [...new Set([...(session.state.approvedCommands ?? []), wanted])];
+          return null;
+        }
+      }
+    );
+  };
+
   // --- ship ---------------------------------------------------------------
 
   type ShipExecution =
@@ -1767,6 +1834,7 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     approvePlan,
     feedback,
     continueFrom,
+    resolveDenial,
     ship,
     refreshPr,
     checkPr,

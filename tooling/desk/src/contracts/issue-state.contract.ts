@@ -182,6 +182,11 @@ const sharedFields = {
    */
   approveNote: z.string().min(1).nullable().optional(),
   /**
+   * Commands the owner allowed after the desk refused them to an agent, each one exact. The agent
+   * runs of this issue may run them. A reader treats a missing field like an empty list.
+   */
+  approvedCommands: z.array(z.string().min(1)).optional(),
+  /**
    * The owner asked to hold the issue. The running stage ends, and the engine starts no next
    * stage until `resume`. A reader treats a missing field like `false`.
    */

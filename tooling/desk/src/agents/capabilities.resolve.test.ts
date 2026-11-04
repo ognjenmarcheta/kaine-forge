@@ -99,6 +99,7 @@ const resolve = (
     readonly provider?: Provider;
     readonly isolation?: Isolation;
     readonly workspaces?: readonly string[];
+    readonly approvedCommands?: readonly string[];
   } = {}
 ) =>
   resolveCapabilities({
@@ -108,7 +109,8 @@ const resolve = (
     policy: { denies: ["Bash(pnpm db:push)"] },
     installed: INSTALLED,
     isolation: options.isolation ?? "host",
-    workspaces: options.workspaces
+    workspaces: options.workspaces,
+    approvedCommands: options.approvedCommands
   });
 
 describe("resolveCapabilities", () => {
@@ -167,6 +169,20 @@ describe("resolveCapabilities", () => {
       expect(host.sandbox, preset).toBe("host");
       expect(host.mcp, preset).toEqual(["serena"]);
     }
+  });
+
+  it("turns an approved command into one exact allow rule and keeps the denies", () => {
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const profile = resolve(
+      { preset: "edit-code", mcp: [], skills: [] },
+      { workspaces: ["@repo/config"], approvedCommands: [command, "pnpm exec evil"] }
+    );
+
+    // Exact: no `:*` suffix, so it never matches a longer command.
+    expect(profile.tools.allow).toContain(`Bash(${command})`);
+    expect(profile.tools.allow).not.toContain(`Bash(${command}:*)`);
+    // A command that the desk denies stays denied, whatever the owner approved.
+    expect(profile.tools.deny).toContain("Bash(pnpm exec:*)");
   });
 
   it("gives run-checks the exact check commands of its workspaces and no way to edit", () => {
