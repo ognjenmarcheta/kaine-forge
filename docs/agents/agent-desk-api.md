@@ -148,8 +148,10 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   commands (not a read-only agent), the stop is the agent's own `blockers` stop, and the stop text
   names the command. A scope violation or a failed check lists none. The server checks `command` against that list
   again, so a client cannot allow a command the desk never refused (`409 invalid-transition`).
-  `allow` keeps the command in `approvedCommands` of the issue state, and the stage runs again with
-  it as one exact allow rule. `skip` sends feedback that tells the agent to leave the command out.
+  Both send feedback to the stage, because a resumed agent trusts the refusals in its own session
+  and would not try again. `allow` keeps the command in `approvedCommands` of the issue state, runs
+  the stage again with it as one exact allow rule, and tells the agent that the command is allowed
+  now. `skip` tells the agent to leave the command out.
   The desk never offers a chained, piped or pattern command, `gh`, a forbidden git or pnpm script,
   `pnpm exec`, `pnpm dlx`, or any command that the deny rules or `.ai/permissions.json` deny.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.

@@ -22,7 +22,7 @@ import { INTAKE_FIT_FILE, bodyHash, runIntake } from "./intake.run";
 import { agentProfileOf } from "./pipeline.agent";
 import { ARTIFACTS, readArtifactJson, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
-import { deniedCommands, skippedCommandNote } from "./pipeline.denials";
+import { allowedCommandNote, deniedCommands, skippedCommandNote } from "./pipeline.denials";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
 import { recoverIssue, stopLeftoverProcess, type RecoveryDeps } from "./pipeline.recovery";
 import { createScheduler } from "./pipeline.scheduler";
@@ -1151,36 +1151,28 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
             session.state
           );
     };
-    if (resolution === "skip") {
-      const text = skippedCommandNote(wanted);
-      return humanAction(
-        issue,
-        { type: "feedback", target },
-        {
-          event: "feedback",
-          note: `to ${target}: skip '${wanted}'`,
-          patch: { pendingFeedback: { target, source: "human", text } },
-          prepare: async (session) => {
-            const refusal = await verify(session);
-            if (refusal !== null) return refusal;
-            await appendOwnerWords(issue, `to ${target}`, text);
-            return null;
-          }
-        }
-      );
-    }
+    // Both answers go to the agent as feedback. A resumed agent trusts the refusals in its own
+    // history, and an old rule tells it to stop after the same failing command twice, so a plain
+    // retry of an allowed command would give it nothing new and it would not try again.
+    const text = resolution === "skip" ? skippedCommandNote(wanted) : allowedCommandNote(wanted);
     let approved: string[] = [];
     return humanAction(
       issue,
-      { type: "continue" },
+      { type: "feedback", target },
       {
-        event: "continued",
-        note: `allowed '${wanted}'; retry '${target}'`,
-        patch: () => ({ approvedCommands: approved }),
+        event: "feedback",
+        note: `to ${target}: ${resolution === "skip" ? "skip" : "allowed"} '${wanted}'`,
+        patch: () => ({
+          pendingFeedback: { target, source: "human", text },
+          ...(resolution === "allow" ? { approvedCommands: approved } : {})
+        }),
         prepare: async (session) => {
           const refusal = await verify(session);
           if (refusal !== null) return refusal;
-          approved = [...new Set([...(session.state.approvedCommands ?? []), wanted])];
+          if (resolution === "allow") {
+            approved = [...new Set([...(session.state.approvedCommands ?? []), wanted])];
+          }
+          await appendOwnerWords(issue, `to ${target}`, text);
           return null;
         }
       }
