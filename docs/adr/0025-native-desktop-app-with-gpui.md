@@ -38,12 +38,24 @@ Longbridge Pro ships on it on macOS, Windows and Linux.
   and holds minors and majors for a deliberate PR that runs the three-OS Deep Checks.
 - **Turbo runs cargo through `package.json` scripts,** the pattern `apps/desktop` already uses,
   so `pnpm check`, `check:affected` and the PR gate keep their shape. Every cargo script
-  targets the one crate with `--locked`. The PR gate's `rust-checks` job (fmt for the workspace,
-  clippy and tests for the GPUI app) runs when Rust inputs change or Turbo marks a Rust
-  workspace affected (ADR 0003); Deep Checks builds the app on Linux, macOS and Windows and
-  lints the Tauri crate on macOS. Check Fast excludes `@repo/desktop-native`; the Rust job owns
-  it. `pnpm check` therefore needs a Rust toolchain on every machine (`pnpm preflight` says so);
-  `pnpm bootstrap` never compiles Rust.
+  targets the one crate with `--locked`; nothing runs `cargo … --workspace`, because Cargo
+  unifies dependency features across every crate in one invocation and the two apps would
+  then compile each other's feature sets. The PR gate's `rust-checks` job (fmt for the
+  workspace, clippy and tests per crate, `cargo deny check`) runs when Rust inputs change or
+  Turbo marks a Rust workspace affected (ADR 0003); Deep Checks builds the app on Linux, macOS
+  and Windows and repeats the Tauri lint on macOS. Check Fast excludes `@repo/desktop-native`;
+  the Rust job owns it. The Tauri crate's `format` script runs `cargo fmt` (no system
+  libraries), but its clippy and tests stay in CI: they link WebKitGTK, which a Linux
+  contributor machine need not have. `pnpm check` therefore needs a Rust toolchain on every
+  machine (`pnpm preflight` says so); `pnpm bootstrap` never compiles Rust.
+- **One profile set for both apps,** in the root manifest, the only place Cargo reads profiles.
+  Release: thin LTO, one codegen unit, stripped symbols, panics unwind. Tauri's size guide also
+  suggests `opt-level = "s"` and `panic = "abort"`; neither is set, because GPUI's renderer is
+  CPU-bound and an abort turns every panic into a silent exit. Dev: GPUI Kit's named text and
+  layout crates at `opt-level = 3`, every other dependency at the default. The Tauri crate
+  declares no `custom-protocol` feature: the Tauri CLI enables `tauri/custom-protocol` itself
+  at `tauri build`, so a plain `cargo clippy` or `cargo test` on the crate runs in dev mode and
+  needs no web build.
 - **Generated inputs, never hand-written in Rust:** theme tokens and a gpui-kit `ThemeSet` per
   theme come from `pnpm theme:build`; locales come from `pnpm translation:build`; GraphQL
   operations use `graphql_client` against `apps/api/schema.graphql`. The same staleness checks

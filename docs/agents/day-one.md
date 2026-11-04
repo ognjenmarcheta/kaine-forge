@@ -54,13 +54,13 @@ When work repeats, check existing skills before proposing an improvement. Contin
 
 ## 5. Validation tiers
 
-| Change type                               | Minimum checks                                                                                                                                                      |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Docs / `.ai/` only                        | `pnpm ai:doctor`, `pnpm format:check`                                                                                                                               |
-| Package/app code, iterating               | `pnpm check:affected` (skips `boundaries` and `knip` — both whole-graph)                                                                                            |
-| Package/app code, before a PR             | `pnpm check`; `pnpm build:core` if API/web runtime                                                                                                                  |
-| User-visible web/API flows                | add `pnpm test:e2e` when appropriate                                                                                                                                |
-| Rust (`apps/desktop-native`, `src-tauri`) | `pnpm --filter @repo/desktop-native check` (cargo fmt, clippy, check, test); `cargo deny check` before a dependency change; `pnpm smoke:native` for a native screen |
+| Change type                               | Minimum checks                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docs / `.ai/` only                        | `pnpm ai:doctor`, `pnpm format:check`                                                                                                                                                                                                                                                                   |
+| Package/app code, iterating               | `pnpm check:affected` (skips `boundaries` and `knip` — both whole-graph)                                                                                                                                                                                                                                |
+| Package/app code, before a PR             | `pnpm check`; `pnpm build:core` if API/web runtime                                                                                                                                                                                                                                                      |
+| User-visible web/API flows                | add `pnpm test:e2e` when appropriate                                                                                                                                                                                                                                                                    |
+| Rust (`apps/desktop-native`, `src-tauri`) | `pnpm --filter @repo/desktop-native check` (cargo fmt, clippy, check, test); `pnpm --filter @repo/desktop format` for the Tauri crate (its clippy and tests run in the PR Rust Checks job; they link WebKitGTK); `cargo deny check` before a dependency change; `pnpm smoke:native` for a native screen |
 
 ## 6. Poke the running stack
 

@@ -11,6 +11,18 @@
       "description": "Tauri installers for this OS (tauri.conf.json bundle.targets \"all\": deb, rpm and AppImage on Linux; app and dmg on macOS; nsis and msi on Windows) under the repo-root .cargo-target/release/bundle. Same web dependency edge and no Turbo caching as build.",
       "dependsOn": ["^build"],
       "cache": false
+    },
+    "format:check": {
+      "description": "cargo fmt for src-tauri reads the root rustfmt.toml and toolchain pin; prettier reads the shared config. Clippy and the Rust tests need the WebKitGTK stack, so the PR Rust Checks job runs them, not this workspace.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.prettierrc.cjs",
+        "$TURBO_ROOT$/.prettierignore",
+        "$TURBO_ROOT$/packages/config/prettier/**",
+        "$TURBO_ROOT$/.editorconfig",
+        "$TURBO_ROOT$/rustfmt.toml",
+        "$TURBO_ROOT$/rust-toolchain.toml"
+      ]
     }
   }
 }

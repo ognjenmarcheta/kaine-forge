@@ -1,10 +1,11 @@
 [package]
 name = "kaine_forge_desktop"
-version = "0.1.0"
+version = "1.2.1"
 description = "Kaine Forge desktop shell powered by Tauri"
 authors.workspace = true
 license.workspace = true
-# Tauri's generated code targets the 2021 edition; the workspace is 2024.
+# Kept at 2021 until a WebKitGTK machine proves the 2024 edition for this crate; the
+# workspace and tauri 2.12 itself are 2024.
 edition = "2021"
 rust-version.workspace = true
 publish.workspace = true
@@ -22,10 +23,6 @@ serde_json = { workspace = true }
 tauri = { version = "2", features = [] }
 # Device databases for synced rows (ADR 0020); bundled, so no system SQLite is needed.
 rusqlite = { version = "0.40", features = ["bundled", "hooks"] }
-
-[features]
-default = ["custom-protocol"]
-custom-protocol = ["tauri/custom-protocol"]
 
 [lints]
 workspace = true

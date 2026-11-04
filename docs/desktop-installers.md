@@ -16,7 +16,15 @@ are attached to the GitHub Release of the app's version tag.
 The Tauri app's version is the package version: `tauri.conf.json` points `version` at
 `apps/desktop/package.json`. The native app's `Cargo.toml` version follows its package version
 through `scripts/sync-cargo-version.mjs`, which `pnpm release:version` runs after
-`changeset version`; `scripts/sync-cargo-version.test.mjs` fails when the two drift.
+`changeset version`; the Tauri crate's `Cargo.toml` version is synced the same way so
+`cargo metadata` agrees with the package. `scripts/sync-cargo-version.test.mjs` fails when they
+drift.
+
+The two apps install side by side because three fields differ and must stay different: the
+bundle identifier (`com.kaine.forge.desktop` in `tauri.conf.json`, `com.kaine.forge.desktop-native`
+in `[package.metadata.packager]`), the product name (`Kaine Forge`, `Kaine Forge Native`; both
+bundlers kebab-case it into the Debian package name) and the binary name
+(`kaine_forge_desktop`, `kaine_forge_desktop_native`).
 
 ## Build them locally
 
@@ -52,7 +60,10 @@ Signing is secret-driven and optional. When the macOS job finds the Tauri signin
 `APPLE_PASSWORD`, `APPLE_TEAM_ID`), Tauri signs and notarizes the `.app` and `.dmg`. Without
 them, and on Windows until a `signCommand` is configured, the installers are unsigned and the job
 appends a line saying so to the release notes. Unsigned installers open behind the usual
-Gatekeeper and SmartScreen warnings.
+Gatekeeper and SmartScreen warnings. cargo-packager reads the same Apple secrets except
+`APPLE_SIGNING_IDENTITY`: the native app needs `macos.signing-identity` (and, on Windows,
+`windows.certificate-thumbprint` or `windows.sign-command`) in `[package.metadata.packager]`
+once a certificate exists; those keys are part of the signing work, not set today.
 
 The native app's macOS package is built for the runner's architecture (Apple silicon on hosted
 runners); cargo-packager has no universal-binary mode. It also produces no `.rpm`: that gap and

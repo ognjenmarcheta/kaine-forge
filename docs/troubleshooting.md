@@ -121,7 +121,15 @@ Root `pnpm generate` runs API `schema:generate` then client codegen in one step.
 sudo apt-get install -y gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
 ```
 
-The list is GPUI Kit's own; the Tauri shell additionally needs the WebKitGTK stack (`libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils`).
+The list is GPUI Kit's own; the Tauri shell additionally needs the WebKitGTK stack (`libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils`). Without it, `cargo clippy -p kaine_forge_desktop` fails in `webkit2gtk-sys`; the PR Rust Checks job runs that lint, so a Linux contributor machine can skip the stack.
+
+### cargo waits for the build directory lock
+
+**Symptom:** `cargo run`, `tauri dev` or a test build prints `Blocking waiting for file lock on build directory` for minutes.
+
+**Cause:** Every Rust crate shares the repo-root `.cargo-target/`, and rust-analyzer builds there too unless told otherwise.
+
+**Fix:** `.vscode/settings.json` sets `rust-analyzer.cargo.targetDir` so the editor uses `.cargo-target/rust-analyzer/`; other editors need the same setting. Two cargo commands of your own still queue, which is expected.
 
 ### `pnpm boundaries` / `pnpm check` fails after a desktop build
 

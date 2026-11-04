@@ -48,6 +48,21 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
+      - name: Install the pinned Rust toolchain
+        # @repo/desktop's format:check runs cargo fmt for its Tauri crate (ADR 0025).
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        # Hosted runners ship rustup; self-hosted Linux runners may not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
       - name: Run desktop check
         run: pnpm --filter @repo/desktop check
 
@@ -76,20 +91,12 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Cache Cargo registry and target
-        # Cargo output lives at the repo-root .cargo-target (root .cargo/config.toml,
-        # issue #351) and the lockfile is the root Cargo.lock (ADR 0025). The key
-        # prefix moved with the path so an entry saved under the old location is
-        # never an exact hit that skips the save.
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Cache Cargo
+        # Keyed on the root Cargo.lock; the target dir is the repo-root .cargo-target
+        # (root .cargo/config.toml, issue #351), the same line as every Rust job.
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            .cargo-target
-          key: cargo-workspace-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            cargo-workspace-${{ runner.os }}-
+          workspaces: ". -> .cargo-target"
 
       - name: Build desktop app and its installers
         # Turbo builds @repo/web first through the declared devDependency edge
@@ -98,8 +105,8 @@ jobs:
         run: pnpm exec turbo run bundle --filter=@repo/desktop
 
       - name: Lint desktop Rust
-        # The Tauri crate's only clippy run: the PR gate's Rust Checks job skips it
-        # because its WebKitGTK stack is not installed there.
+        # The PR gate's Rust Checks job lints this crate on Linux; this is the macOS
+        # run, where the platform-specific code differs most.
         run: cargo clippy -p kaine_forge_desktop --all-targets --locked -- -D warnings
 
       - name: Test desktop Rust

@@ -7,13 +7,18 @@ import { pathToFileURL } from "node:url";
  * Changesets bumps package.json versions only. The native desktop app's installers
  * take their version from its Cargo.toml, so `release:version` runs this after
  * `changeset version` to copy the package version into the crate and the lockfile
- * (ADR 0025). The Tauri app needs nothing: its bundler reads tauri.conf.json, which
- * points at apps/desktop/package.json.
+ * (ADR 0025). The Tauri bundler reads tauri.conf.json, which points at
+ * apps/desktop/package.json; its crate version is synced too so `cargo metadata`
+ * never disagrees with the package.
  */
 export const SYNCED_CRATES = [
   {
     manifest: "apps/desktop-native/package.json",
     cargoToml: "apps/desktop-native/Cargo.toml"
+  },
+  {
+    manifest: "apps/desktop/package.json",
+    cargoToml: "apps/desktop/src-tauri/Cargo.toml"
   }
 ];
 

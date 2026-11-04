@@ -2,6 +2,14 @@
 # Run `cargo deny check` (installed with `cargo install cargo-deny --locked`).
 [graph]
 all-features = false
+# The triples the installers ship (docs/desktop-installers.md); duplicates and
+# advisories that only exist on other platforms do not count.
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+]
 
 [advisories]
 version = 2

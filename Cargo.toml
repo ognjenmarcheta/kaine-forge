@@ -54,11 +54,24 @@ redundant_clone = "deny"
 disallowed_methods = "deny"
 disallowed_types = "deny"
 
-# GPUI compiles slowly; optimising the heavy crates in dev keeps `cargo run`
-# usable, as GPUI Kit's own workspace does.
-[profile.dev.package."*"]
-opt-level = 1
+# GPUI Kit's install guide names the crates worth optimising in dev: text layout
+# and shaping are unusable at opt-level 0, and the kit measured opt-level 1 as
+# 22-25% slower scrolling than 3. Every other dependency, the Tauri stack
+# included, keeps the default so a dev build stays fast to produce.
+[profile.dev.package]
+gpui-pre = { opt-level = 3 }
+gpui-pre-platform = { opt-level = 3 }
+gpui-component = { opt-level = 3 }
+gpui-kit = { opt-level = 3 }
+gpui-kit-assets = { opt-level = 3 }
+rustybuzz = { opt-level = 3 }
+taffy = { opt-level = 3 }
+ttf-parser = { opt-level = 3 }
 
+# One release profile for both desktop apps (Cargo reads profiles from the
+# workspace root only). Speed over size: Tauri's size guide also suggests
+# `opt-level = "s"` and `panic = "abort"`, which would slow GPUI's renderer and
+# turn every panic into a silent exit, so neither is set (ADR 0025).
 [profile.release]
 lto = "thin"
 codegen-units = 1

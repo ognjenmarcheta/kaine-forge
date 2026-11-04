@@ -199,6 +199,21 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
+      - name: Install the pinned Rust toolchain
+        # @repo/desktop's format:check runs cargo fmt for its Tauri crate (ADR 0025).
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        # Hosted runners ship rustup; self-hosted Linux runners may not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
       # Turbo remote cache backed by the GitHub Actions cache: one cache entry per
       # task hash, so any job reuses any task another job or main already ran. The
       # former single .turbo/cache blob per job restored whichever job saved last
@@ -359,25 +374,27 @@ jobs:
 
   rust-checks:
     name: Rust Checks
-    # The Rust workspace (ADR 0025): cargo fmt for every crate, clippy and tests
-    # for the GPUI app. The Tauri crate compiles only in Deep Checks (macOS),
-    # where its WebKitGTK stack exists. Runs when Rust inputs change or Turbo
-    # marks a Rust workspace affected; TypeScript-only PRs skip it (ADR 0003).
+    # The Rust workspace (ADR 0025): cargo fmt for every crate, then clippy and
+    # tests per crate (never --workspace: that would unify features across the
+    # two apps), and cargo-deny on the resolved graph. The Tauri crate needs no web
+    # build here: without the old custom-protocol feature its code generation runs
+    # in dev mode and embeds nothing. Runs when Rust inputs change or Turbo marks
+    # a Rust workspace affected; TypeScript-only PRs skip it (ADR 0003).
     if: needs.detect-paths.outputs.rust == 'true'
     needs: detect-paths
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install GPUI system packages
-        # GPUI Kit's own script/install-linux.sh list. The Tauri WebKitGTK stack is
-        # not needed: this job never compiles the Tauri crate.
+      - name: Install GPUI and Tauri system packages
+        # GPUI Kit's own script/install-linux.sh list, plus the WebKitGTK stack that
+        # the Tauri crate links (the same set the Linux bundle jobs install).
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
+          sudo apt-get install -y --no-install-recommends gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
 
       - name: Install the pinned Rust toolchain
         # rust-toolchain.toml names the channel; rustup installs it on first use.
@@ -403,11 +420,26 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
 
-      - name: Clippy
+      - name: Clippy (native app)
         run: cargo clippy -p kaine_forge_desktop_native --all-targets --locked -- -D warnings
 
-      - name: Test
+      - name: Test (native app)
         run: cargo test -p kaine_forge_desktop_native --locked
+
+      - name: Clippy (Tauri shell)
+        run: cargo clippy -p kaine_forge_desktop --all-targets --locked -- -D warnings
+
+      - name: Test (Tauri shell)
+        # The device databases (src/device_db.rs) are the only Rust logic with tests.
+        run: cargo test -p kaine_forge_desktop --lib --locked
+
+      - name: Check the Rust dependency graph
+        # Licences, advisories, bans and sources (deny.toml); Security repeats it
+        # weekly on main, this run catches a Dependabot Cargo PR before it merges.
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          command: check
+          rust-version: "1.99.1"
 
   graphql-schema:
     name: GraphQL Schema Compatibility
