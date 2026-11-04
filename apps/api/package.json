@@ -34,7 +34,7 @@
     "@repo/storage": "workspace:*",
     "@repo/theme": "workspace:*",
     "@repo/translation": "workspace:*",
-    "ai": "^7.0.158",
+    "ai": "^7.0.159",
     "better-auth": "catalog:",
     "dataloader": "^2.2.3",
     "dotenv": "catalog:",
@@ -44,7 +44,7 @@
     "graphql-yoga": "^6.0.1",
     "jszip": "catalog:",
     "sharp": "^0.35.5",
-    "ws": "^8.22.0",
+    "ws": "^8.22.1",
     "zod": "catalog:"
   },
   "devDependencies": {
