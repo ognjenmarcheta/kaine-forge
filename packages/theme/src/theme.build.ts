@@ -14,6 +14,7 @@ import {
 } from "./theme.contrast";
 import { rootDesignCopy, withDesignTokens } from "./theme.design";
 import { emitMobileCss, emitNativeTokens, emitPresetTokens, emitWebTokens } from "./theme.emit";
+import { emitDesktopNativeThemeSet, emitDesktopNativeTokens } from "./theme.native";
 import { defaultTheme, themes } from "./themes.config";
 
 export const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -82,6 +83,14 @@ export async function buildThemeFiles(): Promise<GeneratedFile[]> {
       emitNativeTokens(themes, defaultTheme)
     ),
     formatted("packages/config/tailwind/preset.tokens.js", emitPresetTokens(defaultTheme)),
+    formatted(
+      "apps/desktop-native/assets/theme/gpui-kit.json",
+      emitDesktopNativeThemeSet(themes, defaultTheme)
+    ),
+    formatted(
+      "apps/desktop-native/assets/theme/tokens.json",
+      emitDesktopNativeTokens(themes, defaultTheme)
+    ),
     formatted("apps/web/index.html", withThemeColor(read("apps/web/index.html"))),
     formatted("apps/mobile/app.json", withSplashColors(read("apps/mobile/app.json"))),
     formatted("DESIGN.md", rootDesignCopy(defaultDesign.content, defaultDesign.path))

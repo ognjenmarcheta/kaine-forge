@@ -1,4 +1,7 @@
-//! The application shell: the root view and, in later stages, theme, locale,
-//! HTTP and session wiring. Features mount under `crate::features`.
+//! The application shell: launch options, theme and locale wiring, and the root
+//! view. Features mount under `crate::features` from the next stage on.
 
+pub mod i18n;
+pub mod launch;
+pub mod theme;
 pub mod view;

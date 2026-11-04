@@ -58,6 +58,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 - [ ] Styling is token-only (`--ds-*` via the theme utilities such as `bg-ds-surface-raised`, `p-ds-200`, `text-body`); no raw colors, default Tailwind palette or size classes, or arbitrary `[var(--ds-*)]` values (`DESIGN_SYSTEM.md` §9). A screen sets lengths with the steps; only a UI lab screen may use an arbitrary length such as `w-[24.875rem]`, listed under "Measured lengths" in its notes (SPACE-1).
 - [ ] UI changes pass `pnpm ui:check` and follow `docs/ui/guidelines.md`; findings cite the rule ID (for example COLOR-2, A11Y-3). Theme changes come with `pnpm theme:build` output and pass the theme checks.
 - [ ] User-facing strings live in translation JSON and are accessed via i18n helpers (`@repo/translation`).
+- [ ] Native desktop (GPUI) code reads colours and lengths from the kit theme (`cx.theme()`) or the generated tokens, never a hex, `px()` or font literal; strings go through `t!` with keys the generated `apps/desktop-native/locales` carry (`pnpm translation:build`), and a theme change comes with `pnpm theme:build` output (`DESIGN_SYSTEM.md` §9.1).
 - [ ] Accessibility and component patterns match `DESIGN_SYSTEM.md` for the surface (web vs mobile).
 
 ## Quality Gates

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "description": "translation.native.test.ts scans the native desktop app's Rust sources for t! keys and diffs the generated locale files against the committed copies (ADR 0025).",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/desktop-native/locales/*.json",
+        "$TURBO_ROOT$/apps/desktop-native/src/**/*.rs"
+      ]
+    }
+  }
+}

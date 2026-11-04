@@ -76,6 +76,8 @@
     "scorecard": "tsx .ai/scorecard-render.ts",
     "theme:build": "tsx packages/theme/src/theme.cli.ts",
     "theme:check": "tsx packages/theme/src/theme.cli.ts --check",
+    "translation:build": "tsx packages/translation/src/translation.cli.ts",
+    "translation:check": "tsx packages/translation/src/translation.cli.ts --check",
     "ui:check": "node scripts/ui-check.mjs",
     "lab": "pnpm --filter @repo/desk-ui dev",
     "lab:diff": "pnpm --filter @repo/desk-ui lab:diff",

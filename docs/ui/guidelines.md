@@ -1,6 +1,6 @@
 # UI guidelines
 
-These rules apply to every screen in the web app, the desktop app, the agent desk, and the mobile app, under any theme. Each rule has an ID, a reason, and an example. Cite the ID in reviews and in deviation notes, for example "COLOR-2".
+These rules apply to every screen in the web app, the desktop app, the native desktop app, the agent desk, and the mobile app, under any theme. Each rule has an ID, a reason, and an example. Cite the ID in reviews and in deviation notes, for example "COLOR-2".
 
 Rules marked **MUST** protect accessibility or data. The others are strong defaults.
 

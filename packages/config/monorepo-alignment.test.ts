@@ -300,12 +300,22 @@ const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readon
       "builds every generated theme file in memory, including the native colors in index.html and app.json, and diffs it against the committed copy",
     needs: [
       "$TURBO_ROOT$/DESIGN.md",
+      "$TURBO_ROOT$/apps/desktop-native/assets/theme/*.json",
       "$TURBO_ROOT$/apps/mobile/app.json",
       "$TURBO_ROOT$/apps/mobile/src/styles/global.css",
       "$TURBO_ROOT$/apps/web/index.html",
       "$TURBO_ROOT$/packages/config/tailwind/preset.tokens.js",
       "$TURBO_ROOT$/packages/mobile-ui/src/lib/design-tokens.ts",
       "$TURBO_ROOT$/packages/ui/src/styles/tokens.generated.css"
+    ]
+  },
+  {
+    file: "packages/translation/src/translation.native.test.ts",
+    reason:
+      "scans the native desktop app's Rust sources for t! keys and diffs the generated locale files against the committed copies",
+    needs: [
+      "$TURBO_ROOT$/apps/desktop-native/locales/*.json",
+      "$TURBO_ROOT$/apps/desktop-native/src/**/*.rs"
     ]
   },
   {

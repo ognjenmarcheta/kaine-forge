@@ -4710,7 +4710,12 @@ dependencies = [
 name = "kaine_forge_desktop_native"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "gpui-kit",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "sys-locale",
 ]
 
 [[package]]

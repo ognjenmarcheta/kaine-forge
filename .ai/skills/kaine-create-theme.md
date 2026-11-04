@@ -17,7 +17,7 @@ Add or change a registered theme so that every app picks it up and it passes the
 3. **Write** `packages/theme/src/themes/<name>/<name>.theme.ts` with `createTheme`. Add overrides (`scale`, `components`, `modes`) only for values the brand fixes exactly.
 4. **Write its `DESIGN.md`** from Moss's: the eight sections in order, the color-table markers kept, and prose that says what the theme is for and what it never does.
 5. **Register** it in `themes.config.ts`.
-6. **Run `pnpm theme:build`.** For each contrast failure, take the nearest passing color it prints, or change the input. Never weaken a check.
+6. **Run `pnpm theme:build`.** For each contrast failure, take the nearest passing color it prints, or change the input. Never weaken a check. The run also writes the native desktop app's GPUI Kit theme set and token file (`DESIGN_SYSTEM.md` §9.1); commit them with the theme.
 7. **Load fonts** that the platform does not have: `@fontsource` in `@repo/ui` for the web, `useFonts` and `nativeFonts` for mobile.
 8. **Look at it** in the UI lab (`pnpm lab`) beside Byte Forge, in light and dark, with a table, a form error, a dialog, and a chart.
 9. **Run** `pnpm --filter @repo/theme test`, `pnpm ui:check`, and `pnpm check:affected`.

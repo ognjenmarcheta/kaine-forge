@@ -24,12 +24,13 @@ When adopting this template for a product repository, remove this `TEMPLATE_POLI
 
 ## 2. Platform Split
 
-Kaine Forge has two UI packages because web/desktop and mobile have different runtimes.
+Kaine Forge has two UI packages because web/desktop and mobile have different runtimes, and a third surface, the native desktop app, that draws with GPUI from generated theme files.
 
-| Surface               | Package           | Runtime      | Styling pipeline                                       |
-| --------------------- | ----------------- | ------------ | ------------------------------------------------------ |
-| Web, desktop, desk UI | `@repo/ui`        | React DOM    | Tailwind CSS v4, Radix, generated theme utilities      |
-| Mobile                | `@repo/mobile-ui` | React Native | NativeWind, Tailwind CSS v3-compatible mobile pipeline |
+| Surface               | Package                          | Runtime      | Styling pipeline                                       |
+| --------------------- | -------------------------------- | ------------ | ------------------------------------------------------ |
+| Web, desktop, desk UI | `@repo/ui`                       | React DOM    | Tailwind CSS v4, Radix, generated theme utilities      |
+| Mobile                | `@repo/mobile-ui`                | React Native | NativeWind, Tailwind CSS v3-compatible mobile pipeline |
+| Native desktop        | `apps/desktop-native` (GPUI Kit) | Rust, GPUI   | Generated GPUI Kit theme set and token JSON (§9.1)     |
 
 Rules:
 
@@ -37,6 +38,7 @@ Rules:
 - Use `@repo/mobile-ui` only in React Native code.
 - Keep component APIs similar where useful, but do not force DOM-specific primitives into mobile.
 - Shared visual decisions come from the same `--ds-*` token vocabulary.
+- The native desktop app has no UI package: it uses GPUI Kit's components and reads the generated theme files (§9.1).
 
 ### 2.1 Intentional mobile-ui subset
 
@@ -329,6 +331,19 @@ Composed component rules:
 - Do not import app stores or app route hooks.
 - Accept data and callbacks through props.
 - Keep business logic in app features, adapters, or hooks.
+
+### 9.1 Native desktop (GPUI) styling
+
+`apps/desktop-native` draws with GPUI through GPUI Kit (ADR 0025). It has no CSS, so the theme reaches it as two generated JSON files that `pnpm theme:build` writes beside the web and mobile outputs and that `pnpm theme:check` and the `@repo/theme` tests keep current:
+
+- `apps/desktop-native/assets/theme/gpui-kit.json`: a GPUI Kit `ThemeSet` with one light and one dark config per registered theme. `packages/theme/src/theme.native.ts` maps each kit colour key (`background`, `primary.background`, `muted.foreground`, …) to one colour role; the app's round-trip test proves the kit knows every key. The kit's components (buttons, inputs, lists) take their colours from it.
+- `apps/desktop-native/assets/theme/tokens.json`: every colour role, shadow, scale step, type step, component token and font family per theme, with `rem` resolved to device pixels at 16 and `var()` aliases resolved. The app's own drawing reads it through its `Tokens` type.
+
+Rules:
+
+- No hex colour, `px()` length or font name in feature code: read the kit theme (`cx.theme()`) or the tokens.
+- A new colour role or scale step is added in `@repo/theme`, then `pnpm theme:build`; the app's `Role` list grows only when native code reads the role.
+- Fonts: the kit uses the platform UI font until the app bundles the theme's families; `tokens.json` carries the family names for that step.
 
 ## 10. Mobile Styling
 
