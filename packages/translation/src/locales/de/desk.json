@@ -776,7 +776,7 @@
   "desk.issue.meta.waiting": "wartet seit {{duration}}",
   "desk.issue.meta.stopped": "vor {{duration}} angehalten",
   "desk.issue.meta.running": "läuft seit {{duration}}",
-  "desk.issue.meta.took": "dauerte {{duration}}",
+  "desk.issue.meta.took": "dauerte {{duration}} · {{active}} aktiv",
   "desk.issue.meta.cost": "{{cost}} bisher",
   "desk.issue.meta.pr": "Pull Request #{{number}}",
   "desk.gate.by.planner": "Vom Planer geschrieben",

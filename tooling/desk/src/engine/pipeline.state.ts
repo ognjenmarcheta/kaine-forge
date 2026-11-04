@@ -93,3 +93,25 @@ export const stageEnteredAt = (state: IssueState): string | null => {
     .find((event) => enteredStage(snapshot, event) !== null);
   return latest !== undefined && enteredStage(snapshot, latest) === state.stage ? latest.at : null;
 };
+
+/**
+ * How long the engine worked on the issue, from the history, in milliseconds. A span between
+ * two events counts when the issue was in a stage the engine drives. It does not count while
+ * the issue waited for the owner: at a gate, with the PR open, or stopped in `needs-you`.
+ * The span after the last event is not counted, so a stage that runs now is not in the sum.
+ */
+export const activeMs = (state: IssueState): number => {
+  const snapshot = state.flowSnapshot;
+  let position: StageId | null = null;
+  let total = 0;
+  state.history.forEach((event, index) => {
+    position = enteredStage(snapshot, event) ?? position;
+    const next = state.history[index + 1];
+    if (next === undefined) return;
+    const waiting =
+      position !== null && (position === "needs-you" || isWaitingStage(snapshot, position));
+    const span = Date.parse(next.at) - Date.parse(event.at);
+    if (!waiting && span > 0) total += span;
+  });
+  return total;
+};
