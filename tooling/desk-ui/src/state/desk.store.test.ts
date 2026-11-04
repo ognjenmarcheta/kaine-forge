@@ -32,6 +32,7 @@ const summary = (
   mergedAt: null,
   contract: null,
   stageEnteredAt: null,
+  activeMs: 0,
   progress: ["passed", "passed", "waiting", "idle", "idle", "idle", "idle", "idle", "idle"],
   currentNode: "plan-gate",
   busy: false,

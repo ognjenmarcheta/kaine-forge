@@ -28,7 +28,7 @@ import { indexArtifacts, readArtifact } from "./server.artifacts";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "../engine/intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "../engine/pipeline.artifacts";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
-import { needsYouCode, needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
+import { activeMs, needsYouCode, needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
 import type { Clock } from "../ports";
 import type { RunRecords } from "../stats/stats.runs";
 import type { IssueReadResult, IssueStore } from "../store/store.issue";
@@ -182,6 +182,7 @@ export const summarizeResult = async (
       null,
     contract: contract === null ? null : { found: contract.found, total: contract.total },
     stageEnteredAt: stageEnteredAt(state),
+    activeMs: activeMs(state),
     progress: flow.nodes.map((node) => node.status),
     currentNode: flow.current,
     busy,

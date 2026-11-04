@@ -776,7 +776,7 @@
   "desk.issue.meta.waiting": "čeka {{duration}}",
   "desk.issue.meta.stopped": "zaustavljeno pre {{duration}}",
   "desk.issue.meta.running": "radi {{duration}}",
-  "desk.issue.meta.took": "trajalo {{duration}}",
+  "desk.issue.meta.took": "trajalo {{duration}} · {{active}} aktivno",
   "desk.issue.meta.cost": "{{cost}} do sada",
   "desk.issue.meta.pr": "Pull request #{{number}}",
   "desk.gate.by.planner": "Napisao planer",

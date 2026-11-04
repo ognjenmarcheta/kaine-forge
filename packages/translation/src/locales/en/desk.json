@@ -776,7 +776,7 @@
   "desk.issue.meta.waiting": "waiting {{duration}}",
   "desk.issue.meta.stopped": "stopped {{duration}} ago",
   "desk.issue.meta.running": "running for {{duration}}",
-  "desk.issue.meta.took": "took {{duration}}",
+  "desk.issue.meta.took": "took {{duration}} · {{active}} active",
   "desk.issue.meta.cost": "{{cost}} so far",
   "desk.issue.meta.pr": "PR #{{number}}",
   "desk.gate.by.planner": "Written by the planner",

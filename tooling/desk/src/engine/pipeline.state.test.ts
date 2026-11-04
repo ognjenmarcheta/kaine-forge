@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stageEnteredAt } from "./pipeline.state";
+import { activeMs, stageEnteredAt } from "./pipeline.state";
 import type { HistoryEvent, IssueState, Stage } from "../contracts";
 import { DEFAULT_SNAPSHOT } from "../testing/flow.testing";
 
@@ -116,5 +116,41 @@ describe("stageEnteredAt", () => {
 
   it("is null for an empty history", () => {
     expect(stageEnteredAt(state("intake", []))).toBeNull();
+  });
+});
+
+describe("activeMs", () => {
+  const minute = 60_000;
+
+  it("counts the engine's stages and skips the wait at a gate", () => {
+    // intake 0-1, setup 1-2, plan 2-3 run; the plan gate waits 3-10; build 10-12 runs.
+    const history = [
+      ...toPlanGate,
+      event(10, "plan-gate", "plan-approved"),
+      event(10, "build", "stage-started"),
+      event(12, "build", "build-complete")
+    ];
+    expect(activeMs(state("check", history))).toBe(5 * minute);
+  });
+
+  it("skips a stop in needs-you and the time the PR stayed open", () => {
+    const history = [
+      event(0, "build", "stage-started"),
+      event(1, "needs-you", "needs-you"),
+      event(31, "needs-you", "continued"),
+      event(31, "build", "stage-started"),
+      event(32, "ship", "pr-opened"),
+      event(500, "pr-open", "pr-merged")
+    ];
+    // build 0-1 and build 31-32 run; 1-31 is a stop and 32-500 is the open PR.
+    expect(activeMs(state("shipped", history))).toBe(2 * minute);
+  });
+
+  it("leaves out the span after the last event, where a stage runs now", () => {
+    expect(activeMs(state("build", [event(0, "build", "stage-started")]))).toBe(0);
+  });
+
+  it("is 0 for an empty history", () => {
+    expect(activeMs(state("intake", []))).toBe(0);
   });
 });
