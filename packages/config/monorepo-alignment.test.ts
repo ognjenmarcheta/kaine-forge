@@ -1182,7 +1182,7 @@ describe("monorepo alignment", () => {
     }
   });
 
-  it("invalidates dependent typecheck and lint when a dependency or shared preset changes (issue #308)", () => {
+  it("invalidates dependent typecheck and lint when a dependency or shared preset changes (issues #308 and #864)", () => {
     // typecheck resolves @repo/* to sibling source through tsconfig.base.json
     // paths, so a dependency's type change must reach the dependent's hash.
     // Reproduced before the fix: editing packages/storage/src left
@@ -1196,6 +1196,8 @@ describe("monorepo alignment", () => {
 
     expect(tasks.typecheck?.dependsOn).toContain("^typecheck");
     expect(tasks.typecheck?.inputs).toContain(presetGlob);
+    // Typed lint rules read dependency types too (issue #864).
+    expect(tasks.lint?.dependsOn).toContain("^typecheck");
     expect(tasks.lint?.inputs).toContain(presetGlob);
     expect(tasks["format:check"]?.inputs).toContain("$TURBO_ROOT$/packages/config/prettier/**");
     expect(tasks["format:check"]?.inputs).toContain("$TURBO_ROOT$/.editorconfig");
