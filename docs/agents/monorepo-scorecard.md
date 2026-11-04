@@ -2690,6 +2690,541 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Covered by override floors"
         }
       ]
+    },
+    {
+      "date": "2026-11-04",
+      "commit": "7766e2957a700df9da334f839b24e308c8956bf9",
+      "mode": "fan-out",
+      "agent": "desk-job",
+      "overall": 7.9,
+      "dimensions": {
+        "1": {
+          "score": 7,
+          "evidence": "sweep: boundaries exit 0 (1540 files / 27 packages), knip exit 0. No wildcard exports and no @repo/*/src imports (deep-import rule at packages/config/eslint/base.js:61-72). The DOM gate includes ui-3d (monorepo-alignment.test.ts:1072). Still open (#846): SERVER_ONLY_ENTRY_PATTERN (base.js:14-15) covers only storage/auth/db/email, while billing (packages/billing/src/index.ts:6-7) and jobs (packages/jobs/src/index.ts:1-8) are Node-only. The contract list (monorepo-alignment.test.ts:1022-1031) omits both. The test-presence list (:1105-1124) still omits billing, jobs, sync and ui-3d.",
+          "calibration": "Held at 7 per the 11-02 binding note. Raise to 8 when #846 lands."
+        },
+        "2": {
+          "score": 8,
+          "evidence": "Global hash turbo.json:5-6. Inputs-vs-reads check at monorepo-alignment.test.ts:1374-1397, with DYNAMIC_READS hand-registered at :282-317. The ESLint contract loads root eslint.config.mjs (:1052-1053), which packages/config/turbo.json:12-32 does not hash. 'inputs' appears nowhere in MONOREPO_GUIDE.md. Confirmed lead: the lint task (turbo.json:50-58) has no dependsOn, while base.js:164-172 enables projectService typed rules (no-floating-promises, no-misused-promises, await-thenable). tsconfig.base.json:21-24 maps @repo/* to sibling source, so a dependency's type change leaves dependents' lint on a stale cache hit. typecheck already has ^typecheck (turbo.json:65-66).",
+          "calibration": "Held at 8. The confirmed lint edge gap is the same class as #308 for typecheck. Fixing it is part of the band-9 condition, together with hashing eslint.config.mjs and documenting the inputs rule."
+        },
+        "3": {
+          "score": 8,
+          "evidence": "sweep runs-main: Release, Security, CodeQL, Docker Cache, Deep Checks and Runner Watchdog all succeed on 7766e29. sweep runs-ci-pr: PR runs 5-9 min. Two active rulesets. Not 9: Docker build inputs are matched by comment across four copies (ci-pr.yml:495-503, docker-cache.yml:69-80, security.yml:91-96, .github/actions/app-image/action.yml:54-64), and their cache rules differ (ci-pr.yml:502-503 vs docker-cache.yml:79-80). PNPM_VERSION 10.29.3 has seven copies, and no test compares the workflow and Dockerfile copies (ci-pr.yml:17, release.yml:28, security.yml:20, deep-checks.yml:16, Dockerfile.api:14, Dockerfile.web:8; scripts/doctor.test.mjs:29-31 checks only the local pnpm). Apps are hand-listed (scripts/ci-affected.mjs:6-9). Runner images are tag-pinned (tooling/ci-runners/cluster.yaml:97, scale-set.values.yaml:41)."
+        },
+        "4": {
+          "score": 8,
+          "evidence": "sweep coverage run 41677500043: 70.73/65.58/66.15/71.93 against floors 50/42/45/50 (vitest.coverage.config.ts:78-82). Per-package floors exist for auth, api and mobile-ui (:86-105). Exclusions carry reasons (:57-63). Tenancy contract sweeps apiTypeDefs (server.tenancy.test.ts:71-76,288-315). New: assistant.eval.fixture.test.ts:27-80 checks real tool state on PGlite. Not 9: floors trail measured by 21-24 points. The attachment e2e skips unless E2E_STORAGE_ENABLED is set, and no file under .github sets it (web-invitation-attachment.e2e.ts:91-94). Billing and sync have no package floor. The shard comment says 5 specs where there are 26 (ci-pr.yml:576)."
+        },
+        "5": {
+          "score": 8,
+          "evidence": "sweep audit exit 0 (4 low, 6 moderate). Not 9: the fast-uri@3 override is still ^3.1.6 (pnpm-workspace.yaml:186), while four Dependabot alerts (#140-#143) are fixed in 3.1.9. The minimatch ^10.2.3 override (:148) is below the 11.0.1 fix (alert #161). The coupled pins @simplewebauthn/server (:18) and wa-sqlite (:59, coupling comment :50) are missing from the npm ignore list (dependabot.yml:57-113), so PRs #828 and #829 are open. Cargo glib alert #1 has been open since 2026-07-27."
+        },
+        "6": {
+          "score": 8,
+          "evidence": "sweep runs-main: Release green on five consecutive main commits. Fork guards at release.yml:229,327. Still open (#847): per-app update-ref and push with no --atomic (.ai/release-apps.util.ts:246-249), and $GITHUB_OUTPUT written only after runReleaseApps returns (.ai/release-apps.ts:99-106). No test covers publish-images, deploy-images or app-image. Rulesets target only ~DEFAULT_BRANCH (.github/rulesets/main.json:8, main-owner.json:7). Tag and GitHub Release steps are inline bash (release.yml:165-178). turbo@2 is unpinned in Dockerfile.api:18 and Dockerfile.web:12. .changeset/ holds 36 pending changesets behind version PR #815, whose CI runs end action_required (sweep).",
+          "calibration": "Held at 8 per the 11-02 note. Raise to 9 when #847 lands and the publish/deploy path has a test."
+        },
+        "7": {
+          "score": 8,
+          "evidence": "sweep: audit exit 0. Three open code-scanning alerts. #114 (CodeQL polynomial-redos) at tooling/desk/src/engine/worktree.bootstrap.ts:32 is a false positive: :31 collapses every non-[a-z0-9] run to one '-', the only caller passes an issue title (pipeline.stage.setup.ts:85), and :34 works on 40 characters at most. #114 is not dismissed. #98 and #99 have no recorded disposition, as SECURITY.md:87 requires. Strengths hold: billing webhook verifies the signature first (billing.webhook.ts:135-144), API-key scope is server-derived (server.ts:268-322), dependency-review fails on high (ci-pr.yml:168). Not 9: the PR image gate is CRITICAL-only (ci-pr.yml:535-542). CSP and HSTS (apps/web/nginx.conf:72,88) have no test. The api-key refusal test hand-lists five mutations (api-keys.tenancy.test.ts:331-350)."
+        },
+        "8": {
+          "score": 8,
+          "evidence": "doctor reads WEB_PORT/API_PORT from .env for per-worktree ports (scripts/doctor.mjs:111-121) and checks the RustFS ports (:115-116). bootstrap is at package.json:49 and worktree:env at :45. Not 9: the port-owner hint uses only lsof, with no win32 branch (doctor.mjs:224-226). No test parses .env.example against the env schema (the only reference is env.config.test.ts:86)."
+        },
+        "9": {
+          "score": 8,
+          "evidence": "sweep ai-doctor --strict exit 0 (31 skills, no drift). #848 fixes verified: MONOREPO_GUIDE.md:32-55 lists all 18 packages and 4 tooling workspaces, README.md:52,86 say eighteen, docs/README.md:29-51 indexes all 23 ADRs, no doc cites ADR 0016, ADR 0005 states p=5 and meets OWASP (:16,36), and .ai/serena-memories/project_overview.md:10-25 is current. Still open: environment_setup.md:12-35 lacks the billing/jobs/retention variables defined in .env.example:60,121-152. security.yml:38-40 and SECURITY.md:85 disagree on the audit-ignore location. ADR 0005:26 calls better-auth unused. No test derives the guide tree, readme count or ADR index from disk (monorepo-alignment.test.ts:568-575 reads workspaces only for tsconfig references).",
+          "calibration": "6→8 per the 11-02 binding note (facts corrected, verified at commit). Not 9: no manifest-derived check stops a repeat of #848."
+        },
+        "10": {
+          "score": 8,
+          "evidence": "createAssistantTools exposes 9 tools (assistant.tools.ts:22-134). The 7 write tools are derived (assistant.eval.test.ts:26-27,65-83) and each has golden and schema cases (assistant.eval.data.ts:57-115,211-257). New fixture state contracts (assistant.eval.fixture.test.ts:27-80). Desk provider fallback is tested (provider.choose.test.ts:66-102; pipeline.runner.providers.test.ts:58-101), and so is AI regenerate (pipeline.runner.invariants.test.ts:262-302). The harness-eval --check gate runs on PRs (ci-pr.yml:269). Not 9: assistant.eval.ledger.json:3 is empty. No hash freshness check exists (assistant.eval.ledger.ts:92). The harness-eval ledger's latest run is still 2026-10-20 (docs/agents/harness-evals.md:883). The todo generator has no golden set (todos.ai-runtime.ts:88). probeProvider has no direct test (provider.probe.ts:36,67,100)."
+        }
+      },
+      "findings": [
+        {
+          "slug": "release-push-non-atomic",
+          "title": "release: release:apps pushes release branches one by one, so a failure can split the api and web pair",
+          "dimension": 6,
+          "ladderRank": 2,
+          "disposition": "open",
+          "issue": 847,
+          "reason": "Folded into #847; .ai/release-apps.util.ts:246-249"
+        },
+        {
+          "slug": "turbo-lint-hash-omits-dependency-types",
+          "title": "build: turbo lint has no ^ edge while typed rules read dependency types",
+          "dimension": 2,
+          "ladderRank": 2,
+          "disposition": "open",
+          "reason": "Confirmed this run (turbo.json:50-58, base.js:164-172, tsconfig.base.json:21-24); proposed for filing",
+          "issue": 864
+        },
+        {
+          "slug": "trivy-api-uuid-decode-uri-untriaged",
+          "title": "security: trivy #23 and #24 in the api image have no fix or recorded disposition",
+          "dimension": 7,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "reason": "Neither alert is open in sweep code-scanning"
+        },
+        {
+          "slug": "server-only-regex-misses-billing-jobs",
+          "title": "eslint: the server-only import block does not cover @repo/billing or @repo/jobs",
+          "dimension": 1,
+          "ladderRank": 3,
+          "disposition": "open",
+          "issue": 846,
+          "reason": "Still present at base.js:14-15; #846 open"
+        },
+        {
+          "slug": "release-apps-output-lost-on-partial-push",
+          "title": "release: a failed release-branch push writes no deploy output, so the app that already moved never deploys",
+          "dimension": 6,
+          "ladderRank": 3,
+          "disposition": "open",
+          "issue": 847,
+          "reason": "Still present at .ai/release-apps.ts:99-106; #847 open"
+        },
+        {
+          "slug": "guide-workspace-tree-stale",
+          "title": "docs: monorepo guide tree, readme package count, and adr index miss the packages and adrs added since october",
+          "dimension": 9,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "issue": 848,
+          "reason": "MONOREPO_GUIDE.md:32-55 lists all workspaces"
+        },
+        {
+          "slug": "readme-package-count-stale",
+          "title": "docs: readme says thirteen shared packages, there are 18",
+          "dimension": 9,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "issue": 848,
+          "reason": "README.md:52,86 say eighteen"
+        },
+        {
+          "slug": "adr-0005-stale-cost-defaults",
+          "title": "docs: adr 0005 body still states p=1 and a below-owasp default, contradicting its status line and the code",
+          "dimension": 9,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "reason": "docs/adr/0005-scrypt-password-hashing.md:16,36 corrected"
+        },
+        {
+          "slug": "csp-hsts-headers-untested",
+          "title": "security: csp and hsts headers exist only in the nginx template with no test",
+          "dimension": 7,
+          "ladderRank": 3,
+          "disposition": "observed",
+          "reason": "Band-9 gap; apps/web/nginx.conf:72,88"
+        },
+        {
+          "slug": "eslint-contract-reads-unhashed-root-config",
+          "title": "build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits",
+          "dimension": 2,
+          "ladderRank": 3,
+          "disposition": "observed",
+          "reason": "Band-9 gap; monorepo-alignment.test.ts:1052-1053 vs packages/config/turbo.json:12-32"
+        },
+        {
+          "slug": "adr-0016-dangling-reference",
+          "title": "docs: adr 0017 cites adr 0016, which does not exist",
+          "dimension": 9,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "No doc cites 0016 any more"
+        },
+        {
+          "slug": "adr-index-incomplete",
+          "title": "docs: the adr index lists 13 of 19 adrs",
+          "dimension": 9,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "issue": 848,
+          "reason": "docs/README.md:29-51 lists all 23"
+        },
+        {
+          "slug": "test-presence-list-misses-new-packages",
+          "title": "testing: the ship-a-test list omits billing, jobs, sync and ui-3d",
+          "dimension": 1,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "All four ship tests today; no regression guard"
+        },
+        {
+          "slug": "minimatch-override-pins-below-fixed-major",
+          "title": "deps: the minimatch ^10.2.3 override holds the tree below the 11.0.1 fix",
+          "dimension": 5,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Fix only in a new major; medium severity"
+        },
+        {
+          "slug": "trivy-medium-alerts-no-recorded-disposition",
+          "title": "security: trivy #98 and #99 have no recorded fix or disposition",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Still open; medium"
+        },
+        {
+          "slug": "legacy-sha256-verify-no-sunset",
+          "title": "auth: the unsalted sha256 verify fallback has no removal plan",
+          "dimension": 7,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "issue": 499,
+          "reason": "Closed by #499"
+        },
+        {
+          "slug": "docker-build-inputs-untested",
+          "title": "ci: docker build inputs in ci-pr, docker-cache, security and app-image match by comment only",
+          "dimension": 3,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Band-9 gap; cache rules also differ across the copies"
+        },
+        {
+          "slug": "assistant-eval-ledger-empty",
+          "title": "eval: the committed assistant eval ledger holds no reviewed live run",
+          "dimension": 10,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Needs a paid live run by the owner"
+        },
+        {
+          "slug": "serena-project-overview-stale",
+          "title": "ai: the serena project overview omits passkey, magic link, api key and five packages",
+          "dimension": 9,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "project_overview.md:10-25 current"
+        },
+        {
+          "slug": "image-publish-deploy-jobs-untested",
+          "title": "release: the ghcr publish and deploy jobs and the app-image action have no test",
+          "dimension": 6,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Band-9 condition"
+        },
+        {
+          "slug": "release-branches-unprotected",
+          "title": "release: rulesets cover only main, so a push to release/<app> deploys without the main gates",
+          "dimension": 6,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Owner settings choice"
+        },
+        {
+          "slug": "changeset-release-ci-action-required",
+          "title": "ci: CI PR runs on changeset-release/main end action_required",
+          "dimension": 3,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Five held runs in sweep; the cause needs the run actors"
+        },
+        {
+          "slug": "billing-sync-no-per-package-coverage-floor",
+          "title": "testing: billing and sync are measured only against the global floor",
+          "dimension": 4,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "env-example-coverage-ungated",
+          "title": "dx: no test checks that .env.example covers the api env schema",
+          "dimension": 8,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "assistant-eval-prompt-drift-unrecorded",
+          "title": "eval: no check requires a fresh ledger run when the prompt or dataset hash changes",
+          "dimension": 10,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "assistant.eval.ledger.ts:92"
+        },
+        {
+          "slug": "transitive-security-via-manual-overrides",
+          "title": "deps: transitive security fixes rely on hand-kept override floors with no stale-floor check",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "fast-uri ^3.1.6 at pnpm-workspace.yaml:186 holds four alerts fixed in 3.1.9"
+        },
+        {
+          "slug": "dependabot-security-updates-transitive-not-possible",
+          "title": "deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "dependabot-majors-on-coupled-catalog-pins",
+          "title": "deps: dependabot proposes majors for simplewebauthn and wa-sqlite that the catalog says must move with another package",
+          "dimension": 5,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "#828, #829 open"
+        },
+        {
+          "slug": "docker-pruner-turbo-unpinned",
+          "title": "deploy: the docker pruner installs turbo@2 unpinned while the lockfile has 2.11.10",
+          "dimension": 6,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Also in Dockerfile.web:12"
+        },
+        {
+          "slug": "api-key-access-change-refusal-hand-listed",
+          "title": "security: the api-key access-change refusal test names five mutations instead of sweeping the schema",
+          "dimension": 7,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "api-keys.tenancy.test.ts:331-350"
+        },
+        {
+          "slug": "todo-generation-eval-absent",
+          "title": "eval: the todo generator has no golden set or ledger",
+          "dimension": 10,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "todos.ai-runtime.ts:88"
+        },
+        {
+          "slug": "serena-env-memory-incomplete",
+          "title": "ai: the serena environment memory lists no billing, jobs, retention or split storage expiry variables",
+          "dimension": 9,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "environment_setup.md:12-35 vs .env.example:60,121-152"
+        },
+        {
+          "slug": "trivy-api-minimatch-glob-medium",
+          "title": "security: trivy #98 and #99 (glob 13.0.5, minimatch 10.2.6) open in the api image",
+          "dimension": 7,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Medium; fixes in new majors"
+        },
+        {
+          "slug": "server-only-split-undocumented",
+          "title": "docs: monorepo guide does not describe the client-safe versus server-only entry rule",
+          "dimension": 1,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "inputs-rule-undocumented-in-guide",
+          "title": "docs: monorepo guide does not explain the turbo test-inputs contract",
+          "dimension": 2,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "No 'inputs' in MONOREPO_GUIDE.md"
+        },
+        {
+          "slug": "invitation-attachment-e2e-skipped-in-ci",
+          "title": "testing: the attachment e2e skips in ci without e2e_storage_enabled",
+          "dimension": 4,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "web-invitation-attachment.e2e.ts:91-94"
+        },
+        {
+          "slug": "desk-provider-probe-untested",
+          "title": "desk: probeProvider, createProviderPort and versionAtLeast have no direct test",
+          "dimension": 10,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "provider.probe.ts:36,67,100; engine tests inject the port"
+        },
+        {
+          "slug": "codeql-desk-slugify-redos-alert-untriaged",
+          "title": "security: codeql alert #114 on the desk slugify regex is open with no dismissal reason",
+          "dimension": 7,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "False positive (worktree.bootstrap.ts:31 collapses dash runs); needs a dismissal, not code"
+        },
+        {
+          "slug": "version-pr-runs-held-docs-stale",
+          "title": "release: version pr ci runs wait for approval while docs say they never start",
+          "dimension": 6,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "release.yml:155-159 and docs/release-checklist.md:60 still do not explain action_required"
+        },
+        {
+          "slug": "cargo-glib-alert-open-since-july",
+          "title": "deps: Cargo glib 0.18.5 Dependabot alert open since 2026-07-27",
+          "dimension": 5,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "Dependabot #1 open"
+        },
+        {
+          "slug": "dynamic-reads-self-registration",
+          "title": "build: DYNAMIC_READS depends on authors registering git walks and subprocess tests",
+          "dimension": 2,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "monorepo-alignment.test.ts:282-317"
+        },
+        {
+          "slug": "trivy-pr-gate-critical-only",
+          "title": "security: high image vulnerabilities do not fail pull requests",
+          "dimension": 7,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "ci-pr.yml:535-542"
+        },
+        {
+          "slug": "harness-eval-ledger-stale",
+          "title": "eval: the harness-eval ledger has no run since 2026-10-20",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "docs/agents/harness-evals.md:883; runs need owner budget"
+        },
+        {
+          "slug": "changeset-backlog-36-pending",
+          "title": "release: 36 changesets wait behind version pr #815",
+          "dimension": 6,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Owner merge decision"
+        },
+        {
+          "slug": "ci-runner-images-tag-pinned",
+          "title": "ci: self-hosted dind and buildkit images are tag-pinned outside dependabot",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "cluster.yaml:97, scale-set.values.yaml:41"
+        },
+        {
+          "slug": "desk-opencode-skill-evidence-unrecorded",
+          "title": "desk: no offline replay or skill-read fixture for the opencode provider",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Only opencode-error.jsonl exists"
+        },
+        {
+          "slug": "web-rendered-tests-thin",
+          "title": "testing: only two web components have rendered tests",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "Fixed on 11-02"
+        },
+        {
+          "slug": "sbom-separate-pass",
+          "title": "ci: the sbom step reanalyses the image instead of reusing the trivy cache",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "Fixed on 11-02"
+        },
+        {
+          "slug": "audit-ignores-no-expiry",
+          "title": "deps: audit ignores have issue links but no expiry",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "No ignores remain"
+        },
+        {
+          "slug": "pnpm-version-duplicated",
+          "title": "ci: pnpm version is repeated in four workflows and two dockerfiles",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Seven copies, none tested"
+        },
+        {
+          "slug": "tag-release-steps-untested",
+          "title": "release: tag push and github release steps are inline bash without a test",
+          "dimension": 6,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "release.yml:165-178"
+        },
+        {
+          "slug": "coverage-floors-far-below-measured",
+          "title": "testing: global floors trail measured coverage by 21-24 points",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "sweep coverage vs vitest.coverage.config.ts:78-82"
+        },
+        {
+          "slug": "windows-desk-no-preflight",
+          "title": "dx: no preflight warns windows users before pnpm check fails in @repo/desk",
+          "dimension": 8,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "doctor.mjs:224-226 lsof only"
+        },
+        {
+          "slug": "audit-ignore-doc-drift",
+          "title": "docs: security.yml points at package.json auditConfig while SECURITY.md names pnpm-workspace.yaml",
+          "dimension": 5,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "security.yml:38-40 vs SECURITY.md:85"
+        },
+        {
+          "slug": "adr-0005-better-auth-unused-claim",
+          "title": "docs: adr 0005 alternatives still call better-auth unused",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Historical text at docs/adr/0005-scrypt-password-hashing.md:26"
+        },
+        {
+          "slug": "guide-size-budget-unenforced",
+          "title": "ai: the context audit reports guide size but enforces no ceiling",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "workspace-tree-not-derived",
+          "title": "docs: no test derives the guide workspace tree or readme package count from manifests",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "#848 added no check; band-9 condition"
+        },
+        {
+          "slug": "dom-workspace-list-hand-maintained",
+          "title": "lint: the dom workspace list in base.js and its contract test are both hand-kept",
+          "dimension": 1,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "e2e-shard-comment-stale",
+          "title": "ci: the e2e shard comment says 5 spec files, there are 26",
+          "dimension": 4,
+          "ladderRank": 10,
+          "disposition": "observed",
+          "reason": "ci-pr.yml:576"
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -2897,6 +3432,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 | Date       | Commit    | Mode       | Agent    | Overall | Dims | Findings filed |
 | ---------- | --------- | ---------- | -------- | ------- | ---- | -------------- |
+| 2026-11-04 | `7766e29` | fan-out    | desk-job | **7.9** | 10   | 8              |
 | 2026-11-02 | `87b8219` | fan-out    | desk-job | **7.7** | 10   | 1              |
 | 2026-10-20 | `9cf8364` | fan-out    | claude   | **8**   | 10   | 7              |
 | 2026-10-18 | `c794e07` | fan-out    | claude   | **7.6** | 10   | 11             |
@@ -2908,46 +3444,46 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 9    | 2              |
 | 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 9    | 2              |
 
-### Latest scorecard — 2026-11-02 (`87b8219`, fan-out)
+### Latest scorecard — 2026-11-04 (`7766e29`, fan-out)
 
-| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --- | ------------------------ | ----- | ------------ | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 7.0   | `███████░░░` | ▼-1 | Gates green: sweep boundaries exit 0 (1500 files / 27 packages), knip exit 0, both on every PR (ci-pr.yml:244-245). The deep-import block covers all workspaces (packages/config/eslint/base.js:61-72), and the DOM block includes the new ui-3d (base.js:78-84; monorepo-alignment.test.ts:1068-1074). No @repo/*/src                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | dist imports; every packages/* manifest declares exports without wildcards. Drop: SERVER_ONLY_ENTRY_PATTERN (base.js:14-15) misses the Node-only @repo/billing (packages/billing/src/index.ts:6-7 re-exports stripe/paddle) and @repo/jobs (packages/jobs/package.json:32-35), and its contract list (monorepo-alignment.test.ts:1022-1031) omits both. The test-presence list (:1105-1124) omits billing, jobs, sync and ui-3d. |
-| 2   | Build & Cache            | 8.0   | `████████░░` | 0   | The derived inputs-vs-reads contract is intact (monorepo-alignment.test.ts:1316-1413). No new workspace turbo.json misses test inputs. The global hash is tsconfig.base.json plus pnpm-workspace.yaml (turbo.json:5). Still open: the ESLint contract loads root eslint.config.mjs (:1053), unhashed by packages/config/turbo.json:12-32; DYNAMIC_READS is hand-registered (:282-317); the inputs rule is absent from MONOREPO_GUIDE.md. Unconfirmed lead: lint (turbo.json:50-58) runs typed rules with no ^ edge.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| 3   | CI Topology & Speed      | 8.0   | `████████░░` | 0   | sweep: two active rulesets; every main workflow green; PR runs 6-8 min (41475943662). SBOM now reuses the Trivy cache (ci-pr.yml:546-555, release.yml:297-305), so sbom-separate-pass is fixed. Self-hosted routing admits only same-repo PR heads on a private repo (ci-pr.yml:22). The watchdog runs with permissions {} (runner-watchdog.yml:23). Not 9: Docker build inputs are matched by comment across four copies (ci-pr.yml:492-503, docker-cache.yml:73-80, security.yml:88-96, .github/actions/app-image/action.yml:51-64). PNPM_VERSION has six copies with no test (ci-pr.yml:17, release.yml:28, security.yml:20, deep-checks.yml:16, Dockerfile.api:14, Dockerfile.web:8). The PR image matrices list apps by hand (scripts/ci-affected.mjs:6-9).                                                                                                                                                                                                 |
-| 4   | Testing & Coverage       | 8.0   | `████████░░` | 0   | Run 41475943662: 70.72/65.6/66.14/71.91 against floors 50/42/45/50 (vitest.coverage.config.ts:78-82). Exclusions carry reasons (:57-64). The tenancy contract sweeps every root field from apiTypeDefs (server.tenancy.test.ts:76,307-338). Rendered web tests grew 2→29. Request-level hardening tests exist (server.hardening.test.ts:98-236). Not 9: floors trail measured by 21-24 points; the attachment e2e skips in CI (web-invitation-attachment.e2e.ts:90-94); billing and sync have no per-package floor.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| 5   | Dependency Hygiene       | 8.0   | `████████░░` | 0   | Audit exit 0 with no ignores (no auditConfig/ignoreGhsas anywhere, so audit-ignores-no-expiry is moot). Dependabot covers npm, actions, docker, cargo and compose (dependabot.yml:10,117,139,160,181). Catalog and grouping contracts hold (monorepo-alignment.test.ts:841-910; scripts/pr-quality-gate.test.mjs:506-556). minimumReleaseAge is 4320 (pnpm-workspace.yaml:136). Not 9: override floors are stale against open alerts (minimatch ^10.2.3 at :148 holds 10.2.6; fast-uri@3 ^3.1.6 at :186 holds 3.1.8). Majors on the coupled catalog pins @simplewebauthn/server and wa-sqlite are not ignored (pnpm-workspace.yaml:15-18,49-59 against dependabot.yml:57-113; open PRs #828 and #829). The Cargo glib alert has been open since 2026-07-27.                                                                                                                                                                                                      |
-| 6   | Release & Deploy         | 8.0   | `████████░░` | ▼-1 | Main Release is green on five commits (sweep). GHCR publish is well gated: main-only and non-fork (release.yml:225-229), job-level packages:write (:233-238), Trivy CRITICAL before push, and the scanned tarball is pushed with digest validation (app-image/action.yml:66-101). The release:apps git path is still tested (.ai/release-apps.util.spec.ts). Drop: release.yml:204-397 publish-images, deploy-images and the app-image action have no test. Pushes are still one by one (.ai/release-apps.util.ts:246-249). $GITHUB_OUTPUT is written only after runReleaseApps returns (.ai/release-apps.ts:99-106), so a mid-loop failure skips deploy for the app that already moved, and a rerun skips it too (util.ts:199-201). Rulesets target only the default branch (.github/rulesets/main.json:8). Version PR #815 runs are held action_required by repo-setup.json:20, while release.yml:155-158 and docs/release-checklist.md:60 describe 'no runs'. |
-| 7   | Security Posture         | 8.0   | `████████░░` | ▲+1 | Binding 10-20 condition met: Trivy #23 is fixed by the decode-uri-component ^0.5.1 override (pnpm-workspace.yaml:187-190) and #24 by xcode>uuid ^11.1.1 (:168-170); sweep code-scanning shows neither open. The SHA-256 fallback is removed (auth.instance.ts:1061-1064; auth.password.test.ts:43-47). Billing webhooks verify the signature first and derive the organization on the server (billing.webhook.ts:39-82,135-144). API-key scope is derived on the server and rate-limited before lookup (server.ts:258-325; api-keys.tenancy.test.ts:268-392). Actions are SHA-pinned and base images digest-pinned. Not 9: the PR image gate is CRITICAL-only (ci-pr.yml:535-542); CSP and HSTS live only in apps/web/nginx.conf:72,88 with no test; #98 and #99 have no recorded disposition; the pruner installs an unpinned turbo@2 (Dockerfile.api:18).                                                                                                      |
-| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | doctor.mjs:97-103 checks the RustFS ports (docker-compose.yml:26-27). bootstrap (package.json:48) builds the new packages with plain tsc. .env.example documents billing (:136-154), jobs (:57), retention (:118-126) and storage expiry (:103-104). Not 9: no Windows preflight (scripts/doctor.mjs:530-545); no test checks .env.example against the env schema.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 9   | Docs & Agent Scaffolding | 6.0   | `██████░░░░` | ▼-2 | sweep ai-doctor --strict exit 0 (31 skills, no drift); CONTEXT.md:59-99 defines the new domain terms. Ungated drift: MONOREPO_GUIDE.md:24-54 lists 15 of 18 packages and :49 lists the non-workspace tooling/ci-runners. README.md:52,86 say thirteen shared packages. The docs/README.md:29-41 index lists 13 of 19 ADRs. docs/adr/0017-keep-pnpm-and-turborepo.md:23,40,51 cite a missing ADR 0016. ADR 0005 (:16,36) is still stale. .ai/serena-memories/project_overview.md:10-18 is stale. The audit-ignore location in security.yml:37-40 disagrees with SECURITY.md:85.                                                                                                                                                                                                                                                                                                                                                                                   |
-| 10  | AI & Agent Quality       | 8.0   | `████████░░` | 0   | Eval coverage is derived from createAssistantTools minus READ_ONLY_TOOLS (assistant.eval.test.ts:13-27,65-83). All 7 write tools have a golden case and a schema case (assistant.eval.data.ts:57-115,211-257). The harness-eval ledger holds 7 runs, the latest 2026-10-20 (docs/agents/harness-evals.md:257-918). Its --check render gate runs on PRs (.ai/harness-eval.ts:400-402; ci-pr.yml:264-269). Telemetry scope test: apps/api/src/ai.telemetry.scope.test.ts:74-105. The desk fingerprint is recorded per run (pipeline.agent.ts:377). Not 9: the assistant ledger is empty (assistant.eval.ledger.json:3); there is no hash freshness check (assistant.eval.ledger.ts:92); the todo generator has no golden set.                                                                                                                                                                                                                                      |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | ------------------------ | ----- | ------------ | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | 7.0   | `███████░░░` | 0   | sweep: boundaries exit 0 (1540 files / 27 packages), knip exit 0. No wildcard exports and no @repo/*/src imports (deep-import rule at packages/config/eslint/base.js:61-72). The DOM gate includes ui-3d (monorepo-alignment.test.ts:1072). Still open (#846): SERVER_ONLY_ENTRY_PATTERN (base.js:14-15) covers only storage/auth/db/email, while billing (packages/billing/src/index.ts:6-7) and jobs (packages/jobs/src/index.ts:1-8) are Node-only. The contract list (monorepo-alignment.test.ts:1022-1031) omits both. The test-presence list (:1105-1124) still omits billing, jobs, sync and ui-3d.                                                                                                                                                                                                                                                                   |
+| 2   | Build & Cache            | 8.0   | `████████░░` | 0   | Global hash turbo.json:5-6. Inputs-vs-reads check at monorepo-alignment.test.ts:1374-1397, with DYNAMIC_READS hand-registered at :282-317. The ESLint contract loads root eslint.config.mjs (:1052-1053), which packages/config/turbo.json:12-32 does not hash. 'inputs' appears nowhere in MONOREPO_GUIDE.md. Confirmed lead: the lint task (turbo.json:50-58) has no dependsOn, while base.js:164-172 enables projectService typed rules (no-floating-promises, no-misused-promises, await-thenable). tsconfig.base.json:21-24 maps @repo/* to sibling source, so a dependency's type change leaves dependents' lint on a stale cache hit. typecheck already has ^typecheck (turbo.json:65-66).                                                                                                                                                                            |
+| 3   | CI Topology & Speed      | 8.0   | `████████░░` | 0   | sweep runs-main: Release, Security, CodeQL, Docker Cache, Deep Checks and Runner Watchdog all succeed on 7766e29. sweep runs-ci-pr: PR runs 5-9 min. Two active rulesets. Not 9: Docker build inputs are matched by comment across four copies (ci-pr.yml:495-503, docker-cache.yml:69-80, security.yml:91-96, .github/actions/app-image/action.yml:54-64), and their cache rules differ (ci-pr.yml:502-503 vs docker-cache.yml:79-80). PNPM_VERSION 10.29.3 has seven copies, and no test compares the workflow and Dockerfile copies (ci-pr.yml:17, release.yml:28, security.yml:20, deep-checks.yml:16, Dockerfile.api:14, Dockerfile.web:8; scripts/doctor.test.mjs:29-31 checks only the local pnpm). Apps are hand-listed (scripts/ci-affected.mjs:6-9). Runner images are tag-pinned (tooling/ci-runners/cluster.yaml:97, scale-set.values.yaml:41).                  |
+| 4   | Testing & Coverage       | 8.0   | `████████░░` | 0   | sweep coverage run 41677500043: 70.73/65.58/66.15/71.93 against floors 50/42/45/50 (vitest.coverage.config.ts:78-82). Per-package floors exist for auth, api and mobile-ui (:86-105). Exclusions carry reasons (:57-63). Tenancy contract sweeps apiTypeDefs (server.tenancy.test.ts:71-76,288-315). New: assistant.eval.fixture.test.ts:27-80 checks real tool state on PGlite. Not 9: floors trail measured by 21-24 points. The attachment e2e skips unless E2E_STORAGE_ENABLED is set, and no file under .github sets it (web-invitation-attachment.e2e.ts:91-94). Billing and sync have no package floor. The shard comment says 5 specs where there are 26 (ci-pr.yml:576).                                                                                                                                                                                            |
+| 5   | Dependency Hygiene       | 8.0   | `████████░░` | 0   | sweep audit exit 0 (4 low, 6 moderate). Not 9: the fast-uri@3 override is still ^3.1.6 (pnpm-workspace.yaml:186), while four Dependabot alerts (#140-#143) are fixed in 3.1.9. The minimatch ^10.2.3 override (:148) is below the 11.0.1 fix (alert #161). The coupled pins @simplewebauthn/server (:18) and wa-sqlite (:59, coupling comment :50) are missing from the npm ignore list (dependabot.yml:57-113), so PRs #828 and #829 are open. Cargo glib alert #1 has been open since 2026-07-27.                                                                                                                                                                                                                                                                                                                                                                          |
+| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | sweep runs-main: Release green on five consecutive main commits. Fork guards at release.yml:229,327. Still open (#847): per-app update-ref and push with no --atomic (.ai/release-apps.util.ts:246-249), and $GITHUB_OUTPUT written only after runReleaseApps returns (.ai/release-apps.ts:99-106). No test covers publish-images, deploy-images or app-image. Rulesets target only ~DEFAULT_BRANCH (.github/rulesets/main.json:8, main-owner.json:7). Tag and GitHub Release steps are inline bash (release.yml:165-178). turbo@2 is unpinned in Dockerfile.api:18 and Dockerfile.web:12. .changeset/ holds 36 pending changesets behind version PR #815, whose CI runs end action_required (sweep).                                                                                                                                                                        |
+| 7   | Security Posture         | 8.0   | `████████░░` | 0   | sweep: audit exit 0. Three open code-scanning alerts. #114 (CodeQL polynomial-redos) at tooling/desk/src/engine/worktree.bootstrap.ts:32 is a false positive: :31 collapses every non-[a-z0-9] run to one '-', the only caller passes an issue title (pipeline.stage.setup.ts:85), and :34 works on 40 characters at most. #114 is not dismissed. #98 and #99 have no recorded disposition, as SECURITY.md:87 requires. Strengths hold: billing webhook verifies the signature first (billing.webhook.ts:135-144), API-key scope is server-derived (server.ts:268-322), dependency-review fails on high (ci-pr.yml:168). Not 9: the PR image gate is CRITICAL-only (ci-pr.yml:535-542). CSP and HSTS (apps/web/nginx.conf:72,88) have no test. The api-key refusal test hand-lists five mutations (api-keys.tenancy.test.ts:331-350).                                        |
+| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | doctor reads WEB_PORT/API_PORT from .env for per-worktree ports (scripts/doctor.mjs:111-121) and checks the RustFS ports (:115-116). bootstrap is at package.json:49 and worktree:env at :45. Not 9: the port-owner hint uses only lsof, with no win32 branch (doctor.mjs:224-226). No test parses .env.example against the env schema (the only reference is env.config.test.ts:86).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | ▲+2 | sweep ai-doctor --strict exit 0 (31 skills, no drift). #848 fixes verified: MONOREPO_GUIDE.md:32-55 lists all 18 packages and 4 tooling workspaces, README.md:52,86 say eighteen, docs/README.md:29-51 indexes all 23 ADRs, no doc cites ADR 0016, ADR 0005 states p=5 and meets OWASP (:16,36), and .ai/serena-memories/project_overview.md:10-25 is current. Still open: environment_setup.md:12-35 lacks the billing/jobs/retention variables defined in .env.example:60,121-152. security.yml:38-40 and SECURITY.md:85 disagree on the audit-ignore location. ADR 0005:26 calls better-auth unused. No test derives the guide tree, readme count or ADR index from disk (monorepo-alignment.test.ts:568-575 reads workspaces only for tsconfig references).                                                                                                              |
+| 10  | AI & Agent Quality       | 8.0   | `████████░░` | 0   | createAssistantTools exposes 9 tools (assistant.tools.ts:22-134). The 7 write tools are derived (assistant.eval.test.ts:26-27,65-83) and each has golden and schema cases (assistant.eval.data.ts:57-115,211-257). New fixture state contracts (assistant.eval.fixture.test.ts:27-80). Desk provider fallback is tested (provider.choose.test.ts:66-102; pipeline.runner.providers.test.ts:58-101), and so is AI regenerate (pipeline.runner.invariants.test.ts:262-302). The harness-eval --check gate runs on PRs (ci-pr.yml:269). Not 9: assistant.eval.ledger.json:3 is empty. No hash freshness check exists (assistant.eval.ledger.ts:92). The harness-eval ledger's latest run is still 2026-10-20 (docs/agents/harness-evals.md:883). The todo generator has no golden set (todos.ai-runtime.ts:88). probeProvider has no direct test (provider.probe.ts:36,67,100). |
 
-**Overall: 7.7** (▼-0.3)
+**Overall: 7.9** (▲+0.2)
 
 ### Findings
 
 | Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                                  |
 | ----------------------------------------------------- | --------- | ------ | ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
-| `release-push-non-atomic`                             | 6         | 2      | open        | —     | release: release:apps pushes release branches one by one, so a failure can split the api and web pair                  |
-| `turbo-lint-hash-omits-dependency-types`              | 2         | 2      | observed    | —     | build: turbo lint has no ^ edge while typed rules read dependency types                                                |
+| `release-push-non-atomic`                             | 6         | 2      | open        | #847  | release: release:apps pushes release branches one by one, so a failure can split the api and web pair                  |
+| `turbo-lint-hash-omits-dependency-types`              | 2         | 2      | open        | #864  | build: turbo lint has no ^ edge while typed rules read dependency types                                                |
 | `trivy-api-uuid-decode-uri-untriaged`                 | 7         | 2      | fixed       | —     | security: trivy #23 and #24 in the api image have no fix or recorded disposition                                       |
-| `server-only-regex-misses-billing-jobs`               | 1         | 3      | open        | —     | eslint: the server-only import block does not cover @repo/billing or @repo/jobs                                        |
-| `release-apps-output-lost-on-partial-push`            | 6         | 3      | open        | —     | release: a failed release-branch push writes no deploy output, so the app that already moved never deploys             |
-| `guide-workspace-tree-stale`                          | 9         | 3      | open        | —     | docs: monorepo guide tree, readme package count, and adr index miss the packages and adrs added since october          |
-| `readme-package-count-stale`                          | 9         | 3      | open        | —     | docs: readme says thirteen shared packages, there are 18                                                               |
-| `adr-0005-stale-cost-defaults`                        | 9         | 3      | open        | —     | docs: adr 0005 body still states p=1 and a below-owasp default, contradicting its status line and the code             |
+| `server-only-regex-misses-billing-jobs`               | 1         | 3      | open        | #846  | eslint: the server-only import block does not cover @repo/billing or @repo/jobs                                        |
+| `release-apps-output-lost-on-partial-push`            | 6         | 3      | open        | #847  | release: a failed release-branch push writes no deploy output, so the app that already moved never deploys             |
+| `guide-workspace-tree-stale`                          | 9         | 3      | fixed       | #848  | docs: monorepo guide tree, readme package count, and adr index miss the packages and adrs added since october          |
+| `readme-package-count-stale`                          | 9         | 3      | fixed       | #848  | docs: readme says thirteen shared packages, there are 18                                                               |
+| `adr-0005-stale-cost-defaults`                        | 9         | 3      | fixed       | —     | docs: adr 0005 body still states p=1 and a below-owasp default, contradicting its status line and the code             |
 | `csp-hsts-headers-untested`                           | 7         | 3      | observed    | —     | security: csp and hsts headers exist only in the nginx template with no test                                           |
 | `eslint-contract-reads-unhashed-root-config`          | 2         | 3      | observed    | —     | build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits                 |
-| `adr-0016-dangling-reference`                         | 9         | 4      | open        | —     | docs: adr 0017 cites adr 0016, which does not exist                                                                    |
-| `adr-index-incomplete`                                | 9         | 4      | open        | —     | docs: the adr index lists 13 of 19 adrs                                                                                |
+| `adr-0016-dangling-reference`                         | 9         | 4      | fixed       | —     | docs: adr 0017 cites adr 0016, which does not exist                                                                    |
+| `adr-index-incomplete`                                | 9         | 4      | fixed       | #848  | docs: the adr index lists 13 of 19 adrs                                                                                |
 | `test-presence-list-misses-new-packages`              | 1         | 4      | observed    | —     | testing: the ship-a-test list omits billing, jobs, sync and ui-3d                                                      |
 | `minimatch-override-pins-below-fixed-major`           | 5         | 4      | observed    | —     | deps: the minimatch ^10.2.3 override holds the tree below the 11.0.1 fix                                               |
 | `trivy-medium-alerts-no-recorded-disposition`         | 7         | 4      | observed    | —     | security: trivy #98 and #99 have no recorded fix or disposition                                                        |
 | `legacy-sha256-verify-no-sunset`                      | 7         | 4      | fixed       | #499  | auth: the unsalted sha256 verify fallback has no removal plan                                                          |
 | `docker-build-inputs-untested`                        | 3         | 4      | observed    | —     | ci: docker build inputs in ci-pr, docker-cache, security and app-image match by comment only                           |
 | `assistant-eval-ledger-empty`                         | 10        | 4      | observed    | —     | eval: the committed assistant eval ledger holds no reviewed live run                                                   |
-| `serena-project-overview-stale`                       | 9         | 5      | open        | —     | ai: the serena project overview omits passkey, magic link, api key and five packages                                   |
+| `serena-project-overview-stale`                       | 9         | 5      | fixed       | —     | ai: the serena project overview omits passkey, magic link, api key and five packages                                   |
 | `image-publish-deploy-jobs-untested`                  | 6         | 5      | observed    | —     | release: the ghcr publish and deploy jobs and the app-image action have no test                                        |
 | `release-branches-unprotected`                        | 6         | 5      | observed    | —     | release: rulesets cover only main, so a push to release/<app> deploys without the main gates                           |
 | `changeset-release-ci-action-required`                | 3         | 5      | observed    | —     | ci: CI PR runs on changeset-release/main end action_required                                                           |
@@ -2965,10 +3501,14 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | `server-only-split-undocumented`                      | 1         | 6      | observed    | —     | docs: monorepo guide does not describe the client-safe versus server-only entry rule                                   |
 | `inputs-rule-undocumented-in-guide`                   | 2         | 6      | observed    | —     | docs: monorepo guide does not explain the turbo test-inputs contract                                                   |
 | `invitation-attachment-e2e-skipped-in-ci`             | 4         | 6      | observed    | —     | testing: the attachment e2e skips in ci without e2e_storage_enabled                                                    |
+| `desk-provider-probe-untested`                        | 10        | 7      | observed    | —     | desk: probeProvider, createProviderPort and versionAtLeast have no direct test                                         |
+| `codeql-desk-slugify-redos-alert-untriaged`           | 7         | 7      | observed    | —     | security: codeql alert #114 on the desk slugify regex is open with no dismissal reason                                 |
 | `version-pr-runs-held-docs-stale`                     | 6         | 7      | observed    | —     | release: version pr ci runs wait for approval while docs say they never start                                          |
 | `cargo-glib-alert-open-since-july`                    | 5         | 7      | observed    | —     | deps: Cargo glib 0.18.5 Dependabot alert open since 2026-07-27                                                         |
 | `dynamic-reads-self-registration`                     | 2         | 7      | observed    | —     | build: DYNAMIC_READS depends on authors registering git walks and subprocess tests                                     |
 | `trivy-pr-gate-critical-only`                         | 7         | 7      | observed    | —     | security: high image vulnerabilities do not fail pull requests                                                         |
+| `harness-eval-ledger-stale`                           | 10        | 8      | observed    | —     | eval: the harness-eval ledger has no run since 2026-10-20                                                              |
+| `changeset-backlog-36-pending`                        | 6         | 8      | observed    | —     | release: 36 changesets wait behind version pr #815                                                                     |
 | `ci-runner-images-tag-pinned`                         | 3         | 8      | observed    | —     | ci: self-hosted dind and buildkit images are tag-pinned outside dependabot                                             |
 | `desk-opencode-skill-evidence-unrecorded`             | 10        | 8      | observed    | —     | desk: no offline replay or skill-read fixture for the opencode provider                                                |
 | `web-rendered-tests-thin`                             | 4         | 8      | fixed       | —     | testing: only two web components have rendered tests                                                                   |
@@ -2979,6 +3519,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | `coverage-floors-far-below-measured`                  | 4         | 8      | observed    | —     | testing: global floors trail measured coverage by 21-24 points                                                         |
 | `windows-desk-no-preflight`                           | 8         | 8      | observed    | —     | dx: no preflight warns windows users before pnpm check fails in @repo/desk                                             |
 | `audit-ignore-doc-drift`                              | 5         | 9      | observed    | —     | docs: security.yml points at package.json auditConfig while SECURITY.md names pnpm-workspace.yaml                      |
+| `adr-0005-better-auth-unused-claim`                   | 9         | 9      | observed    | —     | docs: adr 0005 alternatives still call better-auth unused                                                              |
 | `guide-size-budget-unenforced`                        | 9         | 9      | observed    | —     | ai: the context audit reports guide size but enforces no ceiling                                                       |
 | `workspace-tree-not-derived`                          | 9         | 9      | observed    | —     | docs: no test derives the guide workspace tree or readme package count from manifests                                  |
 | `dom-workspace-list-hand-maintained`                  | 1         | 9      | observed    | —     | lint: the dom workspace list in base.js and its contract test are both hand-kept                                       |
@@ -3086,3 +3627,11 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Dim 9 8→6 with cause.** Four hand-written structure facts are wrong and ADR 0017 cites a missing ADR 0016, with no gate. Raise back to 8 when they are corrected.
 - **Dim 4 held at 8.** Real gains (schema-sweeping tenancy contract, 29 rendered web tests) are offset by floors that now trail measured coverage by 21-24 points. Raise to 9 when floors sit within about 5 points of measured and the attachment e2e runs in CI.
 - **changeset-release action_required explained.** The cause is repo-setup.json:20 fork_pr_contributor_approval, not ci-pr.yml. Tracked as version-pr-runs-held-docs-stale. The fix is a settings or token choice for the owner.
+
+### 2026-11-04 — desk job 2 (`7766e29`, fan-out)
+
+- **Full depth, like for like with 11-02.** The five probes used the same split (dims 1/2, 4/7, 3/5/6, 8/9, 10), all returned, and all ten dimensions are scored. Overall 7.7→7.9. The only movement is dim 9.
+- **Dim 9 6→8 per the 11-02 binding note.** #848 corrected the guide tree, the readme count, the ADR index, the ADR 0016 citation, ADR 0005, and the Serena overview. The probes verified each fix at 7766e29. Not 9: no manifest-derived check stops the same drift from coming back.
+- **Dim 2 held at 8; lint ^ edge confirmed.** The lint task (turbo.json:50-58) runs typed rules over sibling source with no dependency edge. This is the class #308 fixed for typecheck. A fix is part of the band-9 condition, but it does not drop the score: the PR path runs lint, and the stale hit needs a type-only change in a dependency.
+- **CodeQL #114 is a false positive.** The slugify input has no repeated dashes after worktree.bootstrap.ts:31. It does not hold dim 7. It still needs a dismissal with a reason.
+- **Dims 1 and 6 held.** #846 and #847 are filed and open. Their 11-02 raise conditions are unchanged.
