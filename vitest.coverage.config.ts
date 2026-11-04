@@ -5,6 +5,7 @@ export default defineConfig({
     projects: [
       "apps/api",
       "apps/desktop",
+      "apps/desktop-native",
       "apps/mobile",
       "apps/web",
       "packages/auth",

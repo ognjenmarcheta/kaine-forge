@@ -15,6 +15,7 @@ function passingInput() {
     unit: "true",
     web_api: "true",
     mobile: "true",
+    rust: "true",
     graphql: "true",
     docker_matrix: '[{"app":"api","dockerfile":"Dockerfile.api"}]'
   };
@@ -42,6 +43,7 @@ describe("PR Quality Gate", () => {
       unit: "false",
       web_api: "false",
       mobile: "false",
+      rust: "false",
       graphql: "false",
       docker_matrix: "[]"
     };
@@ -54,7 +56,7 @@ describe("PR Quality Gate", () => {
   it("does not accept missing path detection as a docs-only change", () => {
     const input = passingInput();
     input.needs["detect-paths"] = { result: "success", outputs: {} };
-    assert.equal(qualityGateFailures(input).length, 5);
+    assert.equal(qualityGateFailures(input).length, 6);
     input.needs["detect-paths"].outputs = { ...passingInput().needs["detect-paths"].outputs };
     input.needs["detect-paths"].outputs.docker_matrix = '{"app":"api"}';
     assert.deepEqual(qualityGateFailures(input), ["Missing or invalid path result: docker_matrix"]);
@@ -69,6 +71,14 @@ describe("PR Quality Gate", () => {
     assert.deepEqual(qualityGateFailures(input), []);
     input.needs["mobile-export"].result = "skipped";
     assert.deepEqual(qualityGateFailures(input), ["mobile-export: skipped"]);
+  });
+
+  it("requires the Rust checks for Rust changes and permits the skip otherwise", () => {
+    const input = passingInput();
+    input.needs["rust-checks"].result = "skipped";
+    assert.deepEqual(qualityGateFailures(input), ["rust-checks: skipped"]);
+    input.needs["detect-paths"].outputs.rust = "false";
+    assert.deepEqual(qualityGateFailures(input), []);
   });
 
   it("requires coverage for a package change that cannot reach the web app or API", () => {
@@ -228,7 +238,13 @@ describe("Self-hosted runner routing", () => {
     const workflow = parse(readFileSync(`.github/workflows/${name}.yml`, "utf8"));
     for (const [jobName, job] of Object.entries(workflow.jobs)) {
       it(`${name}/${jobName} preserves hosted defaults and enforces private platform opt-ins`, () => {
-        const mac = name === "deep-checks" && jobName === "desktop-build-macos";
+        // The Windows native build has no self-hosted counterpart: a literal label.
+        if (name === "deep-checks" && jobName === "native-build-windows") {
+          assert.equal(job["runs-on"], "windows-latest");
+          return;
+        }
+        const mac =
+          name === "deep-checks" && ["desktop-build-macos", "native-build-macos"].includes(jobName);
         const hosted = [mac ? "macos-latest" : "ubuntu-latest"];
         const selfHosted = mac
           ? ["self-hosted", "macOS", "kaine-ci-macos"]

@@ -5,6 +5,7 @@ Kaine Forge is a reusable monorepo template built with Turborepo and pnpm. It pr
 - `apps/web`: React 19 and Vite single-page app.
 - `apps/api`: Node.js GraphQL Yoga API.
 - `apps/desktop`: Tauri v2 desktop shell for the web app.
+- `apps/desktop-native`: native desktop app built with GPUI through GPUI Kit (Rust; root Cargo workspace, ADR 0025).
 - `apps/mobile`: Expo and React Native mobile app.
 - `apps/e2e`: Playwright end-to-end tests.
 - `packages/auth`: better-auth instance (organization, bearer, two-factor, email OTP, captcha, Have I Been Pwned, passkey, magic link, and API key plugins; ADR 0015) with custom scrypt password hooks, plus the session/read facade over organizations, invitations, password reset, and email verification.

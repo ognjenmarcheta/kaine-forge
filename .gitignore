@@ -14,10 +14,9 @@ coverage/
 .env.*.local
 .DS_Store
 .idea/
-apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
-# Cargo target dir for the desktop app (apps/desktop/src-tauri/.cargo/config.toml)
-.tauri-target/
+# Cargo target dir for every Rust crate (root .cargo/config.toml, issue #351)
+.cargo-target/
 apps/mobile/.expo/
 apps/mobile/.expo-shared/
 apps/e2e/playwright-report/
@@ -60,3 +59,5 @@ scorecard-out/
 # UI lab: reference images to recreate and screenshots are local only.
 tooling/desk-ui/public/references/
 tooling/desk-ui/shots/
+# Previous Cargo target dir (before ADR 0025 moved it to .cargo-target). Safe to delete.
+.tauri-target/

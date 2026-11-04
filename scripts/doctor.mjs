@@ -167,33 +167,64 @@ export function fileAgeDays(mtimeMs, nowMs) {
 export const COVERAGE_MAX_AGE_DAYS = 14;
 
 /**
- * Rust is only needed for desktop/Tauri work (README prerequisites), so a
- * missing toolchain warns instead of failing unless `--with-desktop` opts in.
+ * The Rust toolchain is required: `pnpm check` runs cargo for the Rust
+ * workspace (apps/desktop-native and apps/desktop/src-tauri, ADR 0025).
+ * `rust-toolchain.toml` pins the channel; rustup installs it on first use.
+ * Onboarding (`pnpm bootstrap`) never compiles Rust.
  * @param {{ rustc: string | null, cargo: string | null }} versions `null` when the binary is absent
- * @param {boolean} withDesktop
  * @returns {CheckResult}
  */
-export function rustToolchainResult(versions, withDesktop) {
+export function rustToolchainResult(versions) {
   const missing = Object.entries(versions)
     .filter(([, version]) => version === null)
     .map(([name]) => name);
   if (missing.length === 0) {
     return { ok: true, name: "Rust", detail: `${versions.rustc}, ${versions.cargo}` };
   }
-  const detail = `${missing.join(" and ")} not found on PATH`;
-  if (withDesktop) {
+  return {
+    ok: false,
+    name: "Rust",
+    detail: `${missing.join(" and ")} not found on PATH`,
+    remediation:
+      "Install the Rust toolchain (https://rustup.rs); rust-toolchain.toml pins the version. pnpm check runs cargo for the Rust workspace."
+  };
+}
+
+/** The pkg-config modules GPUI links on Linux, with the Debian/Ubuntu packages that provide them. */
+export const GPUI_LINUX_PACKAGES = [
+  { module: "fontconfig", apt: "libfontconfig-dev" },
+  { module: "wayland-client", apt: "libwayland-dev" },
+  { module: "xkbcommon-x11", apt: "libxkbcommon-x11-dev" },
+  { module: "x11-xcb", apt: "libx11-xcb-dev" },
+  { module: "vulkan", apt: "libvulkan1 mesa-vulkan-drivers" }
+];
+
+/**
+ * GPUI needs a few system libraries on Linux (docs/troubleshooting.md). A gap is
+ * a warning, not a failure: cargo reports the exact missing library when it
+ * matters, and the apt line here is what fixes it.
+ * @param {(module: string) => boolean} hasModule `pkg-config --exists` for one module
+ * @param {string} platform `process.platform`
+ * @returns {CheckResult}
+ */
+export function gpuiSystemPackagesResult(hasModule, platform) {
+  if (platform !== "linux") {
+    return { ok: true, name: "GPUI libraries", detail: "not needed on this platform" };
+  }
+  const missing = GPUI_LINUX_PACKAGES.filter(({ module }) => !hasModule(module));
+  if (missing.length === 0) {
     return {
-      ok: false,
-      name: "Rust",
-      detail,
-      remediation: "Install the Rust toolchain (https://rustup.rs), then retry with --with-desktop."
+      ok: true,
+      name: "GPUI libraries",
+      detail: "fontconfig, wayland-client, xkbcommon-x11, x11-xcb, vulkan"
     };
   }
+  const apt = GPUI_LINUX_PACKAGES.map(({ apt: pkg }) => pkg).join(" ");
   return {
     ok: true,
     warn: true,
-    name: "Rust",
-    detail: `${detail} (ok — only desktop/Tauri work needs it; re-run with --with-desktop to require it)`
+    name: "GPUI libraries",
+    detail: `pkg-config cannot find ${missing.map(({ module }) => module).join(", ")} (apps/desktop-native may not build or run; Debian/Ubuntu: sudo apt-get install -y ${apt})`
   };
 }
 
@@ -317,17 +348,24 @@ function checkDocker() {
   return { ok: true, name: "Docker", detail: "daemon reachable (docker info)" };
 }
 
-/**
- * @param {boolean} withDesktop
- * @returns {CheckResult}
- */
-function checkRust(withDesktop) {
+/** @returns {CheckResult} */
+function checkRust() {
   /** @param {string} command */
   const versionOf = (command) => {
     const probe = runQuiet(command, ["--version"]);
     return probe.error || probe.status !== 0 ? null : (probe.stdout || "").trim();
   };
-  return rustToolchainResult({ rustc: versionOf("rustc"), cargo: versionOf("cargo") }, withDesktop);
+  return rustToolchainResult({ rustc: versionOf("rustc"), cargo: versionOf("cargo") });
+}
+
+/** @returns {CheckResult} */
+function checkGpuiSystemPackages() {
+  /** @param {string} module */
+  const hasModule = (module) => {
+    const probe = runQuiet("pkg-config", ["--exists", module]);
+    return !probe.error && probe.status === 0;
+  };
+  return gpuiSystemPackagesResult(hasModule, process.platform);
 }
 
 /**
@@ -557,7 +595,6 @@ function printResult(result) {
 
 async function main() {
   const withDb = process.argv.includes("--with-db");
-  const withDesktop = process.argv.includes("--with-desktop");
   console.log("[doctor] Environment preflight (AI scaffold: pnpm ai:doctor)");
   console.log(`[doctor] Repo: ${repoRoot}`);
 
@@ -566,7 +603,8 @@ async function main() {
   results.push(checkNode());
   results.push(checkPnpm());
   results.push(checkDocker());
-  results.push(checkRust(withDesktop));
+  results.push(checkRust());
+  results.push(checkGpuiSystemPackages());
   results.push(await checkPorts());
   results.push(checkEnv());
   results.push(checkTrackerLabels());

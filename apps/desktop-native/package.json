@@ -1,0 +1,24 @@
+{
+  "name": "@repo/desktop-native",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cargo run -p kaine_forge_desktop_native",
+    "build": "cargo build -p kaine_forge_desktop_native --release --locked",
+    "start": "cargo run -p kaine_forge_desktop_native",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format": "cargo fmt -p kaine_forge_desktop_native && prettier --write .",
+    "format:check": "cargo fmt -p kaine_forge_desktop_native --check && prettier --check .",
+    "lint": "cargo clippy -p kaine_forge_desktop_native --all-targets --locked -- -D warnings && eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "cargo check -p kaine_forge_desktop_native --all-targets --locked && tsc --noEmit",
+    "test": "cargo test -p kaine_forge_desktop_native --locked && vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "clean": "rm -rf .turbo && cargo clean -p kaine_forge_desktop_native"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

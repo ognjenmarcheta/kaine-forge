@@ -28,6 +28,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Keep organization-scoped data organization-scoped. Resolve active organization from session/context.
 - Keep styling token-only. Use `--ds-*` tokens through the Tailwind utilities defined by the repo.
 - Use `@repo/ui` for web/desktop React DOM primitives and `@repo/mobile-ui` for React Native primitives.
+- Keep Rust in the root Cargo workspace (ADR 0025): every crate sets `[lints] workspace = true`, formats with the root `rustfmt.toml`, and passes `cargo clippy --all-targets -- -D warnings`. No `unwrap`, `expect`, `dbg!`, `todo!`, `println!` or `eprintln!` outside tests; justify an exception with `#[expect(lint, reason = "…")]`. Import GPUI from `gpui_kit` only, pinned exactly; never add `gpui`, `gpui-pre`, `gpui-ce` or `gpui-fast` directly. Features are `src/features/{feature}/{purpose}.rs`. `pnpm check` runs cargo, so a Rust toolchain is required (`pnpm preflight`).
 - Do not commit secrets or local assistant state.
 - Only the repository owner may merge into `main`, manually after required checks pass. Agents and bots may propose changes and create PRs, but must not merge, approve PRs on the owner's behalf, enable automatic merging, or bypass branch protection through CLI, API, or browser actions.
 - Never co-author yourself (or any AI/tool identity) in git history: no `Co-Authored-By:` trailers for assistants, no “Generated with …” / “Made with …” AI footers, and do not set commit author/committer to an AI name or noreply AI email. Commits remain under the human contributor’s identity only. The `commit-msg` hook enforces this via commitlint.
@@ -54,6 +55,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Build the codebase knowledge graph (optional Graphify CLI): `pnpm graph`; check its freshness: `pnpm graph:status`
 - Run the local agent desk (UI): `pnpm desk:run`; check its setup: `pnpm desk doctor`
 - Check that the Tauri desktop window opens on the sign-in screen (optional agent-desktop CLI, `pnpm dev:web` running): `pnpm smoke:desktop`
+- Run the native GPUI desktop app: `pnpm --filter @repo/desktop-native dev`; its gates: `pnpm --filter @repo/desktop-native check`
 
 ## Agent Desk
 
@@ -155,6 +157,7 @@ Do not:
 - Edit already-shipped migration files in place — add a new migration; preserve load-bearing order (`docs/troubleshooting.md`, ADR 0008).
 - Attribute commits or PRs to an AI/tool identity (`Co-Authored-By` for assistants, “Generated with …” footers, AI as author/committer).
 - Invent mobile UI/GraphQL parity for web-first features unless the task requires it (`CONTEXT.md` Template platform surfaces).
+- Add a per-crate `Cargo.lock` or `.cargo/config.toml`, point Cargo output inside a workspace folder, depend on a GPUI crate other than `gpui-kit`, or use `unwrap`/`expect` in Rust application code (MONOREPO_GUIDE §14, ADR 0025).
 - Launder types through assertions (`x as unknown as T`, widen-then-assert) or assert without a `// SAFETY:` comment stating the checked invariant — the `anti-slop/*` ESLint rules block both; refactor toward narrowing, `satisfies`, or boundary parsing instead.
 
 ### Human-facing prose (ASD-STE100 style)

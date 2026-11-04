@@ -99,22 +99,44 @@ pnpm typecheck
 
 Root `pnpm generate` runs API `schema:generate` then client codegen in one step. CI fails if generated files drift from the commit.
 
-## Desktop and Tauri
+## Desktop, Tauri and GPUI
+
+### `pnpm check` fails with `cargo: command not found`
+
+**Symptom:** `pnpm check` (or `pnpm --filter @repo/desktop-native check`) exits because `cargo` is missing.
+
+**Cause:** `@repo/desktop-native` runs `cargo fmt`, `cargo clippy`, `cargo check` and `cargo test` from its `package.json` scripts (ADR 0025), so the Rust workspace gates are part of `pnpm check`. Onboarding (`pnpm bootstrap`) never compiles Rust, so a machine can reach this point without a toolchain.
+
+**Fix:** Install [rustup](https://rustup.rs). `rust-toolchain.toml` pins the channel, and cargo installs it on first use. `pnpm preflight` reports the toolchain and, on Linux, the GPUI system packages.
+
+### The native desktop app does not build or open on Linux
+
+**Symptom:** `cargo build -p kaine_forge_desktop_native` fails in a `-sys` crate, or the binary exits at start-up without a window.
+
+**Cause:** GPUI links fontconfig, Wayland or X11, xkbcommon and Vulkan at build or run time. `pnpm preflight` warns when `pkg-config` cannot find one of them.
+
+**Fix (Debian/Ubuntu):**
+
+```bash
+sudo apt-get install -y gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
+```
+
+The list is GPUI Kit's own; the Tauri shell additionally needs the WebKitGTK stack (`libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils`).
 
 ### `pnpm boundaries` / `pnpm check` fails after a desktop build
 
 **Symptom:** `pnpm boundaries` (and so `pnpm check`) exits 1 with `failed to read file .../apps/desktop/src-tauri/target/.../tauri-codegen-assets/<hash>.js` after a desktop build (`tauri build` or `tauri dev`) that ran before the Cargo target directory moved out of the package.
 
-**Cause:** `turbo boundaries` walks every `*.js` file under a workspace, gitignored or not. Tauri writes compressed codegen assets with a `.js` extension into the Cargo target directory; they are not valid UTF-8, so the walk fails on the first one. Cargo output now goes to the repo-root `.tauri-target/` (set by `apps/desktop/src-tauri/.cargo/config.toml`), which is outside every workspace, gitignored, and dockerignored.
+**Cause:** `turbo boundaries` walks every `*.js` file under a workspace, gitignored or not. Tauri writes compressed codegen assets with a `.js` extension into the Cargo target directory; they are not valid UTF-8, so the walk fails on the first one. Cargo output for every Rust crate now goes to the repo-root `.cargo-target/` (set by the root `.cargo/config.toml`), which is outside every workspace, gitignored, and dockerignored. The previous location, `.tauri-target/`, is no longer used and can be deleted.
 
-**Fix:** Delete the old target directory, then re-run the gate:
+**Fix:** Delete the old target directories, then re-run the gate:
 
 ```bash
-rm -rf apps/desktop/src-tauri/target
+rm -rf apps/desktop/src-tauri/target .tauri-target
 pnpm boundaries
 ```
 
-`pnpm --filter @repo/desktop run clean` removes the current `.tauri-target/`. `pnpm bootstrap` never compiles the desktop app: it runs `turbo run build --filter=!@repo/desktop`, so only `pnpm exec turbo run build --filter=@repo/desktop` (or a full `pnpm build`) produces Cargo output. Run it through Turbo: the desktop `build` script is `tauri build --no-bundle` alone, and the `@repo/web` build it needs comes from the declared dependency edge.
+`pnpm --filter @repo/desktop run clean` removes the Tauri crate's output from `.cargo-target/`. `pnpm bootstrap` never compiles either desktop app: it runs `turbo run build --filter=!@repo/desktop --filter=!@repo/desktop-native`, so only `pnpm exec turbo run build --filter=@repo/desktop` (or a full `pnpm build`) produces Cargo output. Run it through Turbo: the desktop `build` script is `tauri build --no-bundle` alone, and the `@repo/web` build it needs comes from the declared dependency edge.
 
 ## Windows host
 

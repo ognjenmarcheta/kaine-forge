@@ -31,6 +31,7 @@ jobs:
       unit: ${{ steps.affected.outputs.unit }}
       web_api: ${{ steps.affected.outputs.web_api }}
       mobile: ${{ steps.affected.outputs.mobile }}
+      rust: ${{ steps.affected.outputs.rust }}
       docker_matrix: ${{ steps.affected.outputs.docker_matrix }}
       graphql: ${{ steps.filter.outputs.graphql }}
     steps:
@@ -76,6 +77,19 @@ jobs:
               - ".npmrc"
               - "turbo.json"
               - "tsconfig.base.json"
+            # Rust inputs outside the package graph: the workspace manifest, the
+            # lockfile, the toolchain pin and the lint files (ADR 0025).
+            rust:
+              - "Cargo.toml"
+              - "Cargo.lock"
+              - "rust-toolchain.toml"
+              - "rustfmt.toml"
+              - "clippy.toml"
+              - "deny.toml"
+              - ".cargo/**"
+              - "apps/desktop-native/**"
+              - "apps/desktop/src-tauri/**"
+              - "apps/api/schema.graphql"
             graphql:
               - "apps/api/src/features/**"
               - "apps/api/src/schema/**"
@@ -91,6 +105,7 @@ jobs:
         env:
           FORCE: ${{ github.event_name != 'pull_request' || steps.filter.outputs.force == 'true' }}
           DOCKER: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docker == 'true' }}
+          RUST: ${{ github.event_name != 'pull_request' || steps.filter.outputs.rust == 'true' }}
           TURBO_SCM_BASE: origin/${{ github.base_ref }}
         run: |
           set -euo pipefail
@@ -228,7 +243,9 @@ jobs:
             echo "Running turbo tasks for affected filter: $FILTER"
             # Workspace tests run once in the coverage job (issue #143 option a).
             # Keep format/lint/typecheck affected-scoped; do not re-run turbo test.
-            pnpm exec turbo run format:check lint typecheck --filter="$FILTER" --continue
+            # @repo/desktop-native shells out to cargo and needs the GPUI system
+            # packages; the Rust Checks job owns it (ADR 0025).
+            pnpm exec turbo run format:check lint typecheck --filter="$FILTER" --filter='!@repo/desktop-native' --continue
             # tooling/* workspaces are not coverage projects (vitest.coverage.config.ts),
             # so their tests run here, affected-scoped (issue #489). The exclusions keep
             # apps and packages tests in the coverage job only.
@@ -237,7 +254,7 @@ jobs:
             # Checks job, beside this one.
           else
             echo "Non-PR event: running full workspace quality gates"
-            pnpm exec turbo run format:check lint typecheck test --continue
+            pnpm exec turbo run format:check lint typecheck test --filter='!@repo/desktop-native' --continue
           fi
           # Whole-graph contract checks: not affected-scopable; previously only
           # ran on Release after merge (see issue #142).
@@ -338,6 +355,58 @@ jobs:
 
       - name: Export mobile bundle
         run: CI=1 EXPO_NO_WATCHMAN=1 pnpm --filter @repo/mobile exec expo export --platform ios --output-dir /tmp/mobile-export
+
+  rust-checks:
+    name: Rust Checks
+    # The Rust workspace (ADR 0025): cargo fmt for every crate, clippy and tests
+    # for the GPUI app. The Tauri crate compiles only in Deep Checks (macOS),
+    # where its WebKitGTK stack exists. Runs when Rust inputs change or Turbo
+    # marks a Rust workspace affected; TypeScript-only PRs skip it (ADR 0003).
+    if: needs.detect-paths.outputs.rust == 'true'
+    needs: detect-paths
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install GPUI system packages
+        # GPUI Kit's own script/install-linux.sh list. The Tauri WebKitGTK stack is
+        # not needed: this job never compiles the Tauri crate.
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        # Hosted runners ship rustup; self-hosted Linux runners may not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        # Keyed on the root Cargo.lock; the target dir is the repo-root .cargo-target
+        # (root .cargo/config.toml, issue #351).
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy -p kaine_forge_desktop_native --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test -p kaine_forge_desktop_native --locked
 
   graphql-schema:
     name: GraphQL Schema Compatibility
@@ -743,6 +812,7 @@ jobs:
       - coverage
       - mobile-export
       - graphql-schema
+      - rust-checks
       - build-core
       - docker-images
       - e2e-web-api

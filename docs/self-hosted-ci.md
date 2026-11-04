@@ -92,6 +92,8 @@ Use a dedicated, supported macOS environment on Intel or Apple Silicon with:
 - Stable Rust (`rustc` and `cargo`) and Xcode command-line tools selected with
   `xcode-select`. Confirm `xcode-select -p`, `rustc --version`, and `cargo --version`.
 
+The Linux runner image (`tooling/ci-runners/runner.Dockerfile`) carries the GPUI system packages, so the Rust Checks and native build jobs do not apt-get them on every run; the jobs install rustup when it is missing and `rust-toolchain.toml` pins the channel (ADR 0025).
+
 Docker and `gh` are not prerequisites for the macOS desktop job. Each clean
 macOS environment must also be recreated between jobs. Runner provisioning is
 outside this template.

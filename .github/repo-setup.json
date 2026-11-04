@@ -69,7 +69,12 @@
     {
       "name": "area:desktop",
       "color": "c5def5",
-      "description": "Tauri desktop app (apps/desktop)"
+      "description": "Tauri desktop app (apps/desktop) and the Rust workspace"
+    },
+    {
+      "name": "area:desktop-native",
+      "color": "c5def5",
+      "description": "GPUI native desktop app (apps/desktop-native)"
     },
     {
       "name": "area:docs",
@@ -121,6 +126,11 @@
       "name": "platform:desktop",
       "color": "f9d0c4",
       "description": "Desktop platform concerns (apps/desktop)"
+    },
+    {
+      "name": "platform:desktop-native",
+      "color": "f9d0c4",
+      "description": "Native desktop platform concerns (apps/desktop-native)"
     },
     {
       "name": "platform:mobile",

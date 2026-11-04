@@ -1,0 +1,6 @@
+# Pinned so every machine and CI runner compiles with the same compiler, rustfmt
+# and clippy. Bump deliberately, together with `rust-version` in Cargo.toml.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

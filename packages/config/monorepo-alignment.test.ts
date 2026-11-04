@@ -478,7 +478,9 @@ describe("monorepo alignment", () => {
       .map((step) => step.trim());
 
     expect(bootstrapSteps).not.toContain("pnpm run build");
-    expect(bootstrapSteps).toContain("turbo run build --filter=!@repo/desktop");
+    expect(bootstrapSteps).toContain(
+      "turbo run build --filter=!@repo/desktop --filter=!@repo/desktop-native"
+    );
   });
 
   it("keeps the importable main ruleset aligned with the workflow job names (issue #325)", () => {
@@ -1107,6 +1109,7 @@ describe("monorepo alignment", () => {
       "apps/web",
       "apps/mobile",
       "apps/desktop",
+      "apps/desktop-native",
       "packages/auth",
       "packages/config",
       "packages/db",

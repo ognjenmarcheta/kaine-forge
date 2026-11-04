@@ -77,18 +77,19 @@ jobs:
           cargo --version
 
       - name: Cache Cargo registry and target
-        # Cargo output lives at the repo root (apps/desktop/src-tauri/.cargo/config.toml
-        # sets build.target-dir, issue #351). The key prefix moved with the path so an
-        # entry saved under the old location is never an exact hit that skips the save.
+        # Cargo output lives at the repo-root .cargo-target (root .cargo/config.toml,
+        # issue #351) and the lockfile is the root Cargo.lock (ADR 0025). The key
+        # prefix moved with the path so an entry saved under the old location is
+        # never an exact hit that skips the save.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            .tauri-target
-          key: cargo-target-${{ runner.os }}-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
+            .cargo-target
+          key: cargo-workspace-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-target-${{ runner.os }}-
+            cargo-workspace-${{ runner.os }}-
 
       - name: Build desktop app
         # Turbo builds @repo/web first through the declared devDependency edge
@@ -96,8 +97,130 @@ jobs:
         # packaging or signing).
         run: pnpm exec turbo run build --filter=@repo/desktop
 
+      - name: Lint desktop Rust
+        # The Tauri crate's only clippy run: the PR gate's Rust Checks job skips it
+        # because its WebKitGTK stack is not installed there.
+        run: cargo clippy -p kaine_forge_desktop --all-targets --locked -- -D warnings
+
       - name: Test desktop Rust
         # The device databases (src/device_db.rs) are the only Rust logic with tests.
-        # Run from src-tauri, so Cargo reads its .cargo/config.toml and reuses the cached target dir.
-        working-directory: apps/desktop/src-tauri
-        run: cargo test --lib --locked
+        run: cargo test -p kaine_forge_desktop --lib --locked
+
+  native-build-linux:
+    name: Native Desktop Build (Linux)
+    # Release build and tests of the GPUI app on this OS. The PR gate compiles it
+    # on Linux only; this is where the other desktop targets stay green (ADR 0025).
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install GPUI system packages
+        # GPUI Kit's own script/install-linux.sh list. The Tauri WebKitGTK stack is
+        # not needed: this job never compiles the Tauri crate.
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        # Hosted runners ship rustup; self-hosted Linux runners may not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        # Keyed on the root Cargo.lock; the target dir is the repo-root .cargo-target
+        # (root .cargo/config.toml, issue #351).
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the native desktop app
+        run: cargo build -p kaine_forge_desktop_native --release --locked
+
+      - name: Test the native desktop app
+        run: cargo test -p kaine_forge_desktop_native --locked
+
+  native-build-macos:
+    name: Native Desktop Build (macOS)
+    # Release build and tests of the GPUI app on this OS. The PR gate compiles it
+    # on Linux only; this is where the other desktop targets stay green (ADR 0025).
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_MACOS == 'true' && fromJSON(vars.CI_SELF_HOSTED_MACOS) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","kaine-ci-macos"]' || '["macos-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        # Hosted runners ship rustup; self-hosted Linux runners may not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        # Keyed on the root Cargo.lock; the target dir is the repo-root .cargo-target
+        # (root .cargo/config.toml, issue #351).
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the native desktop app
+        run: cargo build -p kaine_forge_desktop_native --release --locked
+
+      - name: Test the native desktop app
+        run: cargo test -p kaine_forge_desktop_native --locked
+
+  native-build-windows:
+    name: Native Desktop Build (Windows)
+    # Release build and tests of the GPUI app on this OS. The PR gate compiles it
+    # on Linux only; this is where the other desktop targets stay green (ADR 0025).
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        # Hosted runners ship rustup; self-hosted Linux runners may not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        # Keyed on the root Cargo.lock; the target dir is the repo-root .cargo-target
+        # (root .cargo/config.toml, issue #351).
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the native desktop app
+        run: cargo build -p kaine_forge_desktop_native --release --locked
+
+      - name: Test the native desktop app
+        run: cargo test -p kaine_forge_desktop_native --locked

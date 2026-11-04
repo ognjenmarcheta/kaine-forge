@@ -2,10 +2,12 @@
 name = "kaine_forge_desktop"
 version = "0.1.0"
 description = "Kaine Forge desktop shell powered by Tauri"
-authors = ["Kaine Forge"]
-license = "Apache-2.0"
+authors.workspace = true
+license.workspace = true
+# Tauri's generated code targets the 2021 edition; the workspace is 2024.
 edition = "2021"
-rust-version = "1.90"
+rust-version.workspace = true
+publish.workspace = true
 
 [lib]
 name = "kaine_forge_desktop_lib"
@@ -15,8 +17,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 tauri = { version = "2", features = [] }
 # Device databases for synced rows (ADR 0020); bundled, so no system SQLite is needed.
 rusqlite = { version = "0.40", features = ["bundled", "hooks"] }
@@ -24,3 +26,6 @@ rusqlite = { version = "0.40", features = ["bundled", "hooks"] }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[lints]
+workspace = true

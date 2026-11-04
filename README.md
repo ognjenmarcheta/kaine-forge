@@ -101,7 +101,7 @@ Other templates fit other shapes better:
 - Docker Desktop or a compatible Docker runtime for Postgres, S3-compatible storage (RustFS), and image builds
 - [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`): the default Serena MCP server starts through `uvx`
 - For the agent desk: the [GitHub CLI](https://cli.github.com/) (`gh`), signed in, and the Claude Code or Codex CLI
-- For desktop work: the Rust toolchain
+- The Rust toolchain ([rustup](https://rustup.rs); `rust-toolchain.toml` pins the version): `pnpm check` runs cargo for the Rust workspace (`apps/desktop-native`, `apps/desktop/src-tauri`); onboarding never compiles Rust. On Linux also the GPUI system packages, see [docs/troubleshooting.md](docs/troubleshooting.md#desktop-tauri-and-gpui)
 - Recommended: [GitButler](https://docs.gitbutler.com/) desktop app and `but` CLI (`curl -fsSL https://gitbutler.com/install.sh | sh`) for parallel branches in one checkout. See [CONTRIBUTING.md](CONTRIBUTING.md#recommended-gitbutler)
 - Optional: [Graphify](https://github.com/Graphify-Labs/graphify) CLI for the `pnpm graph` codebase knowledge graph. `pnpm graph:status` prints the pinned install command (`uv tool install "graphifyy[sql,mcp]==<version>"`)
 - Optional: [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) for the `pnpm scan:secrets` full-history secret scan

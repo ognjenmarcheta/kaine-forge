@@ -15,3 +15,7 @@ trim_trailing_whitespace = false
 [*.{diff,patch}]
 trim_trailing_whitespace = false
 insert_final_newline = false
+
+# Rust keeps rustfmt's four-space default, like every Rust workspace (rustfmt.toml).
+[*.rs]
+indent_size = 4

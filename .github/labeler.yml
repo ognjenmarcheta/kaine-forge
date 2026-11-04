@@ -12,6 +12,18 @@
   - changed-files:
       - any-glob-to-any-file:
           - "apps/desktop/**"
+          - "Cargo.toml"
+          - "Cargo.lock"
+          - "rust-toolchain.toml"
+          - "rustfmt.toml"
+          - "clippy.toml"
+          - "deny.toml"
+          - ".cargo/**"
+
+"area:desktop-native":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/desktop-native/**"
 
 "area:mobile":
   - changed-files:
@@ -76,6 +88,11 @@
       - any-glob-to-any-file:
           - "apps/desktop/**"
 
+"platform:desktop-native":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/desktop-native/**"
+
 "platform:mobile":
   - changed-files:
       - any-glob-to-any-file:
@@ -91,3 +108,4 @@
       - any-glob-to-any-file:
           - "pnpm-lock.yaml"
           - "**/package.json"
+          - "Cargo.lock"

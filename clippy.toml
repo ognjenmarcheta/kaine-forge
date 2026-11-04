@@ -1,0 +1,15 @@
+# Tests may unwrap; application code returns errors.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+avoid-breaking-exported-api = false
+
+# GPUI runs an executor on the UI thread and its tests are deterministic only
+# while nothing blocks or sleeps outside that executor (the Zed rules).
+disallowed-methods = [
+  { path = "std::thread::sleep", reason = "blocks the UI thread and breaks deterministic GPUI tests; use BackgroundExecutor::timer" },
+  { path = "std::process::Command::spawn", reason = "blocks the executor; use smol::process::Command" },
+  { path = "std::process::Command::output", reason = "blocks the executor; use smol::process::Command" },
+  { path = "std::process::Command::status", reason = "blocks the executor; use smol::process::Command" },
+  { path = "std::env::set_var", reason = "process-global mutation races tests; read configuration at start-up" },
+  { path = "serde_json::from_reader", reason = "reads byte by byte; read the bytes, then serde_json::from_slice" },
+]

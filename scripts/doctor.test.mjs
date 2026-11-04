@@ -9,6 +9,7 @@ import {
   nodeSatisfiesEngine,
   pnpmMatchesPackageManager,
   REQUIRED_ENV_KEYS,
+  gpuiSystemPackagesResult,
   rustToolchainResult
 } from "./doctor.mjs";
 
@@ -105,24 +106,46 @@ describe("fileAgeDays", () => {
 
 describe("rustToolchainResult", () => {
   it("passes when rustc and cargo are both on PATH", () => {
-    const result = rustToolchainResult({ rustc: "rustc 1.88.0", cargo: "cargo 1.88.0" }, false);
+    const result = rustToolchainResult({ rustc: "rustc 1.99.1", cargo: "cargo 1.99.1" });
     assert.equal(result.ok, true);
     assert.equal(result.warn, undefined);
-    assert.match(result.detail, /rustc 1\.88\.0, cargo 1\.88\.0/);
+    assert.match(result.detail, /rustc 1\.99\.1, cargo 1\.99\.1/);
   });
 
-  it("warns without failing when the toolchain is missing and desktop is not requested", () => {
-    const result = rustToolchainResult({ rustc: null, cargo: null }, false);
-    assert.equal(result.ok, true);
-    assert.equal(result.warn, true);
+  it("fails when the toolchain is missing, because pnpm check runs cargo", () => {
+    const result = rustToolchainResult({ rustc: null, cargo: null });
+    assert.equal(result.ok, false);
     assert.match(result.detail, /rustc and cargo not found on PATH/);
-    assert.match(result.detail, /--with-desktop/);
+    assert.match(result.remediation ?? "", /rustup/);
+    assert.match(result.remediation ?? "", /pnpm check/);
   });
 
-  it("fails when --with-desktop requires a missing binary", () => {
-    const result = rustToolchainResult({ rustc: "rustc 1.88.0", cargo: null }, true);
+  it("names the one missing binary", () => {
+    const result = rustToolchainResult({ rustc: "rustc 1.99.1", cargo: null });
     assert.equal(result.ok, false);
     assert.equal(result.detail, "cargo not found on PATH");
-    assert.match(result.remediation ?? "", /rustup/);
+  });
+});
+
+describe("gpuiSystemPackagesResult", () => {
+  it("is not needed off Linux", () => {
+    const result = gpuiSystemPackagesResult(() => false, "darwin");
+    assert.equal(result.ok, true);
+    assert.equal(result.warn, undefined);
+  });
+
+  it("passes when every pkg-config module resolves", () => {
+    const result = gpuiSystemPackagesResult(() => true, "linux");
+    assert.equal(result.ok, true);
+    assert.equal(result.warn, undefined);
+  });
+
+  it("warns with the apt line naming the missing modules", () => {
+    const result = gpuiSystemPackagesResult((module) => module !== "vulkan", "linux");
+    assert.equal(result.ok, true);
+    assert.equal(result.warn, true);
+    assert.match(result.detail, /cannot find vulkan/);
+    assert.match(result.detail, /apt-get install -y .*libvulkan1 mesa-vulkan-drivers/);
+    assert.doesNotMatch(result.detail, /cannot find fontconfig/);
   });
 });

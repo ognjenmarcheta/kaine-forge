@@ -56,6 +56,9 @@
       "ignore": ["src/index.ts"],
       "ignoreDependencies": ["@repo/web"]
     },
+    "apps/desktop-native": {
+      "entry": ["vitest.config.ts", "**/*.test.ts"]
+    },
     "apps/e2e": {
       "entry": ["playwright.config.ts", "vitest.config.ts", "tests/**/*.e2e.ts"]
     },
@@ -125,7 +128,7 @@
     "expo-updates",
     "expo-system-ui"
   ],
-  "ignoreBinaries": ["graphify", "gitleaks", "codex", "opencode", "uvx", "kubectl"],
+  "ignoreBinaries": ["graphify", "gitleaks", "codex", "opencode", "uvx", "kubectl", "cargo"],
   "metro": false,
   "rules": {
     "exports": "off",

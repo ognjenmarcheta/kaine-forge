@@ -215,12 +215,13 @@ _Avoid_: health (for the doctor page), runs (for the page)
 
 This repository is a multi-platform **template**. Reference features are not required to ship on every client surface. Use this matrix when adding or reviewing product work so agents do not invent mobile parity that the template does not claim.
 
-| Surface                      | Role in the template                                                                            |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| **API** (`apps/api`)         | Canonical GraphQL + auth for all clients.                                                       |
-| **Web** (`apps/web`)         | Primary product UI and Playwright e2e surface. Desktop reuses the web build via Tauri.          |
-| **Mobile** (`apps/mobile`)   | Subset client: auth, dashboard, todos (+ attachments), shared org session. Not full web parity. |
-| **Desktop** (`apps/desktop`) | Tauri shell around web — no separate feature tree.                                              |
+| Surface                                    | Role in the template                                                                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **API** (`apps/api`)                       | Canonical GraphQL + auth for all clients.                                                                                             |
+| **Web** (`apps/web`)                       | Primary product UI and Playwright e2e surface. Desktop reuses the web build via Tauri.                                                |
+| **Mobile** (`apps/mobile`)                 | Subset client: auth, dashboard, todos (+ attachments), shared org session. Not full web parity.                                       |
+| **Desktop** (`apps/desktop`)               | Tauri shell around web — no separate feature tree.                                                                                    |
+| **Native desktop** (`apps/desktop-native`) | Thin native GPUI client: sign-in through the bearer session and the Todos list of the active Organization. Not web parity (ADR 0025). |
 
 **Mobile-supported reference features (today):** auth, dashboard, todos (CRUD and attachments), organization session/switch when the `ORGANIZATIONS_VISIBLE` feature flag is enabled (members route is thin).
 

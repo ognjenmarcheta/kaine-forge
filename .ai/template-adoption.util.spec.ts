@@ -441,10 +441,8 @@ describe("applyTemplateAdoption", () => {
   it("excludes historical, generated, build, dependency, and local artifact paths", () => {
     expect(excludedFromTemplateAdoption("apps/web/CHANGELOG.md")).toBe(true);
     expect(excludedFromTemplateAdoption("apps/web/src/graphql/generated/graphql.ts")).toBe(true);
-    expect(excludedFromTemplateAdoption("apps/desktop/src-tauri/target/debug/build.txt")).toBe(
-      true
-    );
-    expect(excludedFromTemplateAdoption(".tauri-target/release/build/out/a.js")).toBe(true);
+    expect(excludedFromTemplateAdoption(".cargo-target/debug/build.txt")).toBe(true);
+    expect(excludedFromTemplateAdoption(".cargo-target/release/build/out/a.js")).toBe(true);
     expect(excludedFromTemplateAdoption(".worktrees/adopted-repo/README.md")).toBe(true);
     expect(excludedFromTemplateAdoption(".ai/template-adoption.util.ts")).toBe(true);
     // The sync tooling and the project record keep the upstream URL --check must not flag.

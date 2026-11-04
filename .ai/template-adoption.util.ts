@@ -76,6 +76,17 @@ export const adoptionTargets = [
   "apps/mobile/app.json",
   "apps/desktop/src-tauri/tauri.conf.json",
   "apps/desktop/src-tauri/Cargo.toml",
+  "apps/desktop/package.json",
+  // The Rust workspace and the native app carry the crate names (ADR 0025).
+  "Cargo.toml",
+  "apps/desktop-native/Cargo.toml",
+  "apps/desktop-native/package.json",
+  "apps/desktop-native/src/main.rs",
+  "apps/desktop-native/src/app/view.rs",
+  "apps/desktop-native/src/desktop-native.contract.test.ts",
+  ".github/workflows/ci-pr.yml",
+  ".github/workflows/deep-checks.yml",
+  "docs/adr/0025-native-desktop-app-with-gpui.md",
   "apps/web/src/features/auth/auth.definition.ts",
   "apps/web/src/features/dashboard/dashboard.util.ts",
   "apps/web/src/features/organizations/organizations.theme.ts",
@@ -96,7 +107,7 @@ export const adoptionTargets = [
   "apps/mobile/src/features/auth/auth.config.ts",
   "apps/mobile/src/lib/auth-api.ts",
   "apps/desktop/src-tauri/src/main.rs",
-  "apps/desktop/src-tauri/Cargo.lock",
+  "Cargo.lock",
   "packages/auth/src/auth.definition.ts",
   "packages/auth/src/auth.instance.ts",
   "packages/auth/src/auth.instance.test.ts",
@@ -517,10 +528,8 @@ export const excludedFromTemplateAdoption = (path: string): boolean => {
     segments.includes("dist") ||
     segments.includes("coverage") ||
     segments.includes(".turbo") ||
-    normalized.startsWith("apps/desktop/src-tauri/target/") ||
-    // Cargo output for the desktop app, moved to the repo root by
-    // apps/desktop/src-tauri/.cargo/config.toml (issue #351).
-    normalized.startsWith(".tauri-target/") ||
+    // Cargo output for every Rust crate, at the repo root (root .cargo/config.toml, issue #351).
+    normalized.startsWith(".cargo-target/") ||
     normalized.endsWith("CHANGELOG.md") ||
     normalized.includes("/graphql/generated/")
   ) {

@@ -1,0 +1,6 @@
+# Cargo output for every crate lives at the repo root, outside every pnpm
+# workspace folder: `turbo boundaries` walks every *.js under a workspace,
+# gitignored or not, and Tauri's compressed codegen assets are not valid UTF-8
+# (issue #351). The path is relative to the parent of this .cargo directory.
+[build]
+target-dir = ".cargo-target"

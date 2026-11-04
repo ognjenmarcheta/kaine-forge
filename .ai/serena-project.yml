@@ -17,11 +17,13 @@ included_apis: [lsp.get_diagnostics_for_symbol, lsp.restart_language_server]
 read_only_memory_patterns: [".*"]
 language_servers:
   - typescript
+  - rust
 # Load each TypeScript project so references can cross workspace boundaries.
 ls_additional_workspace_folders:
   - .ai
   - apps/api
   - apps/desktop
+  - apps/desktop-native
   - apps/e2e
   - apps/mobile
   - apps/web

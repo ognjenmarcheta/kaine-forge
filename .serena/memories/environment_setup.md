@@ -7,7 +7,7 @@ Required tools:
 - Node.js 22 or newer.
 - pnpm 10.29.3 or compatible pnpm 10.
 - Docker Desktop or compatible Docker runtime for local Postgres and RustFS storage and optional image builds.
-- Rust toolchain for desktop/Tauri work.
+- Rust toolchain (pinned by `rust-toolchain.toml`): `pnpm check` runs cargo for the Rust workspace (`apps/desktop-native`, `apps/desktop/src-tauri`). Linux also needs the GPUI system packages (`docs/troubleshooting.md`); `pnpm preflight` checks both.
 
 Useful environment variables:
 

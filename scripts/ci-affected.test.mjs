@@ -16,49 +16,67 @@ describe("CI affected jobs", () => {
     {
       name: "a desk-only change runs no app job",
       packages: ["tooling/desk", "tooling/desk-ui", "tooling/doc-export"],
-      expected: { unit: false, webApi: false, mobile: false, dockerMatrix: [] }
+      expected: { unit: false, webApi: false, mobile: false, rust: false, dockerMatrix: [] }
     },
     {
       name: "a web UI change builds only the web image",
       packages: ["packages/ui", "apps/web", "apps/desktop", "tooling/desk-ui"],
-      expected: { unit: true, webApi: true, mobile: false, dockerMatrix: [web] }
+      expected: { unit: true, webApi: true, mobile: false, rust: true, dockerMatrix: [web] }
     },
     {
       name: "a shared auth change reaches every app",
       packages: ["packages/auth", "apps/api", "apps/web", "apps/mobile", "apps/desktop"],
-      expected: { unit: true, webApi: true, mobile: true, dockerMatrix: [api, web] }
+      expected: { unit: true, webApi: true, mobile: true, rust: true, dockerMatrix: [api, web] }
     },
     {
       name: "an e2e-only change runs e2e without coverage or images",
       packages: ["apps/e2e"],
-      expected: { unit: false, webApi: true, mobile: false, dockerMatrix: [] }
+      expected: { unit: false, webApi: true, mobile: false, rust: false, dockerMatrix: [] }
     },
     {
       name: "a mobile UI change runs the mobile jobs only",
       packages: ["packages/mobile-ui", "apps/mobile"],
-      expected: { unit: true, webApi: false, mobile: true, dockerMatrix: [] }
+      expected: { unit: true, webApi: false, mobile: true, rust: false, dockerMatrix: [] }
+    },
+    {
+      name: "a native desktop change runs the Rust checks only",
+      packages: ["apps/desktop-native"],
+      expected: { unit: true, webApi: false, mobile: false, rust: true, dockerMatrix: [] }
     }
   ];
   for (const { name, packages, expected } of cases) {
     it(name, () => {
       assert.deepEqual(
-        affectedJobs({ packages: packages.map(pkg), force: false, docker: true }),
+        affectedJobs({ packages: packages.map(pkg), force: false, docker: true, rust: false }),
         expected
       );
     });
   }
 
   it("runs every job when forced, and images only when Docker inputs changed", () => {
-    assert.deepEqual(affectedJobs({ packages: [], force: true, docker: true }), {
+    assert.deepEqual(affectedJobs({ packages: [], force: true, docker: true, rust: false }), {
       unit: true,
       webApi: true,
       mobile: true,
+      rust: true,
       dockerMatrix: [api, web]
     });
     assert.deepEqual(affectedJobs({ packages: [], force: true, docker: false }).dockerMatrix, []);
     assert.deepEqual(
       affectedJobs({ packages: [pkg("apps/api")], force: false, docker: false }).dockerMatrix,
       []
+    );
+  });
+
+  it("runs the Rust checks when Rust inputs change outside the package graph", () => {
+    // Cargo.lock, the toolchain pin and the lint files are not workspace files.
+    assert.equal(
+      affectedJobs({ packages: [], force: false, docker: false, rust: true }).rust,
+      true
+    );
+    assert.equal(
+      affectedJobs({ packages: [pkg("apps/api")], force: false, docker: false, rust: false }).rust,
+      false
     );
   });
 });
@@ -72,7 +90,14 @@ describe("CI affected CLI", () => {
     writeFileSync(file, input);
     const result = spawnSync(process.execPath, ["scripts/ci-affected.mjs", file], {
       encoding: "utf8",
-      env: { ...process.env, GITHUB_OUTPUT: output, FORCE: "false", DOCKER: "true", ...env }
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: output,
+        FORCE: "false",
+        DOCKER: "true",
+        RUST: "false",
+        ...env
+      }
     });
     const written = readFileSync(output, "utf8");
     rmSync(dir, { recursive: true, force: true });
@@ -85,7 +110,7 @@ describe("CI affected CLI", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.written,
-      'unit=true\nweb_api=true\nmobile=false\ndocker_matrix=[{"app":"api","dockerfile":"Dockerfile.api"}]\n'
+      'unit=true\nweb_api=true\nmobile=false\nrust=false\ndocker_matrix=[{"app":"api","dockerfile":"Dockerfile.api"}]\n'
     );
   });
 

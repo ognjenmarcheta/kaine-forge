@@ -154,11 +154,13 @@ updates:
       - dependency-name: "node"
         update-types: ["version-update:semver-major"]
 
-  # The Tauri shell's Rust graph (apps/desktop/src-tauri/Cargo.lock) has no other
-  # refresh path, so crates.io advisories sat open (#357). Grouped: one PR per
-  # week. Tauri majors are intentional migrations, not bot bumps.
+  # The Rust workspace (root Cargo.lock: the Tauri shell and the GPUI app) has no
+  # other refresh path, so crates.io advisories sat open (#357). Grouped: one PR
+  # per week. Tauri majors are intentional migrations, not bot bumps, and GPUI
+  # (gpui-kit and its pinned gpui-pre family) is pre-1.0: minors break, so only
+  # patches flow and a minor or major bump is a deliberate PR (ADR 0025).
   - package-ecosystem: cargo
-    directory: "/apps/desktop/src-tauri"
+    directory: "/"
     schedule:
       interval: weekly
       day: monday
@@ -175,6 +177,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "tauri-*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "gpui-*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   # docker-compose.yml pins the local postgres, RustFS, and aws-cli images by tag; the
   # docker ecosystem above reads only Dockerfiles (#357). Grouped: one PR per week.

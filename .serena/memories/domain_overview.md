@@ -5,6 +5,7 @@
 - Product/domain vocabulary and invariants live in root `CONTEXT.md`; shared review contract is `REVIEW.md` (from `.ai/review.md`).
 - `apps/web` is the React/Vite browser application. Route-level work should generally start in `apps/web/src/features/` and `apps/web/src/routes/`.
 - `apps/desktop` is a Tauri shell around the web app. Desktop-specific changes usually concern packaging, native integration, or Tauri config rather than duplicate UI.
+- `apps/desktop-native` is the native GPUI client (Rust): sign-in through the bearer session and the Todos list of the active Organization; not web parity. Rust rules: MONOREPO_GUIDE §14, ADR 0025.
 - `apps/mobile` is the Expo/React Native client. It shares auth/data/translation packages with web but must use `@repo/mobile-ui`, not `@repo/ui`.
 - `apps/api` owns GraphQL schema composition, resolvers, and authenticated organization-scoped data access. Its REST auth surface under `/api/auth/*` also covers organization invitations, password reset, and email verification.
 - Shared logic should move into `packages/*` only when it is genuinely cross-app. Default to keeping feature code close to the consuming app.

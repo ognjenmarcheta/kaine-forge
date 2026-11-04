@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
-    "clean": "rm -rf dist .turbo ../../.tauri-target"
+    "clean": "rm -rf dist .turbo && cargo clean -p kaine_forge_desktop"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",

@@ -15,7 +15,7 @@ When adopting this template for a product repository, remove this `TEMPLATE_POLI
 - Type: Turborepo and pnpm workspace monorepo.
 - Architecture: Feature-Driven Development (FDD).
 - Language: strict TypeScript everywhere. Do not use `any` except in generated code.
-- Platforms: React/Vite web, Tauri desktop, Expo/React Native mobile, GraphQL Yoga API.
+- Platforms: React/Vite web, Tauri desktop, GPUI native desktop (Rust), Expo/React Native mobile, GraphQL Yoga API.
 - Data model: organization-scoped by default through better-auth with organization membership.
 - Styling: token-only design system. See `DESIGN_SYSTEM.md`.
 
@@ -27,6 +27,7 @@ kaine-forge/
     api/       GraphQL Yoga API and API feature modules
     web/       React 19 + Vite SPA
     desktop/   Tauri v2 shell around the web app
+    desktop-native/  GPUI native desktop app (Rust, GPUI Kit)
     mobile/    Expo / React Native app
     e2e/       Playwright end-to-end tests
   packages/
@@ -57,6 +58,8 @@ kaine-forge/
 ```
 
 `tooling/ci-runners/` holds optional self-hosted runner scripts (`docs/self-hosted-ci.md`). It has no `package.json`, so it is not a workspace.
+
+The Rust crates (`apps/desktop/src-tauri`, `apps/desktop-native`) form one Cargo workspace rooted at `Cargo.toml`, with `Cargo.lock`, `rust-toolchain.toml`, `rustfmt.toml`, `clippy.toml`, `deny.toml` and `.cargo/config.toml` beside it (§14, ADR 0025). Cargo output goes to the repo-root `.cargo-target/`.
 
 All internal packages use the `@repo/*` scope. Import through package exports only, never through internal source paths. ESLint forbids `@repo/*/src/**` deep imports, `@repo/ui` inside mobile, and `@repo/mobile-ui` inside web/desktop.
 
@@ -89,6 +92,7 @@ import { Button as MobileButton } from "@repo/mobile-ui";
 | Web             | React 19, Vite 8, TanStack React Query                                          |
 | Mobile          | Expo SDK 55, React Native, NativeWind                                           |
 | Desktop         | Tauri v2                                                                        |
+| Native desktop  | Rust 1.99 (pinned), GPUI through GPUI Kit 0.9 (pinned exactly)                  |
 | API             | Node.js, GraphQL Yoga                                                           |
 | GraphQL client  | GraphQL Code Generator, graphql-request, React Query                            |
 | Database        | PostgreSQL 17, Drizzle ORM                                                      |
@@ -381,6 +385,18 @@ Todos and Notes work offline on web and desktop, and Todos on mobile (mobile has
 - Keep Tauri capabilities least-privilege.
 - Desktop-specific UI should be feature-detected and should degrade safely in browser mode.
 
+### Native desktop (GPUI)
+
+`apps/desktop-native` is the native-UI surface (ADR 0025); the Tauri shell stays the web-parity surface.
+
+- **One Cargo workspace.** Every crate is a member of the root `Cargo.toml` and sets `[lints] workspace = true`. The toolchain (`rust-toolchain.toml`), formatting (`rustfmt.toml`, four spaces), clippy policy (`clippy.toml`), licences and advisories (`deny.toml`) and the target dir (`.cargo/config.toml` → `.cargo-target/`) are root files. Do not add a per-crate `Cargo.lock` or `.cargo/config.toml`.
+- **Lints are the policy.** `clippy::all` and `clippy::pedantic` warn and CI runs `-D warnings`; `unwrap_used`, `expect_used`, `dbg_macro`, `todo`, `unimplemented`, `print_stdout` and `print_stderr` are denied outside tests. Justify a local exception with `#[expect(lint, reason = "…")]`, never a bare `#[allow]`. `clippy.toml` disallows `std::thread::sleep` and `std::process::Command`: nothing may block the GPUI executor.
+- **GPUI through `gpui-kit` only,** pinned exactly in `[workspace.dependencies]`. Import from `gpui_kit`; never add `gpui`, `gpui-pre`, `gpui-ce` or `gpui-fast` directly, and never mix families. A gpui bump is a deliberate PR that passes the three-OS Deep Checks.
+- **Rust module naming.** Rust cannot name a module file `feature.purpose.rs`, so features use `src/features/{feature}/{purpose}.rs` (`view.rs`, `state.rs`, `client.rs`); the purpose vocabulary is the same as the TypeScript `{feature}.{purpose}.ts` rule. Unit tests sit in `#[cfg(test)] mod tests`; UI tests use `#[gpui_kit::test]` with `TestAppContext`.
+- **Entity rules** (GPUI Kit coding guide): keep typed handles, never a `&mut Window`, `&mut App` or `&mut Context<_>` beyond the call; child-to-parent references are `WeakEntity`; store `Subscription`s on their owner; never `notify` in `render`; `SharedString` for text retained across frames; stable domain ids, never list indices.
+- **Tokens and strings.** Colours, spacing and type come from the generated theme assets (`pnpm theme:build`), never a hex or `px()` literal in feature UI; every user-facing string comes from the generated locales (`pnpm translation:build`) through `t!`. GraphQL operations are `.graphql` files compiled by `graphql_client` against `apps/api/schema.graphql`; run `pnpm generate` before `cargo build` when the schema changes.
+- **Scripts.** `package.json` scripts shell out to cargo for this crate alone (`-p kaine_forge_desktop_native --locked`), so `pnpm check` and `check:affected` include Rust. The PR gate runs them in the Rust Checks job; Check Fast excludes the workspace because it needs the GPUI system packages. `pnpm check` needs a Rust toolchain on every machine (`pnpm preflight` checks it); `pnpm bootstrap` never compiles Rust.
+
 ## 15. Mobile Rules
 
 - Expo Router file routes live in `apps/mobile/app`.
@@ -399,28 +415,28 @@ dev, build, check, format, format:check, lint, lint:fix, typecheck, test, clean
 
 Root commands:
 
-| Command               | Purpose                                                                                                               |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes                |
-| `pnpm bootstrap`      | preflight, env, install, AI files, build (every workspace except `@repo/desktop`), `db:prepare:local` (no dev server) |
-| `pnpm initialize`     | `bootstrap` then `dev`                                                                                                |
-| `pnpm build`          | build all workspaces                                                                                                  |
-| `pnpm build:core`     | build API and web dependency graph                                                                                    |
-| `pnpm check`          | format check, lint, boundaries, typecheck, test, knip                                                                 |
-| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui`           |
-| `pnpm test:e2e`       | Playwright web/API suite                                                                                              |
-| `pnpm generate`       | GraphQL codegen                                                                                                       |
-| `pnpm create:feature` | scaffold an organization-scoped feature slice (API + web) and wire it in                                              |
-| `pnpm create:package` | scaffold a new `@repo/*` package                                                                                      |
-| `pnpm db:*`           | database lifecycle commands                                                                                           |
-| `pnpm ai:install`     | install shared assistant files locally                                                                                |
-| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                              |
-| `pnpm desk`           | local agent desk CLI; see `docs/agents/agent-desk.md`                                                                 |
-| `pnpm desk:run`       | build the desk UI, then serve the desk (`--port N`, `--no-open`)                                                      |
-| `pnpm desk:ui`        | desk UI Vite dev server                                                                                               |
-| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                     |
-| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                             |
-| `pnpm worktree:env`   | give a linked worktree its own web and API ports (`--web N --api N`); worktrunk runs it (ADR 0024)                    |
+| Command               | Purpose                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`            | run web + API dev servers (default); `dev:web` / `dev:api` / `dev:mobile` / `dev:all` for other scopes                     |
+| `pnpm bootstrap`      | preflight, env, install, AI files, build (every workspace except the two desktop apps), `db:prepare:local` (no dev server) |
+| `pnpm initialize`     | `bootstrap` then `dev`                                                                                                     |
+| `pnpm build`          | build all workspaces                                                                                                       |
+| `pnpm build:core`     | build API and web dependency graph                                                                                         |
+| `pnpm check`          | format check, lint, boundaries, typecheck, test, knip                                                                      |
+| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui`                |
+| `pnpm test:e2e`       | Playwright web/API suite                                                                                                   |
+| `pnpm generate`       | GraphQL codegen                                                                                                            |
+| `pnpm create:feature` | scaffold an organization-scoped feature slice (API + web) and wire it in                                                   |
+| `pnpm create:package` | scaffold a new `@repo/*` package                                                                                           |
+| `pnpm db:*`           | database lifecycle commands                                                                                                |
+| `pnpm ai:install`     | install shared assistant files locally                                                                                     |
+| `pnpm ai:doctor`      | lint canonical AI files and report drift                                                                                   |
+| `pnpm desk`           | local agent desk CLI; see `docs/agents/agent-desk.md`                                                                      |
+| `pnpm desk:run`       | build the desk UI, then serve the desk (`--port N`, `--no-open`)                                                           |
+| `pnpm desk:ui`        | desk UI Vite dev server                                                                                                    |
+| `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                          |
+| `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                                  |
+| `pnpm worktree:env`   | give a linked worktree its own web and API ports (`--web N --api N`); worktrunk runs it (ADR 0024)                         |
 
 Use scoped commands from the repo root:
 
@@ -436,7 +452,7 @@ pnpm --filter @repo/mobile-ui typecheck
 - Public repository protection requires **PR Quality Gate** and **Analyze TypeScript**, an up-to-date branch, and resolved review conversations, including for administrators. `docs/archive/publication-readiness.md` records the 2026-09-13 verification of those settings.
 - Pre-commit runs lint-staged with Prettier and ESLint fixes on staged files.
 - Pre-push runs `pnpm ai:doctor` and **affected** `turbo run typecheck` against the upstream merge-base (full typecheck if no upstream).
-- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`). Coverage, core build and e2e, Docker images, and the mobile jobs run only when the Turbo package graph says the PR affects them (`scripts/ci-affected.mjs`); Deep Checks keeps the scheduled mobile export and desktop checks (ADR 0003).
+- PR CI runs AI drift check, then Turbo **affected** format/lint/typecheck/test (`--filter=...[origin/<base>]`). Coverage, core build and e2e, Docker images, the mobile jobs, and the Rust Checks job (`cargo fmt`, `clippy -D warnings`, `cargo test` for the GPUI app) run only when the Turbo package graph or the Rust path filter says the PR affects them (`scripts/ci-affected.mjs`); Deep Checks keeps the scheduled mobile export, the Tauri build and lint on macOS, and the native desktop builds on Linux, macOS and Windows (ADR 0003, ADR 0025). Security runs `cargo deny check` weekly.
 - CI caches each Turbo task in the GitHub Actions cache (`rharkor/caching-for-turbo`), with no secrets. A local remote cache is optional: `TURBO_TOKEN` and `TURBO_TEAM` in your shell.
 - Source changes in `apps/**`, `packages/**`, or `tooling/**` need a Changesets file unless labeled `release:skip-changeset`.
 - After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.

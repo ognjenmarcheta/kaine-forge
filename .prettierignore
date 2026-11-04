@@ -9,6 +9,6 @@ pnpm-lock.yaml
 # Generated / build artifacts (ESLint already ignores these; keep Prettier aligned)
 **/generated/
 **/src-tauri/gen/
-**/src-tauri/target/
+.cargo-target/
 **/playwright-report/
 **/test-results/

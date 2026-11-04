@@ -1,0 +1,59 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "description": "GPUI native desktop build. Cargo writes the binary under the repo-root .cargo-target (root .cargo/config.toml), managed by Cargo's own incremental cache and intentionally not declared as a Turbo output, so this task opts out of Turbo caching like apps/desktop.",
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "format:check": {
+      "description": "cargo fmt reads the root rustfmt.toml and toolchain pin; prettier reads the shared config.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.prettierrc.cjs",
+        "$TURBO_ROOT$/.prettierignore",
+        "$TURBO_ROOT$/packages/config/prettier/**",
+        "$TURBO_ROOT$/.editorconfig",
+        "$TURBO_ROOT$/rustfmt.toml",
+        "$TURBO_ROOT$/rust-toolchain.toml"
+      ]
+    },
+    "lint": {
+      "description": "cargo clippy reads the workspace lints, clippy.toml, the lockfile and the toolchain pin, so they are inputs beside the shared ESLint presets.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/eslint.config.mjs",
+        "$TURBO_ROOT$/packages/config/eslint/**",
+        "$TURBO_ROOT$/packages/config/typescript/*.json",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock",
+        "$TURBO_ROOT$/clippy.toml",
+        "$TURBO_ROOT$/rust-toolchain.toml",
+        "$TURBO_ROOT$/.cargo/config.toml"
+      ]
+    },
+    "typecheck": {
+      "description": "cargo check reads the workspace manifest, the lockfile and the toolchain pin.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/config/typescript/*.json",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock",
+        "$TURBO_ROOT$/rust-toolchain.toml",
+        "$TURBO_ROOT$/.cargo/config.toml"
+      ]
+    },
+    "test": {
+      "description": "cargo test reads the workspace files; the vitest contract test reads the root Cargo.toml.",
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock",
+        "$TURBO_ROOT$/clippy.toml",
+        "$TURBO_ROOT$/rust-toolchain.toml",
+        "$TURBO_ROOT$/.cargo/config.toml"
+      ]
+    }
+  }
+}

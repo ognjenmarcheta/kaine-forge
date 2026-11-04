@@ -11,6 +11,7 @@ export const QUALITY_JOBS = [
   "coverage",
   "mobile-export",
   "graphql-schema",
+  "rust-checks",
   "build-core",
   "docker-images",
   "e2e-web-api",
@@ -33,7 +34,7 @@ export function qualityGateFailures({ eventName, visibility, codeScanningEnabled
   const paths = needs["detect-paths"]?.outputs;
   let dockerApps = [];
   if (pullRequest) {
-    for (const key of ["unit", "web_api", "mobile", "graphql"]) {
+    for (const key of ["unit", "web_api", "mobile", "rust", "graphql"]) {
       if (!["true", "false"].includes(paths?.[key])) {
         failures.push(`Missing or invalid path result: ${key}`);
       }
@@ -57,6 +58,7 @@ export function qualityGateFailures({ eventName, visibility, codeScanningEnabled
     coverage: affected("unit"),
     "mobile-export": affected("mobile"),
     "graphql-schema": pullRequest && paths?.graphql === "true",
+    "rust-checks": affected("rust"),
     "build-core": webApi,
     "docker-images": !pullRequest || dockerApps.length > 0,
     "e2e-web-api": webApi,

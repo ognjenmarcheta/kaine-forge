@@ -328,6 +328,7 @@ On `main`, the Release workflow runs `pnpm release:apps` after quality gates so 
 - Use `@repo/ui` for web/desktop UI and `@repo/mobile-ui` for mobile UI.
 - Use design tokens for visual values.
 - Preserve FDD naming and `@repo/*` package boundaries.
+- Rust: one root Cargo workspace, `[lints] workspace = true`, `cargo clippy -- -D warnings`, no `unwrap`/`expect` outside tests, GPUI only through `gpui-kit` (MONOREPO_GUIDE §14, ADR 0025).
 
 ## CI speed (maintainers)
 
