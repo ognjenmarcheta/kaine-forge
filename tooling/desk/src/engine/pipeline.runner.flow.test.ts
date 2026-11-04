@@ -258,6 +258,10 @@ describe("pipeline runner: plan gate", () => {
       summary: "Add a CSV export, no XLSX"
     });
     expect(await artifact(e, "feedback.md")).toContain("CSV only, please.");
+    // The history keeps the words, so the next round can show what the owner asked for.
+    expect(state.history.find((entry) => entry.event === "feedback")?.note).toBe(
+      "to plan: CSV only, please."
+    );
 
     const [, second] = e.runner.requests;
     expect(second?.resumeSessionId).toBe(session);

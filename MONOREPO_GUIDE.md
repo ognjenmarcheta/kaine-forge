@@ -31,6 +31,7 @@ kaine-forge/
     e2e/       Playwright end-to-end tests
   packages/
     auth/          better-auth instance (organization, bearer, and Expo plugins), custom scrypt password hooks, and the session/read facade
+    billing/       provider-neutral billing (Stripe and Paddle, ADR 0019)
     config/        ESLint, TypeScript, Prettier, and Tailwind configuration
     db/            Drizzle schema, validators, migrations, seed, migrate export
     email/         provider-agnostic email sending (console adapter, EMAIL_PROVIDER factory)
@@ -42,16 +43,20 @@ kaine-forge/
     query/         shared React Query keys and cache helpers
     storage/       S3-compatible storage helpers
     sync/          offline sync engine for Todos and Notes (TanStack DB, ADR 0020)
+    theme/         design-system themes and tokens (DESIGN_SYSTEM.md)
     todos/         shared Todo workflow and attachment helpers
     translation/   i18next config and locale files
     ui/            React DOM design-system primitives and composed UI
+    ui-3d/         accessible, on-demand 3D views for web and desktop
   tooling/
-    ci-runners/      optional ARC self-hosted runner setup (docs/self-hosted-ci.md)
     desk/            local agent desk engine, CLI, and server (`@repo/desk`)
     desk-ui/         React UI for the agent desk (`@repo/desk-ui`)
+    doc-export/      Markdown to .docx or .pptx export (`pnpm doc:export`)
     graphql-codegen/ GraphQL Code Generator config
     dev-mobile-lan.ts  `pnpm dev:mobile:lan` launcher
 ```
+
+`tooling/ci-runners/` holds optional self-hosted runner scripts (`docs/self-hosted-ci.md`). It has no `package.json`, so it is not a workspace.
 
 All internal packages use the `@repo/*` scope. Import through package exports only, never through internal source paths. ESLint forbids `@repo/*/src/**` deep imports, `@repo/ui` inside mobile, and `@repo/mobile-ui` inside web/desktop.
 
@@ -415,6 +420,7 @@ Root commands:
 | `pnpm desk:ui`        | desk UI Vite dev server                                                                                               |
 | `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                     |
 | `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                             |
+| `pnpm worktree:env`   | give a linked worktree its own web and API ports (`--web N --api N`); worktrunk runs it (ADR 0024)                    |
 
 Use scoped commands from the repo root:
 

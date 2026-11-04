@@ -37,9 +37,18 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0009-domain-knowledge-as-agent-infra.md`](adr/0009-domain-knowledge-as-agent-infra.md): encode domain knowledge as agent/review infrastructure.
 - [`adr/0010-local-factory-dashboard.md`](adr/0010-local-factory-dashboard.md): local dashboard for the retired software factory (superseded by ADR 0011).
 - [`adr/0011-local-agent-desk.md`](adr/0011-local-agent-desk.md): local agent desk engine, GitHub authorization, and factory retirement.
+- [`adr/0012-configurable-flows-and-agents.md`](adr/0012-configurable-flows-and-agents.md): configurable flows and agents in the desk.
+- [`adr/0013-gitbutler-recommended-vcs-client.md`](adr/0013-gitbutler-recommended-vcs-client.md): GitButler as the recommended version-control client.
+- [`adr/0014-upstream-ai-setup-sync.md`](adr/0014-upstream-ai-setup-sync.md): upstream AI setup sync for adopted projects.
+- [`adr/0015-auth-security-plugins.md`](adr/0015-auth-security-plugins.md): auth security plugins and session cookie cache.
+- [`adr/0017-keep-pnpm-and-turborepo.md`](adr/0017-keep-pnpm-and-turborepo.md): keep pnpm and Turborepo; do not adopt Bun or Vite+ yet.
 - [`adr/0018-postgres-job-runner.md`](adr/0018-postgres-job-runner.md): pg-boss background job runner on the app's Postgres.
 - [`adr/0019-own-billing-package.md`](adr/0019-own-billing-package.md): own provider-neutral billing package for Stripe and Paddle.
+- [`adr/0020-offline-first-sync-for-todos-and-notes.md`](adr/0020-offline-first-sync-for-todos-and-notes.md): offline-first sync for Todos and Notes.
 - [`adr/0021-desk-jobs.md`](adr/0021-desk-jobs.md): owner-started desk jobs (the scorecard run), their trust boundary, and their limits.
+- [`adr/0022-owner-steering-of-a-running-stage.md`](adr/0022-owner-steering-of-a-running-stage.md): owner steering of a running desk stage.
+- [`adr/0023-desk-provider-choice.md`](adr/0023-desk-provider-choice.md): desk provider choice.
+- [`adr/0024-worktrunk-worktree-manager.md`](adr/0024-worktrunk-worktree-manager.md): worktrunk as the optional worktree manager, per-worktree ports, and the `wt merge` denial.
 
 ## AI assistant docs
 

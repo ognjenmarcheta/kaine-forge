@@ -13,7 +13,8 @@ const appRoot = fileURLToPath(new URL(".", import.meta.url));
 const e2eFixtures = process.env["E2E_FIXTURES"] === "true";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, workspaceRoot, "VITE_");
+  // WEB_PORT is read here only; envPrefix still limits the client bundle to VITE_*.
+  const env = loadEnv(mode, workspaceRoot, ["VITE_", "WEB_PORT"]);
   const apiProxyTarget = env.VITE_API_PROXY_TARGET ?? "http://localhost:4000";
 
   return {
@@ -77,7 +78,8 @@ export default defineConfig(({ mode }) => {
         }
       : {}),
     server: {
-      port: 3000,
+      // A linked worktree gets its own port from `pnpm worktree:env` (worktrunk pre-start).
+      port: Number(env.WEB_PORT || 3000),
       proxy: {
         "/api/": {
           target: apiProxyTarget,

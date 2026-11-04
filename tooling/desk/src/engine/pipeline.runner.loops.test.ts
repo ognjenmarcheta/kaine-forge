@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { IssueState, ReviewFinding } from "../contracts";
+import { needsYouCode } from "./pipeline.state";
 import {
   FEATURE_FILE,
   ISSUE,
@@ -102,6 +103,7 @@ describe("check loop", () => {
     const state = await stateOf(e);
     expect(state).toMatchObject({ stage: "needs-you", resumeStage: "check" });
     expect(await reasonOf(e)).toContain("same check failure came back");
+    expect(needsYouCode(state)).toBe("same-failure");
     // One fix attempt, not three.
     expect(e.runner.requests.filter((request) => request.role === "builder")).toHaveLength(2);
     expect(e.notifications.at(-1)).toMatchObject({ stage: "needs-you", kind: "needs-you" });
@@ -117,6 +119,7 @@ describe("check loop", () => {
     const result = await toBuild(e);
     expect(result).toMatchObject({ outcome: "stopped", stop: "needs-you" });
     expect(await reasonOf(e)).toContain("still fail after 1 fix round(s)");
+    expect(needsYouCode(await stateOf(e))).toBe("loop-limit");
     expect(await stateOf(e)).toMatchObject({ resumeStage: "check", loops: { check: 1 } });
   });
 

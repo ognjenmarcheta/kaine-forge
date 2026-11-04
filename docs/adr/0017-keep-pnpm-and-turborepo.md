@@ -20,7 +20,7 @@ The time went to job order and cache misses. The Turbo cache was one `actions/ca
 
 Tool status on the decision date:
 
-- **Vite+ 1.0** (2026-09-28) bundles Vite, Vitest, Oxlint, Oxfmt, tsdown, and the `vp run` task runner. It replaces ESLint and Prettier, which ADR 0016 keeps for the policy rules. `vp run` has no remote cache in 1.0 and no counterpart to `turbo boundaries`. The repo already uses Vite 8 with Rolldown, the largest speed part of Vite+.
+- **Vite+ 1.0** (2026-09-28) bundles Vite, Vitest, Oxlint, Oxfmt, tsdown, and the `vp run` task runner. It replaces ESLint and Prettier, which the repo keeps for its policy rules. `vp run` has no remote cache in 1.0 and no counterpart to `turbo boundaries`. The repo already uses Vite 8 with Rolldown, the largest speed part of Vite+.
 - **Bun** (1.3/1.4) has isolated installs and a fast runtime. Install is not the bottleneck (15–20 s). The repo depends on pnpm catalogs, `minimumReleaseAge` (the Dependabot cooldown gate), `overrides`, `patchedDependencies`, and Expo, whose guide reports React Native breakage under isolated installs.
 - **pnpm 12** (2026-08-26) is a Rust rewrite with the same lockfile format. pnpm reports clean installs about 2x faster and warm repeat installs about 30x faster than pnpm 11.
 
@@ -37,7 +37,7 @@ Fix the measured causes instead:
 
 ## Alternatives Considered
 
-- Vite+: replaces the ESLint policy layer (ADR 0016) and Turborepo boundaries and remote caching, for a speed gain the repo mostly has through Vite 8.
+- Vite+: replaces the ESLint policy layer and Turborepo boundaries and remote caching, for a speed gain the repo mostly has through Vite 8.
 - Bun as package manager: a migration of catalogs, the release-age gate, overrides, and patches, for a step that takes 15–20 s.
 - Bun as script runtime in place of `tsx`: small gain; the scripts and the Docker images target Node.
 - Vercel Remote Cache: needs an external account and a token secret, and fork PRs cannot read secrets.
@@ -48,7 +48,7 @@ Fix the measured causes instead:
   - No change to tooling, guides, skills, or adopters' setup.
   - The measured causes are fixed at the source.
 - Cons:
-  - Local lint stays near 40 s (ADR 0016).
+  - Local lint stays near 40 s.
   - Revisit when one trigger holds:
     - `vp run` ships remote caching and a package boundary check.
     - Bun supports pnpm catalogs, a release-age gate, and Expo under isolated installs.

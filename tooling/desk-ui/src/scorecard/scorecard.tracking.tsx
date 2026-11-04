@@ -86,6 +86,7 @@ export function IssueCell({ issue }: { readonly issue: TrackedIssue }) {
       ) : (
         issue.state === "open" && (
           <Button
+            type="button"
             appearance="subtle"
             spacing="compact"
             disabled={actions.busy}
@@ -111,7 +112,7 @@ export function RecentlySolved({
   const { language } = useLanguage();
   const solved = recentlySolved(runs, issues);
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.scorecard.tracking.recent")}</h2>
       {solved.length === 0 ? (
         <Muted>{t("desk.scorecard.tracking.noneSolved")}</Muted>
@@ -120,7 +121,7 @@ export function RecentlySolved({
           {solved.map(({ finding, issue, solvedAt: when, delta }) => (
             <li key={finding.slug}>
               <span>{finding.title}</span>
-              <span className="desk-muted">
+              <span className="dk-t-sub">
                 <Link href={issue.url}>{t("desk.issue.number", { number: issue.number })}</Link>{" "}
                 {issue.fix !== null && (
                   <Link href={issue.fix.url}>
@@ -184,7 +185,7 @@ export function TrackingBar({
   };
   return (
     <div className="desk-score-trackbar">
-      <span className="desk-muted" role="status">
+      <span className="dk-t-sub" role="status">
         {tracking === null
           ? t("desk.scorecard.tracking.loading")
           : tracking.ok
@@ -194,15 +195,20 @@ export function TrackingBar({
               })
             : t("desk.scorecard.tracking.failed", { reason: tracking.reason })}
       </span>
-      <Button appearance="subtle" spacing="compact" onClick={() => reload(true)}>
+      <Button type="button" appearance="subtle" spacing="compact" onClick={() => reload(true)}>
         {t("desk.github.refresh")}
       </Button>
       {unlabeled.length > 0 && (
-        <Button appearance="subtle" spacing="compact" onClick={() => setPreview(true)}>
+        <Button
+          type="button"
+          appearance="subtle"
+          spacing="compact"
+          onClick={() => setPreview(true)}
+        >
           {t("desk.scorecard.tracking.backfill", { count: unlabeled.length })}
         </Button>
       )}
-      {note !== null && <span className="desk-muted">{note}</span>}
+      {note !== null && <span className="dk-t-sub">{note}</span>}
       <Modal
         open={preview}
         onOpenChange={setPreview}

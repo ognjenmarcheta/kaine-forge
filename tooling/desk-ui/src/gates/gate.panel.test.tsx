@@ -1,11 +1,13 @@
 import type { IssueDetail, RiskOutcome, RunStats } from "@repo/desk/contracts";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { IssueActions } from "./gate.actions";
 import { GatePanel } from "./gate.panel";
 import { finishedResearchIssue, planArtifact } from "../../tests/fixture.data";
+import type { DeskApi } from "../api/api.client";
 import type { ActionSettled } from "../state/desk.provider";
 import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
@@ -37,13 +39,19 @@ const statsWith = (riskOutcomes: RiskOutcome[]): RunStats => ({
 });
 
 /** The plan artifact of the fixture: one open question. Every other read fails until stubbed. */
-const apiWith = (stats?: RunStats) =>
+const apiWith = (stats?: RunStats, diff?: string) =>
   fakeApi({
     artifactJson: (_issue, id, schema) =>
       id === "plan"
         ? Promise.resolve(schema.parse(JSON.parse(planArtifact("low"))))
         : Promise.reject(new Error(`no artifact ${id}`)),
-    ...(stats === undefined ? {} : { stats: () => Promise.resolve(stats) })
+    ...(stats === undefined ? {} : { stats: () => Promise.resolve(stats) }),
+    ...(diff === undefined
+      ? {}
+      : {
+          artifactText: (_issue: number, id: string) =>
+            id === "diff" ? Promise.resolve(diff) : Promise.reject(new Error(`no artifact ${id}`))
+        })
   });
 
 const show = (
@@ -54,6 +62,8 @@ const show = (
     detail?: Partial<IssueDetail>;
     onShowTrace?: () => void;
     stats?: RunStats;
+    diff?: string;
+    api?: DeskApi;
   } = {}
 ) => {
   const { detail, summary } = makeDetail(stateOverrides, extra.summary);
@@ -66,8 +76,44 @@ const show = (
       onOpenResult={vi.fn()}
       onShowTrace={extra.onShowTrace ?? vi.fn()}
     />,
-    apiWith(extra.stats)
+    extra.api ?? apiWith(extra.stats, extra.diff)
   );
+};
+
+const A_DIFF =
+  "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+next\n";
+
+/** A review with one finding on the diff line above, which has a suggested fix. */
+const REVIEW: NonNullable<IssueDetail["review"]> = {
+  verdict: "approve",
+  blocking: 0,
+  bySeverity: { Critical: 0, Consider: 1, Nit: 0, FYI: 0 },
+  findings: [
+    {
+      severity: "Consider",
+      blocking: false,
+      file: "src/a.ts",
+      line: 1,
+      section: "Quality Gates",
+      summary: "The name is not kept.",
+      fix: "Keep the old name."
+    }
+  ],
+  rejected: 0,
+  diffHash: "d".repeat(64),
+  plainLanguage: "Plain."
+};
+
+const SHIP_PLAN = {
+  dryRun: true,
+  branch: "KAINE-7-feat-thing",
+  gate: { ok: true, failures: [] },
+  changeset: { kind: "file", reason: "A package changed" },
+  changesetText: '---\n"@repo/web": patch\n---\n\nAdd a thing.\n',
+  commitHeader: "feat(web): add a thing",
+  pullRequest: { title: "feat(web): add a thing", base: "main" },
+  files: ["src/a.ts"],
+  unfilledHeadings: []
 };
 
 const bar = (name: string) => screen.getByRole("group", { name });
@@ -129,7 +175,7 @@ describe("GatePanel at the plan gate", () => {
         }
       }
     );
-    const changed = screen.getByRole("heading", { name: "What changed since round 1" });
+    const changed = screen.getByText("What changed since round 1");
     expect(changed.parentElement?.textContent).toContain("Added a fallback");
     expect(within(changed.parentElement ?? document.body).getAllByRole("listitem")).toHaveLength(2);
   });
@@ -138,7 +184,7 @@ describe("GatePanel at the plan gate", () => {
     const actions = actionsOf();
     actions.run.mockResolvedValueOnce({ kind: "error", code: "busy", detail: null });
     show({ stage: "plan-gate" }, actions);
-    const toggle = screen.getByRole("button", { name: "Request changes" });
+    const toggle = screen.getByRole("button", { name: "Send back…" });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(toggle);
     const box = screen.getByRole("textbox", { name: "Feedback" });
@@ -166,10 +212,7 @@ describe("GatePanel at the plan gate", () => {
   it("disables every control that starts work while an action runs", () => {
     show({ stage: "plan-gate" }, actionsOf({ busy: true }));
     expect(screen.getByRole("button", { name: "Approve plan" })).toHaveProperty("disabled", true);
-    expect(screen.getByRole("button", { name: "Request changes" })).toHaveProperty(
-      "disabled",
-      true
-    );
+    expect(screen.getByRole("button", { name: "Send back…" })).toHaveProperty("disabled", true);
   });
 });
 
@@ -192,7 +235,7 @@ describe("GatePanel at a gate of the owner's own flow", () => {
       { pending: "desk.undo.pending.gateApprove", done: "desk.action.done.gateApprove" }
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back…" }));
     const targets = screen.getByRole("radiogroup");
     expect(within(targets).getAllByRole("radio")).toHaveLength(2);
     await userEvent.click(within(targets).getByRole("radio", { name: "Back to Sketch" }));
@@ -225,20 +268,19 @@ describe("GatePanel while the engine works", () => {
     await userEvent.click(screen.getByRole("button", { name: "Resume" }));
     expect(actions.run).toHaveBeenLastCalledWith({ action: "resume" });
   });
-  it("steers the running builder with a note and offers Take over, while the engine is busy", async () => {
+  it("tells the running builder a note from a box that opens on request, while the engine is busy", async () => {
     const actions = actionsOf({ busy: true });
     show({ stage: "build", status: "running" }, actions, { summary: { busy: true } });
-    const note = screen.getByLabelText("Steer the agent");
+    expect(screen.queryByLabelText("Note for Builder")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Tell Builder…" }));
+    const note = screen.getByLabelText("Note for Builder");
     await userEvent.type(note, "Reuse the CSV helper.");
-    await userEvent.click(screen.getByRole("button", { name: "Steer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send the note" }));
     expect(actions.run).toHaveBeenLastCalledWith({
       action: "steer",
       note: "Reuse the CSV helper."
     });
     await waitFor(() => expect((note as HTMLTextAreaElement).value).toBe(""));
-
-    await userEvent.click(screen.getByRole("button", { name: "Take over" }));
-    expect(actions.run).toHaveBeenLastCalledWith({ action: "take-over" });
   });
 
   it("keeps what the owner typed while a steer was being sent", async () => {
@@ -250,9 +292,10 @@ describe("GatePanel while the engine works", () => {
         })
     );
     show({ stage: "build", status: "running" }, { busy: true, run }, { summary: { busy: true } });
-    const note = screen.getByLabelText("Steer the agent");
+    await userEvent.click(screen.getByRole("button", { name: "Tell Builder…" }));
+    const note = screen.getByLabelText("Note for Builder");
     await userEvent.type(note, "Reuse the helper.");
-    await userEvent.click(screen.getByRole("button", { name: "Steer" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send the note" }));
     await userEvent.type(note, " Keep the API.");
     await act(async () => {
       settle(DONE);
@@ -261,18 +304,138 @@ describe("GatePanel while the engine works", () => {
     expect((note as HTMLTextAreaElement).value).toBe("Reuse the helper. Keep the API.");
   });
 
-  it("offers no Take over for the reviewer, whose next run starts a new session", () => {
-    show({ stage: "review", status: "running" }, actionsOf(), { summary: { busy: true } });
-    expect(screen.getByRole("button", { name: "Steer" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Take over" })).toBeNull();
+  it("offers no note on a step the engine runs, and says why", () => {
+    show({ stage: "check", status: "running" }, actionsOf(), { summary: { busy: true } });
+    expect(screen.queryByRole("button", { name: /^Tell / })).toBeNull();
+    expect(screen.getByText(/The engine runs this step/)).toBeTruthy();
   });
 });
 
 describe("GatePanel at PR review", () => {
+  it("collects line comments on the diff and sends them to the builder with Send back", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF });
+    await userEvent.click(await screen.findByRole("button", { name: "Comment on line 1" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Comment on line 1 for the builder" }),
+      "Keep the old name"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add comment" }));
+    // Nothing goes out until the owner sends back; the strip says so.
+    expect(screen.getByText("You · for the builder")).toBeTruthy();
+    expect(screen.getByText("Comments not sent yet: 1.")).toBeTruthy();
+    expect(actions.run).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "build",
+      text: "Line comments:\n- src/a.ts:1: Keep the old name"
+    });
+  });
+
+  it("applies a suggested fix by queueing it for the builder, and Undo takes it back", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF, detail: { review: REVIEW } });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    expect(screen.getByText("Queued for the builder")).toBeTruthy();
+    expect(actions.run).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.queryByText("Queued for the builder")).toBeNull();
+    expect(screen.queryByText(/Comments not sent yet/)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    // The comments alone are enough to send: the note is optional.
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    expect(actions.run).toHaveBeenCalledTimes(1);
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "build",
+      text: "Line comments:\n- src/a.ts:1: The name is not kept. Apply this fix: Keep the old name."
+    });
+  });
+
+  it("sends queued comments to the step chosen in the form, not always to the builder", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF, detail: { review: REVIEW } });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Review again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "review",
+      text: "Line comments:\n- src/a.ts:1: The name is not kept. Apply this fix: Keep the old name."
+    });
+  });
+
+  it("keeps a fix applied while a send back runs, and drops only what was sent", async () => {
+    let finish: (settled: ActionSettled) => void = () => undefined;
+    const actions = actionsOf({
+      run: vi.fn<IssueActions["run"]>(() => new Promise((resolve) => (finish = resolve)))
+    });
+    const second: NonNullable<IssueDetail["review"]>["findings"][number] = {
+      severity: "Consider",
+      blocking: false,
+      file: "src/a.ts",
+      line: 1,
+      section: "Quality Gates",
+      summary: "The label is missing.",
+      fix: "Add a label."
+    };
+    show({ stage: "pr-review" }, actions, {
+      diff: A_DIFF,
+      detail: { review: { ...REVIEW, findings: [...REVIEW.findings, second] } }
+    });
+    const [first] = await screen.findAllByRole("button", { name: "Apply fix" });
+    if (first === undefined) throw new Error("no Apply fix button");
+    await userEvent.click(first);
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    // The send is out; the owner applies the second fix before it settles.
+    await userEvent.click(screen.getByRole("button", { name: "Apply fix" }));
+    await act(async () => finish(DONE));
+    expect(await screen.findByText("Comments not sent yet: 1.")).toBeTruthy();
+  });
+
+  it("warns on Ship that comments are not sent, and sends back instead on request", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, {
+      diff: A_DIFF,
+      detail: { review: REVIEW },
+      api: fakeApi({
+        artifactText: (_issue, id) =>
+          id === "diff" ? Promise.resolve(A_DIFF) : Promise.reject(new Error(`no artifact ${id}`)),
+        artifactJson: (_issue, id, schema) =>
+          id === "ship-plan"
+            ? Promise.resolve(schema.parse(SHIP_PLAN))
+            : Promise.reject(new Error(`no artifact ${id}`))
+      })
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ship as draft PR…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Ship to a draft pull request" });
+    expect(await within(dialog).findByText("Comments are not sent.")).toBeTruthy();
+    expect(dialog.textContent).toContain("Comments not sent: 1. Shipping does not send them.");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send back instead" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("button", { name: "Send back with comments (1)" })).toBeTruthy();
+    expect(actions.run).not.toHaveBeenCalledWith(expect.objectContaining({ action: "feedback" }));
+  });
+
+  it("keeps Send back disabled with no note and no comments", async () => {
+    show({ stage: "pr-review" }, actionsOf());
+    await userEvent.click(screen.getByRole("button", { name: "Send back…" }));
+    expect(screen.getByRole("button", { name: "Send feedback" })).toHaveProperty("disabled", true);
+  });
+
   it("sends feedback to the chosen stage", async () => {
     const actions = actionsOf();
     show({ stage: "pr-review" }, actions);
-    await userEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back…" }));
     expect(screen.getByRole("radiogroup")).toBeTruthy();
     await userEvent.click(screen.getByRole("radio", { name: "Review again" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Feedback" }), "Look at tenancy");
@@ -309,12 +472,13 @@ describe("GatePanel when the desk needs you", () => {
     show({ stage: "needs-you", resumeStage: "build" }, actions, {
       summary: { needsYouReason: "Checks failed <script>window.injected = true</script>" }
     });
-    expect(screen.getByRole("heading", { name: "Build stopped" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "The desk stopped at Build" })).toBeTruthy();
     expect(screen.getByLabelText("Reason from the engine").textContent).toContain(
       "Checks failed <script>"
     );
     expect(document.querySelector("script")).toBeNull();
-    // The resume select names the stage the engine remembers.
+    // Retry is one of the choices; its select names the stage the engine remembers.
+    await userEvent.click(screen.getByRole("radio", { name: "Retry from a step" }));
     expect(screen.getByRole("combobox", { name: "Resume from" }).textContent).toContain(
       "Build (the engine remembers it)"
     );
@@ -322,12 +486,101 @@ describe("GatePanel when the desk needs you", () => {
     expect(actions.run).toHaveBeenCalledWith({ action: "continue" });
   });
 
+  it("offers to allow a refused command first, and sends that exact command", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    show({ stage: "needs-you", resumeStage: "build" }, actions, {
+      detail: { deniedCommands: [command] }
+    });
+
+    const allow = screen.getByRole("radio", { name: /Allow this command and retry/ });
+    expect(allow.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Allow this command and retry").closest("label")?.textContent).toBe(
+      "Allow this command and retryRecommended"
+    );
+    // The tell option stays, but it is no longer the recommended one.
+    expect(screen.getByText("Tell the builder").closest("label")?.textContent).toBe(
+      "Tell the builder"
+    );
+    expect(screen.getAllByText(command).length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Allow and retry" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "allow"
+    });
+  });
+
+  it("skips the refused command with one click and no note", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    show({ stage: "needs-you", resumeStage: "build" }, actions, {
+      detail: { deniedCommands: [command] }
+    });
+
+    await userEvent.click(screen.getByRole("radio", { name: /Skip it and continue/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Skip and continue" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "skip"
+    });
+  });
+
+  it("goes back to the default choice when the refused command goes away, and back to allow when it returns", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const { detail, summary } = makeDetail({ stage: "needs-you", resumeStage: "build" });
+    let setDenied: (next: string[]) => void = () => undefined;
+    function Harness() {
+      const [denied, set] = useState([command]);
+      setDenied = set;
+      return (
+        <GatePanel
+          detail={{ ...detail, deniedCommands: denied }}
+          summary={summary}
+          revision="r1"
+          actions={actions}
+          onOpenResult={vi.fn()}
+          onShowTrace={vi.fn()}
+        />
+      );
+    }
+    renderDesk(<Harness />, apiWith());
+    expect(screen.getByRole("button", { name: "Allow and retry" })).toBeTruthy();
+
+    act(() => setDenied([]));
+    // The allow option is gone. The primary button acts on the default again: tell the builder.
+    expect(screen.queryByRole("radio", { name: /Allow this command/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Allow and retry" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Send to the builder" })).toBeTruthy();
+
+    act(() => setDenied([command]));
+    expect(screen.getByRole("button", { name: "Allow and retry" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Allow and retry" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "allow"
+    });
+  });
+
+  it("shows no command choice when the desk refused nothing", () => {
+    show({ stage: "needs-you", resumeStage: "build" }, actionsOf());
+    expect(screen.queryByRole("radio", { name: /Allow this command/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /Skip it and continue/ })).toBeNull();
+  });
+
   it("recommends telling the builder first, and sends the note to build", async () => {
     const actions = actionsOf();
     show({ stage: "needs-you", resumeStage: "build" }, actions);
-    const options = screen.getAllByRole("heading", { level: 4 });
-    expect(options[0]?.textContent).toBe("Tell the builder Recommended");
-    const send = screen.getByRole("button", { name: "Send and continue" });
+    const options = screen.getAllByRole("radio");
+    expect(options[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Tell the builder").closest("label")?.textContent).toBe(
+      "Tell the builderRecommended"
+    );
+    const send = screen.getByRole("button", { name: "Send to the builder" });
     expect(send).toHaveProperty("disabled", true);
     await userEvent.type(
       screen.getByRole("textbox", { name: "Note to the builder" }),
@@ -344,7 +597,9 @@ describe("GatePanel when the desk needs you", () => {
   it("offers the session command only when the desk knows one, and links to the trace", async () => {
     const onShowTrace = vi.fn();
     show({ stage: "needs-you", resumeStage: "build" }, actionsOf(), { onShowTrace });
-    expect(screen.queryByRole("heading", { name: "Open the session yourself" })).toBeNull();
+    expect(
+      screen.queryByRole("radio", { name: "Open the agent session in a terminal" })
+    ).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "See it in the trace" }));
     expect(onShowTrace).toHaveBeenCalledTimes(1);
 
@@ -357,6 +612,10 @@ describe("GatePanel when the desk needs you", () => {
         }
       }
     });
+    await userEvent.click(
+      screen.getAllByRole("radio", { name: "Open the agent session in a terminal" }).at(-1) ??
+        document.body
+    );
     expect(screen.getByText(command)).toBeTruthy();
   });
 
@@ -367,7 +626,7 @@ describe("GatePanel when the desk needs you", () => {
     expect(screen.queryByRole("combobox", { name: "Resume from" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /own authority/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /ready label/ }));
     await userEvent.click(screen.getByRole("button", { name: "Start again" }));
 
     expect(actions.run).toHaveBeenCalledWith({ action: "start", override: true });

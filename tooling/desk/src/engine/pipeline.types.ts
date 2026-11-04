@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentRunner } from "../agents/agent.runner";
+import type { ProviderPort } from "../agents/provider.probe";
 import type { RolePromptDeps } from "../agents/roles";
 import type {
   AgentDefinition,
@@ -8,13 +9,14 @@ import type {
   HistoryEvent,
   IssueDraft,
   IssueState,
+  NeedsYouCode,
   Provider,
   StageId
 } from "../contracts";
 import type { GitPort } from "../git";
+import type { Trigger } from "./pipeline.machine";
 import type { IsolationPort } from "../isolation/isolation.port";
 import type { Clock, Exec, GitHubPort } from "../ports";
-import type { Trigger } from "./pipeline.machine";
 import type { Scheduler } from "./pipeline.scheduler";
 import type { ShipPlan } from "../ship/ship.contract";
 import type { IssueReadResult, IssueStore } from "../store/store.issue";
@@ -50,6 +52,11 @@ export interface PipelineDeps {
   /** Labels, status comment. Reads for intake come from here unless a snapshot file is used. */
   readonly github: GitHubPort;
   readonly runnerFor: (provider: Provider) => AgentRunner;
+  /**
+   * The provider CLIs that run on this machine. A run moves off a CLI that does not run. Without
+   * it every provider counts as installed and the Codex opt-in comes from the config.
+   */
+  readonly providers?: ProviderPort | undefined;
   /**
    * Docker isolation. Used for an issue whose mode is `docker`. Without it such an issue
    * stops at its first agent or check stage with a clear reason.
@@ -215,6 +222,7 @@ export type StatePatch = Partial<
     | "prCheck"
     | "mergedAt"
     | "approveNote"
+    | "approvedCommands"
     | "pauseRequested"
     | "pausedAt"
   >
@@ -241,6 +249,8 @@ export type StageOutcome =
   | {
       readonly kind: "needs-you";
       readonly reason: string;
+      /** The stop code. Default: `error`. */
+      readonly code?: NeedsYouCode;
       readonly patch?: StatePatch;
     }
   /** The run was cancelled. The runner makes no transition. */

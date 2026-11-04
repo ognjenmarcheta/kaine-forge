@@ -1,9 +1,12 @@
 import {
   colorRoles,
   componentTokenNames,
+  densityTokens,
+  layoutTokens,
   scaleTokenNames,
   shadowRoles,
-  typeStepNames
+  typeStepNames,
+  typeStyles
 } from "./theme.roles";
 import type {
   ColorRole,
@@ -105,7 +108,13 @@ function scaleEntries(theme: ThemeDefinition): Entry[] {
       `letter-spacing-${name}`,
       theme.type[name].letterSpacing ?? "0"
     ]),
-    ...componentTokenNames.map((name): Entry => [name, theme.components[name]])
+    ...componentTokenNames.map((name): Entry => [name, theme.components[name]]),
+    // Aliases resolve where they are declared, so each theme block declares its own.
+    ...Object.entries(typeStyles).map(([style, step]): Entry => [
+      `type-${style}`,
+      variable(`font-${step}`)
+    ]),
+    ...Object.entries(densityTokens.comfortable)
   ];
 }
 
@@ -196,7 +205,12 @@ export function emitWebTokens(
   );
   const rules = [
     ...themeRules(defaultTheme, true),
-    ...themes.filter((entry) => entry !== defaultTheme).flatMap((entry) => themeRules(entry, false))
+    ...themes
+      .filter((entry) => entry !== defaultTheme)
+      .flatMap((entry) => themeRules(entry, false)),
+    block(":root", Object.entries(layoutTokens).map(declare)),
+    // Density sits on an app root; its values read the theme scale where it is declared.
+    block('[data-density="compact"]', Object.entries(densityTokens.compact).map(declare))
   ];
 
   // Tailwind has no theme namespace for durations, so each motion token gets its own utility.

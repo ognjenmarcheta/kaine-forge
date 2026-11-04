@@ -1,8 +1,9 @@
 import type { JobState } from "@repo/desk/contracts";
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EventSourceLike } from "../api/api.stream";
 import { DeskApp } from "../desk.app";
 import { fakeApi, renderDesk } from "../test/test.render";
 
@@ -74,6 +75,37 @@ describe("JobView", () => {
     });
   });
 
+  it("shows a job change the server sends while the page is open", async () => {
+    window.history.replaceState(null, "", "?job=2");
+    const listeners = new Map<string, (event: MessageEvent<string>) => void>();
+    const source: EventSourceLike = {
+      onopen: null,
+      onerror: null,
+      addEventListener: (type, listener) => listeners.set(type, listener),
+      close: () => undefined
+    };
+    const running = job({ status: "running", stage: "score", result: null });
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([running]) }), () => source);
+    expect(await screen.findByRole("heading", { name: /Scorecard job 2/ })).toBeTruthy();
+    expect(screen.queryByText(/The job spent its budget/)).toBeNull();
+
+    const stopped = job({
+      status: "needs-you",
+      stage: "score",
+      stop: { reason: "budget", detail: "The scorer spent its $15 budget." },
+      result: null,
+      updatedAt: "2026-11-02T12:10:00.000Z"
+    });
+    act(() => {
+      listeners.get("job-updated")?.(
+        new MessageEvent("job-updated", {
+          data: JSON.stringify({ type: "job-updated", job: stopped })
+        })
+      );
+    });
+    expect(await screen.findByText(/The job spent its budget/)).toBeTruthy();
+  });
+
   it("says why a stopped job stopped and continues it", async () => {
     window.history.replaceState(null, "", "?job=2");
     const stopped = job({
@@ -107,7 +139,13 @@ describe("Scorecard jobs on the Scorecard view", () => {
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "Run scorecard" }));
-    const dialog = screen.getByRole("dialog", { name: "Run the scorecard" });
+    // The start opens New work on the desk job tab, with the job kind picked.
+    const dialog = screen.getByRole("dialog", { name: "New work" });
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Run the scorecard/ })
+        .getAttribute("aria-checked")
+    ).toBe("true");
     const budget = within(dialog).getByLabelText("Budget in US dollars");
     await userEvent.clear(budget);
     await userEvent.type(budget, "9");
@@ -151,7 +189,13 @@ describe("Screen jobs", () => {
     const user = userEvent.setup({ applyAccept: false });
 
     await user.click(await screen.findByRole("button", { name: "Recreate screen" }));
-    const dialog = screen.getByRole("dialog", { name: "Recreate a screen" });
+    // The start opens New work on the desk job tab, with the job kind picked.
+    const dialog = screen.getByRole("dialog", { name: "New work" });
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Recreate a screen/ })
+        .getAttribute("aria-checked")
+    ).toBe("true");
     await user.type(within(dialog).getByLabelText("Screen id"), "10-sample");
     await user.type(within(dialog).getByLabelText("Screen title"), "Sample");
     const file = within(dialog).getByLabelText(/Reference image/);
@@ -237,7 +281,13 @@ describe("Component and audit jobs", () => {
     renderDesk(<DeskApp />, fakeApi({ startJob }));
 
     await userEvent.click(await screen.findByRole("button", { name: "Build component" }));
-    const dialog = screen.getByRole("dialog", { name: "Build a component" });
+    // The start opens New work on the desk job tab, with the job kind picked.
+    const dialog = screen.getByRole("dialog", { name: "New work" });
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Build a component/ })
+        .getAttribute("aria-checked")
+    ).toBe("true");
     await userEvent.type(within(dialog).getByLabelText("Component name"), "RatingStars");
     const startButton = within(dialog).getByRole("button", { name: "Start" });
     expect(startButton).toHaveProperty("disabled", true);

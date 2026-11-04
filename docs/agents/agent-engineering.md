@@ -76,8 +76,10 @@ filesystem, Context7, Playwright and Serena. Serena alone needs about 10 s, whic
 probe limit is now 30 s. After the change, Context7, Playwright, Serena and Chrome DevTools
 passed in one 7-second run.
 
-Playwright runs `--headless --isolated --output-dir=.ai.local/playwright`: no window per
-session, and no profile state shared between sessions. `--output-dir` applies only to
+Playwright runs `--headless --isolated --browser chrome --sandbox --output-dir=.ai.local/playwright`:
+no window per session, and no profile state shared between sessions. It drives the installed,
+auto-updated Google Chrome stable channel with the Chromium sandbox on, not a cached Playwright
+Chromium build, so install Google Chrome before you use it. `--output-dir` applies only to
 automatically named files: a screenshot with an explicit `filename` resolves against the
 workspace root, so give named captures a path under `.ai.local/playwright/` to keep them in
 ignored local state. Chrome DevTools runs `--headless --isolated --no-usage-statistics
@@ -200,6 +202,42 @@ which renders with WebKitGTK on Linux, native apps, Firefox, and Chrome started 
 - `pnpm smoke:desktop` checks that the Tauri window opens on the sign-in screen. It needs
   `pnpm dev:web` and the Tauri Linux system libraries. It stays local: a CI run needs Xvfb,
   D-Bus, AT-SPI, and WebKitGTK on the runner, and the desktop app has no native features yet.
+
+### worktrunk worktree manager
+
+worktrunk 0.81.0 (`max-sixty/worktrunk`, MIT or Apache-2.0, read at worktrunk.dev on 2026-11-03)
+is optional tooling for each machine. ADR 0024 records the decision. `wt switch -c -x <agent>
+<branch> -- '<task>'` creates a worktree, runs the project hooks in `.config/wt.toml`, and starts
+the agent there. `.ai/hooks/worktrunk-cli.mjs` holds the one version pin and the `wt --version`
+probe. The SessionStart hook and `pnpm doctor` print its `Worktrunk:` line.
+
+- It is a Rust CLI, not an npm package, so it is not a workspace devDependency. Install it with
+  `cargo install worktrunk --version 0.81.0` or `brew install worktrunk`.
+- The `pre-start` hooks block until the worktree is ready. They copy only the gitignored files
+  that `.worktreeinclude` lists (`--require-include`), run
+  `pnpm install --frozen-lockfile --prefer-offline`, build `./packages/*`, set per-branch ports
+  with `scripts/worktree-env.mjs`, and run `pnpm ai:install --auto`. worktrunk asks each machine
+  to approve these commands once, and again after they change. `--no-hooks` skips them.
+- worktrunk matches `.worktreeinclude` against the entries git reports as ignored. `.gitignore`
+  ignores `.ai.local/*` rather than `.ai.local/`, so git reports each entry and the include list
+  can copy `mcp.env` and `installations/` without desk state or browser profiles. Claude Code
+  desktop reads the same `.worktreeinclude`.
+- Verified on 2026-11-03 (Ubuntu, tmpfs scratch clone): a new worktree was ready in under
+  20 seconds, the package build was 18 of 18 cache hits, and web and API ran on their hashed
+  ports with the web proxy reaching the API. `wt list` renders `[list] url` with `branch` as the
+  only variable, so the primary checkout's URL is keyed to `main` and `gitbutler/workspace`.
+- Copy-on-write needs APFS, btrfs, XFS, or ReFS. On ext4 every copied file is a full copy, so
+  `node_modules` and `.tauri-target` stay out of `.worktreeinclude`: pnpm hardlinks from its
+  store instead.
+- The guard hook denies `wt merge` and `wt step push`, which merge into the local target branch
+  without a pull request. It asks before `wt step prune` and forced `wt remove`, which can delete
+  a desk worktree or unmerged work. The matcher moves `wt`'s leading global options after the
+  subcommand.
+- The worktrunk agent plugins are a per-contributor install (`wt config plugins claude install`,
+  `wt config plugins codex install`), not vendored, like GitButler's skill (ADR 0013). They add
+  activity markers to `wt list`, and the Claude plugin routes `isolation: "worktree"` subagents
+  through `wt switch --create`. Worktrunk's LLM commit messages are not used: agents commit with
+  `but` or git under commitlint.
 
 ### MCP servers not adopted
 

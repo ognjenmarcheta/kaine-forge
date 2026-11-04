@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { createAgentProcess } from "../agents/agent.process";
 import { createHostRunners } from "../agents/agent.runners";
+import { createProviderPort } from "../agents/provider.probe";
 import { createGitPort } from "../git";
 import { createGitHubPort } from "../github/github.port";
 import { createExec, systemClock } from "../ports";
@@ -114,6 +115,13 @@ export const createDefaultDeps = (): CliDeps => {
     createGitHub: (cwd) => createGitHubPort({ exec, cwd }),
     git: createGitPort(exec),
     runnerFor: (provider) => runners[provider],
+    providers: (cwd, config) =>
+      createProviderPort({
+        exec,
+        cwd,
+        clock: systemClock,
+        allowCodexBuilder: () => config.allowCodexBuilder
+      }),
     docker: {
       // A patch comes back as base64 on stdout, so the cap is well above the largest patch.
       exec: createExec({ maxOutputBytes: 64 * 1024 * 1024 }),

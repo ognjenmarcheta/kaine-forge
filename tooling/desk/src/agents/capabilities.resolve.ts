@@ -64,6 +64,11 @@ export interface ResolveCapabilitiesInput {
   readonly isolation: Isolation;
   /** Exact workspace package names for the check commands. Without them there are none. */
   readonly workspaces?: readonly string[] | undefined;
+  /**
+   * Commands the owner allowed after the desk refused them. Each becomes one exact rule, never a
+   * prefix rule. The deny rules still win, and a command they deny does not run.
+   */
+  readonly approvedCommands?: readonly string[] | undefined;
 }
 
 /** Skills whose procedure needs a command the floor denies. No desk agent gets them. */
@@ -232,6 +237,10 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
     allow.push(bash("pnpm create:feature"));
   }
   for (const tool of extraTools) allow.push(bash(AGENT_TOOL_COMMANDS[tool]));
+  // A read-only agent gets no command the owner allowed for another stage.
+  if (preset !== "read-only") {
+    for (const command of input.approvedCommands ?? []) allow.push(`Bash(${command})`);
+  }
 
   const inScope = new Set(skills);
   const outOfScope = unique([...KAINE_SKILLS, ...input.installed.skills])

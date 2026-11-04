@@ -13,7 +13,7 @@ import {
   type HistoryEvent,
   type IssueState,
   type LessonReport,
-  type PromotedLesson
+  type PromotedLessonStatus
 } from "@repo/desk/contracts";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -216,6 +216,10 @@ const buildRunner = (
       record(issue, "continue", { from: from ?? null });
       return reviewReady(issue);
     },
+    resolveDenial: async (issue, command, resolution) => {
+      record(issue, "resolve-denial", { command, resolution });
+      return reviewReady(issue);
+    },
     pause: async (issue) => {
       record(issue, "pause", {});
       const state = await change(store, issue, { pauseRequested: true, pausedAt: now() });
@@ -352,7 +356,7 @@ const LESSON_ISSUE = 400;
  * what the page sent, so a test can prove that only a confirmed preview opens an issue.
  */
 const lessonDesk = (base: LessonReport) => {
-  let promoted: PromotedLesson[] = [];
+  let promoted: PromotedLessonStatus[] = [];
   const report = (): LessonReport => ({
     ...base,
     candidates: base.candidates.filter((c) => !promoted.some((p) => p.key === c.key)),
@@ -364,7 +368,11 @@ const lessonDesk = (base: LessonReport) => {
     detail: `No lesson has the key '${key}'.`
   });
   const mark = (key: string, note: string | null, issue: number | null): LessonReport => {
-    promoted = [{ key, at: now(), note, issue }, ...promoted.filter((p) => p.key !== key)];
+    const recurrence = { occurrences: 0, issues: [], lastSeen: null };
+    promoted = [
+      { key, at: now(), note, issue, recurrence },
+      ...promoted.filter((p) => p.key !== key)
+    ];
     return report();
   };
   const draftOf = (key: string) => {

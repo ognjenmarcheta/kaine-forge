@@ -163,13 +163,14 @@ function useEntries(): Entry[] {
         .map(open)
     ),
     ...entries("goto", [
-      go("board", "desk.nav.board", "G B"),
+      go("inbox", "desk.nav.inbox", "G I"),
+      go("work", "desk.nav.work", "G W"),
       go("flows", "desk.nav.flows", "G F"),
       go("agents", "desk.nav.agents", "G A"),
-      go("health", "desk.nav.health", "G H"),
-      go("scorecard", "desk.nav.scorecard", "G S"),
-      go("lab", "desk.nav.lab", "G L"),
-      go("stats", "desk.nav.stats", "G R")
+      go("setup", "desk.nav.setup", "G S"),
+      go("insights", "desk.nav.insights", "G N"),
+      go("scorecard", "desk.nav.scorecard", "G C"),
+      go("lab", "desk.nav.lab", "G L")
     ]),
     ...entries("issues", issues.map(open))
   ];
@@ -182,7 +183,7 @@ const browseEntries = (entries: readonly Entry[]): Entry[] =>
   );
 
 function Kbd({ children }: { readonly children: string }) {
-  return <kbd className="desk-kbd">{children}</kbd>;
+  return <kbd className="dk-kbd">{children}</kbd>;
 }
 
 function PaletteBody({ onClose }: { readonly onClose: () => void }) {

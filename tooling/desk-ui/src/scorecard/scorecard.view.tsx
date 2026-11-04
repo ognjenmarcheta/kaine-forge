@@ -48,15 +48,15 @@ import {
 import { IssueCell, RecentlySolved, TrackingBar, useScorecardTracking } from "./scorecard.tracking";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
+import { sparkPoints } from "../insights/insights.model";
 import { openJobOf } from "../jobs/job.model";
-import { JobStartDialog } from "../jobs/job.start-dialog";
 import { formatCount } from "../shell/shell.format";
-import { Segmented } from "../shell/shell.layout";
+import { useNewWork } from "../shell/shell.newwork";
 import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink } from "../shell/shell.router";
+import { Segmented } from "../shell/shell.ui";
 import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
-import { sparkPoints } from "../stats/stats.model";
 import { StatusChip } from "../status/status.chip";
 
 const score = (value: number | null, language: string): string =>
@@ -71,7 +71,7 @@ const score = (value: number | null, language: string): string =>
 function Delta({ value }: { readonly value: number | null }) {
   const t = useT();
   const { language } = useLanguage();
-  if (value === null) return <span className="desk-muted">{t("desk.scorecard.delta.none")}</span>;
+  if (value === null) return <span className="dk-t-sub">{t("desk.scorecard.delta.none")}</span>;
   const direction = value > 0 ? "up" : value < 0 ? "down" : "held";
   const glyph = direction === "up" ? "▲" : direction === "down" ? "▼" : "•";
   return (
@@ -109,7 +109,7 @@ function RunMeta({
 }) {
   const t = useT();
   return (
-    <p className="desk-muted desk-score-meta">
+    <p className="dk-t-sub desk-score-meta">
       {t("desk.scorecard.meta", {
         date: run.date,
         mode: t(`desk.scorecard.mode.${run.mode}`),
@@ -240,7 +240,7 @@ function Trend({
       : [];
   });
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2 id={id}>{t("desk.scorecard.trend.title")}</h2>
       <div ref={measure}>
         <svg
@@ -309,7 +309,7 @@ function Trend({
           </text>
         </svg>
       </div>
-      <ol className="desk-sr-only">
+      <ol className="dk-sr">
         {runs.map((run) => (
           <li key={`${run.date}-${run.commit}`}>
             {t("desk.scorecard.trend.point", {
@@ -361,8 +361,8 @@ function DimensionsTable({
       return next;
     });
   return (
-    <Card className="desk-panel">
-      <div className="desk-panel__head desk-score-head">
+    <Card className="dk-card">
+      <div className="dk-card-h desk-score-head">
         <h2>{t("desk.scorecard.dimensions.title")}</h2>
         <Segmented
           label={t("desk.scorecard.sort.label")}
@@ -372,17 +372,17 @@ function DimensionsTable({
           onChange={onSort}
         />
       </div>
-      <div className="desk-table-scroll">
-        <table className="desk-table desk-score-table">
+      <div className="dk-tbl-wrap">
+        <table className="dk-tbl desk-score-table">
           <thead>
             <tr>
               <th scope="col">{t("desk.scorecard.dimensions.number")}</th>
               <th scope="col">{t("desk.scorecard.dimensions.name")}</th>
-              <th scope="col" className="desk-table__number">
+              <th scope="col" className="dk-n">
                 {t("desk.scorecard.dimensions.score")}
               </th>
               <th scope="col">
-                <span className="desk-sr-only">{t("desk.scorecard.dimensions.bar")}</span>
+                <span className="dk-sr">{t("desk.scorecard.dimensions.bar")}</span>
               </th>
               <th scope="col">{t("desk.scorecard.dimensions.band")}</th>
               <th scope="col">{t("desk.scorecard.dimensions.change")}</th>
@@ -428,9 +428,10 @@ function DimensionRowView({
   return (
     <>
       <tr>
-        <td className="desk-table__number">{row.number}</td>
+        <td className="dk-n">{row.number}</td>
         <th scope="row">
           <Button
+            type="button"
             appearance="ghost"
             className="desk-score-toggle"
             aria-expanded={expanded}
@@ -439,13 +440,13 @@ function DimensionRowView({
           >
             <ChevronRight
               aria-hidden="true"
-              className="desk-icon desk-score-toggle__chevron"
+              className="dk-ic desk-score-toggle__chevron"
               data-open={expanded ? "true" : undefined}
             />
             {row.name}
           </Button>
         </th>
-        <td className="desk-table__number desk-score-value">{score(row.score, language)}</td>
+        <td className="dk-n desk-score-value">{score(row.score, language)}</td>
         <td>
           <ScoreBar value={row.score} />
         </td>
@@ -465,7 +466,7 @@ function DimensionRowView({
           >
             <polyline points={sparkPoints(row.history)} />
           </svg>
-          <span className="desk-sr-only">
+          <span className="dk-sr">
             {t("desk.scorecard.dimensions.historyText", {
               values: row.history.map((value) => score(value, language)).join(", ")
             })}
@@ -508,15 +509,15 @@ function History({
   const { language } = useLanguage();
   const shown = runs.slice(0, index + 1);
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.scorecard.history.title")}</h2>
-      <div className="desk-table-scroll">
-        <table className="desk-table desk-score-history">
+      <div className="dk-tbl-wrap">
+        <table className="dk-tbl desk-score-history">
           <thead>
             <tr>
               <th scope="col">{t("desk.scorecard.dimensions.name")}</th>
               {shown.map((run) => (
-                <th key={`${run.date}-${run.commit}`} scope="col" className="desk-table__number">
+                <th key={`${run.date}-${run.commit}`} scope="col" className="dk-n">
                   {run.date}
                   <small>{shortCommit(run.commit)}</small>
                 </th>
@@ -530,7 +531,7 @@ function History({
                 {row.history.map((value, column) => (
                   <td
                     key={`${shown[column]?.date ?? ""}-${shown[column]?.commit ?? ""}`}
-                    className={`desk-table__number desk-score-cell desk-tone--${BAND_TONE[bandOf(value)]}`}
+                    className={`dk-n desk-score-cell desk-tone--${BAND_TONE[bandOf(value)]}`}
                   >
                     {score(value, language)}
                   </td>
@@ -557,7 +558,7 @@ function FindingRow({
   const t = useT();
   return (
     <tr>
-      <td className="desk-table__number">{finding.ladderRank}</td>
+      <td className="dk-n">{finding.ladderRank}</td>
       <th scope="row" className="desk-score-finding">
         <span>{finding.title}</span>
         <code>{finding.slug}</code>
@@ -565,7 +566,7 @@ function FindingRow({
           <Tag appearance="information">{t("desk.scorecard.findings.proposed")}</Tag>
         )}
       </th>
-      <td className="desk-table__number">{finding.dimension}</td>
+      <td className="dk-n">{finding.dimension}</td>
       <td>
         <StatusChip tone={DISPOSITION_TONE[finding.disposition]}>
           {t(`desk.scorecard.disposition.${finding.disposition}`)}
@@ -575,7 +576,7 @@ function FindingRow({
         {tracked !== null ? (
           <IssueCell issue={tracked} />
         ) : finding.issue === undefined ? (
-          <span className="desk-muted">{t("desk.scorecard.findings.noIssue")}</span>
+          <span className="dk-t-sub">{t("desk.scorecard.findings.noIssue")}</span>
         ) : (
           <External href={githubLink(repository, `issues/${finding.issue}`)}>
             {issueLabel(finding.issue)}
@@ -623,8 +624,8 @@ function Findings({
     tracking
   });
   return (
-    <Card className="desk-panel">
-      <div className="desk-panel__head desk-score-head">
+    <Card className="dk-card">
+      <div className="dk-card-h desk-score-head">
         <h2>{t("desk.scorecard.findings.title")}</h2>
         <Segmented
           label={t("desk.scorecard.findings.filter")}
@@ -635,7 +636,7 @@ function Findings({
         />
       </div>
       <div className="desk-score-filters">
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={`${id}-search`}>{t("desk.scorecard.findings.search")}</Label>
           <Input
             id={`${id}-search`}
@@ -644,7 +645,7 @@ function Findings({
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={`${id}-dimension`}>{t("desk.scorecard.findings.dimension")}</Label>
           <Select value={dimension} onValueChange={setDimension}>
             <SelectTrigger id={`${id}-dimension`}>
@@ -662,7 +663,7 @@ function Findings({
             </SelectContent>
           </Select>
         </div>
-        <div className="desk-field">
+        <div className="dk-field">
           <Label htmlFor={`${id}-sort`}>{t("desk.scorecard.findings.sort")}</Label>
           <Select
             value={sort}
@@ -681,21 +682,21 @@ function Findings({
           </Select>
         </div>
       </div>
-      <p className="desk-muted" role="status">
+      <p className="dk-t-sub" role="status">
         {t("desk.scorecard.findings.count", { shown: view.rows.length, total: view.total })}
       </p>
       {view.rows.length === 0 ? (
-        <p className="desk-empty">{t("desk.scorecard.findings.empty")}</p>
+        <p className="dk-empty">{t("desk.scorecard.findings.empty")}</p>
       ) : (
-        <div className="desk-table-scroll">
-          <table className="desk-table desk-score-findings">
+        <div className="dk-tbl-wrap">
+          <table className="dk-tbl desk-score-findings">
             <thead>
               <tr>
-                <th scope="col" className="desk-table__number">
+                <th scope="col" className="dk-n">
                   {t("desk.scorecard.findings.rank")}
                 </th>
                 <th scope="col">{t("desk.scorecard.findings.finding")}</th>
-                <th scope="col" className="desk-table__number">
+                <th scope="col" className="dk-n">
                   {t("desk.scorecard.findings.dimensionShort")}
                 </th>
                 <th scope="col">{t("desk.scorecard.findings.disposition")}</th>
@@ -724,7 +725,7 @@ function Calibration({ notes }: { readonly notes: readonly string[] }) {
   const t = useT();
   if (notes.length === 0) return null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.scorecard.calibration.title")}</h2>
       <ul className="desk-score-notes">
         {notes.map((note) => (
@@ -789,13 +790,13 @@ function Diagrams({ flows }: { readonly flows: readonly ScorecardFlowLayout[] })
   const t = useT();
   if (flows.length === 0) return null;
   return (
-    <Card className="desk-panel">
+    <Card className="dk-card">
       <h2>{t("desk.scorecard.diagrams.title")}</h2>
       {flows.map((flow) => (
         <Collapsible key={flow.id} className="desk-score-diagram">
           <CollapsibleTrigger asChild>
-            <Button appearance="ghost" className="desk-score-toggle">
-              <ChevronRight aria-hidden="true" className="desk-icon desk-score-toggle__chevron" />
+            <Button type="button" appearance="ghost" className="desk-score-toggle">
+              <ChevronRight aria-hidden="true" className="dk-ic desk-score-toggle__chevron" />
               {flow.title}
             </Button>
           </CollapsibleTrigger>
@@ -826,7 +827,7 @@ function Report({ data }: { readonly data: Extract<ScorecardData, { state: "read
     <>
       <div className="desk-score-runbar">
         <RunMeta run={run} repository={data.repository} />
-        <div className="desk-field desk-score-run">
+        <div className="dk-field desk-score-run">
           <Label htmlFor={`${id}-run`}>{t("desk.scorecard.run")}</Label>
           <Select value={String(index)} onValueChange={(value) => setSelected(Number(value))}>
             <SelectTrigger id={`${id}-run`}>
@@ -869,7 +870,7 @@ const ledgerHint = (t: Translate, path: string): string => t("desk.scorecard.mis
 export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }) {
   const t = useT();
   const { api, state } = useDesk();
-  const [starting, setStarting] = useState(false);
+  const newWork = useNewWork();
   const openJob = openJobOf(state.jobs, "scorecard");
   const [data, setData] = useState<ScorecardData | null>(null);
   const [error, setError] = useState<Failure | null>(null);
@@ -895,20 +896,22 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
 
   return (
     <>
-      <div className="desk-heading">
-        <div>
-          <h1>{t("desk.scorecard.title")}</h1>
-          <p className="desk-muted">{t("desk.scorecard.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.scorecard.title")}</h1>
+          <p className="dk-lead">{t("desk.scorecard.intro")}</p>
         </div>
         <div className="desk-job-actions">
-          <Button appearance="subtle" onClick={load} disabled={loading}>
+          <Button type="button" appearance="subtle" onClick={load} disabled={loading}>
             {t("desk.scorecard.refresh")}
           </Button>
           {jobId === undefined && openJob === null && (
-            <Button onClick={() => setStarting(true)}>{t("desk.job.start.scorecard")}</Button>
+            <Button type="button" onClick={() => newWork.open({ tab: "job", kind: "scorecard" })}>
+              {t("desk.job.start.scorecard")}
+            </Button>
           )}
         </div>
-      </div>
+      </header>
       {jobId !== undefined && (
         <p className="desk-job-banner" role="note">
           {t("desk.job.preview", { id: jobId })}{" "}
@@ -927,23 +930,22 @@ export function ScorecardView({ jobId }: { readonly jobId?: number | undefined }
           </RouteLink>
         </p>
       )}
-      <JobStartDialog kind="scorecard" open={starting} onOpenChange={setStarting} />
       {error !== null && <FailureText code={error.code} detail={error.detail} />}
       {loading && data === null && (
-        <Card className="desk-panel">
+        <Card className="dk-card">
           <LoadingLines label={t("desk.scorecard.loading")} lines={4} />
         </Card>
       )}
-      {data?.state === "missing" && <p className="desk-empty">{ledgerHint(t, data.ledgerPath)}</p>}
+      {data?.state === "missing" && <p className="dk-empty">{ledgerHint(t, data.ledgerPath)}</p>}
       {data?.state === "invalid" && (
-        <div className="desk-failure" role="alert">
+        <div className="dk-banner dk-banner-danger dk-stack" role="alert">
           <p>{t("desk.scorecard.invalid", { path: data.ledgerPath })}</p>
           <p>{data.detail}</p>
         </div>
       )}
       {data?.state === "ready" &&
         (data.runs.length === 0 ? (
-          <p className="desk-empty">{t("desk.scorecard.noRuns")}</p>
+          <p className="dk-empty">{t("desk.scorecard.noRuns")}</p>
         ) : (
           <Report data={data} />
         ))}

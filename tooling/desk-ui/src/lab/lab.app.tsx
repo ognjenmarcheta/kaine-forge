@@ -6,6 +6,7 @@ import { LabGallery } from "./lab.gallery";
 import type { LabCatalog, LabScreen } from "./lab.registry";
 import { ScreensIndex } from "./lab.screens";
 import { SpecimenView, SpecimensIndex } from "./lab.specimens";
+import { TokensPage } from "./lab.tokens";
 
 function useHashRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.slice(1) || "/");
@@ -59,6 +60,16 @@ export function LabApp({ catalog }: { catalog: LabCatalog }) {
   const specimen = catalog.specimens.find((entry) => entry.id === id);
 
   if (view === "charts") return <ChartsPage catalog={catalog} />;
+  if (view === "tokens") return <TokensPage />;
+  // Compare without a screen opens the first one that has a reference.
+  const first = catalog.screens[0];
+  if (view === "compare" && !id) {
+    return first === undefined ? (
+      <ScreensIndex catalog={catalog} />
+    ) : (
+      <CompareView key={route} catalog={catalog} screen={first} view="" />
+    );
+  }
   if (view === "options") return <LabGallery catalog={catalog} page="options" />;
   if (view === "screens" && !id) return <ScreensIndex catalog={catalog} />;
   if (view === "specimens" && !id) return <SpecimensIndex catalog={catalog} />;

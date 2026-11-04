@@ -15,6 +15,7 @@ describe("desk config contract", () => {
       maxConcurrentAgents: 2,
       providers: { intake: "claude", planner: "claude", builder: "claude", reviewer: "codex" },
       models: {},
+      allowCodexBuilder: false,
       isolation: "host",
       docker: {
         agent: { memory: "6g", cpus: 4, pidsLimit: 1024 },

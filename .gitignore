@@ -23,8 +23,8 @@ apps/mobile/.expo-shared/
 apps/e2e/playwright-report/
 apps/e2e/test-results/
 
-# AI assistant local/personal state
-.ai.local/
+# AI assistant local/personal state. `/*` (not `/`) lets .worktreeinclude pick single entries.
+.ai.local/*
 .agents/
 .claude/settings.local.json
 .claude/hooks/

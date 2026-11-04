@@ -81,8 +81,8 @@ export const draftIssueFormat = async (
     fit: output.fit,
     unknowns: output.unknowns,
     plainLanguage: output.plainLanguage,
-    provider: deps.config.providers.intake,
-    model: deps.config.models.intake ?? null
+    provider: run.provider,
+    model: run.model ?? null
   } satisfies IssueDraft);
   await writeArtifactJson(context.artifactsDir, ISSUE_DRAFT_FILE, draft);
   await writeArtifactJson(

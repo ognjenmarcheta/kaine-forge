@@ -130,6 +130,23 @@ const assertAll = (what: string, values: readonly string[], pattern: RegExp): vo
   }
 };
 
+/**
+ * The `ai:install` command of an issue worktree. Setup runs it, and the engine runs it again after
+ * a change to the `.ai/` sources, so the tracked generated files follow and local installs stay.
+ */
+export const aiInstallArgv = (
+  input: Pick<BootstrapInput, "agents" | "skills" | "mcp">
+): string[] => {
+  const argv = ["pnpm", "ai:install"];
+  for (const agent of input.agents) argv.push("--agent", agent);
+  argv.push("--non-interactive");
+  if (input.skills.length > 0) argv.push("--skill", input.skills.join(","));
+  if (input.mcp.length > 0) argv.push("--mcp", input.mcp.join(","));
+  // REPL code runs arbitrary Python, past the role allowlists. Desk runs keep one tool per operation.
+  if (input.mcp.includes("serena")) argv.push("--serena-interface", "tools");
+  return argv;
+};
+
 export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
   const branch = branchName(input);
   const { base, worktreeDir } = input;
@@ -144,13 +161,7 @@ export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
   assertAll("skill", input.skills, SKILL_PATTERN);
   assertAll("MCP server", input.mcp, MCP_PATTERN);
 
-  const installArgv = ["pnpm", "ai:install"];
-  for (const agent of agents) installArgv.push("--agent", agent);
-  installArgv.push("--non-interactive");
-  if (input.skills.length > 0) installArgv.push("--skill", input.skills.join(","));
-  if (input.mcp.length > 0) installArgv.push("--mcp", input.mcp.join(","));
-  // REPL code runs arbitrary Python, past the role allowlists. Desk runs keep one tool per operation.
-  if (input.mcp.includes("serena")) installArgv.push("--serena-interface", "tools");
+  const installArgv = aiInstallArgv({ agents, skills: input.skills, mcp: input.mcp });
 
   const steps: BootstrapStep[] = [
     {

@@ -23,7 +23,12 @@ import {
   type FlowSnapshot
 } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
-import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
+import {
+  issueStateSchema,
+  issueStatusSchema,
+  loopCountersSchema,
+  needsYouCodeSchema
+} from "./issue-state.contract";
 import { jobStateSchema } from "./job.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 import { stepRoleOf, stepRoleSchema } from "./step-role.contract";
@@ -216,6 +221,8 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       prRoundLimit: z.number().int().positive(),
       /** The engine's reason while the issue is in `needs-you`. */
       needsYouReason: z.string().nullable(),
+      /** Why the issue stopped, while it is in `needs-you`. `null` otherwise or when unknown. */
+      needsYouCode: needsYouCodeSchema.nullable(),
       /** The stage that `continue` re-runs while the issue is in `needs-you`. */
       resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */
@@ -229,6 +236,11 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
         .nullable(),
       /** When the issue entered its current stage, from the history. `null` when unknown. */
       stageEnteredAt: timestampSchema.nullable(),
+      /**
+       * How long the engine worked, in milliseconds: the history without the time spent at a
+       * gate, with the PR open, or stopped. It leaves out the stage that runs now.
+       */
+      activeMs: z.number().nonnegative(),
       /** Status of every flow node, in flow order (the flow model's own result): the ticket and the steps. */
       progress: z.array(nodeStatusSchema).min(2),
       /** The flow node that holds the issue now, or `null`. */
@@ -403,6 +415,11 @@ export const issueDetailSchema = z
     buildRevision: z.string().nullable(),
     /** The owner's note at the plan approval, or `null`. */
     approveNote: z.string().nullable(),
+    /**
+     * While the issue is in `needs-you`: the commands the last run of the stage to retry tried and
+     * the desk refused, that the owner may allow. Empty otherwise. Each one is exact.
+     */
+    deniedCommands: z.array(z.string()),
     resume: sessionResumeSchema,
     /** The agent runs of this issue from `runs.jsonl`, oldest first. */
     runs: z.array(runRecordSchema)
@@ -539,12 +556,15 @@ export const ACTION_NAMES = [
   "pause",
   "resume",
   "steer",
-  "take-over"
+  "take-over",
+  "resolve-denial"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
 
 export const MAX_FEEDBACK_CHARS = 20_000;
+/** The longest command a `resolve-denial` request may carry. */
+export const MAX_COMMAND_CHARS = 2000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
   // Without `flowId` the config picks the flow: `flowLabels`, then `defaultFlow`.
@@ -610,7 +630,16 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     })
     .strict(),
   // Stop the agent that runs now so the owner works in its session (ADR 0022).
-  z.object({ action: z.literal("take-over") }).strict()
+  z.object({ action: z.literal("take-over") }).strict(),
+  // A command the desk refused to an agent. `allow` lets this issue run it and retries the stop.
+  // `skip` tells the agent to leave it out and goes on. The command must be one the desk refused.
+  z
+    .object({
+      action: z.literal("resolve-denial"),
+      command: z.string().trim().min(1).max(MAX_COMMAND_CHARS),
+      resolution: z.enum(["allow", "skip"])
+    })
+    .strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
@@ -729,7 +758,12 @@ export type LogResponse = z.infer<typeof logResponseSchema>;
  * Repairs the desk runs itself, each a fixed command in the engine. No agent decides what
  * runs, and nothing here needs a login or a secret.
  */
-export const HEALTH_FIXES = ["docker-build", "agent-labels", "workspace-builds"] as const;
+export const HEALTH_FIXES = [
+  "docker-build",
+  "agent-labels",
+  "workspace-builds",
+  "allow-codex-builder"
+] as const;
 export const healthFixSchema = z.enum(HEALTH_FIXES);
 export type HealthFix = z.infer<typeof healthFixSchema>;
 
@@ -851,7 +885,9 @@ export const SERVER_EVENT_TYPES = [
   "action-result",
   "log",
   "health",
-  "health-fix"
+  "health-fix",
+  "job-updated",
+  "job-removed"
 ] as const;
 
 export const serverEventSchema = z.discriminatedUnion("type", [

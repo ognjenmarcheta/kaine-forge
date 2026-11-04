@@ -164,6 +164,11 @@ Edit only canonical sources under `.ai/`, never generated agent outputs by hand.
 | Web Vite | 3000 (dev)        | E2e may use 3010               |
 | Storage  | 9000 / 9001       | RustFS S3 API + console        |
 
+A linked worktree can run its own dev servers. `pnpm worktree:env --web <port> --api <port>` sets
+`WEB_PORT` and `API_PORT` in that worktree's `.env` and moves every `localhost` URL with them. The
+worktrunk `pre-start` hook (`.config/wt.toml`) runs it with stable per-branch ports from 10000 to 19999. It refuses the primary checkout, which keeps 3000 and 4000. Worktrees still share Postgres
+and storage. `pnpm dev:desktop` uses port 3000 (`devUrl`), so run it in the primary checkout.
+
 ## Still stuck
 
 1. `pnpm ai:doctor` and `pnpm check` (narrow filters when possible).

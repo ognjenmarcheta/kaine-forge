@@ -13,7 +13,7 @@ The template originally stored passwords as unsalted SHA-256 digests, which is u
 
 Use salted scrypt from `node:crypto` with PHC-style cost parameters embedded in each stored hash:
 
-- Stored format: `scrypt$<N>$<r>$<p>$<salt-hex>$<hash-hex>` (defaults N=16384, r=8, p=1, 16-byte salt, 64-byte key).
+- Stored format: `scrypt$<N>$<r>$<p>$<salt-hex>$<hash-hex>` (defaults N=16384, r=8, p=5, 16-byte salt, 64-byte key).
 - Verification reads N/r/p from the stored value (bounded to reject hostile parameters), so hashes created under older cost settings keep verifying after a cost bump.
 - `needsPasswordRehash` flags legacy or old-cost hashes; `loginWithPassword` transparently rehashes them after successful verification (best-effort).
 - Key derivation is asynchronous (libuv threadpool) so logins do not block the event loop; unknown-email logins run a dummy verification against a static hash to keep timing constant-shaped.
@@ -33,4 +33,4 @@ Use salted scrypt from `node:crypto` with PHC-style cost parameters embedded in 
   - constant-time comparisons and bounded stored parameters resist timing and resource-exhaustion abuse
 - Cons:
   - scrypt cost parameters live in two places (auth constants and the seed recipe); a pointer comment plus a parity test guard the drift
-  - default N=16384 is below the OWASP ceiling; downstream projects with stricter requirements should raise it (the format makes this a constants change)
+  - default N=16384, r=8, p=5 meets the 16 MiB OWASP minimum; downstream projects with stricter requirements may raise it (the format makes this a constants change)

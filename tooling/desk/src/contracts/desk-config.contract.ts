@@ -166,8 +166,17 @@ export const deskConfigSchema = z
     /** PR feedback rounds from `pr-open` back to `build` before the engine asks the owner. */
     maxPrRounds: z.number().int().min(1).default(DEFAULT_LOOP_LIMITS.prRounds),
     maxConcurrentAgents: z.number().int().positive().default(2),
+    /**
+     * What each role asks for. The engine keeps it when that CLI runs, and otherwise moves the
+     * role to the best provider that does (`agents/provider.choose.ts`).
+     */
     providers: providersSchema.prefault({}),
     models: modelsSchema.prefault({}),
+    /**
+     * Lets Codex change code: a Codex builder, or a screen or component job. Off by default,
+     * because the Codex sandbox is coarser than a Claude allowlist (ADR 0011).
+     */
+    allowCodexBuilder: z.boolean().default(false),
     /** Runs at a gate, a stop, and the end of a run. See "Notifications" in the manual. */
     notifyCommand: commandLineSchema.optional(),
     isolation: isolationSchema.default("host"),

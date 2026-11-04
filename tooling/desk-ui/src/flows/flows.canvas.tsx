@@ -108,9 +108,7 @@ function StepCard({ data, selected }: NodeProps<StepNode>) {
         <span className="desk-flows-node__title">{title}</span>
       </div>
       <div className="desk-flows-node__kind">{kindName}</div>
-      {invalid && (
-        <TriangleAlert aria-hidden="true" className="desk-icon desk-flows-node__marker" />
-      )}
+      {invalid && <TriangleAlert aria-hidden="true" className="dk-ic desk-flows-node__marker" />}
     </div>
   );
 }
@@ -535,7 +533,7 @@ function StepPalette({
   const at = after < 0 ? draft.steps.length : after + 1;
   return (
     <div className="desk-flows-palette" role="group" aria-labelledby="desk-flows-palette-title">
-      <p id="desk-flows-palette-title" className="desk-muted">
+      <p id="desk-flows-palette-title" className="dk-t-sub">
         {t("desk.flows.canvas.palette")}
       </p>
       <ul className="desk-flows-palette__list">

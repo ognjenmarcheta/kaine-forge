@@ -25,12 +25,32 @@ export type IssueStatus = z.infer<typeof issueStatusSchema>;
 const timestampSchema = z.iso.datetime({ offset: true });
 
 /** `stage`: the step id or engine state the issue was at. */
+/**
+ * Why an issue stopped in `needs-you`: the machine's reasons, plus `intake` (the issue failed
+ * intake), `interrupted` (the desk stopped mid-stage), and `no-provider` (no agent CLI on the
+ * machine can run the step). The UI names a stop from it.
+ */
+export const NEEDS_YOU_CODES = [
+  "loop-limit",
+  "same-failure",
+  "blocked",
+  "error",
+  "pr-round-limit",
+  "intake",
+  "interrupted",
+  "no-provider"
+] as const;
+export const needsYouCodeSchema = z.enum(NEEDS_YOU_CODES);
+export type NeedsYouCode = z.infer<typeof needsYouCodeSchema>;
+
 export const historyEventSchema = z
   .object({
     at: timestampSchema,
     stage: stageIdSchema,
     event: z.string().min(1),
-    note: z.string().optional()
+    note: z.string().optional(),
+    /** On a `needs-you` event: why. Older events have none. */
+    code: needsYouCodeSchema.optional()
   })
   .strict();
 export type HistoryEvent = z.infer<typeof historyEventSchema>;
@@ -161,6 +181,11 @@ const sharedFields = {
    * plan's open questions. The builder reads it. A reader treats a missing field like `null`.
    */
   approveNote: z.string().min(1).nullable().optional(),
+  /**
+   * Commands the owner allowed after the desk refused them to an agent, each one exact. The agent
+   * runs of this issue may run them. A reader treats a missing field like an empty list.
+   */
+  approvedCommands: z.array(z.string().min(1)).optional(),
   /**
    * The owner asked to hold the issue. The running stage ends, and the engine starts no next
    * stage until `resume`. A reader treats a missing field like `false`.

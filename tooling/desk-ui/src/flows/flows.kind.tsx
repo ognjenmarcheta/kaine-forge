@@ -3,7 +3,7 @@ import { Bot, Clock, GitBranch, GitPullRequest, Terminal, User } from "@repo/ui"
 
 /** A step kind as an icon, or setup. Decorative: the kind is also written out. */
 export function KindIcon({ kind }: { readonly kind: StepKind | "setup" }) {
-  const props = { "aria-hidden": true, className: "desk-icon" } as const;
+  const props = { "aria-hidden": true, className: "dk-ic" } as const;
   switch (kind) {
     case "setup":
       return <GitBranch {...props} />;

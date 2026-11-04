@@ -335,7 +335,12 @@ function AlignPanel({
             {snippet}
           </code>
           <CopyButton copiedLabel="Copied" label="Copy line" value={snippet} />
-          <Button appearance="subtle" spacing="compact" onClick={() => onChange(undefined)}>
+          <Button
+            type="button"
+            appearance="subtle"
+            spacing="compact"
+            onClick={() => onChange(undefined)}
+          >
             Reset
           </Button>
         </div>
@@ -475,7 +480,12 @@ export function CompareView({
             <figure className="m-0 grid gap-ds-100">
               <figcaption className="flex items-center justify-between text-heading-xs">
                 Reference
-                <Button appearance="subtle" spacing="compact" onClick={() => setEnlarged(true)}>
+                <Button
+                  type="button"
+                  appearance="subtle"
+                  spacing="compact"
+                  onClick={() => setEnlarged(true)}
+                >
                   <Maximize2 aria-hidden className="size-ds-200" />
                   Enlarge
                 </Button>

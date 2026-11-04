@@ -17,9 +17,11 @@ export function CheckView({ report }: { readonly report: CheckReportView }) {
         <Badge appearance={appearanceOf(passTone(report.passed))}>
           {t(report.passed ? "desk.check.passed" : "desk.check.failed")}
         </Badge>{" "}
-        <span className="desk-muted">{t(`desk.check.kind.${report.kind}`)}</span>
+        <span className="dk-t-sub">{t(`desk.check.kind.${report.kind}`)}</span>
       </p>
-      {report.generatedDrift && <p className="desk-warning">{t("desk.check.drift")}</p>}
+      {report.generatedDrift && (
+        <p className="dk-banner dk-banner-warning">{t("desk.check.drift")}</p>
+      )}
       <Section title={t("desk.check.steps")}>
         {report.steps.length === 0 ? (
           <Muted>{t("desk.common.none")}</Muted>
@@ -36,7 +38,7 @@ export function CheckView({ report }: { readonly report: CheckReportView }) {
                         ? t("desk.check.timedOut")
                         : t("desk.check.exit", { code: step.code ?? "-" })}
                     </Badge>{" "}
-                    <span className="desk-muted">{formatDuration(step.durationMs, language)}</span>
+                    <span className="dk-t-sub">{formatDuration(step.durationMs, language)}</span>
                   </p>
                   {step.tail.trim() !== "" && (
                     <details open={!ok}>

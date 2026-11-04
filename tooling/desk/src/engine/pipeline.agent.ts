@@ -8,10 +8,12 @@ import { agentRunLessons, recordLessons } from "./pipeline.lessons";
 import type {
   AgentStep,
   AgentStepHandler,
+  PipelineDeps,
   StageContext,
   StageOutcome,
   StatePatch
 } from "./pipeline.types";
+import { aiInstallArgv, installsForAgents } from "./worktree.bootstrap";
 import {
   describeFailure,
   type AgentEvent,
@@ -26,8 +28,10 @@ import { forbiddenCommandReason, verifyAgentRun, type Violation } from "../agent
 import { builtinCapabilities, loadCapabilities } from "../agents/capabilities.load";
 import { toAgentPermissions } from "../agents/capabilities.resolve";
 import { EDIT_TOOLS, buildRunSettings, parseReceipts, type Receipt } from "../agents/permissions";
+import { chooseProvider, type ProviderChoice } from "../agents/provider.choose";
 import { composeRolePrompt, deskPromptFiles } from "../agents/roles";
 import {
+  PROVIDERS,
   agentOutputJsonSchema,
   planRiskSchema,
   type AgentDefinition,
@@ -37,6 +41,7 @@ import {
   type CapabilityProfile,
   type DeskConfig,
   type HarnessFingerprint,
+  type IssueState,
   type LoopCounters,
   type PendingFeedback,
   type PlanRisk,
@@ -52,7 +57,10 @@ import {
   type RefViolation
 } from "../git";
 import { isolationOf, selectIsolation } from "../isolation/isolation.select";
+import { generatedAiOutputs } from "../policy/ai-outputs";
+import { touchesAiSetup } from "../policy/protected-paths";
 import { boundedTail } from "../process/process.output";
+import { readInstalledCapabilities } from "../registry/registry.snapshot";
 import { recordRefsBaseline } from "../ship/ship.refs";
 import { appendRunRecord } from "../stats/stats.runs";
 import { defaultProcessStart } from "../store/store.lease";
@@ -127,6 +135,43 @@ const agentRuntime = (
     : { provider: agent.provider, model: agent.model };
 
 /**
+ * The provider a run uses now: the one `agentRuntime` asks for when its CLI runs, else the best
+ * other one for the role. A reviewer avoids the builder's provider when it has a choice.
+ */
+const chooseRun = async (
+  deps: PipelineDeps,
+  role: AgentStageRole,
+  agent: AgentDefinition | undefined,
+  writes: boolean
+): Promise<ProviderChoice> => {
+  const usable = (await deps.providers?.usable()) ?? new Set(PROVIDERS);
+  const allowCodexBuilder = deps.providers?.allowCodexBuilder() ?? deps.config.allowCodexBuilder;
+  const asked = agentRuntime(deps.config, role, agent);
+  const builder =
+    role === "reviewer"
+      ? chooseProvider({
+          role: "builder",
+          name: "builder",
+          preferred: deps.config.providers.builder,
+          model: deps.config.models.builder,
+          usable,
+          writes: true,
+          allowCodexBuilder
+        })
+      : null;
+  return chooseProvider({
+    role,
+    name: agent?.id ?? role,
+    preferred: asked.provider,
+    model: asked.model,
+    usable,
+    writes,
+    allowCodexBuilder,
+    builderProvider: builder?.ok === true ? builder.provider : undefined
+  });
+};
+
+/**
  * How a flow agent runs, by what it produces. Only a change agent may change the worktree. A
  * plan or change agent resumes its earlier session, so a revision keeps its context; a review or
  * report agent starts fresh, so it judges the work without its own earlier reading.
@@ -147,6 +192,58 @@ export const agentProfileOf = (config: DeskConfig, agent: AgentDefinition): Agen
     resumes: agent.output === "plan" || agent.output === "change",
     ...agentRuntime(config, role, agent)
   };
+};
+
+/**
+ * The agents, skills and servers an issue worktree installs: every agent of the issue's flow gets
+ * its provider, servers and skills, and each installed CLI gets its files too, because a role moves
+ * to one when the CLI it asks for is missing. A Docker run loads no server.
+ */
+export const worktreeInstalls = async (
+  deps: PipelineDeps,
+  state: IssueState
+): Promise<{
+  readonly agents: readonly Provider[];
+  readonly skills: readonly string[];
+  readonly mcp: readonly string[];
+}> => {
+  const flowAgents = state.flowSnapshot.agents;
+  const agents = [
+    ...new Set<Provider>([
+      ...Object.values(deps.config.providers),
+      ...flowAgents.map((agent) => agentProfileOf(deps.config, agent).provider),
+      ...((await deps.providers?.usable()) ?? [])
+    ])
+  ];
+  const installs = installsForAgents(
+    flowAgents,
+    await readInstalledCapabilities(deps.location.repoRoot)
+  );
+  return { agents, skills: installs.skills, mcp: installs.mcp };
+};
+
+/** How long the engine waits for `pnpm ai:install` in an issue worktree. */
+const AI_INSTALL_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * Runs the worktree's `ai:install` after a change to `.ai/`, so the tracked files it writes follow
+ * their sources. It also overwrites any edit an agent made to them by hand.
+ */
+const regenerateAiOutputs = async (
+  context: StageContext,
+  worktree: string,
+  changed: readonly string[]
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }> => {
+  const { deps } = context;
+  const argv = aiInstallArgv(await worktreeInstalls(deps, context.state()));
+  const result = await deps.exec({ argv, cwd: worktree, timeoutMs: AI_INSTALL_TIMEOUT_MS });
+  if (result.code !== 0) {
+    return {
+      ok: false,
+      reason: `The change edits ${changed.filter((file) => file.startsWith(".ai/")).join(", ") || ".ai/"}, and ${argv.join(" ")} failed:\n${boundedTail(`${result.stdout}\n${result.stderr}`, 20, 2000)}`
+    };
+  }
+  return { ok: true };
 };
 
 /** Larger tickets are read from the artifact file. Inline text stays well under the prompt limit. */
@@ -186,6 +283,9 @@ export type AgentStageResult<T> =
       readonly result: AgentRunResult<T>;
       /** The worktree diff against the base after the run. */
       readonly diff: DiffResult;
+      /** What the run used, which differs from the config when that CLI did not run. */
+      readonly provider: Provider;
+      readonly model: string | undefined;
     }
   | {
       readonly ok: false;
@@ -194,6 +294,8 @@ export type AgentStageResult<T> =
       readonly aborted: boolean;
       /** The owner took the session over. `null`: the agent stopped before it had a session. */
       readonly takenOver?: { readonly sessionId: string | null } | undefined;
+      /** No agent CLI can run the step. */
+      readonly noProvider?: true;
     };
 
 const message = (error: unknown): string =>
@@ -230,6 +332,7 @@ const bulletList = (items: readonly string[]): string =>
 interface ObservedRun {
   readonly outcome: AgentRunOutcome<unknown>;
   readonly provider: Provider;
+  readonly model: string | undefined;
   /** What the run got: the resolved capabilities it started with. */
   readonly capabilities: CapabilityProfile;
   readonly harness: HarnessFingerprint | null;
@@ -312,7 +415,11 @@ export const agentStep =
             reason: run.reason,
             patch: { sessions: { ...state.sessions, [agent.id]: taken } }
           }
-        : { kind: "needs-you", reason: run.reason };
+        : {
+            kind: "needs-you",
+            reason: run.reason,
+            ...(run.noProvider === true ? { code: "no-provider" as const } : {})
+          };
     }
     const outcome = await spec.finish(context, step, agent, run);
     if (outcome.kind === "aborted") return outcome;
@@ -329,10 +436,33 @@ export const agentStep =
     return { ...outcome, patch };
   };
 
+/** The CLI of a run that could not start because it is not installed, else `null`. */
+const missingCli = (run: ObservedRun | null): Provider | null =>
+  run !== null &&
+  !run.outcome.ok &&
+  run.outcome.failure.kind === "process-error" &&
+  run.outcome.failure.message.includes("ENOENT")
+    ? run.provider
+    : null;
+
 export const runAgentStage = async <T>(
   context: StageContext,
   input: AgentStageInput<T>
 ): Promise<AgentStageResult<T>> => {
+  const first = await runAgentStageObserved(context, input);
+  const missing = missingCli(first.run);
+  const { providers } = context.deps;
+  if (first.result.ok || missing === null || providers === undefined) return first.result;
+  // The probe saw the CLI, but the spawn did not find it: choose once more without it.
+  providers.forget(missing);
+  context.log(`${missing} did not start. The desk chooses another provider.`);
+  return (await runAgentStageObserved(context, input)).result;
+};
+
+const runAgentStageObserved = async <T>(
+  context: StageContext,
+  input: AgentStageInput<T>
+): Promise<{ readonly result: AgentStageResult<T>; readonly run: ObservedRun | null }> => {
   const observed: Observed = { run: null, violations: [], invariants: [] };
   const result = await runAgentStageOnce(context, input, observed);
   const { run } = observed;
@@ -352,7 +482,7 @@ export const runAgentStage = async <T>(
       run.harness?.repo ?? null
     );
   }
-  return result;
+  return { result, run };
 };
 
 const runAgentStageOnce = async <T>(
@@ -377,7 +507,13 @@ const runAgentStageOnce = async <T>(
     return stop(`The ${name} cannot run: setup has not recorded a worktree and a base commit.`);
   }
 
-  const { provider, model } = agentRuntime(deps.config, role, agent);
+  const choice = await chooseRun(deps, role, agent, !input.readOnly);
+  if (!choice.ok) return { ok: false, reason: choice.reason, aborted: false, noProvider: true };
+  const { provider, model } = choice;
+  if (choice.note !== null) {
+    context.log(choice.note);
+    await context.record(state.stage, "provider-moved", choice.note);
+  }
   const isolation = selectIsolation(deps, state);
   if (!isolation.ok) return stop(isolation.reason);
 
@@ -419,7 +555,8 @@ const runAgentStageOnce = async <T>(
       model: model ?? null,
       checkout: worktree,
       isolation: isolationOf(deps.config, state),
-      workspaces: input.workspaces
+      workspaces: input.workspaces,
+      approvedCommands: state.approvedCommands
     });
     const { skills } = capabilities;
     const ticket = (await readArtifactText(context.artifactsDir, ARTIFACTS.ticket)) ?? "";
@@ -462,7 +599,8 @@ const runAgentStageOnce = async <T>(
       ),
       parse: input.schema,
       cwd: worktree,
-      resumeSessionId: input.resumeSessionId,
+      // A session of one provider means nothing to another.
+      resumeSessionId: choice.note === null ? input.resumeSessionId : undefined,
       permissions,
       settingsPath,
       // An agent that gets no MCP server loads none.
@@ -476,8 +614,7 @@ const runAgentStageOnce = async <T>(
           : agent.timeoutMinutes * 60_000),
       skills,
       skillMode: "invoke",
-      // The config has no Codex builder opt-in yet, so a Codex builder is refused.
-      allowCodexBuilder: false,
+      allowCodexBuilder: deps.providers?.allowCodexBuilder() ?? deps.config.allowCodexBuilder,
       signal: AbortSignal.any([signal, stuckStop.signal]),
       onSpawn: (pid) => {
         // Written while the run goes on, so recovery can stop a process that outlives a crash.
@@ -577,6 +714,7 @@ const runAgentStageOnce = async <T>(
   observed.run = {
     outcome,
     provider,
+    model,
     capabilities,
     harness,
     loops: state.loops,
@@ -648,11 +786,30 @@ const runAgentStageOnce = async <T>(
   }
   if (diffAfter === null) return stop(`Cannot inspect the worktree after the ${name} run.`);
 
-  // 5. Skill evidence, permission denials, forbidden commands, scope.
+  // 5. A change to `.ai/`: the engine regenerates the tracked files of `ai:install`, which no agent
+  // may write or run. They are then generator output, so the scope and protected-path checks skip them.
+  let generated = new Set<string>();
+  if (!input.readOnly && changedPaths(diffAfter).some(touchesAiSetup)) {
+    const regenerated = await regenerateAiOutputs(context, worktree, changedPaths(diffAfter));
+    if (!regenerated.ok) return stop(regenerated.reason);
+    try {
+      diffAfter = await deps.git.diffAgainstBase(worktree, baseSha);
+    } catch (error) {
+      return stop(`Cannot inspect the worktree after ai:install: ${message(error)}`);
+    }
+    generated = await generatedAiOutputs(worktree, changedPaths(diffAfter));
+    if (generated.size > 0) {
+      await context.record(state.stage, "ai-regenerated", [...generated].join(", "));
+    }
+  }
+
+  // 6. Skill evidence, permission denials, forbidden commands, scope.
   const verdict = verifyAgentRun({
     request,
     result: outcome.result,
-    changedFiles: input.readOnly ? undefined : changedPaths(diffAfter),
+    changedFiles: input.readOnly
+      ? undefined
+      : changedPaths(diffAfter).filter((file) => !generated.has(file)),
     plan: input.readOnly ? undefined : input.plan,
     receipts: await readReceipts(receiptsPath)
   });
@@ -681,14 +838,15 @@ const runAgentStageOnce = async <T>(
     );
   }
 
-  // 6. The refs as this stage leaves them. `ship` compares the worktree with them.
-  if (input.checkout !== undefined) return { ok: true, result: outcome.result, diff: diffAfter };
+  // 7. The refs as this stage leaves them. `ship` compares the worktree with them.
+  if (input.checkout !== undefined)
+    return { ok: true, result: outcome.result, diff: diffAfter, provider, model };
   try {
     await recordRefsBaseline(deps.git, worktree, context.artifactsDir);
   } catch (error) {
     return stop(`Cannot record the refs baseline after the ${name} run: ${message(error)}`);
   }
-  return { ok: true, result: outcome.result, diff: diffAfter };
+  return { ok: true, result: outcome.result, diff: diffAfter, provider, model };
 };
 
 /**
@@ -780,7 +938,7 @@ const recordRun = async <T>(
     role,
     ...(agent === undefined ? {} : { agentId: agent.id }),
     provider: run.provider,
-    model: agentRuntime(deps.config, role, agent).model ?? null,
+    model: run.model ?? null,
     isolation: isolationOf(deps.config, context.state()),
     loops: run.loops,
     durationMs: run.durationMs,

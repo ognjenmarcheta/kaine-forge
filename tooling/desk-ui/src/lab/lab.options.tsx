@@ -273,7 +273,9 @@ function ButtonOptions() {
     <Section title="Button">
       <Demo option='appearance="outline"'>
         <div className="flex flex-wrap gap-ds-100 rounded-card bg-ds-surface-sunken p-ds-200">
-          <Button appearance="outline">Export</Button>
+          <Button type="button" appearance="outline">
+            Export
+          </Button>
         </div>
       </Demo>
     </Section>
@@ -388,7 +390,12 @@ function CardOptions() {
               <CardTitle>Open tickets</CardTitle>
               <CardDescription>Waiting for a reply</CardDescription>
               <CardAction wrap={false}>
-                <Button appearance="ghost" aria-label="Open tickets options" spacing="icon">
+                <Button
+                  type="button"
+                  appearance="ghost"
+                  aria-label="Open tickets options"
+                  spacing="icon"
+                >
                   <Ellipsis aria-hidden />
                 </Button>
               </CardAction>
@@ -485,7 +492,7 @@ function StatCardOptions() {
         <Demo option='iconPlacement="top", action'>
           <StatCard
             action={
-              <Button appearance="ghost" aria-label="Revenue options" spacing="icon">
+              <Button type="button" appearance="ghost" aria-label="Revenue options" spacing="icon">
                 <Ellipsis aria-hidden />
               </Button>
             }

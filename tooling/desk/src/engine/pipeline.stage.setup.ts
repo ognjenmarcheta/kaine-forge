@@ -1,14 +1,13 @@
 import { cp, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { CONVENTIONAL_TYPES, type ConventionalType, type Provider } from "../contracts";
+import { CONVENTIONAL_TYPES, type ConventionalType } from "../contracts";
 import { createWorktree } from "../worktree";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "./intake.run";
-import { agentProfileOf } from "./pipeline.agent";
+import { worktreeInstalls } from "./pipeline.agent";
 import { readArtifactJson } from "./pipeline.artifacts";
 import type { PipelineDeps, StageHandler } from "./pipeline.types";
-import { installsForAgents, slugify } from "./worktree.bootstrap";
-import { readInstalledCapabilities } from "../registry/registry.snapshot";
+import { slugify } from "./worktree.bootstrap";
 
 const BRANCH_PARTS = new RegExp(
   `^KAINE-\\d+-(${CONVENTIONAL_TYPES.join("|")})-([a-z0-9]+(?:-[a-z0-9]+)*)$`
@@ -87,18 +86,7 @@ export const setupStage: StageHandler = async (context) => {
   const worktreeDir = state.worktreePath ?? worktreeDirFor(deps, context.issue);
   // The base is fixed for the issue at its first setup. A later config change does not move it.
   const baseBranch = state.baseBranch ?? deps.config.baseBranch;
-  // Every agent of the issue's flow gets its provider, servers and skills. A Docker run loads no server.
-  const flowAgents = state.flowSnapshot.agents;
-  const agents = [
-    ...new Set<Provider>([
-      ...Object.values(deps.config.providers),
-      ...flowAgents.map((agent) => agentProfileOf(deps.config, agent).provider)
-    ])
-  ];
-  const installs = installsForAgents(
-    flowAgents,
-    await readInstalledCapabilities(deps.location.repoRoot)
-  );
+  const installs = await worktreeInstalls(deps, state);
 
   let created;
   try {
@@ -117,7 +105,7 @@ export const setupStage: StageHandler = async (context) => {
           slug,
           base: baseBranch,
           worktreeDir,
-          agents,
+          agents: installs.agents,
           skills: installs.skills,
           mcp: installs.mcp
         }

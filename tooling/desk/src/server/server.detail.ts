@@ -27,8 +27,9 @@ import {
 import { indexArtifacts, readArtifact } from "./server.artifacts";
 import { ISSUE_SUMMARY_FILE, issueSummarySchema } from "../engine/intake.run";
 import { ARTIFACTS, readArtifactJson, readPlan } from "../engine/pipeline.artifacts";
+import { deniedCommands } from "../engine/pipeline.denials";
 import { reviewArtifactSchema, type ReviewArtifact } from "../engine/pipeline.stage.review";
-import { needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
+import { activeMs, needsYouCode, needsYouReason, stageEnteredAt } from "../engine/pipeline.state";
 import type { Clock } from "../ports";
 import type { RunRecords } from "../stats/stats.runs";
 import type { IssueReadResult, IssueStore } from "../store/store.issue";
@@ -173,6 +174,7 @@ export const summarizeResult = async (
         ? prWait.maxRounds
         : (deps.prRoundLimit ?? DEFAULT_LOOP_LIMITS.prRounds),
     needsYouReason: needsYouReason(state),
+    needsYouCode: needsYouCode(state),
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
     mergedAt:
@@ -181,6 +183,7 @@ export const summarizeResult = async (
       null,
     contract: contract === null ? null : { found: contract.found, total: contract.total },
     stageEnteredAt: stageEnteredAt(state),
+    activeMs: activeMs(state),
     progress: flow.nodes.map((node) => node.status),
     currentNode: flow.current,
     busy,
@@ -376,6 +379,7 @@ export const buildIssueDetail = async (
           : { risk: plan.risk, riskReasons: plan.riskReasons, revision: plan.revision },
       buildRevision: build?.status === "ok" ? build.value.revision : null,
       approveNote: state.approveNote ?? null,
+      deniedCommands: await deniedCommands(dir, state),
       resume,
       runs: runs.records.filter((record) => record.issue === issueNumber)
     }

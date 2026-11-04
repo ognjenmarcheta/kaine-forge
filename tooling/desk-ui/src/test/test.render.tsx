@@ -69,11 +69,15 @@ export const quietSource = (): EventSourceLike => ({
 });
 
 /** `ui` inside the providers the app gives it; the shell's tooltip provider among them. */
-export function renderDesk(ui: ReactElement, api: DeskApi = fakeApi()): RenderResult {
+export function renderDesk(
+  ui: ReactElement,
+  api: DeskApi = fakeApi(),
+  createSource: (url: string) => EventSourceLike = quietSource
+): RenderResult {
   return render(
     <LanguageProvider>
       <RouterProvider>
-        <DeskProvider api={api} createSource={quietSource}>
+        <DeskProvider api={api} createSource={createSource}>
           <TooltipProvider>{ui}</TooltipProvider>
         </DeskProvider>
       </RouterProvider>
@@ -123,11 +127,13 @@ export const makeSummary = (state: IssueState, busy = false): ReadableSummary =>
     prRound: state.prRounds ?? 0,
     prRoundLimit: 3,
     needsYouReason: null,
+    needsYouCode: null,
     resumeStage: state.resumeStage,
     prUrl: state.prUrl ?? null,
     mergedAt: state.mergedAt ?? null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: state.history.at(-1)?.at ?? null,
+    activeMs: 0,
     progress: flow.nodes.map((node) => node.status),
     currentNode: flow.current,
     busy,
@@ -173,6 +179,7 @@ export const makeDetail = (
       plan: null,
       buildRevision: null,
       approveNote: null,
+      deniedCommands: [],
       resume: { worktreePath: null, sessions: [] },
       runs: []
     }
