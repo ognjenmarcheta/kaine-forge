@@ -639,7 +639,7 @@ denied does not count. A success or a different call starts the count again.
 
 When an agent asks for a command that its allow list does not hold, the desk refuses it and keeps
 the command in `agent-<id>.json`. If the agent then stops in `needs-you` with a blocker that names the command, the issue card offers
-two buttons for that command: **Allow … and retry** (the exact command, for this issue only) and
+two buttons for that command: **Allow … and retry** (the exact command, for this issue only; the agent is told it is allowed) and
 **Skip it and continue**. The desk never offers a command that its deny rules refuse.
 
 A violation moves the issue to `needs-you` with every violation in the reason. The

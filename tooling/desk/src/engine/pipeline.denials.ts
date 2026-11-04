@@ -58,3 +58,12 @@ export const deniedCommands = async (
 export const skippedCommandNote = (command: string): string =>
   `The desk refused \`${command}\` and the owner chose to skip it. Do not run it and do not ask for it again. ` +
   "List it as not-run in claimedChecks, write in notes that the owner may run it, and finish the rest of the work.";
+
+/**
+ * What the agent reads when the owner allows a command the desk refused. It is new information for a
+ * resumed agent that remembers the refusals, so a new attempt is not a repeat. It is for the agent,
+ * so it is not translated.
+ */
+export const allowedCommandNote = (command: string): string =>
+  `The owner allowed \`${command}\` for this issue. It is allowed now. The earlier refusals no longer apply, ` +
+  "so run it exactly as written, and a new attempt is not a repeat of a failed one. Then go on with the work.";

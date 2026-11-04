@@ -107,18 +107,28 @@ describe("a stop caused by a refused command", () => {
     expect(await deniedCommands(e.store.artifactsDir(ISSUE), await stateOf(e))).toEqual([]);
   });
 
-  it("allow keeps the exact command, retries the stage, and runs it with that one rule", async () => {
+  it("allow keeps the exact command, tells the resumed agent it is allowed, and runs it with that one rule", async () => {
     const e = await open({ steps: [planStep(), blockedBuild(), goodBuild(), reviewStep()] });
     await stoppedByDenial(e);
+    const blocked = await stateOf(e);
 
     const result = await e.pipeline.resolveDenial(ISSUE, COMMAND, "allow");
 
     expect(result).toMatchObject({ outcome: "stopped", stop: "gate" });
-    expect(await stateOf(e)).toMatchObject({ approvedCommands: [COMMAND] });
+    const state = await stateOf(e);
+    expect(state).toMatchObject({ approvedCommands: [COMMAND] });
     const builders = e.runner.requests.filter((request) => request.role === "builder");
     expect(builders[0]?.permissions.allow).not.toContain(`Bash(${COMMAND})`);
     expect(builders[1]?.permissions.allow).toContain(`Bash(${COMMAND})`);
     expect(builders[1]?.permissions.allow).not.toContain(`Bash(${COMMAND}:*)`);
+    // The agent resumes its old session, which holds the refusals. A plain retry gave it nothing
+    // new, and it stopped without trying. The prompt must say that the command is allowed now.
+    expect(builders[1]?.resumeSessionId).toBe(blocked.sessions.builder);
+    expect(builders[1]?.prompt).toContain(`The owner allowed \`${COMMAND}\``);
+    expect(builders[1]?.prompt).toContain("not a repeat");
+    expect(state.history.some((entry) => entry.note === `to build: allowed '${COMMAND}'`)).toBe(
+      true
+    );
   });
 
   it("skip sends the agent a note to leave the command out, and allows nothing", async () => {
