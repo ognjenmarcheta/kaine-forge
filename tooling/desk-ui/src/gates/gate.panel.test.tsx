@@ -356,6 +356,49 @@ describe("GatePanel at PR review", () => {
     });
   });
 
+  it("sends queued comments to the step chosen in the form, not always to the builder", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF, detail: { review: REVIEW } });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Review again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "review",
+      text: "Line comments:\n- src/a.ts:1: The name is not kept. Apply this fix: Keep the old name."
+    });
+  });
+
+  it("keeps a fix applied while a send back runs, and drops only what was sent", async () => {
+    let finish: (settled: ActionSettled) => void = () => undefined;
+    const actions = actionsOf({
+      run: vi.fn<IssueActions["run"]>(() => new Promise((resolve) => (finish = resolve)))
+    });
+    const second: NonNullable<IssueDetail["review"]>["findings"][number] = {
+      severity: "Consider",
+      blocking: false,
+      file: "src/a.ts",
+      line: 1,
+      section: "Quality Gates",
+      summary: "The label is missing.",
+      fix: "Add a label."
+    };
+    show({ stage: "pr-review" }, actions, {
+      diff: A_DIFF,
+      detail: { review: { ...REVIEW, findings: [...REVIEW.findings, second] } }
+    });
+    const [first] = await screen.findAllByRole("button", { name: "Apply fix" });
+    if (first === undefined) throw new Error("no Apply fix button");
+    await userEvent.click(first);
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    // The send is out; the owner applies the second fix before it settles.
+    await userEvent.click(screen.getByRole("button", { name: "Apply fix" }));
+    await act(async () => finish(DONE));
+    expect(await screen.findByText("Comments not sent yet: 1.")).toBeTruthy();
+  });
+
   it("warns on Ship that comments are not sent, and sends back instead on request", async () => {
     const actions = actionsOf();
     show({ stage: "pr-review" }, actions, {

@@ -64,7 +64,10 @@ export function FeedbackForm({
   const [ownText, setOwnText] = useState("");
   const text = controlledText ?? ownText;
   const setText = onText ?? setOwnText;
-  const empty = text.trim() === "" && !fromPr && comments.length === 0;
+  // A gate with no send-back step has no target; the server would refuse an empty one. A PR
+  // feedback round needs none.
+  const empty =
+    (text.trim() === "" && !fromPr && comments.length === 0) || (!fromPr && target === "");
   useEffect(() => {
     document.getElementById(`${id}-text`)?.focus();
   }, [id]);

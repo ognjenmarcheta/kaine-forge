@@ -177,18 +177,24 @@ export function ReviewGate({
           onSend={async (to, text) => {
             // The line comments go with the note, so nothing written on the diff is lost.
             const full = [text.trim(), linesText].filter((part) => part !== "").join("\n\n");
+            // Only these notes went out; one added while the send ran stays for the next one.
+            const sentNotes = lines.notes;
             const sent = await send({ action: "feedback", to, text: full });
             if (sent) {
               setFeedbackOpen(false);
               setFeedbackText("");
-              lines.clear();
+              lines.clear(sentNotes);
             }
             return sent;
           }}
         />
       )}
       {lines.notes.length > 0 && !feedbackOpen && (
-        <PendingStrip count={lines.notes.length} onReview={() => setFeedbackOpen(true)} />
+        <PendingStrip
+          count={lines.notes.length}
+          disabled={targets.length === 0}
+          onReview={() => setFeedbackOpen(true)}
+        />
       )}
       <DecideBar
         labelledBy={titleId}
@@ -229,7 +235,7 @@ export function ReviewGate({
         <Button
           type="button"
           appearance="outline"
-          disabled={actions.busy}
+          disabled={actions.busy || targets.length === 0}
           aria-expanded={feedbackOpen}
           onClick={() => setFeedbackOpen((open) => !open)}
         >

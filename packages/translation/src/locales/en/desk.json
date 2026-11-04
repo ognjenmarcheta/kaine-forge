@@ -1483,7 +1483,7 @@
   "desk.finding.undo": "Undo",
   "desk.finding.noteText": "{{summary}} Apply this fix: {{fix}}",
   "desk.feedback.comments": "Comments to send",
-  "desk.feedback.commentsIntro": "These comments go to the builder with your note.",
+  "desk.feedback.commentsIntro": "These comments go with your note to the step you choose.",
   "desk.feedback.sendWithComments": "Send back with comments ({{count}})",
   "desk.ship.unsent": "Comments are not sent.",
   "desk.ship.unsentText": "Comments not sent: {{count}}. Shipping does not send them. Send back first to give them to the builder.",

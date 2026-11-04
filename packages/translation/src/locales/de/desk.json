@@ -1483,7 +1483,7 @@
   "desk.finding.undo": "Rückgängig",
   "desk.finding.noteText": "{{summary}} Diese Korrektur anwenden: {{fix}}",
   "desk.feedback.comments": "Zu sendende Kommentare",
-  "desk.feedback.commentsIntro": "Diese Kommentare gehen mit Ihrer Notiz an den Builder.",
+  "desk.feedback.commentsIntro": "Diese Kommentare gehen mit Ihrer Notiz an den gewählten Schritt.",
   "desk.feedback.sendWithComments": "Mit Kommentaren zurückschicken ({{count}})",
   "desk.ship.unsent": "Kommentare sind nicht gesendet.",
   "desk.ship.unsentText": "Nicht gesendete Kommentare: {{count}}. Das Ausliefern sendet sie nicht. Schicken Sie zuerst zurück, damit der Builder sie bekommt.",

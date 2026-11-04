@@ -19,6 +19,8 @@ export interface LineNote {
   readonly path: string;
   readonly line: number;
   readonly text: string;
+  /** For a queued fix: a key that does not depend on the language, so a language change cannot queue it twice. */
+  readonly key?: string;
 }
 
 interface LineNotes {
@@ -35,7 +37,10 @@ interface LineNotes {
 const LineNotesContext = createContext<LineNotes | null>(null);
 
 /** The line notes of a review and the one being written. */
-export function useLineNotes(): LineNotes & { readonly clear: () => void } {
+export function useLineNotes(): LineNotes & {
+  /** Drop the notes that were sent, or all of them. A note added while a send ran stays. */
+  readonly clear: (sent?: readonly LineNote[]) => void;
+} {
   const [notes, setNotes] = useState<readonly LineNote[]>([]);
   const [draft, setDraft] = useState<LineNotes["draft"]>(null);
   return useMemo(
@@ -53,16 +58,18 @@ export function useLineNotes(): LineNotes & { readonly clear: () => void } {
         setNotes((was) =>
           was.some(
             (entry) =>
-              entry.path === note.path && entry.line === note.line && entry.text === note.text
+              entry.path === note.path &&
+              entry.line === note.line &&
+              (note.key === undefined ? entry.text === note.text : entry.key === note.key)
           )
             ? was
             : [...was, note]
         ),
       cancel: () => setDraft(null),
       remove: (note) => setNotes((was) => was.filter((entry) => entry !== note)),
-      clear: () => {
-        setNotes([]);
-        setDraft(null);
+      clear: (sent) => {
+        setNotes((was) => (sent === undefined ? [] : was.filter((entry) => !sent.includes(entry))));
+        if (sent === undefined) setDraft(null);
       }
     }),
     [notes, draft]
@@ -153,16 +160,15 @@ export function ApplyFix({ finding }: { readonly finding: FixableFinding }) {
   const notes = useContext(LineNotesContext);
   if (notes === null || finding.fix.trim() === "") return null;
   const text = t("desk.finding.noteText", { summary: finding.summary, fix: finding.fix });
-  const queued = notes.notes.find(
-    (note) => note.path === finding.file && note.line === finding.line && note.text === text
-  );
+  const key = JSON.stringify([finding.file, finding.line, finding.summary, finding.fix]);
+  const queued = notes.notes.find((note) => note.key === key);
   if (queued === undefined) {
     return (
       <Button
         type="button"
         appearance="outline"
         spacing="compact"
-        onClick={() => notes.add({ path: finding.file, line: finding.line, text })}
+        onClick={() => notes.add({ path: finding.file, line: finding.line, text, key })}
       >
         {t("desk.finding.apply")}
       </Button>
@@ -187,16 +193,24 @@ export function ApplyFix({ finding }: { readonly finding: FixableFinding }) {
 /** Above the decision bar while comments wait: how many, and the way to send them. */
 export function PendingStrip({
   count,
-  onReview
+  onReview,
+  disabled = false
 }: {
   readonly count: number;
   readonly onReview: () => void;
+  readonly disabled?: boolean;
 }) {
   const t = useT();
   return (
     <div className="dk-banner dk-banner-information" role="status">
       <span>{t("desk.lines.pending", { count })}</span>
-      <Button type="button" appearance="outline" spacing="compact" onClick={onReview}>
+      <Button
+        type="button"
+        appearance="outline"
+        spacing="compact"
+        disabled={disabled}
+        onClick={onReview}
+      >
         {t("desk.lines.review")}
       </Button>
     </div>
