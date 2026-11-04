@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use gpui_kit::component::ActiveTheme as _;
+use gpui_kit::component::{TitleBar, v_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::{AnyElement, Context, Entity, IntoElement, Subscription, Window, div};
 use rust_i18n::t;
@@ -67,6 +68,11 @@ impl Render for AppView {
             }
             _ => self.sign_in.clone().into_any_element(),
         };
-        div().size_full().child(content)
+        // The title bar moves the window and, under client decorations, carries
+        // the window controls; the content takes the rest.
+        v_flex()
+            .size_full()
+            .child(TitleBar::new().child(div().child(t!("common.appName").to_string())))
+            .child(div().flex_1().min_h_0().w_full().child(content))
     }
 }

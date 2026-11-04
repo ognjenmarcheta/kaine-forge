@@ -11,7 +11,8 @@ pub mod features;
 use std::sync::Arc;
 
 use gpui_kit::component as gpui_component;
-use gpui_kit::{App, AppContext, TitlebarOptions, WindowOptions};
+use gpui_kit::component::TitleBar;
+use gpui_kit::{App, AppContext, TitlebarOptions, WindowDecorations, WindowOptions};
 use rust_i18n::t;
 
 use crate::app::launch::LaunchOptions;
@@ -47,12 +48,17 @@ fn open_main_window(cx: &mut App) -> anyhow::Result<()> {
     let auth = Arc::new(AuthClient::new(cx.http_client(), api_url));
     let session = cx.new(|_| Session::new(auth, store));
     session.update(cx, Session::restore);
+    // The kit's TitleBar owns dragging and the window controls, and the kit's
+    // Root draws the resize border. Client decorations make that explicit on
+    // Linux, where GNOME offers no server-side frame and a window would
+    // otherwise have no way to move or resize.
     let options = WindowOptions {
         titlebar: Some(TitlebarOptions {
             title: Some(t!("common.appName").to_string().into()),
-            ..TitlebarOptions::default()
+            ..TitleBar::title_bar_options()
         }),
-        ..WindowOptions::default()
+        window_decorations: Some(WindowDecorations::Client),
+        ..TitleBar::window_options()
     };
     gpui_kit::open_window(options, cx, |window, cx| {
         cx.new(|cx| AppView::new(session.clone(), window, cx))
