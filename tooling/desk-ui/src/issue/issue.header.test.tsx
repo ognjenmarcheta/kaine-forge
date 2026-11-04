@@ -95,6 +95,23 @@ describe("IssueHeader menu", () => {
   });
 });
 
+describe("IssueHeader time", () => {
+  it("shows the active time beside the total once the issue ended", () => {
+    const { detail, summary } = makeDetail({ stage: "shipped", status: "done" });
+    renderDesk(
+      <IssueHeader
+        summary={{ ...summary, activeMs: 8 * 60_000 }}
+        detail={detail}
+        graphOpen={false}
+        onToggleGraph={vi.fn()}
+        actions={actionsOf()}
+        onRemoved={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/took .* · 8m active/)).toBeTruthy();
+  });
+});
+
 describe("IssueHeader terminal hand-off", () => {
   it("offers to open the agent session in a terminal while a builder runs, and asks first", async () => {
     const actions = actionsOf();

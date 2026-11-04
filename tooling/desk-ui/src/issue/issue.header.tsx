@@ -147,7 +147,14 @@ function WaitFact({ summary, now }: { readonly summary: ReadableSummary; readonl
   const mode = gateModeOf(summary);
   if (hasEnded(mode)) {
     const took = Date.parse(summary.updatedAt) - Date.parse(summary.createdAt);
-    return <span>{t("desk.issue.meta.took", { duration: formatElapsed(took, language) })}</span>;
+    return (
+      <span>
+        {t("desk.issue.meta.took", {
+          duration: formatElapsed(took, language),
+          active: formatElapsed(summary.activeMs, language)
+        })}
+      </span>
+    );
   }
   if (summary.stageEnteredAt === null) return <TimeInStage summary={summary} now={now} />;
   const duration = formatElapsed(now - Date.parse(summary.stageEnteredAt), language);

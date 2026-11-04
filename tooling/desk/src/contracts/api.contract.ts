@@ -236,6 +236,11 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
         .nullable(),
       /** When the issue entered its current stage, from the history. `null` when unknown. */
       stageEnteredAt: timestampSchema.nullable(),
+      /**
+       * How long the engine worked, in milliseconds: the history without the time spent at a
+       * gate, with the PR open, or stopped. It leaves out the stage that runs now.
+       */
+      activeMs: z.number().nonnegative(),
       /** Status of every flow node, in flow order (the flow model's own result): the ticket and the steps. */
       progress: z.array(nodeStatusSchema).min(2),
       /** The flow node that holds the issue now, or `null`. */

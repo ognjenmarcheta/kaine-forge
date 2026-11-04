@@ -200,6 +200,7 @@ describe("issue summary", () => {
     mergedAt: null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: "2026-03-01T10:00:00.000Z",
+    activeMs: 0,
     progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],
     currentNode: "build",
     busy: false,
