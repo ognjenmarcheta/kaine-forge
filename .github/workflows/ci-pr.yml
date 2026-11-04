@@ -202,17 +202,22 @@ jobs:
       # Conventional Commits and the no-ai-coauthor rule are otherwise enforced
       # only by the local commit-msg hook, which --no-verify and GitHub web-UI
       # commits bypass. The PR title matters because squash merges use it as the
-      # commit subject on main. Title and shas go through env, never inlined
-      # into the script (untrusted input).
+      # commit subject on main, with " (#<number>)" appended, so the title is
+      # linted bare (an empty subject must still fail) and with that suffix (a
+      # 94-character title made a 101-character subject that the release push
+      # rejected). Title and shas go through env, never inlined into the script
+      # (untrusted input).
       - name: Commitlint (PR title and commits)
         if: github.event_name == 'pull_request'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           printf '%s\n' "$PR_TITLE" | pnpm exec commitlint
+          printf '%s (#%s)\n' "$PR_TITLE" "$PR_NUMBER" | pnpm exec commitlint
           pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA"
 
       - name: Quality gates (affected packages)
