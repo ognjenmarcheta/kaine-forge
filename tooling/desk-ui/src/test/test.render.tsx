@@ -69,11 +69,15 @@ export const quietSource = (): EventSourceLike => ({
 });
 
 /** `ui` inside the providers the app gives it; the shell's tooltip provider among them. */
-export function renderDesk(ui: ReactElement, api: DeskApi = fakeApi()): RenderResult {
+export function renderDesk(
+  ui: ReactElement,
+  api: DeskApi = fakeApi(),
+  createSource: (url: string) => EventSourceLike = quietSource
+): RenderResult {
   return render(
     <LanguageProvider>
       <RouterProvider>
-        <DeskProvider api={api} createSource={quietSource}>
+        <DeskProvider api={api} createSource={createSource}>
           <TooltipProvider>{ui}</TooltipProvider>
         </DeskProvider>
       </RouterProvider>

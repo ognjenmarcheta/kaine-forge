@@ -868,7 +868,9 @@ export const SERVER_EVENT_TYPES = [
   "action-result",
   "log",
   "health",
-  "health-fix"
+  "health-fix",
+  "job-updated",
+  "job-removed"
 ] as const;
 
 export const serverEventSchema = z.discriminatedUnion("type", [

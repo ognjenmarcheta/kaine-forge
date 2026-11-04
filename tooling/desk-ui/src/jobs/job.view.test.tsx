@@ -1,8 +1,9 @@
 import type { JobState } from "@repo/desk/contracts";
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EventSourceLike } from "../api/api.stream";
 import { DeskApp } from "../desk.app";
 import { fakeApi, renderDesk } from "../test/test.render";
 
@@ -72,6 +73,37 @@ describe("JobView", () => {
       issues: ["adr-index-drift"],
       confirm: true
     });
+  });
+
+  it("shows a job change the server sends while the page is open", async () => {
+    window.history.replaceState(null, "", "?job=2");
+    const listeners = new Map<string, (event: MessageEvent<string>) => void>();
+    const source: EventSourceLike = {
+      onopen: null,
+      onerror: null,
+      addEventListener: (type, listener) => listeners.set(type, listener),
+      close: () => undefined
+    };
+    const running = job({ status: "running", stage: "score", result: null });
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([running]) }), () => source);
+    expect(await screen.findByRole("heading", { name: /Scorecard job 2/ })).toBeTruthy();
+    expect(screen.queryByText(/The job spent its budget/)).toBeNull();
+
+    const stopped = job({
+      status: "needs-you",
+      stage: "score",
+      stop: { reason: "budget", detail: "The scorer spent its $15 budget." },
+      result: null,
+      updatedAt: "2026-11-02T12:10:00.000Z"
+    });
+    act(() => {
+      listeners.get("job-updated")?.(
+        new MessageEvent("job-updated", {
+          data: JSON.stringify({ type: "job-updated", job: stopped })
+        })
+      );
+    });
+    expect(await screen.findByText(/The job spent its budget/)).toBeTruthy();
   });
 
   it("says why a stopped job stopped and continues it", async () => {
