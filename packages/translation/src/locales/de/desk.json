@@ -1476,6 +1476,17 @@
   "desk.lines.start": "Zeile {{line}} kommentieren",
   "desk.lines.mine": "Sie · für den Builder",
   "desk.lines.delete": "Löschen",
-  "desk.lines.send": "Zeilenkommentare an den Builder senden ({{count}})",
+  "desk.lines.pending": "Noch nicht gesendete Kommentare: {{count}}.",
+  "desk.lines.review": "Prüfen und zurückschicken",
+  "desk.finding.apply": "Korrektur anwenden",
+  "desk.finding.queued": "Für den Builder vorgemerkt",
+  "desk.finding.undo": "Rückgängig",
+  "desk.finding.noteText": "{{summary}} Diese Korrektur anwenden: {{fix}}",
+  "desk.feedback.comments": "Zu sendende Kommentare",
+  "desk.feedback.commentsIntro": "Diese Kommentare gehen mit Ihrer Notiz an den gewählten Schritt.",
+  "desk.feedback.sendWithComments": "Mit Kommentaren zurückschicken ({{count}})",
+  "desk.ship.unsent": "Kommentare sind nicht gesendet.",
+  "desk.ship.unsentText": "Nicht gesendete Kommentare: {{count}}. Das Ausliefern sendet sie nicht. Schicken Sie zuerst zurück, damit der Builder sie bekommt.",
+  "desk.ship.sendBackInstead": "Stattdessen zurückschicken",
   "desk.lab.intro": "Ein Entwicklerwerkzeug: die Komponentengalerie und der Bildschirmvergleich. Es nutzt Thema, Sprache und Einstellungen des Desks."
 }

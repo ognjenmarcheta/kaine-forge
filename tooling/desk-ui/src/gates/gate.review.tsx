@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
-import { LineNotesProvider, lineNotesText, useLineNotes } from "./gate.lines";
-import { builderStepOf, orderReviewFiles, sendBackTargets } from "./gate.model";
+import { LineNotesProvider, PendingStrip, lineNotesText, useLineNotes } from "./gate.lines";
+import { orderReviewFiles, sendBackTargets } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { useViewedFiles } from "./gate.viewed";
 import { DiffReview } from "../artifacts/artifact.diff";
@@ -77,16 +77,10 @@ export function ReviewGate({
   const [current, setCurrent] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<number | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
   const lines = useLineNotes();
   const linesText = lineNotesText(t, lines.notes);
   const targets = sendBackTargets(issueFlowOf(summary), summary.stage);
-  // Line comments are for the builder: the step that changes code, else the first target.
-  const change = builderStepOf(issueFlowOf(summary), null);
-  const builder = change !== null && targets.includes(change) ? change : (targets[0] ?? null);
-  const sendLines = async (): Promise<void> => {
-    if (builder === null || actions.busy) return;
-    if (await send({ action: "feedback", to: builder, text: linesText })) lines.clear();
-  };
   const unviewed = files.filter((entry) => !viewed.has(entry.file.path));
   const seen = files.length - unviewed.length;
   const allViewed = unviewed.length === 0;
@@ -102,8 +96,14 @@ export function ReviewGate({
     const next = after.find((entry) => !viewed.has(entry.file.path));
     if (next !== undefined) select(next.file.path);
   };
+  /** What the owner wrote and has not sent: the comments, and text typed in the open form. */
+  const unsent = lines.notes.length + (feedbackOpen && feedbackText.trim() !== "" ? 1 : 0);
   const openShip = (): void => {
-    if (!actions.busy) onShip(unviewed.map((entry) => entry.file.path));
+    if (actions.busy) return;
+    onShip(
+      unviewed.map((entry) => entry.file.path),
+      unsent === 0 ? null : { count: unsent, onSendBack: () => setFeedbackOpen(true) }
+    );
   };
   const markViewed = (path: string, on: boolean): void => {
     setViewed(path, on);
@@ -163,17 +163,37 @@ export function ReviewGate({
         <FeedbackForm
           targets={targets}
           busy={actions.busy}
-          onCancel={() => setFeedbackOpen(false)}
+          text={feedbackText}
+          onText={setFeedbackText}
+          comments={lines.notes.map((note) => ({
+            where: `${note.path}:${String(note.line)}`,
+            text: note.text,
+            onRemove: () => lines.remove(note)
+          }))}
+          onCancel={() => {
+            setFeedbackOpen(false);
+            setFeedbackText("");
+          }}
           onSend={async (to, text) => {
             // The line comments go with the note, so nothing written on the diff is lost.
             const full = [text.trim(), linesText].filter((part) => part !== "").join("\n\n");
+            // Only these notes went out; one added while the send ran stays for the next one.
+            const sentNotes = lines.notes;
             const sent = await send({ action: "feedback", to, text: full });
             if (sent) {
               setFeedbackOpen(false);
-              lines.clear();
+              setFeedbackText("");
+              lines.clear(sentNotes);
             }
             return sent;
           }}
+        />
+      )}
+      {lines.notes.length > 0 && !feedbackOpen && (
+        <PendingStrip
+          count={lines.notes.length}
+          disabled={targets.length === 0}
+          onReview={() => setFeedbackOpen(true)}
         />
       )}
       <DecideBar
@@ -212,26 +232,15 @@ export function ReviewGate({
             <Kbd shortcut="n" />
           </Button>
         )}
-        {lines.notes.length > 0 && !feedbackOpen ? (
-          <Button
-            type="button"
-            appearance="outline"
-            disabled={actions.busy || builder === null}
-            onClick={() => void sendLines()}
-          >
-            {t("desk.lines.send", { count: lines.notes.length })}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            appearance="outline"
-            disabled={actions.busy}
-            aria-expanded={feedbackOpen}
-            onClick={() => setFeedbackOpen((open) => !open)}
-          >
-            {t("desk.gate.requestChanges")}
-          </Button>
-        )}
+        <Button
+          type="button"
+          appearance="outline"
+          disabled={actions.busy || targets.length === 0}
+          aria-expanded={feedbackOpen}
+          onClick={() => setFeedbackOpen((open) => !open)}
+        >
+          {t("desk.gate.requestChanges")}
+        </Button>
       </DecideBar>
     </LineNotesProvider>
   );

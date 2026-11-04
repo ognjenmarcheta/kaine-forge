@@ -1476,6 +1476,17 @@
   "desk.lines.start": "Comment on line {{line}}",
   "desk.lines.mine": "You · for the builder",
   "desk.lines.delete": "Delete",
-  "desk.lines.send": "Send line comments to the builder ({{count}})",
+  "desk.lines.pending": "Comments not sent yet: {{count}}.",
+  "desk.lines.review": "Review and send back",
+  "desk.finding.apply": "Apply fix",
+  "desk.finding.queued": "Queued for the builder",
+  "desk.finding.undo": "Undo",
+  "desk.finding.noteText": "{{summary}} Apply this fix: {{fix}}",
+  "desk.feedback.comments": "Comments to send",
+  "desk.feedback.commentsIntro": "These comments go with your note to the step you choose.",
+  "desk.feedback.sendWithComments": "Send back with comments ({{count}})",
+  "desk.ship.unsent": "Comments are not sent.",
+  "desk.ship.unsentText": "Comments not sent: {{count}}. Shipping does not send them. Send back first to give them to the builder.",
+  "desk.ship.sendBackInstead": "Send back instead",
   "desk.lab.intro": "A developer tool: the UI component gallery and screen compare. It uses the desk’s theme, language, and preferences."
 }

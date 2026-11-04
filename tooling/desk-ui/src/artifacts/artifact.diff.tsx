@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef } from "react";
 import { clipLines, parseDiffStat, type DiffLine } from "./artifact.diffstat";
 import { FilePath } from "./artifact.plan";
 import { useTextArtifact } from "./artifact.use";
-import { LineAdd, LineNotesAt } from "../gates/gate.lines";
+import { ApplyFix, LineAdd, LineNotesAt } from "../gates/gate.lines";
 import type { ReviewFile } from "../gates/gate.model";
 import { useT } from "../i18n/i18n.t";
 import { FailureText, Loading, Muted, Pre, Section } from "../shell/shell.ui";
@@ -188,6 +188,7 @@ function InlineFinding({ finding }: { readonly finding: ReviewFile["findings"][n
           {t("desk.review.fix")} {finding.fix}
         </span>
       )}
+      <ApplyFix finding={finding} />
     </div>
   );
 }

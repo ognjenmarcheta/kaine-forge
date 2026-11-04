@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { IssueActions } from "./gate.actions";
 import { GatePanel } from "./gate.panel";
 import { finishedResearchIssue, planArtifact } from "../../tests/fixture.data";
+import type { DeskApi } from "../api/api.client";
 import type { ActionSettled } from "../state/desk.provider";
 import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
@@ -61,6 +62,7 @@ const show = (
     onShowTrace?: () => void;
     stats?: RunStats;
     diff?: string;
+    api?: DeskApi;
   } = {}
 ) => {
   const { detail, summary } = makeDetail(stateOverrides, extra.summary);
@@ -73,8 +75,44 @@ const show = (
       onOpenResult={vi.fn()}
       onShowTrace={extra.onShowTrace ?? vi.fn()}
     />,
-    apiWith(extra.stats, extra.diff)
+    extra.api ?? apiWith(extra.stats, extra.diff)
   );
+};
+
+const A_DIFF =
+  "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+next\n";
+
+/** A review with one finding on the diff line above, which has a suggested fix. */
+const REVIEW: NonNullable<IssueDetail["review"]> = {
+  verdict: "approve",
+  blocking: 0,
+  bySeverity: { Critical: 0, Consider: 1, Nit: 0, FYI: 0 },
+  findings: [
+    {
+      severity: "Consider",
+      blocking: false,
+      file: "src/a.ts",
+      line: 1,
+      section: "Quality Gates",
+      summary: "The name is not kept.",
+      fix: "Keep the old name."
+    }
+  ],
+  rejected: 0,
+  diffHash: "d".repeat(64),
+  plainLanguage: "Plain."
+};
+
+const SHIP_PLAN = {
+  dryRun: true,
+  branch: "KAINE-7-feat-thing",
+  gate: { ok: true, failures: [] },
+  changeset: { kind: "file", reason: "A package changed" },
+  changesetText: '---\n"@repo/web": patch\n---\n\nAdd a thing.\n',
+  commitHeader: "feat(web): add a thing",
+  pullRequest: { title: "feat(web): add a thing", base: "main" },
+  files: ["src/a.ts"],
+  unfilledHeadings: []
 };
 
 const bar = (name: string) => screen.getByRole("group", { name });
@@ -273,28 +311,124 @@ describe("GatePanel while the engine works", () => {
 });
 
 describe("GatePanel at PR review", () => {
-  it("collects line comments on the diff and sends them to the builder", async () => {
+  it("collects line comments on the diff and sends them to the builder with Send back", async () => {
     const actions = actionsOf();
-    show({ stage: "pr-review" }, actions, {
-      diff: "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+next\n"
-    });
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF });
     await userEvent.click(await screen.findByRole("button", { name: "Comment on line 1" }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "Comment on line 1 for the builder" }),
       "Keep the old name"
     );
     await userEvent.click(screen.getByRole("button", { name: "Add comment" }));
-    // Nothing goes out until the owner sends the comments.
+    // Nothing goes out until the owner sends back; the strip says so.
     expect(screen.getByText("You · for the builder")).toBeTruthy();
+    expect(screen.getByText("Comments not sent yet: 1.")).toBeTruthy();
     expect(actions.run).not.toHaveBeenCalled();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Send line comments to the builder (1)" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
     expect(actions.run).toHaveBeenCalledWith({
       action: "feedback",
       to: "build",
       text: "Line comments:\n- src/a.ts:1: Keep the old name"
     });
+  });
+
+  it("applies a suggested fix by queueing it for the builder, and Undo takes it back", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF, detail: { review: REVIEW } });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    expect(screen.getByText("Queued for the builder")).toBeTruthy();
+    expect(actions.run).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.queryByText("Queued for the builder")).toBeNull();
+    expect(screen.queryByText(/Comments not sent yet/)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    // The comments alone are enough to send: the note is optional.
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    expect(actions.run).toHaveBeenCalledTimes(1);
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "build",
+      text: "Line comments:\n- src/a.ts:1: The name is not kept. Apply this fix: Keep the old name."
+    });
+  });
+
+  it("sends queued comments to the step chosen in the form, not always to the builder", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, { diff: A_DIFF, detail: { review: REVIEW } });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Review again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "feedback",
+      to: "review",
+      text: "Line comments:\n- src/a.ts:1: The name is not kept. Apply this fix: Keep the old name."
+    });
+  });
+
+  it("keeps a fix applied while a send back runs, and drops only what was sent", async () => {
+    let finish: (settled: ActionSettled) => void = () => undefined;
+    const actions = actionsOf({
+      run: vi.fn<IssueActions["run"]>(() => new Promise((resolve) => (finish = resolve)))
+    });
+    const second: NonNullable<IssueDetail["review"]>["findings"][number] = {
+      severity: "Consider",
+      blocking: false,
+      file: "src/a.ts",
+      line: 1,
+      section: "Quality Gates",
+      summary: "The label is missing.",
+      fix: "Add a label."
+    };
+    show({ stage: "pr-review" }, actions, {
+      diff: A_DIFF,
+      detail: { review: { ...REVIEW, findings: [...REVIEW.findings, second] } }
+    });
+    const [first] = await screen.findAllByRole("button", { name: "Apply fix" });
+    if (first === undefined) throw new Error("no Apply fix button");
+    await userEvent.click(first);
+    await userEvent.click(screen.getByRole("button", { name: "Review and send back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send back with comments (1)" }));
+    // The send is out; the owner applies the second fix before it settles.
+    await userEvent.click(screen.getByRole("button", { name: "Apply fix" }));
+    await act(async () => finish(DONE));
+    expect(await screen.findByText("Comments not sent yet: 1.")).toBeTruthy();
+  });
+
+  it("warns on Ship that comments are not sent, and sends back instead on request", async () => {
+    const actions = actionsOf();
+    show({ stage: "pr-review" }, actions, {
+      diff: A_DIFF,
+      detail: { review: REVIEW },
+      api: fakeApi({
+        artifactText: (_issue, id) =>
+          id === "diff" ? Promise.resolve(A_DIFF) : Promise.reject(new Error(`no artifact ${id}`)),
+        artifactJson: (_issue, id, schema) =>
+          id === "ship-plan"
+            ? Promise.resolve(schema.parse(SHIP_PLAN))
+            : Promise.reject(new Error(`no artifact ${id}`))
+      })
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Apply fix" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ship as draft PR…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Ship to a draft pull request" });
+    expect(await within(dialog).findByText("Comments are not sent.")).toBeTruthy();
+    expect(dialog.textContent).toContain("Comments not sent: 1. Shipping does not send them.");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send back instead" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("button", { name: "Send back with comments (1)" })).toBeTruthy();
+    expect(actions.run).not.toHaveBeenCalledWith(expect.objectContaining({ action: "feedback" }));
+  });
+
+  it("keeps Send back disabled with no note and no comments", async () => {
+    show({ stage: "pr-review" }, actionsOf());
+    await userEvent.click(screen.getByRole("button", { name: "Send back…" }));
+    expect(screen.getByRole("button", { name: "Send feedback" })).toHaveProperty("disabled", true);
   });
 
   it("sends feedback to the chosen stage", async () => {

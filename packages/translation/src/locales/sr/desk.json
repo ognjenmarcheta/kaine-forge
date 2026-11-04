@@ -1476,6 +1476,17 @@
   "desk.lines.start": "Komentariši liniju {{line}}",
   "desk.lines.mine": "Vi · za builder",
   "desk.lines.delete": "Obriši",
-  "desk.lines.send": "Pošalji komentare na linijama builder-u ({{count}})",
+  "desk.lines.pending": "Komentari koji još nisu poslati: {{count}}.",
+  "desk.lines.review": "Pregledaj i vrati nazad",
+  "desk.finding.apply": "Primeni rešenje",
+  "desk.finding.queued": "U redu za builder-a",
+  "desk.finding.undo": "Poništi",
+  "desk.finding.noteText": "{{summary}} Primeni ovo rešenje: {{fix}}",
+  "desk.feedback.comments": "Komentari za slanje",
+  "desk.feedback.commentsIntro": "Ovi komentari idu uz vašu belešku izabranom koraku.",
+  "desk.feedback.sendWithComments": "Vrati nazad sa komentarima ({{count}})",
+  "desk.ship.unsent": "Komentari nisu poslati.",
+  "desk.ship.unsentText": "Komentari koji nisu poslati: {{count}}. Isporuka ih ne šalje. Prvo vratite nazad da ih dobije builder.",
+  "desk.ship.sendBackInstead": "Umesto toga vrati nazad",
   "desk.lab.intro": "Alat za razvoj: galerija komponenti i poređenje ekrana. Koristi temu, jezik i podešavanja desk-a."
 }

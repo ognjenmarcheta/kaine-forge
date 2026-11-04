@@ -19,6 +19,8 @@ export interface LineNote {
   readonly path: string;
   readonly line: number;
   readonly text: string;
+  /** For a queued fix: a key that does not depend on the language, so a language change cannot queue it twice. */
+  readonly key?: string;
 }
 
 interface LineNotes {
@@ -26,6 +28,8 @@ interface LineNotes {
   readonly draft: { readonly path: string; readonly line: number } | null;
   readonly start: (path: string, line: number) => void;
   readonly save: (text: string) => void;
+  /** Add a finished note, for example a finding's fix. The same note is not added twice. */
+  readonly add: (note: LineNote) => void;
   readonly cancel: () => void;
   readonly remove: (note: LineNote) => void;
 }
@@ -33,7 +37,10 @@ interface LineNotes {
 const LineNotesContext = createContext<LineNotes | null>(null);
 
 /** The line notes of a review and the one being written. */
-export function useLineNotes(): LineNotes & { readonly clear: () => void } {
+export function useLineNotes(): LineNotes & {
+  /** Drop the notes that were sent, or all of them. A note added while a send ran stays. */
+  readonly clear: (sent?: readonly LineNote[]) => void;
+} {
   const [notes, setNotes] = useState<readonly LineNote[]>([]);
   const [draft, setDraft] = useState<LineNotes["draft"]>(null);
   return useMemo(
@@ -47,11 +54,22 @@ export function useLineNotes(): LineNotes & { readonly clear: () => void } {
           setNotes((was) => [...was, { ...draft, text: trimmed }]);
         setDraft(null);
       },
+      add: (note) =>
+        setNotes((was) =>
+          was.some(
+            (entry) =>
+              entry.path === note.path &&
+              entry.line === note.line &&
+              (note.key === undefined ? entry.text === note.text : entry.key === note.key)
+          )
+            ? was
+            : [...was, note]
+        ),
       cancel: () => setDraft(null),
       remove: (note) => setNotes((was) => was.filter((entry) => entry !== note)),
-      clear: () => {
-        setNotes([]);
-        setDraft(null);
+      clear: (sent) => {
+        setNotes((was) => (sent === undefined ? [] : was.filter((entry) => !sent.includes(entry))));
+        if (sent === undefined) setDraft(null);
       }
     }),
     [notes, draft]
@@ -121,6 +139,80 @@ function DraftBox({
         </Button>
         <span className="dk-hint">{t("desk.lines.notSent")}</span>
       </span>
+    </div>
+  );
+}
+
+/** The part of a review finding that "Apply fix" needs. */
+export interface FixableFinding {
+  readonly file: string;
+  readonly line: number;
+  readonly summary: string;
+  readonly fix: string;
+}
+
+/**
+ * "Apply fix" on a finding: it queues the finding and its suggested fix as a note for the builder.
+ * The builder applies it when the owner sends back. A queued fix shows "Queued" and an Undo.
+ */
+export function ApplyFix({ finding }: { readonly finding: FixableFinding }) {
+  const t = useT();
+  const notes = useContext(LineNotesContext);
+  if (notes === null || finding.fix.trim() === "") return null;
+  const text = t("desk.finding.noteText", { summary: finding.summary, fix: finding.fix });
+  const key = JSON.stringify([finding.file, finding.line, finding.summary, finding.fix]);
+  const queued = notes.notes.find((note) => note.key === key);
+  if (queued === undefined) {
+    return (
+      <Button
+        type="button"
+        appearance="outline"
+        spacing="compact"
+        onClick={() => notes.add({ path: finding.file, line: finding.line, text, key })}
+      >
+        {t("desk.finding.apply")}
+      </Button>
+    );
+  }
+  return (
+    <span className="dk-row">
+      <span className="dk-hint">{t("desk.finding.queued")}</span>
+      <Button
+        type="button"
+        appearance="link"
+        spacing="compact"
+        className="dk-bare dk-linkbtn dk-t-small"
+        onClick={() => notes.remove(queued)}
+      >
+        {t("desk.finding.undo")}
+      </Button>
+    </span>
+  );
+}
+
+/** Above the decision bar while comments wait: how many, and the way to send them. */
+export function PendingStrip({
+  count,
+  onReview,
+  disabled = false
+}: {
+  readonly count: number;
+  readonly onReview: () => void;
+  readonly disabled?: boolean;
+}) {
+  const t = useT();
+  return (
+    <div className="dk-banner dk-banner-information" role="status">
+      <span>{t("desk.lines.pending", { count })}</span>
+      <Button
+        type="button"
+        appearance="outline"
+        spacing="compact"
+        disabled={disabled}
+        onClick={onReview}
+      >
+        {t("desk.lines.review")}
+      </Button>
     </div>
   );
 }
