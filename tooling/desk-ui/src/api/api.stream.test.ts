@@ -95,6 +95,39 @@ describe("connectEventStream", () => {
     expect(events).toEqual([{ type: "issue-updated", summary }]);
   });
 
+  it("delivers the job events the server sends, so a job page updates without a reload", () => {
+    const { sources, events } = setup();
+    const job = {
+      schema: 1,
+      id: 2,
+      kind: "scorecard",
+      createdAt: "2026-11-04T09:19:44.230Z",
+      updatedAt: "2026-11-04T09:24:26.117Z",
+      input: { note: "", model: "opus", budgetUsd: 15, minutes: 60 },
+      status: "needs-you",
+      stage: "review",
+      stop: null,
+      branch: "KAINE-chore-scorecard-2026-11-04-job-2",
+      worktree: "/wt",
+      spentUsd: 4.16,
+      feedback: [],
+      history: [],
+      result: null,
+      screen: null,
+      component: null,
+      audit: null,
+      approvedIssues: [],
+      filedIssues: [],
+      pr: null
+    };
+    sources[0]?.emit("job-updated", JSON.stringify({ type: "job-updated", job }));
+    sources[0]?.emit("job-removed", JSON.stringify({ type: "job-removed", jobId: 2 }));
+    expect(events).toEqual([
+      { type: "job-updated", job },
+      { type: "job-removed", jobId: 2 }
+    ]);
+  });
+
   it("syncs, then reconnects with growing delays after an error", async () => {
     const { sources, statuses, onSync } = setup();
     sources[0]?.onerror?.(new Event("error"));
