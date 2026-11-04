@@ -203,9 +203,10 @@ jobs:
       # only by the local commit-msg hook, which --no-verify and GitHub web-UI
       # commits bypass. The PR title matters because squash merges use it as the
       # commit subject on main, with " (#<number>)" appended, so the title is
-      # linted with that suffix (a 94-character title made a 101-character
-      # subject that the release push rejected). Title and shas go through env,
-      # never inlined into the script (untrusted input).
+      # linted bare (an empty subject must still fail) and with that suffix (a
+      # 94-character title made a 101-character subject that the release push
+      # rejected). Title and shas go through env, never inlined into the script
+      # (untrusted input).
       - name: Commitlint (PR title and commits)
         if: github.event_name == 'pull_request'
         env:
@@ -215,6 +216,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          printf '%s\n' "$PR_TITLE" | pnpm exec commitlint
           printf '%s (#%s)\n' "$PR_TITLE" "$PR_NUMBER" | pnpm exec commitlint
           pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA"
 

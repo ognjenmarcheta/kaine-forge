@@ -5,12 +5,19 @@ set -e
 # and a merge from main, or the release/<app> push of main's HEAD, must not fail on them.
 while read -r _ LOCAL_SHA _ REMOTE_SHA; do
   case "$LOCAL_SHA" in *[!0]*) ;; *) continue ;; esac
+  # A stale refs/remotes/<remote>/main gives an older merge-base, so refresh it first
+  # (offline, the local ref stands). The remote tip is the narrower base when it already
+  # holds everything up to that merge-base.
+  git fetch -q "$1" main 2>/dev/null || true
   FROM="$(git merge-base "$LOCAL_SHA" "refs/remotes/$1/main" 2>/dev/null || true)"
-  if [ -z "$FROM" ]; then
-    case "$REMOTE_SHA" in
-      *[!0]*) git cat-file -e "$REMOTE_SHA" 2>/dev/null && FROM="$REMOTE_SHA" ;;
-    esac
-  fi
+  case "$REMOTE_SHA" in
+    *[!0]*)
+      if git cat-file -e "$REMOTE_SHA" 2>/dev/null; then
+        if [ -z "$FROM" ] || git merge-base --is-ancestor "$FROM" "$REMOTE_SHA" 2>/dev/null; then
+          FROM="$REMOTE_SHA"
+        fi
+      fi ;;
+  esac
   if [ -z "$FROM" ]; then PUSHED_FULL=1; continue; fi
   # An equal range is a commitlint usage error (exit 9); main's own HEAD has nothing to lint.
   if [ "$FROM" != "$LOCAL_SHA" ]; then
