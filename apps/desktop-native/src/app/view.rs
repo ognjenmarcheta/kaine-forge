@@ -1,28 +1,72 @@
+//! The root view: the sign-in screen while signed out, the Todos list once the
+//! session knows its user.
+
+use std::sync::Arc;
+
 use gpui_kit::component::ActiveTheme as _;
 use gpui_kit::prelude::*;
-use gpui_kit::{Context, IntoElement, Window, div};
+use gpui_kit::{AnyElement, Context, Entity, IntoElement, Subscription, Window, div};
 use rust_i18n::t;
 
-/// The root view of the main window. Features replace this placeholder.
-pub struct AppView;
+use crate::app::session::{Session, SessionState};
+use crate::features::auth::view::SignInView;
+use crate::features::todos::client::GraphqlTodos;
+use crate::features::todos::view::TodosView;
+
+pub struct AppView {
+    session: Entity<Session>,
+    sign_in: Entity<SignInView>,
+    todos: Option<Entity<TodosView>>,
+    _subscription: Subscription,
+}
+
+impl AppView {
+    pub fn new(session: Entity<Session>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let sign_in = cx.new(|cx| SignInView::new(session.clone(), window, cx));
+        let subscription = cx.subscribe(&session, |this, session, _, cx| {
+            let state = session.read(cx).state().clone();
+            match state {
+                SessionState::SignedIn(user) if this.todos.is_none() => {
+                    let signed_in = session.read(cx);
+                    let token = signed_in.token().unwrap_or_default().to_owned();
+                    let gateway = GraphqlTodos::new(cx.http_client(), signed_in.api_url(), token);
+                    this.todos = Some(cx.new(|cx| {
+                        TodosView::new(Arc::new(gateway), session.clone(), user.email, cx)
+                    }));
+                }
+                SessionState::SignedIn(_) => {}
+                _ => this.todos = None,
+            }
+            cx.notify();
+        });
+        Self {
+            session,
+            sign_in,
+            todos: None,
+            _subscription: subscription,
+        }
+    }
+}
 
 impl Render for AppView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
-        div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .items_center()
-            .justify_center()
-            .gap_2()
-            .bg(theme.background)
-            .text_color(theme.foreground)
-            .child(div().text_xl().child(t!("common.appName").to_string()))
-            .child(
+        let content: AnyElement = match (self.session.read(cx).state(), &self.todos) {
+            (SessionState::SignedIn(_), Some(todos)) => todos.clone().into_any_element(),
+            (SessionState::Restoring, _) => {
+                let theme = cx.theme();
                 div()
+                    .id("session-restoring")
+                    .size_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .bg(theme.background)
                     .text_color(theme.muted_foreground)
-                    .child(t!("auth.login.title").to_string()),
-            )
+                    .child(t!("common.loadingSession").to_string())
+                    .into_any_element()
+            }
+            _ => self.sign_in.clone().into_any_element(),
+        };
+        div().size_full().child(content)
     }
 }

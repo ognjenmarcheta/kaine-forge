@@ -21,6 +21,13 @@ rust-i18n = "4.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sys-locale = "0.3"
+# GPUI's HTTP client implementation, from the same gpui-pre family the kit pins.
+reqwest_client = { package = "gpui-pre-reqwest-client", version = "=0.3.11" }
+# GraphQL operations compiled from .graphql files against apps/api/schema.graphql.
+graphql_client = "0.16"
+# The OS credential store for the bearer session token.
+keyring = "4"
+futures = "0.3"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

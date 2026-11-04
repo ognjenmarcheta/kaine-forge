@@ -26,6 +26,7 @@ Use GitHub private vulnerability reporting: the repository's **Security** tab â†
 - Organization-scoped data access.
 - CORS/preflight configuration.
 - Client/server environment variable handling.
+- Native desktop session token storage (OS keyring, with an in-memory fallback the UI announces).
 - S3-compatible storage integration.
 - Docker runtime configuration.
 - Dependency supply chain checks.

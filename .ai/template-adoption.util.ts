@@ -81,8 +81,13 @@ export const adoptionTargets = [
   "Cargo.toml",
   "apps/desktop-native/Cargo.toml",
   "apps/desktop-native/package.json",
+  "apps/desktop-native/src/lib.rs",
   "apps/desktop-native/src/main.rs",
   "apps/desktop-native/src/app/view.rs",
+  // Generated from packages/translation; adoption keeps them in step with a regeneration.
+  "apps/desktop-native/locales/en.json",
+  "apps/desktop-native/locales/de.json",
+  "apps/desktop-native/locales/sr.json",
   "apps/desktop-native/src/desktop-native.contract.test.ts",
   ".github/workflows/ci-pr.yml",
   ".github/workflows/deep-checks.yml",

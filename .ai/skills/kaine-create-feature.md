@@ -8,7 +8,7 @@ argument-hint: singular feature name, optional plural and label
 
 Use this skill when adding a new organization-scoped CRUD feature to the API and web. One feature touches 33 files across five workspaces; the CLI emits 19 of them, wires the other 13 registration points, and leaves you the migration, so hand-writing the slice is the wrong default.
 
-Do **not** use it when the feature is not organization-scoped CRUD, or when it needs mobile. `CONTEXT.md` **Template platform surfaces** makes mobile a deliberate subset — the generator has no mobile mode on purpose. Fall back to the manual steps in `MONOREPO_GUIDE.md` section 19.
+Do **not** use it when the feature is not organization-scoped CRUD, or when it needs mobile or the native desktop app (`kaine-build-native`; native is opt-in like mobile). `CONTEXT.md` **Template platform surfaces** makes mobile a deliberate subset — the generator has no mobile mode on purpose. Fall back to the manual steps in `MONOREPO_GUIDE.md` section 19.
 
 ## Workflow
 

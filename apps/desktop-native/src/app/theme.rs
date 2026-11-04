@@ -118,7 +118,22 @@ pub struct ThemeTokens {
     pub type_steps: BTreeMap<String, TypeStep>,
     pub motion: Motion,
     pub components: Components,
+    /// Layout widths and the hit target: `rail`, `sidebar`, `measure`, `page`, `tabbar`, `hit`.
+    pub layout: BTreeMap<String, f32>,
     pub modes: Modes,
+}
+
+impl ThemeTokens {
+    /// A layout width in device pixels. A missing name is a generator bug: it
+    /// panics in debug builds and falls back to the widest layout in release builds.
+    pub fn layout(&self, name: &str) -> f32 {
+        if let Some(value) = self.layout.get(name) {
+            *value
+        } else {
+            debug_assert!(false, "tokens.json has no layout-{name}");
+            self.layout.values().copied().fold(0.0, f32::max)
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -281,6 +296,7 @@ mod tests {
                 "{name} has no body type step"
             );
             assert!(theme.space.contains_key("200"), "{name} has no space-200");
+            assert!(theme.layout("rail") > 0.0, "{name} has no layout-rail");
         }
     }
 

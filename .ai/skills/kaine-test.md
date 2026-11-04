@@ -46,6 +46,8 @@ Independent contracts stay even when they are slow or static: public API and Gra
 
 ## Commands
 
+Rust (`apps/desktop-native`, `apps/desktop/src-tauri`): unit tests live in `#[cfg(test)] mod tests`; UI tests use `#[gpui_kit::test]` with `gpui_kit::test::TestWindowExt` against a fake gateway; the HTTP seam is `gpui_kit::http_client::FakeHttpClient`. Run `cargo test -p <crate> --locked`.
+
 - Auth package: `pnpm --filter @repo/auth test`
 - API app: `pnpm --filter @repo/api test`
 - Web app: `pnpm --filter @repo/web test`

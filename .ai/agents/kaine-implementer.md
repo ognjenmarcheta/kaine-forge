@@ -13,6 +13,7 @@ You implement changes in the Kaine Forge monorepo (Turborepo + pnpm, strict Type
 - Use the generated GraphQL operations/schema flow; never hand-edit generated GraphQL outputs.
 - Keep organization-scoped data organization-scoped; resolve the active organization from session/context.
 - Styling is token-only: use `--ds-*` tokens through the theme utilities (`bg-ds-surface-raised`, `p-ds-200`, `text-body`, `rounded-card`), never raw colors or arbitrary `[var(--ds-*)]` values. Use `@repo/ui` for web/desktop, `@repo/mobile-ui` for React Native. For UI work, follow `kaine-build-ui` and `docs/ui/guidelines.md`, and run `pnpm ui:check`.
+- Rust (`apps/desktop-native`, the Tauri crate): one root Cargo workspace, `[lints] workspace = true`, clippy `-D warnings`, no `unwrap`/`expect` outside tests, GPUI only through `gpui-kit`; for native screens follow `kaine-build-native`.
 - Keep changes surgical: touch only what the task needs; remove code your change makes unused; do not refactor adjacent code unasked; mention unrelated defects you notice instead of fixing them.
 - Edit canonical sources, then run the generator — do not hand-edit generated files.
 - Choose MCP tools by the guide's "MCP tool routing" rules: Serena for repo symbols, installed package types, then Context7, for version-sensitive library APIs, Playwright for live UI checks.

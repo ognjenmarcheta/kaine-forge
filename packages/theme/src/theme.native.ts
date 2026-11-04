@@ -1,5 +1,11 @@
 import { resolveColor } from "./theme.contrast";
-import { colorRoles, scaleTokenNames, shadowRoles, typeStepNames } from "./theme.roles";
+import {
+  colorRoles,
+  layoutTokens,
+  scaleTokenNames,
+  shadowRoles,
+  typeStepNames
+} from "./theme.roles";
 import type {
   ColorMode,
   ColorRole,
@@ -280,6 +286,8 @@ export interface DesktopNativeTheme {
     readonly pressScale: number;
   };
   readonly components: Record<string, number>;
+  /** Layout widths and the hit target in device pixels (`layout-*`, without the `layer-*` z-indexes). */
+  readonly layout: Record<string, number>;
   readonly modes: { readonly light: DesktopNativeMode; readonly dark: DesktopNativeMode };
 }
 
@@ -342,6 +350,11 @@ export function desktopNativeTheme(theme: ThemeDefinition): DesktopNativeTheme {
       dialogRadius: toPx(resolveScale(theme, theme.components["dialog-radius"])),
       badgeRadius: toPx(resolveScale(theme, theme.components["badge-radius"]))
     },
+    layout: Object.fromEntries(
+      Object.entries(layoutTokens)
+        .filter(([name]) => name.startsWith("layout-"))
+        .map(([name, value]) => [name.slice("layout-".length), toPx(resolveScale(theme, value))])
+    ),
     modes: { light: mode("light"), dark: mode("dark") }
   };
 }

@@ -1,4 +1,24 @@
 {
+  "auth.error.accountLocked": "Zu viele fehlgeschlagene Versuche. Versuche es in 15 Minuten erneut.",
+  "auth.error.invalidCredentials": "E-Mail oder Passwort ist falsch.",
+  "auth.error.passwordCompromised": "Dieses Passwort ist aus einem bekannten Datenleck bekannt. Wähle ein anderes Passwort.",
+  "auth.error.tooManyAttempts": "Zu viele Versuche. Fordere einen neuen Code an.",
+  "auth.form.emailPlaceholder": "E-Mail",
+  "auth.form.error.emailInvalid": "Geben Sie eine gultige E-Mail-Adresse ein",
+  "auth.form.error.emailRequired": "E-Mail ist erforderlich",
+  "auth.form.error.passwordRequired": "Passwort ist erforderlich",
+  "auth.form.passwordPlaceholder": "Passwort",
+  "auth.login.subtitle": "Willkommen zurück. Melde dich an, um fortzufahren.",
   "auth.login.title": "Anmelden",
-  "common.appName": "Kaine Forge"
+  "auth.logout": "Abmelden",
+  "auth.session.notSaved": "Ihre Sitzung bleibt nur erhalten, bis Sie die App schließen.",
+  "common.appName": "Kaine Forge",
+  "common.loadingSession": "Sitzung wird geladen...",
+  "common.retry": "Erneut versuchen",
+  "error.generic": "Etwas ist schiefgelaufen",
+  "todos.empty": "Noch keine Aufgaben. Erstelle deine erste.",
+  "todos.loadFailed": "Todos konnten nicht geladen werden. Bereits geladene Ergebnisse bleiben verfügbar.",
+  "todos.loadMore": "Mehr laden",
+  "todos.loading": "Aufgaben werden geladen...",
+  "todos.title": "Aufgaben"
 }
