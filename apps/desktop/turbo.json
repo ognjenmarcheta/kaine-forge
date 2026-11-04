@@ -6,6 +6,11 @@
       "description": "Tauri desktop build. The ^build dependency reaches @repo/web through the workspace devDependency in package.json (issue #516), so Turbo builds the web bundle that src-tauri/tauri.conf.json frontendDist points at before `tauri build` runs; knip ignores that devDependency because no TypeScript imports it. Rust artifacts under the repo-root .cargo-target (root .cargo/config.toml) are managed by Cargo's own incremental cache and are intentionally not declared as Turbo outputs, so this task opts out of Turbo caching to avoid restoring a stale or absent binary on a cache hit.",
       "dependsOn": ["^build"],
       "cache": false
+    },
+    "bundle": {
+      "description": "Tauri installers for this OS (tauri.conf.json bundle.targets \"all\": deb, rpm and AppImage on Linux; app and dmg on macOS; nsis and msi on Windows) under the repo-root .cargo-target/release/bundle. Same web dependency edge and no Turbo caching as build.",
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }

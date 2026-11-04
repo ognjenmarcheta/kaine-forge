@@ -57,6 +57,7 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Check that the Tauri desktop window opens on the sign-in screen (optional agent-desktop CLI, `pnpm dev:web` running): `pnpm smoke:desktop`
 - Run the native GPUI desktop app: `pnpm --filter @repo/desktop-native dev`; its gates: `pnpm --filter @repo/desktop-native check`
 - Regenerate the native app's locale files after a `t!` change: `pnpm translation:build` (`translation:check` reports only)
+- Build the Tauri desktop installers for this OS: `pnpm --filter @repo/desktop bundle` (`docs/desktop-installers.md`)
 
 ## Agent Desk
 

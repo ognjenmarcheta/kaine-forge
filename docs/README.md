@@ -19,6 +19,7 @@ Use this index to find the right source of truth quickly.
 - [`incident-response.md`](incident-response.md): severity levels, roles, first-hour checklist, status update template, and blameless postmortem template.
 - [`billing.md`](billing.md): Plans, Stripe and Paddle setup, webhooks, seat sync, and billing behavior.
 - [`release-checklist.md`](release-checklist.md): release validation checklist.
+- [`desktop-installers.md`](desktop-installers.md): how the Tauri and native desktop installers are built, released and signed.
 - [`troubleshooting.md`](troubleshooting.md): common local setup failures (ports, Docker, auth CORS, codegen, AI scaffold).
 - [`.env.example`](../.env.example): commented environment variable defaults (behavior detail lives in `MONOREPO_GUIDE.md` section 9).
 

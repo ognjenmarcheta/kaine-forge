@@ -22,6 +22,11 @@
         "EXPO_PUBLIC_AUTH_SOCIAL_PROVIDERS"
       ]
     },
+    "bundle": {
+      "description": "Build installers for a desktop app on the current OS (apps/desktop, apps/desktop-native). Output lands outside the workspace, so the task never caches.",
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "dev": {
       "description": "Run development tasks in watch mode",
       "cache": false,

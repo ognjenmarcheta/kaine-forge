@@ -383,6 +383,7 @@ Todos and Notes work offline on web and desktop, and Todos on mobile (mobile has
 - Tauri v2 is the desktop shell. Do not switch to Electron without an ADR-level decision.
 - The frontend is the web app built by Vite.
 - Keep Tauri capabilities least-privilege.
+- Installers: `tauri.conf.json` has bundling on with the package version; `pnpm --filter @repo/desktop bundle` builds them for this OS and the Release workflow attaches them to the app's GitHub Release (`docs/desktop-installers.md`).
 - Desktop-specific UI should be feature-detected and should degrade safely in browser mode.
 
 ### Native desktop (GPUI)
@@ -566,3 +567,5 @@ Organization-scoped client query keys come from `createActiveOrganizationQueryKe
 Local bootstrap and end-to-end preparation require `ALLOW_LOCAL_DB_PUSH=true` in the untracked `.env`. The template defaults to false. `pnpm db:prepare:local` validates the target, creates the database if needed, pushes the schema, and seeds local fixtures. `pnpm db:push:local` only pushes the schema. Both accept PostgreSQL on `localhost`, `127.0.0.1`, or `::1`; they reject production mode, system databases, URL query overrides, and extra arguments. Destructive Drizzle prompts are not automatically accepted. Shared and deployed databases use reviewed migrations. Existing `.env` files and database contents are not reset by setup.
 
 The Release workflow owns deployment branch updates. Manual `pnpm release:apps` commands, including `--dry-run`, are human operations and remain blocked for agents.
+
+Desktop apps have no release branch: their version tag's GitHub Release carries the installers (`docs/desktop-installers.md`). `pnpm release:version` runs `changeset version` and then `scripts/sync-cargo-version.mjs`, which copies the native app's package version into its `Cargo.toml` and `Cargo.lock`.

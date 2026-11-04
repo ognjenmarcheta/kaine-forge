@@ -27,6 +27,8 @@ Use this checklist before merging a release PR or cutting a manual release from 
 - [ ] `pnpm --filter @repo/mobile typecheck`
 - [ ] `pnpm --filter @repo/mobile-ui typecheck`
 - [ ] `pnpm --filter @repo/desktop check` when desktop code changed
+- [ ] `pnpm --filter @repo/desktop bundle` when desktop code or the Tauri bundle config changed: the installers for this OS land under `.cargo-target/release/bundle/` (`docs/desktop-installers.md`)
+- [ ] `pnpm --filter @repo/desktop-native check` when native desktop code changed
 
 ## 4. Database and Runtime
 

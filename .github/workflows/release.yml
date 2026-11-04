@@ -34,6 +34,8 @@ jobs:
     timeout-minutes: 60
     outputs:
       images: ${{ steps.images.outputs.matrix }}
+      # Desktop apps tagged at HEAD whose installers the OS jobs build and attach.
+      installers: ${{ steps.installers.outputs.matrix }}
       # Apps whose image deploys build, as a JSON array: the release branches
       # this run moved, plus any a manual run names in deploy_apps.
       apps: ${{ steps.deploy-apps.outputs.apps }}
@@ -217,6 +219,14 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(images)}\n`);
           '
 
+      # Desktop apps have no Dockerfile; their release carries installers instead.
+      # scripts/release-desktop-apps.mjs names the apps and the workspace each one bundles from.
+      - name: List desktop installers to publish
+        id: installers
+        run: |
+          set -euo pipefail
+          git tag --points-at HEAD | node scripts/release-desktop-apps.mjs >> "$GITHUB_OUTPUT"
+
   # Builds the tagged app image, gates it on the same Trivy CRITICAL scan as the
   # PR docker-images job, then pushes the scanned image to GHCR. Never runs for
   # pull requests (no trigger here), forks, other refs, or runs without app tags.
@@ -308,6 +318,268 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$TAG" "sbom-$APP.spdx.json" --clobber
+
+  # Desktop installers for the tagged desktop apps (docs/desktop-installers.md,
+  # ADR 0025). One job per OS, not a matrix over runners: the self-hosted
+  # routing test reads runs-on per job. Each job uploads to the release of its tag.
+  installers-linux:
+    name: Desktop Installers (Linux)
+    if: >-
+      needs.release.outputs.installers != '' &&
+      needs.release.outputs.installers != '[]' &&
+      github.ref == 'refs/heads/main' &&
+      !github.event.repository.fork
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 90
+    needs: release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.release.outputs.installers) }}
+    env:
+      APP: ${{ matrix.app }}
+      VERSION: ${{ matrix.version }}
+      TAG: ${{ matrix.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ matrix.tag }}
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Install the desktop system packages
+        # Tauri's WebKitGTK stack plus the GPUI packages, so one job serves both apps.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the ${{ matrix.app }} installers
+        # The Turbo bundle task builds @repo/web first through the dependency edge.
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec turbo run build --filter="${{ matrix.workspace }}^..."
+          pnpm --filter "${{ matrix.workspace }}" bundle
+
+      - name: Attach the installers to the GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIGNED: ${{ 'true' }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find .cargo-target -path '*/release/bundle/*' -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No installers under .cargo-target/*/release/bundle" >&2
+            exit 1
+          fi
+          printf 'Installer: %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
+          gh release upload "$TAG" "${files[@]}" --clobber
+          if [ "$SIGNED" != "true" ]; then
+            note="Installers for ${RUNNER_OS} are unsigned: add the signing secrets (docs/desktop-installers.md) to sign them."
+            body="$(gh release view "$TAG" --json body --jq .body)"
+            if ! grep -qF "$note" <<< "$body"; then
+              gh release edit "$TAG" --notes "$(printf '%s\n\n%s\n' "$body" "$note")"
+            fi
+          fi
+
+  # Desktop installers for the tagged desktop apps (docs/desktop-installers.md,
+  # ADR 0025). One job per OS, not a matrix over runners: the self-hosted
+  # routing test reads runs-on per job. Each job uploads to the release of its tag.
+  installers-macos:
+    name: Desktop Installers (macOS)
+    if: >-
+      needs.release.outputs.installers != '' &&
+      needs.release.outputs.installers != '[]' &&
+      github.ref == 'refs/heads/main' &&
+      !github.event.repository.fork
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_MACOS == 'true' && fromJSON(vars.CI_SELF_HOSTED_MACOS) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","kaine-ci-macos"]' || '["macos-latest"]') }}
+    timeout-minutes: 90
+    needs: release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.release.outputs.installers) }}
+    env:
+      APP: ${{ matrix.app }}
+      VERSION: ${{ matrix.version }}
+      TAG: ${{ matrix.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ matrix.tag }}
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo --version
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the ${{ matrix.app }} installers
+        # The Turbo bundle task builds @repo/web first through the dependency edge.
+        shell: bash
+        # Tauri signs and notarizes when these secrets exist; without them the
+        # installers are unsigned and the release notes say so.
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          pnpm exec turbo run build --filter="${{ matrix.workspace }}^..."
+          pnpm --filter "${{ matrix.workspace }}" bundle -- --target universal-apple-darwin
+
+      - name: Attach the installers to the GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIGNED: ${{ secrets.APPLE_SIGNING_IDENTITY != '' }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find .cargo-target -path '*/release/bundle/*' -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No installers under .cargo-target/*/release/bundle" >&2
+            exit 1
+          fi
+          printf 'Installer: %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
+          gh release upload "$TAG" "${files[@]}" --clobber
+          if [ "$SIGNED" != "true" ]; then
+            note="Installers for ${RUNNER_OS} are unsigned: add the signing secrets (docs/desktop-installers.md) to sign them."
+            body="$(gh release view "$TAG" --json body --jq .body)"
+            if ! grep -qF "$note" <<< "$body"; then
+              gh release edit "$TAG" --notes "$(printf '%s\n\n%s\n' "$body" "$note")"
+            fi
+          fi
+
+  # Desktop installers for the tagged desktop apps (docs/desktop-installers.md,
+  # ADR 0025). One job per OS, not a matrix over runners: the self-hosted
+  # routing test reads runs-on per job. Each job uploads to the release of its tag.
+  installers-windows:
+    name: Desktop Installers (Windows)
+    if: >-
+      needs.release.outputs.installers != '' &&
+      needs.release.outputs.installers != '[]' &&
+      github.ref == 'refs/heads/main' &&
+      !github.event.repository.fork
+    runs-on: windows-latest
+    timeout-minutes: 90
+    needs: release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.release.outputs.installers) }}
+    env:
+      APP: ${{ matrix.app }}
+      VERSION: ${{ matrix.version }}
+      TAG: ${{ matrix.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ matrix.tag }}
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Install the pinned Rust toolchain
+        # rust-toolchain.toml names the channel; rustup installs it on first use.
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the ${{ matrix.app }} installers
+        # The Turbo bundle task builds @repo/web first through the dependency edge.
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec turbo run build --filter="${{ matrix.workspace }}^..."
+          pnpm --filter "${{ matrix.workspace }}" bundle
+
+      - name: Attach the installers to the GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIGNED: ${{ 'false' }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find .cargo-target -path '*/release/bundle/*' -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No installers under .cargo-target/*/release/bundle" >&2
+            exit 1
+          fi
+          printf 'Installer: %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
+          gh release upload "$TAG" "${files[@]}" --clobber
+          if [ "$SIGNED" != "true" ]; then
+            note="Installers for ${RUNNER_OS} are unsigned: add the signing secrets (docs/desktop-installers.md) to sign them."
+            body="$(gh release view "$TAG" --json body --jq .body)"
+            if ! grep -qF "$note" <<< "$body"; then
+              gh release edit "$TAG" --notes "$(printf '%s\n\n%s\n' "$body" "$note")"
+            fi
+          fi
 
   # Image deploys (docs/deploy.md, "Deploy source"). Off unless the repository
   # variable DEPLOY_SOURCE is `image`; by default the platform builds each

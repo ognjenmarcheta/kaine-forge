@@ -91,11 +91,11 @@ jobs:
           restore-keys: |
             cargo-workspace-${{ runner.os }}-
 
-      - name: Build desktop app
+      - name: Build desktop app and its installers
         # Turbo builds @repo/web first through the declared devDependency edge
-        # (issue #516), then `tauri build --no-bundle` (compile only, no .dmg
-        # packaging or signing).
-        run: pnpm exec turbo run build --filter=@repo/desktop
+        # (issue #516), then `tauri build` with the bundles on: the .app and .dmg
+        # land under .cargo-target/release/bundle, unsigned on this job.
+        run: pnpm exec turbo run bundle --filter=@repo/desktop
 
       - name: Lint desktop Rust
         # The Tauri crate's only clippy run: the PR gate's Rust Checks job skips it
@@ -105,6 +105,91 @@ jobs:
       - name: Test desktop Rust
         # The device databases (src/device_db.rs) are the only Rust logic with tests.
         run: cargo test -p kaine_forge_desktop --lib --locked
+
+  # Tauri installers for this OS on the schedule, so a bundler regression shows
+  # up before a release needs them (docs/desktop-installers.md, ADR 0025).
+  desktop-bundle-linux:
+    name: Desktop Tauri Installers (Linux)
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Install the desktop system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils gcc g++ clang cmake lld libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev libvulkan1 mesa-vulkan-drivers libglib2.0-dev
+
+      - name: Install the pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the desktop installers
+        shell: bash
+        run: pnpm exec turbo run bundle --filter=@repo/desktop
+
+      - name: List the installers
+        shell: bash
+        run: find .cargo-target -path '*/release/bundle/*' -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | tee -a "$GITHUB_STEP_SUMMARY" | grep -q . || { echo "no installers were built" >&2; exit 1; }
+
+  # Tauri installers for this OS on the schedule, so a bundler regression shows
+  # up before a release needs them (docs/desktop-installers.md, ADR 0025).
+  desktop-bundle-windows:
+    name: Desktop Tauri Installers (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Install the pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup show active-toolchain
+          cargo --version
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: ". -> .cargo-target"
+
+      - name: Build the desktop installers
+        shell: bash
+        run: pnpm exec turbo run bundle --filter=@repo/desktop
+
+      - name: List the installers
+        shell: bash
+        run: find .cargo-target -path '*/release/bundle/*' -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | tee -a "$GITHUB_STEP_SUMMARY" | grep -q . || { echo "no installers were built" >&2; exit 1; }
 
   native-build-linux:
     name: Native Desktop Build (Linux)

@@ -224,6 +224,14 @@ function runnerLabels(
   return result.values().map((label) => label.coerceString());
 }
 
+// Jobs that build on macOS or Windows runners; every other job routes to Linux.
+const MACOS_JOBS = new Set(["desktop-build-macos", "native-build-macos", "installers-macos"]);
+const WINDOWS_JOBS = new Set([
+  "native-build-windows",
+  "desktop-bundle-windows",
+  "installers-windows"
+]);
+
 describe("Self-hosted runner routing", () => {
   for (const name of [
     "ci-pr",
@@ -238,13 +246,12 @@ describe("Self-hosted runner routing", () => {
     const workflow = parse(readFileSync(`.github/workflows/${name}.yml`, "utf8"));
     for (const [jobName, job] of Object.entries(workflow.jobs)) {
       it(`${name}/${jobName} preserves hosted defaults and enforces private platform opt-ins`, () => {
-        // The Windows native build has no self-hosted counterpart: a literal label.
-        if (name === "deep-checks" && jobName === "native-build-windows") {
+        // Windows jobs have no self-hosted counterpart: a literal label.
+        if (WINDOWS_JOBS.has(jobName)) {
           assert.equal(job["runs-on"], "windows-latest");
           return;
         }
-        const mac =
-          name === "deep-checks" && ["desktop-build-macos", "native-build-macos"].includes(jobName);
+        const mac = MACOS_JOBS.has(jobName);
         const hosted = [mac ? "macos-latest" : "ubuntu-latest"];
         const selfHosted = mac
           ? ["self-hosted", "macOS", "kaine-ci-macos"]
