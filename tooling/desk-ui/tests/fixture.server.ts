@@ -216,6 +216,10 @@ const buildRunner = (
       record(issue, "continue", { from: from ?? null });
       return reviewReady(issue);
     },
+    resolveDenial: async (issue, command, resolution) => {
+      record(issue, "resolve-denial", { command, resolution });
+      return reviewReady(issue);
+    },
     pause: async (issue) => {
       record(issue, "pause", {});
       const state = await change(store, issue, { pauseRequested: true, pausedAt: now() });

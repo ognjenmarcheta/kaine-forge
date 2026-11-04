@@ -53,7 +53,11 @@ describe("action request", () => {
       input: { action: "steer", note: "  reuse the CSV helper  " },
       expected: { action: "steer", note: "reuse the CSV helper" }
     },
-    { input: { action: "take-over" }, expected: { action: "take-over" } }
+    { input: { action: "take-over" }, expected: { action: "take-over" } },
+    {
+      input: { action: "resolve-denial", command: "  pnpm lint  ", resolution: "allow" },
+      expected: { action: "resolve-denial", command: "pnpm lint", resolution: "allow" }
+    }
   ])("accepts $input", ({ input, expected }) => {
     expect(actionRequestSchema.parse(input)).toEqual(expected);
   });
@@ -84,6 +88,14 @@ describe("action request", () => {
     },
     { name: "a pause that names a stage", input: { action: "pause", stage: "build" } },
     { name: "a steer without a note", input: { action: "steer" } },
+    {
+      name: "a denial answer without a resolution",
+      input: { action: "resolve-denial", command: "pnpm lint" }
+    },
+    {
+      name: "a denial answer with another resolution",
+      input: { action: "resolve-denial", command: "pnpm lint", resolution: "always" }
+    },
     { name: "a blank steer note", input: { action: "steer", note: "   " } },
     {
       name: "a steer note over the limit",

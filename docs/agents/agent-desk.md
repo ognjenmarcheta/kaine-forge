@@ -561,19 +561,20 @@ side effects and reports an outcome. Only the runner applies it. The runner writ
 `state.json`, appends to `events.jsonl`, sets labels and the status comment, and calls
 `notify` at a gate or a stop.
 
-| Call                                  | What it does                                                                                                           |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `start(n, {override, snapshotFile?})` | Run intake, then drive to the next stop. Run it again to retry intake.                                                 |
-| `advance(n)`                          | Drive from the current stage to a gate, `needs-you`, or the end.                                                       |
-| `approvePlan(n)`                      | At a gate: approve, then drive. At a gate after a plan step, also rename the branch if the planner chose another name. |
-| `feedback(n, target, text)`           | Send feedback to a step of the flow (from a gate, one of its `sendBack` steps). Then drive.                            |
-| `continueFrom(n, stage?)`             | From `needs-you`, retry the recorded stage. Never automatic. Then drive.                                               |
-| `cancel(n)`                           | Stop the running agent, end the issue. The worktree stays.                                                             |
-| `remove(n, {force, keepWorktree})`    | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.                                      |
-| `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                                                         |
-| `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".                                      |
-| `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR".                                 |
-| `feedbackFromPr(n, {text?})`          | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".                                          |
+| Call                                    | What it does                                                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `start(n, {override, snapshotFile?})`   | Run intake, then drive to the next stop. Run it again to retry intake.                                                 |
+| `advance(n)`                            | Drive from the current stage to a gate, `needs-you`, or the end.                                                       |
+| `approvePlan(n)`                        | At a gate: approve, then drive. At a gate after a plan step, also rename the branch if the planner chose another name. |
+| `feedback(n, target, text)`             | Send feedback to a step of the flow (from a gate, one of its `sendBack` steps). Then drive.                            |
+| `continueFrom(n, stage?)`               | From `needs-you`, retry the recorded stage. Never automatic. Then drive.                                               |
+| `resolveDenial(n, command, resolution)` | From `needs-you`, allow a command the desk refused to the agent and retry, or tell the agent to skip it. Then drive.   |
+| `cancel(n)`                             | Stop the running agent, end the issue. The worktree stays.                                                             |
+| `remove(n, {force, keepWorktree})`      | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.                                      |
+| `status(n?)`                            | Read one issue or all. It also returns the `needs-you` reason.                                                         |
+| `ship(n, {confirm, dryRun?})`           | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".                                      |
+| `refreshPr(n)`                          | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR".                                 |
+| `feedbackFromPr(n, {text?})`            | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".                                          |
 
 Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, `finished`, with a
 message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
@@ -635,6 +636,11 @@ While the agent runs, the engine also watches its tool calls. When the same call
 and paths) fails 8 times in a row, the engine stops the run and does not wait for the time limit.
 The stage goes to `needs-you`, and the reason names the command. A call that the permission rules
 denied does not count. A success or a different call starts the count again.
+
+When an agent asks for a command that its allow list does not hold, the desk refuses it and keeps
+the command in `agent-<id>.json`. If the agent then stops in `needs-you` with a blocker that names the command, the issue card offers
+two buttons for that command: **Allow … and retry** (the exact command, for this issue only) and
+**Skip it and continue**. The desk never offers a command that its deny rules refuse.
 
 A violation moves the issue to `needs-you` with every violation in the reason. The
 worktree stays as the agent left it. The agent session is not kept.

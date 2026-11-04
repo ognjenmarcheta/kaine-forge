@@ -222,6 +222,7 @@ export type StatePatch = Partial<
     | "prCheck"
     | "mergedAt"
     | "approveNote"
+    | "approvedCommands"
     | "pauseRequested"
     | "pausedAt"
   >

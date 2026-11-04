@@ -415,6 +415,11 @@ export const issueDetailSchema = z
     buildRevision: z.string().nullable(),
     /** The owner's note at the plan approval, or `null`. */
     approveNote: z.string().nullable(),
+    /**
+     * While the issue is in `needs-you`: the commands the last run of the stage to retry tried and
+     * the desk refused, that the owner may allow. Empty otherwise. Each one is exact.
+     */
+    deniedCommands: z.array(z.string()),
     resume: sessionResumeSchema,
     /** The agent runs of this issue from `runs.jsonl`, oldest first. */
     runs: z.array(runRecordSchema)
@@ -551,12 +556,15 @@ export const ACTION_NAMES = [
   "pause",
   "resume",
   "steer",
-  "take-over"
+  "take-over",
+  "resolve-denial"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
 
 export const MAX_FEEDBACK_CHARS = 20_000;
+/** The longest command a `resolve-denial` request may carry. */
+export const MAX_COMMAND_CHARS = 2000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
   // Without `flowId` the config picks the flow: `flowLabels`, then `defaultFlow`.
@@ -622,7 +630,16 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     })
     .strict(),
   // Stop the agent that runs now so the owner works in its session (ADR 0022).
-  z.object({ action: z.literal("take-over") }).strict()
+  z.object({ action: z.literal("take-over") }).strict(),
+  // A command the desk refused to an agent. `allow` lets this issue run it and retries the stop.
+  // `skip` tells the agent to leave it out and goes on. The command must be one the desk refused.
+  z
+    .object({
+      action: z.literal("resolve-denial"),
+      command: z.string().trim().min(1).max(MAX_COMMAND_CHARS),
+      resolution: z.enum(["allow", "skip"])
+    })
+    .strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;

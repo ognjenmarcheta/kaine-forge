@@ -1,6 +1,7 @@
 import type { IssueDetail, RiskOutcome, RunStats } from "@repo/desk/contracts";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { IssueActions } from "./gate.actions";
@@ -483,6 +484,92 @@ describe("GatePanel when the desk needs you", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(actions.run).toHaveBeenCalledWith({ action: "continue" });
+  });
+
+  it("offers to allow a refused command first, and sends that exact command", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    show({ stage: "needs-you", resumeStage: "build" }, actions, {
+      detail: { deniedCommands: [command] }
+    });
+
+    const allow = screen.getByRole("radio", { name: /Allow this command and retry/ });
+    expect(allow.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Allow this command and retry").closest("label")?.textContent).toBe(
+      "Allow this command and retryRecommended"
+    );
+    // The tell option stays, but it is no longer the recommended one.
+    expect(screen.getByText("Tell the builder").closest("label")?.textContent).toBe(
+      "Tell the builder"
+    );
+    expect(screen.getAllByText(command).length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Allow and retry" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "allow"
+    });
+  });
+
+  it("skips the refused command with one click and no note", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    show({ stage: "needs-you", resumeStage: "build" }, actions, {
+      detail: { deniedCommands: [command] }
+    });
+
+    await userEvent.click(screen.getByRole("radio", { name: /Skip it and continue/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Skip and continue" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "skip"
+    });
+  });
+
+  it("goes back to the default choice when the refused command goes away, and back to allow when it returns", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const { detail, summary } = makeDetail({ stage: "needs-you", resumeStage: "build" });
+    let setDenied: (next: string[]) => void = () => undefined;
+    function Harness() {
+      const [denied, set] = useState([command]);
+      setDenied = set;
+      return (
+        <GatePanel
+          detail={{ ...detail, deniedCommands: denied }}
+          summary={summary}
+          revision="r1"
+          actions={actions}
+          onOpenResult={vi.fn()}
+          onShowTrace={vi.fn()}
+        />
+      );
+    }
+    renderDesk(<Harness />, apiWith());
+    expect(screen.getByRole("button", { name: "Allow and retry" })).toBeTruthy();
+
+    act(() => setDenied([]));
+    // The allow option is gone. The primary button acts on the default again: tell the builder.
+    expect(screen.queryByRole("radio", { name: /Allow this command/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Allow and retry" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Send to the builder" })).toBeTruthy();
+
+    act(() => setDenied([command]));
+    expect(screen.getByRole("button", { name: "Allow and retry" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Allow and retry" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "allow"
+    });
+  });
+
+  it("shows no command choice when the desk refused nothing", () => {
+    show({ stage: "needs-you", resumeStage: "build" }, actionsOf());
+    expect(screen.queryByRole("radio", { name: /Allow this command/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /Skip it and continue/ })).toBeNull();
   });
 
   it("recommends telling the builder first, and sends the note to build", async () => {

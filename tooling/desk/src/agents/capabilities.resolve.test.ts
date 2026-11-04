@@ -99,6 +99,7 @@ const resolve = (
     readonly provider?: Provider;
     readonly isolation?: Isolation;
     readonly workspaces?: readonly string[];
+    readonly approvedCommands?: readonly string[];
   } = {}
 ) =>
   resolveCapabilities({
@@ -108,7 +109,8 @@ const resolve = (
     policy: { denies: ["Bash(pnpm db:push)"] },
     installed: INSTALLED,
     isolation: options.isolation ?? "host",
-    workspaces: options.workspaces
+    workspaces: options.workspaces,
+    approvedCommands: options.approvedCommands
   });
 
 describe("resolveCapabilities", () => {
@@ -167,6 +169,34 @@ describe("resolveCapabilities", () => {
       expect(host.sandbox, preset).toBe("host");
       expect(host.mcp, preset).toEqual(["serena"]);
     }
+  });
+
+  it("turns an approved command into one exact allow rule and keeps the denies", () => {
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const profile = resolve(
+      { preset: "edit-code", mcp: [], skills: [] },
+      { workspaces: ["@repo/config"], approvedCommands: [command, "pnpm exec evil"] }
+    );
+
+    // Exact: no `:*` suffix, so it never matches a longer command.
+    expect(profile.tools.allow).toContain(`Bash(${command})`);
+    expect(profile.tools.allow).not.toContain(`Bash(${command}:*)`);
+    // A command that the desk denies stays denied, whatever the owner approved.
+    expect(profile.tools.deny).toContain("Bash(pnpm exec:*)");
+  });
+
+  it("gives an approved command to an agent that can run commands, never to a read-only one", () => {
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const rule = `Bash(${command})`;
+    for (const preset of ["edit-code", "run-checks"] as const) {
+      const profile = resolve({ preset, mcp: [], skills: [] }, { approvedCommands: [command] });
+      expect(profile.tools.allow, preset).toContain(rule);
+    }
+    const readOnly = resolve(
+      { preset: "read-only", mcp: [], skills: [] },
+      { approvedCommands: [command] }
+    );
+    expect(readOnly.tools.allow).not.toContain(rule);
   });
 
   it("gives run-checks the exact check commands of its workspaces and no way to edit", () => {
