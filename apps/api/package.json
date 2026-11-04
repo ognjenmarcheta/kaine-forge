@@ -21,8 +21,8 @@
     "schema:generate": "node --import tsx src/schema/generate-schema.ts"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^3.0.72",
-    "@ai-sdk/openai": "^4.0.101",
+    "@ai-sdk/deepseek": "^3.0.77",
+    "@ai-sdk/openai": "^4.0.106",
     "@graphql-yoga/plugin-csrf-prevention": "^4.0.1",
     "@repo/auth": "workspace:*",
     "@repo/billing": "workspace:*",
@@ -34,7 +34,7 @@
     "@repo/storage": "workspace:*",
     "@repo/theme": "workspace:*",
     "@repo/translation": "workspace:*",
-    "ai": "^7.0.151",
+    "ai": "^7.0.158",
     "better-auth": "catalog:",
     "dataloader": "^2.2.3",
     "dotenv": "catalog:",
