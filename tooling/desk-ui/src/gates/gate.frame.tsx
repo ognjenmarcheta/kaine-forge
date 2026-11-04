@@ -22,7 +22,14 @@ export interface GateBodyProps {
    * Open the ship dialog, naming the files not marked viewed. The panel owns the dialog, so it
    * stays open while the ship moves the issue on.
    */
-  readonly onShip: (unviewed: readonly string[]) => void;
+  readonly onShip: (unviewed: readonly string[], unsent?: UnsentComments | null) => void;
+}
+
+/** Comments the owner wrote and has not sent. The ship dialog warns about them. */
+export interface UnsentComments {
+  readonly count: number;
+  /** Open the Send back form, where the comments go. */
+  readonly onSendBack: () => void;
 }
 
 /** A single-key shortcut, shown on the button that it presses. The button names it in `aria-keyshortcuts`. */

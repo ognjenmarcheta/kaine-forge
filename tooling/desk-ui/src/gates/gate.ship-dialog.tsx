@@ -1,8 +1,9 @@
 import { shipPlanViewSchema, type ShipPlanView } from "@repo/desk/contracts";
-import { Modal, Spinner } from "@repo/ui";
+import { Button, Modal, Spinner } from "@repo/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { IssueActions } from "./gate.actions";
+import type { UnsentComments } from "./gate.frame";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useT } from "../i18n/i18n.t";
 import { FailureText, ItemList, List, Muted, Pre, Section } from "../shell/shell.ui";
@@ -25,6 +26,8 @@ export interface ShipDialogProps {
   readonly actions: IssueActions;
   /** Changed files the owner has not marked viewed. The dialog says so; it does not block. */
   readonly unviewed?: readonly string[];
+  /** Comments written and not sent. The dialog warns that a ship does not send them. */
+  readonly unsent?: UnsentComments | null;
 }
 
 const NOTHING_UNVIEWED: readonly string[] = [];
@@ -42,7 +45,8 @@ export function ShipDialog({
   open,
   onOpenChange,
   actions,
-  unviewed = NOTHING_UNVIEWED
+  unviewed = NOTHING_UNVIEWED,
+  unsent = null
 }: ShipDialogProps) {
   const t = useT();
   const { api } = useDesk();
@@ -172,6 +176,11 @@ export function ShipDialog({
             prBody={phase.prBody}
             pullRequest={pullRequest}
             unviewed={unviewed}
+            unsent={unsent}
+            onSendBack={() => {
+              onOpenChange(false);
+              unsent?.onSendBack();
+            }}
           />
         )}
         {phase.kind === "confirm" && (
@@ -212,12 +221,16 @@ function ShipReview({
   plan,
   prBody,
   pullRequest,
-  unviewed
+  unviewed,
+  unsent,
+  onSendBack
 }: {
   readonly plan: ShipPlanView;
   readonly prBody: string | null;
   readonly pullRequest: number | null;
   readonly unviewed: readonly string[];
+  readonly unsent: UnsentComments | null;
+  readonly onSendBack: () => void;
 }) {
   const t = useT();
   return (
@@ -233,6 +246,15 @@ function ShipReview({
                 files: unviewed.join(", ")
               })}
             </span>
+          </div>
+        )}
+        {unsent !== null && (
+          <div className="dk-banner dk-banner-warning desk-ship__unviewed">
+            <strong>{t("desk.ship.unsent")}</strong>
+            <span>{t("desk.ship.unsentText", { count: unsent.count })}</span>
+            <Button type="button" appearance="outline" spacing="compact" onClick={onSendBack}>
+              {t("desk.ship.sendBackInstead")}
+            </Button>
           </div>
         )}
         {!plan.gate.ok && (

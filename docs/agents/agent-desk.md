@@ -1218,8 +1218,13 @@ sidebar becomes four tabs at the bottom. **New work** (in the sidebar, on the In
     it), and **Send back…**. At **Approve & ship**: readiness, findings, and the changed files
     by risk with viewed progress. **N** opens the next file not viewed; **Ship as draft PR…**
     (**S**) turns primary when every file is viewed and runs the dry run before the final yes.
-    A **+** on a diff line starts a comment for the builder; the comments go with **Send
-    back…**, or alone with **Send line comments to the builder**. Nothing is sent before that.
+    A **+** on a diff line starts a comment for the builder. **Apply fix** on a finding that has a
+    suggested fix queues the finding and its fix as a comment. A strip above the buttons counts
+    the comments not sent. **Send back…** opens the form with the list of comments; they go
+    with your note, and the note is optional when there are comments. Nothing is sent before
+    that, and **Ship as draft PR…** never sends them: its dialog warns about comments not sent
+    and offers **Send back instead**. The builder applies a queued fix after the send back, and
+    the checks and the review run again.
     When the desk stopped: the reason, the failing command, the likely cause, a link to the
     trace, and **What to do**: **Tell the builder** (recommended), **Retry from a step**, or
     **Open the agent session in a terminal**; one primary button acts on the choice (**C**).

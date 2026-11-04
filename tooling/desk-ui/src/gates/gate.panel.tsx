@@ -11,7 +11,7 @@ import { useId, useRef, useState } from "react";
 import type { ActionWords, IssueActions } from "./gate.actions";
 import { ApproveGate } from "./gate.approve";
 import { FeedbackForm } from "./gate.feedback";
-import { DecideBar, Kbd, type GateBodyProps } from "./gate.frame";
+import { DecideBar, Kbd, type GateBodyProps, type UnsentComments } from "./gate.frame";
 import { IntakeGate, NeedsYouGate } from "./gate.needs";
 import { PlanGate } from "./gate.plan";
 import { ReviewGate } from "./gate.review";
@@ -390,7 +390,8 @@ function DecisionCard(props: GatePanelProps) {
   const [ship, setShip] = useState<{
     readonly open: boolean;
     readonly unviewed: readonly string[];
-  }>({ open: false, unviewed: [] });
+    readonly unsent: UnsentComments | null;
+  }>({ open: false, unviewed: [], unsent: null });
   const mode = cardModeOf(summary);
   const titleMode = mode === "intake" ? "needs-you" : mode;
   const byline = BYLINE[mode];
@@ -408,7 +409,7 @@ function DecisionCard(props: GatePanelProps) {
     ...props,
     send,
     titleId,
-    onShip: (unviewed) => setShip({ open: true, unviewed })
+    onShip: (unviewed, unsent = null) => setShip({ open: true, unviewed, unsent })
   };
 
   return (
@@ -464,6 +465,7 @@ function DecisionCard(props: GatePanelProps) {
         onOpenChange={(open) => setShip((was) => ({ ...was, open }))}
         actions={actions}
         unviewed={ship.unviewed}
+        unsent={ship.unsent}
       />
     </section>
   );
