@@ -1,15 +1,21 @@
 #!/usr/bin/env sh
 set -e
 # GitButler's `but commit` skips commit-msg, so lint every pushed commit here too.
+# Lint only the commits that main does not have yet: commits on main passed the PR gate,
+# and a merge from main, or the release/<app> push of main's HEAD, must not fail on them.
 while read -r _ LOCAL_SHA _ REMOTE_SHA; do
   case "$LOCAL_SHA" in *[!0]*) ;; *) continue ;; esac
-  case "$REMOTE_SHA" in
-    *[!0]*) git cat-file -e "$REMOTE_SHA" 2>/dev/null && FROM="$REMOTE_SHA" || FROM="" ;;
-    *) FROM="" ;;
-  esac
-  [ -n "$FROM" ] || FROM="$(git merge-base "$LOCAL_SHA" "refs/remotes/$1/main" 2>/dev/null || true)"
+  FROM="$(git merge-base "$LOCAL_SHA" "refs/remotes/$1/main" 2>/dev/null || true)"
+  if [ -z "$FROM" ]; then
+    case "$REMOTE_SHA" in
+      *[!0]*) git cat-file -e "$REMOTE_SHA" 2>/dev/null && FROM="$REMOTE_SHA" ;;
+    esac
+  fi
   if [ -z "$FROM" ]; then PUSHED_FULL=1; continue; fi
-  pnpm exec commitlint --from "$FROM" --to "$LOCAL_SHA" </dev/null
+  # An equal range is a commitlint usage error (exit 9); main's own HEAD has nothing to lint.
+  if [ "$FROM" != "$LOCAL_SHA" ]; then
+    pnpm exec commitlint --from "$FROM" --to "$LOCAL_SHA" </dev/null
+  fi
   # The oldest base across pushed refs scopes the typecheck when HEAD has no upstream.
   PUSHED_BASE="$(git merge-base "${PUSHED_BASE:-$FROM}" "$FROM" 2>/dev/null || true)"
   [ -n "$PUSHED_BASE" ] || PUSHED_FULL=1
