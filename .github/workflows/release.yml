@@ -377,6 +377,11 @@ jobs:
         with:
           workspaces: ". -> .cargo-target"
 
+      - name: Install cargo-packager
+        # Pinned; Swatinem/rust-cache keeps ~/.cargo/bin, so a cached runner skips the build.
+        shell: bash
+        run: command -v cargo-packager >/dev/null 2>&1 || cargo install cargo-packager --locked --version 0.11.8
+
       - name: Build the ${{ matrix.app }} installers
         # The Turbo bundle task builds @repo/web first through the dependency edge.
         shell: bash
@@ -460,6 +465,11 @@ jobs:
         with:
           workspaces: ". -> .cargo-target"
 
+      - name: Install cargo-packager
+        # Pinned; Swatinem/rust-cache keeps ~/.cargo/bin, so a cached runner skips the build.
+        shell: bash
+        run: command -v cargo-packager >/dev/null 2>&1 || cargo install cargo-packager --locked --version 0.11.8
+
       - name: Build the ${{ matrix.app }} installers
         # The Turbo bundle task builds @repo/web first through the dependency edge.
         shell: bash
@@ -475,7 +485,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm exec turbo run build --filter="${{ matrix.workspace }}^..."
-          pnpm --filter "${{ matrix.workspace }}" bundle -- --target universal-apple-darwin
+          pnpm --filter "${{ matrix.workspace }}" bundle ${{ matrix.macosArgs }}
 
       - name: Attach the installers to the GitHub Release
         shell: bash
@@ -550,6 +560,11 @@ jobs:
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: ". -> .cargo-target"
+
+      - name: Install cargo-packager
+        # Pinned; Swatinem/rust-cache keeps ~/.cargo/bin, so a cached runner skips the build.
+        shell: bash
+        run: command -v cargo-packager >/dev/null 2>&1 || cargo install cargo-packager --locked --version 0.11.8
 
       - name: Build the ${{ matrix.app }} installers
         # The Turbo bundle task builds @repo/web first through the dependency edge.

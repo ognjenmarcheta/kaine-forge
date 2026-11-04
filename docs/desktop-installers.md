@@ -22,10 +22,11 @@ through `scripts/sync-cargo-version.mjs`, which `pnpm release:version` runs afte
 
 ```bash
 pnpm --filter @repo/desktop bundle
+pnpm --filter @repo/desktop-native bundle
 ```
 
-Turbo builds the web app first, then `tauri build` writes the installers for the current OS under
-`.cargo-target/release/bundle/` (`deb/`, `rpm/`, `appimage/`, `dmg/`, `macos/`, `nsis/`, `msi/`).
+For the Tauri app, Turbo builds the web app first, then `tauri build` writes the installers for the current OS under
+`.cargo-target/release/bundle/` (`deb/`, `rpm/`, `appimage/`, `dmg/`, `macos/`, `nsis/`, `msi/`). For the native app, `cargo build --release` runs first, then `cargo packager --release` reads `[package.metadata.packager]` in `apps/desktop-native/Cargo.toml` and writes the installers for the current OS under `.cargo-target/release/bundle/native/`. Install the packager once with `cargo install cargo-packager --locked --version 0.11.8`; the CI jobs do the same and cache it.
 On macOS, `pnpm --filter @repo/desktop bundle -- --target universal-apple-darwin` builds a
 universal binary after `rustup target add aarch64-apple-darwin x86_64-apple-darwin`; the output
 then sits under `.cargo-target/universal-apple-darwin/release/bundle/`.
@@ -37,9 +38,10 @@ use; on macOS, Xcode command-line tools.
 
 ## How a release attaches them
 
-The Release workflow runs on `main`. Changesets tags the version (`@repo/desktop@<version>`), the
-workflow creates the GitHub Release, and `scripts/release-desktop-apps.mjs` turns the tags at
-HEAD into the installer matrix. Three jobs, one per OS, check out the tag, build the installers
+The Release workflow runs on `main`. Changesets tags the version (`@repo/desktop@<version>`,
+`@repo/desktop-native@<version>`), the workflow creates the GitHub Release, and
+`scripts/release-desktop-apps.mjs` turns the tags at HEAD into the installer matrix (the list of
+desktop apps, their workspaces and the macOS build arguments lives there). Three jobs, one per OS, check out the tag, build the installers
 and `gh release upload` them to that release. Deep Checks builds the same installers on every
 scheduled run, so a bundler regression shows up before a release needs them.
 
@@ -52,6 +54,8 @@ them, and on Windows until a `signCommand` is configured, the installers are uns
 appends a line saying so to the release notes. Unsigned installers open behind the usual
 Gatekeeper and SmartScreen warnings.
 
-Out of scope until a certificate exists, each with its own issue: Windows code signing,
-notarization, auto-update (`TAURI_SIGNING_PRIVATE_KEY`, `cargo-packager-updater`), and
-app-store distribution.
+The native app's macOS package is built for the runner's architecture (Apple silicon on hosted
+runners); cargo-packager has no universal-binary mode. It also produces no `.rpm`: that gap and
+the items below each get an issue naming the trigger. Out of scope until a certificate exists:
+Windows code signing, notarization, auto-update (`TAURI_SIGNING_PRIVATE_KEY`,
+`cargo-packager-updater`), and app-store distribution.

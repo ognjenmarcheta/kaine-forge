@@ -7,6 +7,11 @@
       "dependsOn": ["^build"],
       "cache": false
     },
+    "bundle": {
+      "description": "Installers for this OS through cargo-packager ([package.metadata.packager] in Cargo.toml), under the repo-root .cargo-target/release/bundle/native. Output sits outside the workspace, so the task never caches.",
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "format:check": {
       "description": "cargo fmt reads the root rustfmt.toml and toolchain pin; prettier reads the shared config.",
       "inputs": [

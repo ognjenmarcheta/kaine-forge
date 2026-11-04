@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "cargo run -p kaine_forge_desktop_native",
     "build": "cargo build -p kaine_forge_desktop_native --release --locked",
+    "bundle": "cargo build -p kaine_forge_desktop_native --release --locked && cargo packager --release",
     "start": "cargo run -p kaine_forge_desktop_native",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
     "format": "cargo fmt -p kaine_forge_desktop_native && prettier --write .",

@@ -236,6 +236,19 @@ jobs:
       - name: Test the native desktop app
         run: cargo test -p kaine_forge_desktop_native --locked
 
+      - name: Install cargo-packager
+        # Pinned; Swatinem/rust-cache keeps ~/.cargo/bin, so a cached runner skips the build.
+        shell: bash
+        run: command -v cargo-packager >/dev/null 2>&1 || cargo install cargo-packager --locked --version 0.11.8
+
+      - name: Package the native desktop app
+        shell: bash
+        run: pnpm --filter @repo/desktop-native bundle
+
+      - name: List the installers
+        shell: bash
+        run: find .cargo-target -path '*/release/bundle/native/*' -type f \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | tee -a "$GITHUB_STEP_SUMMARY" | grep -q . || { echo "no installers were built" >&2; exit 1; }
+
   native-build-macos:
     name: Native Desktop Build (macOS)
     # Release build and tests of the GPUI app on this OS. The PR gate compiles it
@@ -245,6 +258,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
 
       - name: Install the pinned Rust toolchain
         # rust-toolchain.toml names the channel; rustup installs it on first use.
@@ -272,6 +290,19 @@ jobs:
 
       - name: Test the native desktop app
         run: cargo test -p kaine_forge_desktop_native --locked
+
+      - name: Install cargo-packager
+        # Pinned; Swatinem/rust-cache keeps ~/.cargo/bin, so a cached runner skips the build.
+        shell: bash
+        run: command -v cargo-packager >/dev/null 2>&1 || cargo install cargo-packager --locked --version 0.11.8
+
+      - name: Package the native desktop app
+        shell: bash
+        run: pnpm --filter @repo/desktop-native bundle
+
+      - name: List the installers
+        shell: bash
+        run: find .cargo-target -path '*/release/bundle/native/*' -type f \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | tee -a "$GITHUB_STEP_SUMMARY" | grep -q . || { echo "no installers were built" >&2; exit 1; }
 
   native-build-windows:
     name: Native Desktop Build (Windows)
@@ -283,6 +314,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
       - name: Install the pinned Rust toolchain
         # rust-toolchain.toml names the channel; rustup installs it on first use.
         # Hosted runners ship rustup; self-hosted Linux runners may not.
@@ -309,3 +345,16 @@ jobs:
 
       - name: Test the native desktop app
         run: cargo test -p kaine_forge_desktop_native --locked
+
+      - name: Install cargo-packager
+        # Pinned; Swatinem/rust-cache keeps ~/.cargo/bin, so a cached runner skips the build.
+        shell: bash
+        run: command -v cargo-packager >/dev/null 2>&1 || cargo install cargo-packager --locked --version 0.11.8
+
+      - name: Package the native desktop app
+        shell: bash
+        run: pnpm --filter @repo/desktop-native bundle
+
+      - name: List the installers
+        shell: bash
+        run: find .cargo-target -path '*/release/bundle/native/*' -type f \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) | tee -a "$GITHUB_STEP_SUMMARY" | grep -q . || { echo "no installers were built" >&2; exit 1; }

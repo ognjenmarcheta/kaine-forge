@@ -4,14 +4,19 @@ import { pathToFileURL } from "node:url";
 
 /**
  * The desktop apps whose GitHub Release carries installers instead of a container
- * image (ADR 0025), and the workspace whose `bundle` script builds them.
+ * image (ADR 0025), the workspace whose `bundle` script builds them, and the extra
+ * arguments the macOS job passes (Tauri builds a universal binary; cargo-packager
+ * packages the runner's architecture).
  */
-export const DESKTOP_APPS = [{ app: "desktop", workspace: "@repo/desktop" }];
+export const DESKTOP_APPS = [
+  { app: "desktop", workspace: "@repo/desktop", macosArgs: "-- --target universal-apple-darwin" },
+  { app: "desktop-native", workspace: "@repo/desktop-native", macosArgs: "" }
+];
 
 /**
  * The installer matrix for the tags at HEAD: one entry per tagged desktop app.
  * @param {string} tags `git tag --points-at HEAD` output
- * @returns {{ app: string, workspace: string, version: string, tag: string }[]}
+ * @returns {{ app: string, workspace: string, macosArgs: string, version: string, tag: string }[]}
  */
 export function desktopInstallers(tags) {
   return tags.split("\n").flatMap((tag) => {
