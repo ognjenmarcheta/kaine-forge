@@ -32,14 +32,30 @@ describe("approvalRefusal", () => {
     "pnpm --filter @repo/api exec evil",
     "pnpm dlx evil",
     "npx evil",
-    "pnpm install"
+    "pnpm install",
+    // Escaped, quoted, or wrapped spellings of the same commands.
+    "pnpm \\exec evil",
+    'pnpm "exec" evil',
+    "env pnpm exec evil",
+    "FOO=1 pnpm dlx evil",
+    "bash -c 'pnpm exec evil'"
   ])("never lets the owner allow %s", (command) => {
     expect(approvalRefusal(command)).not.toBeNull();
   });
 
   it("keeps the checkout's own deny rules", () => {
     expect(approvalRefusal("pnpm db:seed")).toBeNull();
-    expect(approvalRefusal("pnpm db:seed", ["Bash(pnpm db:seed:*)"])).toMatch(/pnpm db:seed/);
+    expect(approvalRefusal("pnpm db:seed", ["Bash(pnpm db:seed:*)"])).not.toBeNull();
+  });
+
+  it("keeps an exact or glob policy deny, not only a prefix deny", () => {
+    expect(approvalRefusal("pnpm db:seed", ["Bash(pnpm db:seed)"])).not.toBeNull();
+    // An exact rule denies that command only.
+    expect(approvalRefusal("pnpm db:seed --force", ["Bash(pnpm db:seed)"])).toBeNull();
+    expect(approvalRefusal("pnpm db:seed --force", ["Bash(pnpm db:seed *)"])).not.toBeNull();
+    expect(approvalRefusal("pnpm db:seed", ["Bash(pnpm db:seed *)"])).not.toBeNull();
+    // A rule of another tool is no deny of a command.
+    expect(approvalRefusal("pnpm db:seed", ["WebFetch"])).toBeNull();
   });
 
   it("refuses an empty command", () => {

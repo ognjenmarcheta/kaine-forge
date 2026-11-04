@@ -1135,6 +1135,13 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     }
     // Under the lease: only a command the last run was refused, and one that may be allowed.
     const verify = async (session: Session): Promise<PipelineResult | null> => {
+      if (session.state.resumeStage !== target) {
+        return refused(
+          "invalid-transition",
+          `The stop of #${issue} moved to another stage. Nothing was changed.`,
+          session.state
+        );
+      }
       const offered = await deniedCommands(store.artifactsDir(issue), session.state);
       return offered.includes(wanted)
         ? null

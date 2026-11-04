@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { IssueState } from "../contracts";
+import { MAX_COMMAND_CHARS, type IssueState } from "../contracts";
 import { deniedCommands } from "./pipeline.denials";
 import {
   ISSUE,
@@ -65,6 +65,46 @@ describe("a stop caused by a refused command", () => {
     const other = await open({ steps: [planStep(), blockedBuild("pnpm exec evil")] });
     await stoppedByDenial(other);
     expect(await deniedCommands(other.store.artifactsDir(ISSUE), await stateOf(other))).toEqual([]);
+  });
+
+  it("offers nothing when the stop does not name the refused command or is not a blockers stop", async () => {
+    // The builder was blocked for another reason: the denial was only a side step.
+    const other = await open({
+      steps: [
+        planStep(),
+        {
+          ...blockedBuild(),
+          output: builderOutput({ blockers: ["The schema is missing"] })
+        }
+      ]
+    });
+    await stoppedByDenial(other);
+    expect(await deniedCommands(other.store.artifactsDir(ISSUE), await stateOf(other))).toEqual([]);
+
+    // The run ended with no change: not a command refusal either.
+    const unchanged = await open({
+      steps: [
+        planStep(),
+        {
+          role: "builder",
+          output: builderOutput(),
+          denials: [{ tool: "Bash", command: COMMAND, paths: [] }]
+        }
+      ]
+    });
+    await unchanged.pipeline.start(ISSUE, { override: false });
+    await unchanged.pipeline.approvePlan(ISSUE);
+    expect(await stateOf(unchanged)).toMatchObject({ stage: "needs-you" });
+    expect(
+      await deniedCommands(unchanged.store.artifactsDir(ISSUE), await stateOf(unchanged))
+    ).toEqual([]);
+  });
+
+  it("leaves out a command that is longer than a request may carry", async () => {
+    const long = `pnpm turbo run lint --filter=${"a".repeat(MAX_COMMAND_CHARS)}`;
+    const e = await open({ steps: [planStep(), blockedBuild(long)] });
+    await stoppedByDenial(e);
+    expect(await deniedCommands(e.store.artifactsDir(ISSUE), await stateOf(e))).toEqual([]);
   });
 
   it("allow keeps the exact command, retries the stage, and runs it with that one rule", async () => {

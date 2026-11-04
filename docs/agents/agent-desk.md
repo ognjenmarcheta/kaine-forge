@@ -638,7 +638,7 @@ The stage goes to `needs-you`, and the reason names the command. A call that the
 denied does not count. A success or a different call starts the count again.
 
 When an agent asks for a command that its allow list does not hold, the desk refuses it and keeps
-the command in `agent-<id>.json`. If the stage then stops in `needs-you`, the issue card offers
+the command in `agent-<id>.json`. If the agent then stops in `needs-you` with a blocker that names the command, the issue card offers
 two buttons for that command: **Allow … and retry** (the exact command, for this issue only) and
 **Skip it and continue**. The desk never offers a command that its deny rules refuse.
 

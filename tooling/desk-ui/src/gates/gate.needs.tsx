@@ -96,9 +96,15 @@ export function NeedsYouGate({
   const builder = builderStepOf(issueFlowOf(summary), summary.resumeStage);
   // One refused command at a time: the next one, if the agent asks again, is the next stop.
   const denied = detail.deniedCommands[0] ?? null;
-  const [choice, setChoice] = useState<Choice>(
-    denied !== null ? "allow" : builder === null ? "retry" : "tell"
-  );
+  const defaultChoice: Choice = denied !== null ? "allow" : builder === null ? "retry" : "tell";
+  const [choice, setChoice] = useState<Choice>(defaultChoice);
+  // A refresh can add or remove the refused command while the card stays open. The choice then
+  // goes back to the default, so the button never acts on an option that is not on the card.
+  const [shownDenied, setShownDenied] = useState(denied);
+  if (shownDenied !== denied) {
+    setShownDenied(denied);
+    setChoice(defaultChoice);
+  }
   const chosen = targets.find((stage) => stage === resume);
   const retryStage = chosen ?? summary.resumeStage;
 

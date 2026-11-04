@@ -237,7 +237,10 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
     allow.push(bash("pnpm create:feature"));
   }
   for (const tool of extraTools) allow.push(bash(AGENT_TOOL_COMMANDS[tool]));
-  for (const command of input.approvedCommands ?? []) allow.push(`Bash(${command})`);
+  // A read-only agent gets no command the owner allowed for another stage.
+  if (preset !== "read-only") {
+    for (const command of input.approvedCommands ?? []) allow.push(`Bash(${command})`);
+  }
 
   const inScope = new Set(skills);
   const outOfScope = unique([...KAINE_SKILLS, ...input.installed.skills])

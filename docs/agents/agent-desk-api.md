@@ -144,7 +144,9 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   review or report agent and an issue in Docker isolation.
 - `resolve-denial` answers a command the desk refused to an agent, from `needs-you` at an agent
   step. The issue detail lists the candidates as `deniedCommands`: the exact commands the last run
-  of the stage to retry tried and the desk refused. The server checks `command` against that list
+  of the stage to retry tried and the desk refused. It lists them only when the agent can run
+  commands (not a read-only agent), the stop is the agent's own `blockers` stop, and the stop text
+  names the command. A scope violation or a failed check lists none. The server checks `command` against that list
   again, so a client cannot allow a command the desk never refused (`409 invalid-transition`).
   `allow` keeps the command in `approvedCommands` of the issue state, and the stage runs again with
   it as one exact allow rule. `skip` sends feedback that tells the agent to leave the command out.

@@ -185,6 +185,20 @@ describe("resolveCapabilities", () => {
     expect(profile.tools.deny).toContain("Bash(pnpm exec:*)");
   });
 
+  it("gives an approved command to an agent that can run commands, never to a read-only one", () => {
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const rule = `Bash(${command})`;
+    for (const preset of ["edit-code", "run-checks"] as const) {
+      const profile = resolve({ preset, mcp: [], skills: [] }, { approvedCommands: [command] });
+      expect(profile.tools.allow, preset).toContain(rule);
+    }
+    const readOnly = resolve(
+      { preset: "read-only", mcp: [], skills: [] },
+      { approvedCommands: [command] }
+    );
+    expect(readOnly.tools.allow).not.toContain(rule);
+  });
+
   it("gives run-checks the exact check commands of its workspaces and no way to edit", () => {
     const profile = resolve(
       { preset: "run-checks", mcp: ["serena"], skills: [] },

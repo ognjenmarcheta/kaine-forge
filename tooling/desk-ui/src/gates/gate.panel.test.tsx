@@ -1,6 +1,7 @@
 import type { IssueDetail, RiskOutcome, RunStats } from "@repo/desk/contracts";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { IssueActions } from "./gate.actions";
@@ -524,6 +525,44 @@ describe("GatePanel when the desk needs you", () => {
       action: "resolve-denial",
       command,
       resolution: "skip"
+    });
+  });
+
+  it("goes back to the default choice when the refused command goes away, and back to allow when it returns", async () => {
+    const actions = actionsOf();
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const { detail, summary } = makeDetail({ stage: "needs-you", resumeStage: "build" });
+    let setDenied: (next: string[]) => void = () => undefined;
+    function Harness() {
+      const [denied, set] = useState([command]);
+      setDenied = set;
+      return (
+        <GatePanel
+          detail={{ ...detail, deniedCommands: denied }}
+          summary={summary}
+          revision="r1"
+          actions={actions}
+          onOpenResult={vi.fn()}
+          onShowTrace={vi.fn()}
+        />
+      );
+    }
+    renderDesk(<Harness />, apiWith());
+    expect(screen.getByRole("button", { name: "Allow and retry" })).toBeTruthy();
+
+    act(() => setDenied([]));
+    // The allow option is gone. The primary button acts on the default again: tell the builder.
+    expect(screen.queryByRole("radio", { name: /Allow this command/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Allow and retry" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Send to the builder" })).toBeTruthy();
+
+    act(() => setDenied([command]));
+    expect(screen.getByRole("button", { name: "Allow and retry" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Allow and retry" }));
+    expect(actions.run).toHaveBeenCalledWith({
+      action: "resolve-denial",
+      command,
+      resolution: "allow"
     });
   });
 

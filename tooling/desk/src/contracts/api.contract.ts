@@ -563,6 +563,8 @@ export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
 
 export const MAX_FEEDBACK_CHARS = 20_000;
+/** The longest command a `resolve-denial` request may carry. */
+export const MAX_COMMAND_CHARS = 2000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
   // Without `flowId` the config picks the flow: `flowLabels`, then `defaultFlow`.
@@ -634,7 +636,7 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("resolve-denial"),
-      command: z.string().trim().min(1).max(2000),
+      command: z.string().trim().min(1).max(MAX_COMMAND_CHARS),
       resolution: z.enum(["allow", "skip"])
     })
     .strict()
