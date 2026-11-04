@@ -59,7 +59,7 @@ import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 import { StatusChip } from "../status/status.chip";
 
-const score = (value: number | null, language: string): string =>
+export const score = (value: number | null, language: string): string =>
   value === null
     ? "—"
     : new Intl.NumberFormat(language, {
@@ -68,7 +68,7 @@ const score = (value: number | null, language: string): string =>
       }).format(value);
 
 /** A change in words and a glyph, so the arrow is not the only signal. */
-function Delta({ value }: { readonly value: number | null }) {
+export function Delta({ value }: { readonly value: number | null }) {
   const t = useT();
   const { language } = useLanguage();
   if (value === null) return <span className="dk-t-sub">{t("desk.scorecard.delta.none")}</span>;
@@ -144,7 +144,7 @@ function SummaryCard({
   );
 }
 
-function Summary({
+export function Summary({
   runs,
   index
 }: {
