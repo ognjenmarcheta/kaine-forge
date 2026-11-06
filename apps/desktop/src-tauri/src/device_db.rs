@@ -106,7 +106,7 @@ impl DeviceDatabases {
       return Ok(());
     }
     fs::create_dir_all(&self.dir).map_err(message)?;
-    let connection = Connection::open(self.dir.join(name)).map_err(message)?;
+    let mut connection = Connection::open(self.dir.join(name)).map_err(message)?;
     // The SQL comes from the webview: no statement may reach a file outside the
     // directory. SQLite reports both ATTACH and VACUUM INTO as an attach.
     connection
