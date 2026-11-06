@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { previousDecisionStep } from "./flow-definition.contract";
 import { outputOf, type FlowSnapshot } from "./flow-snapshot.contract";
 
 /**
@@ -9,7 +10,8 @@ import { outputOf, type FlowSnapshot } from "./flow-snapshot.contract";
  *
  * - An agent is known by what it produces. Any output other than a plan, a change, or a review
  *   is a report.
- * - A gate right after a plan agent approves the plan (`plan-gate`).
+ * - A gate after a plan agent approves the plan (`plan-gate`). Report steps between the two do
+ *   not count: the gate looks past them to the nearest earlier step that is not a report.
  * - A gate right before a ship the owner confirms reviews the change and ships (`ship-gate`).
  *   Only this gate accepts a ship confirmation. The flow validator refuses a gate that would be
  *   both.
@@ -45,7 +47,7 @@ export const stepRoleOf = (
       return output === "plan" || output === "change" || output === "review" ? output : "report";
     }
     case "gate": {
-      const previous = steps[index - 1];
+      const previous = previousDecisionStep(steps, index, (entry) => outputOf(snapshot, entry));
       if (previous !== undefined && outputOf(snapshot, previous) === "plan") return "plan-gate";
       const next = steps[index + 1];
       return next?.kind === "ship" && !next.auto ? "ship-gate" : "gate";
