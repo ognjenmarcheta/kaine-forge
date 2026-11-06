@@ -49,7 +49,7 @@ catalog:
   # Device storage for synced rows (M3b): the persistence RC set matching @tanstack/db, and the
   # wa-sqlite 1.x line its browser package declares as a peer.
   "@tanstack/db-sqlite-persistence-core": "1.0.0-rc.1"
-  "@tanstack/browser-db-sqlite-persistence": "1.0.0-rc.1"
+  "@tanstack/browser-db-sqlite-persistence": "1.0.0-rc.1.2"
   "@tanstack/expo-db-sqlite-persistence": "1.0.0-rc.1"
   "@tanstack/tauri-db-sqlite-persistence": "1.0.0-rc.1"
   # The desktop shell's commands. plugin-sql is only the Tauri driver's type peer: the shell
