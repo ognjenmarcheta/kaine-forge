@@ -3,7 +3,12 @@ import path from "node:path";
 import { z } from "zod";
 
 import { harnessFingerprint } from "./harness.fingerprint";
-import { ARTIFACTS, readArtifactText, writeArtifactJson } from "./pipeline.artifacts";
+import {
+  ARTIFACTS,
+  readArtifactText,
+  readEarlierReports,
+  writeArtifactJson
+} from "./pipeline.artifacts";
 import { agentRunLessons, recordLessons } from "./pipeline.lessons";
 import type {
   AgentStep,
@@ -29,7 +34,7 @@ import { builtinCapabilities, loadCapabilities } from "../agents/capabilities.lo
 import { toAgentPermissions } from "../agents/capabilities.resolve";
 import { EDIT_TOOLS, buildRunSettings, parseReceipts, type Receipt } from "../agents/permissions";
 import { chooseProvider, type ProviderChoice } from "../agents/provider.choose";
-import { composeRolePrompt, deskPromptFiles } from "../agents/roles";
+import { composeRolePrompt, deskPromptFiles, type EarlierReport } from "../agents/roles";
 import {
   PROVIDERS,
   agentOutputJsonSchema,
@@ -267,6 +272,8 @@ export interface AgentStageInput<T> {
   /** The owner's note at the plan approval. The builder reads it as the owner's words. */
   readonly ownerNote?: string | undefined;
   readonly diffPath?: string | undefined;
+  /** Reports of earlier report steps of the flow. They go into the prompt as advice. */
+  readonly reports?: readonly EarlierReport[] | undefined;
   /** Exact workspace package names an edit-code or run-checks agent may run scripts for. */
   readonly workspaces?: readonly string[] | undefined;
   /**
@@ -396,6 +403,13 @@ export const agentStep =
     const prepared = (await spec.prepare?.(context, step, agent, pending)) ?? {};
     if ("kind" in prepared) return prepared;
     const profile = agentProfileOf(context.deps.config, agent);
+    // Every agent step reads the reports before it; a rerun on feedback also those after it.
+    const reports = await readEarlierReports(
+      context.artifactsDir,
+      state.flowSnapshot,
+      step.id,
+      pending !== null
+    );
     const run = await runAgentStage(context, {
       role: profile.role,
       agent,
@@ -403,6 +417,7 @@ export const agentStep =
       readOnly: profile.readOnly,
       resumeSessionId: profile.resumes ? state.sessions[agent.id] : undefined,
       feedback: pending?.text,
+      reports,
       ...prepared
     });
     if (!run.ok) {
@@ -572,6 +587,7 @@ const runAgentStageOnce = async <T>(
         issue,
         plan: input.plan,
         diffPath: input.diffPath,
+        reports: input.reports,
         feedback: input.feedback,
         ownerNote: input.ownerNote,
         body: agent?.prompt,

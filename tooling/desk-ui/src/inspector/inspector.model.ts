@@ -57,6 +57,19 @@ export const ranReports = (detail: IssueDetail): RanReport[] =>
       : []
   );
 
+/**
+ * The report steps directly before step `id` that have run, in flow order. At the plan gate
+ * they are the reports on the plan, since the gate looks past them to the plan.
+ */
+export const reportsBefore = (detail: IssueDetail, id: FlowNodeId): RanReport[] => {
+  const { steps } = detail.flowDefinition;
+  const index = steps.findIndex((step) => step.id === id);
+  let first = index;
+  while (first > 0 && steps[first - 1]?.agent?.output === "report") first -= 1;
+  const between = new Set(steps.slice(first, Math.max(index, 0)).map((step) => step.id));
+  return ranReports(detail).filter((report) => between.has(report.stepId));
+};
+
 // --- text -------------------------------------------------------------------
 
 /** A translation key with its values, or engine text shown as it is. */

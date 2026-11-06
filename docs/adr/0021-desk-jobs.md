@@ -55,7 +55,16 @@ Added with the fourth job kind. Flow: setup → audit → gate → file.
 
 - **Start.** **Audit screen** in the Lab view takes the id of a lab screen that the checkout has.
 - **Audit.** The engine copies the owner's local reference image of that screen, when there is one, into the worktree and starts the lab server. One Claude run follows `kaine-audit-ui` (in reference mode when the image is there) and `kaine-write-issue`, with the Playwright browser. It writes nothing and runs only `lab:diff`, `lab:shots`, and `ui:check`. It returns each finding with its rule ID and severity, as the issue to file.
-- **Gate.** The owner opens the screen (its compare view in reference mode), ticks the findings to file, and approves (with a confirmation) or sends back. Approve files exactly the ticked findings through the desk's GitHub port and stops the lab server. An audit pushes nothing: its local branch goes when the owner removes the job.
+- **Gate.** The owner opens the screen (its compare view in reference mode), ticks the findings to file, and approves (with a confirmation) or sends back. Approve files exactly the ticked findings through the desk's GitHub port and stops the lab server. An audit pushes nothing. Removing the job removes its worktree and keeps its local branch, which the owner deletes with git.
+
+### The specialist job
+
+Added with the fifth job kind. Flow: setup → report → gate. One generic kind runs any registered report agent, so a new Specialist (`CONTEXT.md`) needs a file in the agent library and no new job kind. The built-in Specialists are its main use; a repository or local report agent runs the same way.
+
+- **Start.** **Run a specialist** in New work, or **Run** on an agent in the Agents library, takes an agent id and a target: a repository path, a GitHub issue number, or the owner's brief. The agent must resolve in the registry (built-in, repository, or local) with `output: report` and the `read-only` or `run-checks` preset; the desk refuses any other agent at start. It snapshots the agent's name, prompt, skills, and MCP servers into the job, so a send-back runs the same agent. The job runs on the job's provider and model, as every job does; the agent file's provider and model do not apply. One specialist job runs per agent at a time.
+- **Report.** No lab server. The engine builds the prompt from the agent's own body, its skill instruction, and a fenced Target section: the path to read, the issue's title and body (read by the engine through the GitHub port and fenced as untrusted), or the brief. The worktree is cut from `origin/<baseBranch>`, so the engine checks a path target again in the worktree before the run and stops the job, naming the revision, when the path is not there; the prompt names the revision the agent reviews. One run returns the `report` output (summary, findings, plain language). It writes nothing. Start admission runs one call at a time, so two overlapping starts cannot both pass the open-job check.
+- **Permissions.** The read-only floor with the agent's skills and MCP servers in place of a kind's list. A `run-checks` agent gets no command: a specialist job has no workspace to check.
+- **Gate.** The owner reads the report. Approve closes the job: nothing is pushed, nothing is filed, and no confirmation is asked, because nothing leaves the machine. Send back runs the agent again with the owner's note. Removing the job removes its worktree and keeps its local branch, which the owner deletes with git.
 
 ### Trust boundary
 
@@ -66,7 +75,7 @@ Added with the fourth job kind. Flow: setup → audit → gate → file.
 
 ### Limits
 
-Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen and component: $10 and 60 minutes; audit: $5 and 30 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
+Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen and component: $10 and 60 minutes; audit and specialist: $5 and 30 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
 
 ### Tracking
 
@@ -85,6 +94,7 @@ Added so the owner can score, report, fix, and track scorecard work in the desk.
 - Job worktrees sit beside issue worktrees as `KAINE-job-<n>` and stay until the owner removes the job.
 - The Board's "Your turn" count and the tab title count issues only; jobs show in their own card on the Board.
 - The lab jobs (screen, component, audit) share the lab server and the browser; each kind has its own flow, skills, command allowlist, write paths, and limits.
+- The specialist job is the one kind whose agent is data: its prompt, skills, and MCP servers come from an agent file, and the engine adds only the target and the read-only floor.
 
 ## Alternatives considered
 

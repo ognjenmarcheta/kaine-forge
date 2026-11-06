@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { definitionIdSchema, type AgentOutputKind } from "./agent-definition.contract";
-import type { FlowStep } from "./flow-definition.contract";
+import { previousDecisionStep, type FlowStep } from "./flow-definition.contract";
 import { nextStepOf, outputOf, type FlowSnapshot } from "./flow-snapshot.contract";
 import {
   agentStageRoleSchema,
@@ -270,9 +270,10 @@ const edgeSpecs = (snapshot: FlowSnapshot): FlowEdgeSpec[] => {
       });
     }
     if (step.kind === "gate") {
-      const previous = steps[index - 1];
+      const previous = previousDecisionStep(steps, index, (entry) => outputOf(snapshot, entry));
       for (const target of step.sendBack) {
-        // Feedback at the gate right after the plan sends the plan back: a re-plan.
+        // Feedback at the plan gate that sends the plan back: a re-plan. A report between them
+        // does not count, as in `stepRoleOf`.
         const replan = previous?.id === target && outputOf(snapshot, previous) === "plan";
         specs.push({
           from: step.id,

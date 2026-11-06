@@ -23,6 +23,7 @@ import {
   NODE_STATUSES,
   PLAN_RISKS,
   PROVIDERS,
+  SPECIALIST_TARGET_KINDS,
   RUN_FAILURE_KINDS,
   SCORECARD_DISPOSITIONS,
   SCORECARD_MODES,
@@ -199,6 +200,9 @@ describe("desk translations", () => {
       "desk.job.stepState.": ["done", "current", "todo"],
       "desk.job.start.component.layer.": COMPONENT_LAYERS,
       "desk.job.auditReview.severity.": ["must", "should", "could"],
+      "desk.job.start.specialist.targetKind.": SPECIALIST_TARGET_KINDS,
+      "desk.job.start.specialist.targetValue.": SPECIALIST_TARGET_KINDS,
+      "desk.job.start.specialist.targetHelp.": SPECIALIST_TARGET_KINDS,
       "desk.job.": [
         "cancel",
         "remove",

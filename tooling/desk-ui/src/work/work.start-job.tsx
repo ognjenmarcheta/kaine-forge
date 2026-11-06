@@ -6,17 +6,32 @@ import {
   UI_COMPONENT_NAME,
   MAX_REFERENCE_BYTES,
   REFERENCE_TYPES,
+  REPO_PATH,
+  SPECIALIST_TARGET_KINDS,
+  specialistProblem,
   type JobKind,
-  type JobStartRequest
+  type JobStartRequest,
+  type SpecialistTargetKind
 } from "@repo/desk/contracts";
-import { Button, Input, Label, Textarea } from "@repo/ui";
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea
+} from "@repo/ui";
 import { useId, useState } from "react";
 
+import { useAgentList } from "../agents/agents.use";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
 import { useT } from "../i18n/i18n.t";
 import { useRouter } from "../shell/shell.router";
-import { Segmented } from "../shell/shell.ui";
+import { FailureText, Segmented } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 
 type ReferenceType = keyof typeof REFERENCE_TYPES;
@@ -35,6 +50,105 @@ const base64Of = async (file: File): Promise<string> => {
 
 const SCREEN_MODES = ["light", "dark"] as const;
 
+/** A positive whole issue number, or `null`. */
+const issueNumberOf = (value: string): number | null => {
+  const parsed = Number(value);
+  return /^\d+$/.test(value) && Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+/**
+ * A specialist job's agent and target. Only the report agents that edit nothing are listed: the
+ * desk refuses any other agent.
+ */
+function SpecialistFields({
+  agentId,
+  onAgent,
+  targetKind,
+  onTargetKind,
+  target,
+  onTarget
+}: {
+  readonly agentId: string;
+  readonly onAgent: (id: string) => void;
+  readonly targetKind: SpecialistTargetKind;
+  readonly onTargetKind: (kind: SpecialistTargetKind) => void;
+  readonly target: string;
+  readonly onTarget: (value: string) => void;
+}) {
+  const t = useT();
+  const id = useId();
+  const { state } = useAgentList();
+  const agents =
+    state.status === "ok"
+      ? state.list.agents.filter(
+          (view) => view.problems.length === 0 && specialistProblem(view.definition) === null
+        )
+      : [];
+  return (
+    <>
+      <div className="dk-field">
+        <Label htmlFor={`${id}-agent`}>{t("desk.job.start.specialist.agent")}</Label>
+        {state.status === "error" ? (
+          <FailureText code={state.code} detail={state.detail} />
+        ) : state.status === "ok" && agents.length === 0 ? (
+          <p className="dk-hint">{t("desk.job.start.specialist.noAgents")}</p>
+        ) : (
+          <Select value={agentId} onValueChange={onAgent}>
+            <SelectTrigger id={`${id}-agent`} aria-describedby={`${id}-agent-help`}>
+              <SelectValue placeholder={t("desk.job.start.specialist.agentPick")} />
+            </SelectTrigger>
+            <SelectContent>
+              {agents.map(({ definition }) => (
+                <SelectItem key={definition.id} value={definition.id}>
+                  {definition.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <p id={`${id}-agent-help`} className="dk-hint">
+          {t("desk.job.start.specialist.agentHelp")}
+        </p>
+      </div>
+      <div className="dk-field">
+        <span className="dk-hint">{t("desk.job.start.specialist.target")}</span>
+        <Segmented
+          label={t("desk.job.start.specialist.target")}
+          value={targetKind}
+          options={SPECIALIST_TARGET_KINDS}
+          name={(entry) => t(`desk.job.start.specialist.targetKind.${entry}`)}
+          onChange={onTargetKind}
+        />
+      </div>
+      <div className="dk-field">
+        <Label htmlFor={`${id}-target`}>
+          {t(`desk.job.start.specialist.targetValue.${targetKind}`)}
+        </Label>
+        {targetKind === "brief" ? (
+          <Textarea
+            id={`${id}-target`}
+            value={target}
+            maxLength={4000}
+            aria-describedby={`${id}-target-help`}
+            onChange={(event) => onTarget(event.target.value)}
+          />
+        ) : (
+          <Input
+            id={`${id}-target`}
+            value={target}
+            inputMode={targetKind === "issue" ? "numeric" : undefined}
+            aria-describedby={`${id}-target-help`}
+            onChange={(event) => onTarget(event.target.value.trim())}
+          />
+        )}
+        <p id={`${id}-target-help`} className="dk-hint">
+          {t(`desk.job.start.specialist.targetHelp.${targetKind}`)}
+        </p>
+      </div>
+    </>
+  );
+}
+
 /**
  * Start a desk job: what to keep in mind, the model, and the limits. The limits start at the
  * kind's defaults; a run that reaches one stops and waits for the owner.
@@ -42,12 +156,15 @@ const SCREEN_MODES = ["light", "dark"] as const;
 export function JobStartForm({
   kind,
   screen = "",
+  agentId: initialAgent = "",
   onCancel,
   onStarted
 }: {
   readonly kind: JobKind;
   /** The lab screen an audit starts on, when New work opened from that screen. */
   readonly screen?: string;
+  /** The agent a specialist job starts with, when New work opened from that agent. */
+  readonly agentId?: string;
   readonly onCancel: () => void;
   readonly onStarted: () => void;
 }) {
@@ -71,9 +188,25 @@ export function JobStartForm({
   const [componentName, setComponentName] = useState("");
   const [layer, setLayer] = useState<(typeof COMPONENT_LAYERS)[number]>("composed");
   const [auditScreen, setAuditScreen] = useState(screen);
+  const [agentId, setAgentId] = useState(initialAgent);
+  const [targetKind, setTargetKind] = useState<SpecialistTargetKind>("path");
+  const [target, setTarget] = useState("");
   const isScreen = kind === "screen";
   const isComponent = kind === "component";
   const isAudit = kind === "audit";
+  const isSpecialist = kind === "specialist";
+  const specialistTarget = (): NonNullable<JobStartRequest["specialist"]>["target"] | null => {
+    if (targetKind === "issue") {
+      const number = issueNumberOf(target);
+      return number === null ? null : { kind: "issue", value: number };
+    }
+    if (targetKind === "path") {
+      return REPO_PATH.test(target) && target.length <= 300
+        ? { kind: "path", value: target }
+        : null;
+    }
+    return target.trim() === "" ? null : { kind: "brief", value: target.trim() };
+  };
   const fileProblem =
     file === null
       ? null
@@ -101,7 +234,8 @@ export function JobStartForm({
     screenValid &&
     // The planner works from the note: for a component it says what the component is for.
     (!isComponent || (UI_COMPONENT_NAME.test(componentName) && note.trim() !== "")) &&
-    (!isAudit || LAB_SCREEN_ID.test(auditScreen));
+    (!isAudit || LAB_SCREEN_ID.test(auditScreen)) &&
+    (!isSpecialist || (agentId !== "" && specialistTarget() !== null));
   const valid =
     Number.isFinite(budgetValue) &&
     budgetValue > 0 &&
@@ -125,6 +259,9 @@ export function JobStartForm({
       };
       if (isComponent) request.component = { name: componentName, layer };
       if (isAudit) request.audit = { screenId: auditScreen };
+      const chosenTarget = specialistTarget();
+      if (isSpecialist && chosenTarget !== null)
+        request.specialist = { agentId, target: chosenTarget };
       if (isScreen && file !== null && isReferenceType(file.type)) {
         request.screen = {
           id: screenId,
@@ -261,6 +398,19 @@ export function JobStartForm({
             {t("desk.job.start.audit.screenHelp")}
           </p>
         </div>
+      )}
+      {isSpecialist && (
+        <SpecialistFields
+          agentId={agentId}
+          onAgent={setAgentId}
+          targetKind={targetKind}
+          onTargetKind={(next) => {
+            setTargetKind(next);
+            setTarget("");
+          }}
+          target={target}
+          onTarget={setTarget}
+        />
       )}
       <div className="dk-field">
         <Label htmlFor={`${id}-note`}>
