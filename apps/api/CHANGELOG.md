@@ -1,5 +1,69 @@
 # @repo/api
 
+## 2.5.0
+
+### Minor Changes
+
+- ed47711: Realtime events now reach every API replica (issue #802). The pubsub sends each event over
+  Postgres LISTEN/NOTIFY on the `api_pubsub` channel, so a subscriber on one replica hears about a
+  Todo, Note, Notification, or assistant reply written on another. Subscribers on the publishing
+  replica still get the event in-process, and webhooks still go out once, from that replica.
+- a9a2d2c: A first sync of a large Organization loads only the newest 500 Todos and Notes (issue #800).
+  `syncPull` takes `window`, payloads name lists with older rows in `older`, and the new
+  `syncPullOlder` loads them page by page. The engine stores where each list continues and exposes
+  `loadOlder`; the web and mobile lists load older rows past the local ones, online only. Every later
+  change of any row still syncs.
+- a9a2d2c: Two offline edits of the same Note body no longer lose one of them (issue #801). A body edit now
+  sends `baseBody`, and `syncPush` merges it line by line into the current body under a row lock.
+  Edits of the same lines are refused with `CONFLICT`, and the web app shows both versions so the
+  second writer keeps theirs or the current one. `SyncRejection` now carries the refused `change`.
+
+### Patch Changes
+
+- 568dd47: The API image now includes `@repo/theme`, which the API imports since the themeable design system.
+  Without it every container crashed at start, so deploys since 29 October kept running the old API.
+  The image build now fails when a workspace package the API imports is missing.
+- ba578e9: Data exports now stream (issue #753). The `data.export` job reads each list in keyset pages of
+  1,000 rows, writes the zip while it reads, and sends it to the private bucket by multipart upload,
+  so memory no longer grows with the export. The archive cap rises from 256 MiB to 4 GiB of JSON,
+  which bounds the job's run time; the compressed archive must also stay under 2 GiB, the most the
+  GraphQL `sizeBytes` Int can report. A larger export still fails with reason `too_large`. Archive
+  files hold the same rows and the same JSON as before. `@repo/storage` adds `uploadObjectStream`.
+- Updated dependencies [05fa337]
+- Updated dependencies [ba578e9]
+- Updated dependencies [d1325ed]
+- Updated dependencies [1a3fc0f]
+- Updated dependencies [6a13c9b]
+- Updated dependencies [cef5a53]
+- Updated dependencies [cd5c89e]
+- Updated dependencies [a4943a9]
+- Updated dependencies [cc50650]
+- Updated dependencies [b1b7350]
+- Updated dependencies [d2ade33]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [5c0f6b4]
+- Updated dependencies [4c41c94]
+- Updated dependencies [cc50650]
+- Updated dependencies [87b8219]
+- Updated dependencies [2271b43]
+- Updated dependencies [e4a6c42]
+- Updated dependencies [27abb62]
+- Updated dependencies [87b8219]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [3e8bb66]
+- Updated dependencies [bdbfa41]
+  - @repo/billing@0.1.1
+  - @repo/storage@1.7.0
+  - @repo/translation@1.15.0
+  - @repo/theme@0.2.0
+  - @repo/auth@5.2.1
+  - @repo/db@2.2.0
+  - @repo/email@1.3.4
+  - @repo/feature-flags@1.2.0
+  - @repo/jobs@1.1.1
+  - @repo/logger@1.2.1
+
 ## 2.4.0
 
 ### Minor Changes
