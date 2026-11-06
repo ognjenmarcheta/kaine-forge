@@ -42,6 +42,8 @@ The ladder above orders findings; labels state the author's obligation. Label ev
 - `Nit:` — minor; the author may ignore it.
 - `FYI:` — context only; no action needed.
 
+A `Critical:` or unprefixed finding must quote the code line it rests on. A finding that cannot quote a line is `Consider:` at most; drop it when nothing in the code supports it.
+
 Labels apply to review responses only. GitHub issue titles keep the `kaine-scorecard` rule: no priority prefixes.
 
 ## Security Findings
@@ -64,7 +66,7 @@ Labels apply to review responses only. GitHub issue titles keep the `kaine-score
 - When the diff changes a shared symbol and the Graphify CLI is installed, run `graphify affected "<symbol>"` (`kaine-graph`) to find dependents the diff missed; verify each lead in the code.
 - Walk `REVIEW.md` sections relevant to the diff (skip unrelated sections briefly).
 - Verify assumptions against `MONOREPO_GUIDE.md`, `DESIGN_SYSTEM.md`, and `CONTEXT.md`.
-- Reference exact files and tight line ranges.
+- Reference exact files and tight line ranges, and quote the line each finding rests on.
 - Do not spend review budget on harmless style unless it can hide a bug.
 - Check the author's verification story: which commands ran, and what evidence backs the claimed result.
 - Close with a verdict: approve when the change definitely improves overall code health, even if imperfect; request changes only while `Critical:` or unprefixed findings remain. Do not block on personal preference.

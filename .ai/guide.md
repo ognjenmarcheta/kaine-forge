@@ -78,6 +78,7 @@ GitButler is the recommended local version-control client. It runs several branc
 - `but commit` does not run the `commit-msg` hook. The `pre-push` hook runs commitlint, including the no-AI-co-author rule, on every pushed commit, but GitButler runs `.husky` hooks only when the project setting "Enable Husky hooks" is on. It is off by default. Before `but push` or `but pr new`, run `pnpm exec commitlint --from origin/main --to <branch>` yourself. Wrap commit body lines at 100 characters.
 - Each contributor installs GitButler's own agent skill: `but skill install --global` the first time, then `but skill install --detect` after a CLI update (`--detect` only updates existing installs). `but skill check` shows whether it matches the CLI version. Do not vendor it into `.ai/skills/`.
 - Use a separate worktree only when an agent needs its own runtime state, such as ports, build output, or a database. The Agent Desk keeps its plain-git worktrees.
+- When the `Worktrunk:` startup line reports `wt` ready, create that worktree with `wt switch -c -x <agent> <branch> -- '<task>'`. `.config/wt.toml` copies `.env`, installs dependencies, and gives the worktree its own web and API ports (`WEB_PORT`, `API_PORT` in its `.env`). Never run `wt merge` or `wt step push`: they merge into local `main` without a pull request. Open a draft PR instead, and remove the worktree with `wt remove` after the owner merges it. Do not remove a worktree that a desk run drives. ADR 0024 records the setup.
 
 ## AI Behavioral Guidelines
 
@@ -94,6 +95,7 @@ Principles to reduce common LLM coding mistakes:
 - Push back when the requested path is likely to be more complex than needed, and offer the simpler alternative with tradeoffs.
 - Fix bugs at the root cause: a report names a symptom. Trace every caller of the function you change and fix the shared function once — one guard there beats one per caller, and patching only the reported path leaves sibling callers broken.
 - If a required fact cannot be discovered locally and guessing would change behavior, stop and ask.
+- When you ask the owner to choose, state the stakes in one sentence, give one recommendation and its reason, and name what each shortcut option gives up.
 
 ### Simplicity First
 
@@ -268,7 +270,7 @@ This index is generated from canonical skill metadata:
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
-The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region and writes `scorecard-out/`, which is local, regenerable, and never committed. `REVIEW.md` governs diffs; the scorecard governs the repo.
+The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region; the agent desk's **Scorecard** view reads the ledger and shows the trend, the findings, and the diagrams. `REVIEW.md` governs diffs; the scorecard governs the repo.
 
 Downstream products keep their own guide rules, review checks, skills, and agents in `.ai/project/` (`guide.md`, `review.md`, `skills/`, `agents/`). Project skill and agent names start with the `repoSlug` from `.ai/project/template.json`. `pnpm ai:sync` merges upstream changes into the other `.ai/` sources and never writes `.ai/project/` (ADR 0014).
 

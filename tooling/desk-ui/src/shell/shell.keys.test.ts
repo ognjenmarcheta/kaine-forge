@@ -11,17 +11,18 @@ const press = (target: Element, key: string, init: KeyboardEventInit = {}): void
 const setup = () => {
   const openPalette = vi.fn();
   const go = vi.fn();
+  const newWork = vi.fn();
   const approve = vi.fn();
   const clock = { now: 1_000 };
   const shortcuts: PageShortcut[] = [{ key: "a", run: approve }];
   const handler = createKeyHandler(
-    { openPalette, go },
+    { openPalette, go, newWork },
     () => shortcuts,
     () => clock.now
   );
   document.addEventListener("keydown", handler);
   cleanups.push(() => document.removeEventListener("keydown", handler));
-  return { openPalette, go, approve, clock };
+  return { openPalette, go, newWork, approve, clock };
 };
 
 const place = (html: string): Element => {
@@ -78,24 +79,37 @@ describe("createKeyHandler", () => {
     expect(keys.approve).not.toHaveBeenCalled();
   });
 
-  it("goes to a page with G and then B, F, A, H, or R, only within the sequence time", () => {
+  it("goes to a page with G and then I, W, F, A, S, N, C, or L, only within the sequence time", () => {
     const keys = setup();
     const page = place("<main data-target></main>");
-    press(page, "g");
-    press(page, "h");
-    press(page, "g");
-    press(page, "R", { shiftKey: true });
-    press(page, "g");
-    press(page, "f");
-    // G then A goes to the agents; it does not approve.
-    press(page, "g");
-    press(page, "a");
-    expect(keys.go.mock.calls).toEqual([["health"], ["stats"], ["flows"], ["agents"]]);
+    for (const key of ["i", "W", "f", "a", "s", "n", "c", "l"]) {
+      press(page, "g");
+      press(page, key, { shiftKey: key === "W" });
+    }
+    expect(keys.go.mock.calls).toEqual([
+      ["inbox"],
+      ["work"],
+      ["flows"],
+      // G then A goes to the agents; it does not approve.
+      ["agents"],
+      ["setup"],
+      ["insights"],
+      ["scorecard"],
+      ["lab"]
+    ]);
     expect(keys.approve).not.toHaveBeenCalled();
+    // G then N goes to Insights; N alone does not open New work then.
+    expect(keys.newWork).not.toHaveBeenCalled();
 
     press(page, "g");
     keys.clock.now += SEQUENCE_MS;
-    press(page, "b");
-    expect(keys.go).toHaveBeenCalledTimes(4);
+    press(page, "i");
+    expect(keys.go).toHaveBeenCalledTimes(8);
+  });
+
+  it("opens New work with N when the page does not bind N", () => {
+    const keys = setup();
+    press(place("<main data-target></main>"), "n");
+    expect(keys.newWork).toHaveBeenCalledTimes(1);
   });
 });

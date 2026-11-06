@@ -45,36 +45,46 @@ import only Zod, so a browser can use them.
 
 ## Routes
 
-| Method | Path                             | Answer                                                                    |
-| ------ | -------------------------------- | ------------------------------------------------------------------------- |
-| POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.        |
-| GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                          |
-| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.   |
-| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues (with `flowId`) and PRs. Cached 60 s.          |
-| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.  |
-| GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues. |
-| POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.          |
-| POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.      |
-| GET    | `/api/lessons/issue-preview?key` | `LessonIssueDraft`: the exact `{ key, title, body, digest }` to send.     |
-| POST   | `/api/lessons/issue`             | `LessonIssueCreated`. Body: `{ key, digest, confirm: true }`. See below.  |
-| GET    | `/api/events`                    | Event stream. See "Events".                                               |
-| GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`.   |
-| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.           |
-| GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.                 |
-| GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).        |
-| POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.                 |
-| GET    | `/api/agents`                    | `AgentList`: the registry's agents, resolved. See "Agents and flows".     |
-| GET    | `/api/agents/:id`                | `AgentView`. `404 not-found` for an id the registry does not have.        |
-| GET    | `/api/flows`                     | `FlowList`: the registry's flows. See "Agents and flows".                 |
-| GET    | `/api/flows/:id`                 | `FlowView`. `404 not-found` for an id the registry does not have.         |
-| PUT    | `/api/agents/:id`                | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.          |
-| PUT    | `/api/flows/:id`                 | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.          |
-| POST   | `/api/agents/:id/clone`          | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.         |
-| POST   | `/api/flows/:id/clone`           | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.         |
-| POST   | `/api/agents/:id/promote`        | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.         |
-| POST   | `/api/flows/:id/promote`         | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.         |
-| DELETE | `/api/agents/:id`                | `DefinitionWriteResult`. Deletes a local agent only.                      |
-| DELETE | `/api/flows/:id`                 | `DefinitionWriteResult`. Deletes a local flow only.                       |
+| Method | Path                             | Answer                                                                      |
+| ------ | -------------------------------- | --------------------------------------------------------------------------- |
+| POST   | `/api/session`                   | `{ ok: true }` and the session cookie. Body: `{ token }`. One use.          |
+| GET    | `/api/health`                    | `HealthReport` (doctor mirror). Cached for 10 s.                            |
+| POST   | `/api/health/fix`                | `{ fix }`. `202` while it runs, `404` unknown to this desk, `409 busy`.     |
+| GET    | `/api/github[?refresh=1]`        | `GithubLists`: open issues and PRs (CI, review, last check). Cached 60 s.   |
+| GET    | `/api/stats`                     | `RunStats` from `runs.jsonl`: runs by agent, provider, model, and issue.    |
+| GET    | `/api/lessons`                   | `LessonReport` from `lessons.jsonl`: problems seen in two or more issues.   |
+| GET    | `/api/scorecard`                 | `ScorecardView`: the scorecard ledger, `missing`, `invalid`, or `ready`.    |
+| GET    | `/api/scorecard?job`             | `ScorecardView` of a scorecard job's worktree: the preview at its gate.     |
+| GET    | `/api/scorecard/tracking`        | `ScorecardTracking`: the scorecard's issues and fixes. Cached 60 s.         |
+| POST   | `/api/scorecard/backfill`        | `ScorecardBackfillResult`. Body: `{ issues, confirm: true }`; tracked only. |
+| GET    | `/api/jobs`                      | `JobState[]`, newest first.                                                 |
+| POST   | `/api/jobs`                      | `JobState` (`201`). Body: `JobStartRequest`. `409 busy` while one is open.  |
+|        |                                  | A screen job carries its reference as base64 (PNG, JPEG, WebP; 10 MB).      |
+|        |                                  | A component job carries `component`, an audit job `audit`.                  |
+| GET    | `/api/jobs/:id`                  | `JobState`. `404` for an unknown job.                                       |
+| POST   | `/api/jobs/:id/actions`          | `{ job }`. Body: `JobActionRequest`; approve needs `confirm: true`.         |
+| POST   | `/api/lessons/promote`           | `LessonReport`. Body: `{ key, note? }`. `404` for an unseen key.            |
+| POST   | `/api/lessons/unpromote`         | `LessonReport`. Body: `{ key }`. `404` when the key is not promoted.        |
+| GET    | `/api/lessons/issue-preview?key` | `LessonIssueDraft`: the exact `{ key, title, body, digest }` to send.       |
+| POST   | `/api/lessons/issue`             | `LessonIssueCreated`. Body: `{ key, digest, confirm: true }`. See below.    |
+| GET    | `/api/events`                    | Event stream. See "Events".                                                 |
+| GET    | `/api/issues`                    | `{ issues: IssueSummary[] }`. An unreadable issue has `readable:false`.     |
+| GET    | `/api/issues/:n`                 | `IssueDetail` with the issue's `runs`. `404`, `409 unreadable`.             |
+| GET    | `/api/issues/:n/artifacts/:id`   | The raw file. `404 not-found` for an id outside the list.                   |
+| GET    | `/api/issues/:n/log?after=<seq>` | `{ entries, last }`. The live buffer (500 entries for each issue).          |
+| POST   | `/api/issues/:n/actions`         | `ActionRequest`. `200` done, `202` accepted, or an error.                   |
+| GET    | `/api/agents`                    | `AgentList`: the registry's agents, resolved. See "Agents and flows".       |
+| GET    | `/api/agents/:id`                | `AgentView`. `404 not-found` for an id the registry does not have.          |
+| GET    | `/api/flows`                     | `FlowList`: the registry's flows. See "Agents and flows".                   |
+| GET    | `/api/flows/:id`                 | `FlowView`. `404 not-found` for an id the registry does not have.           |
+| PUT    | `/api/agents/:id`                | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.            |
+| PUT    | `/api/flows/:id`                 | `DefinitionWriteResult`. Body: `{ definition }`. Saves to local.            |
+| POST   | `/api/agents/:id/clone`          | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.           |
+| POST   | `/api/flows/:id/clone`           | `201 DefinitionWriteResult`. Body: `{ id, name? }`. A local copy.           |
+| POST   | `/api/agents/:id/promote`        | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.           |
+| POST   | `/api/flows/:id/promote`         | `DefinitionWriteResult`. Body: `{ confirm? }`. Local to `.desk/`.           |
+| DELETE | `/api/agents/:id`                | `DefinitionWriteResult`. Deletes a local agent only.                        |
+| DELETE | `/api/flows/:id`                 | `DefinitionWriteResult`. Deletes a local flow only.                         |
 
 Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-body`,
 `ship-plan`, `issue-draft`, `log`. A listed file that the issue has not written yet gives `404 artifact-missing`.
@@ -82,21 +92,25 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
 
 ## Actions
 
-| `action`      | Extra fields                               | Runner call                                           |
-| ------------- | ------------------------------------------ | ----------------------------------------------------- |
-| `start`       | `override?: boolean`, `flowId?: <flow id>` | `start(n, { override, flowId })`                      |
-| `approve`     | `note?` (1 to 20000 characters after trim) | `approvePlan(n, { note })`                            |
-| `feedback`    | `to: <step id>`, `text`                    | `feedback(n, to, text)`                               |
-| `continue`    | `from?: <step id>`, or `intake`, `setup`   | `continueFrom(n, from)`                               |
-| `cancel`      | none                                       | `cancel(n)`                                           |
-| `remove`      | `force?: boolean`                          | `remove(n, { force })`                                |
-| `ship`        | `confirm: boolean`, `dryRun?: boolean`     | `ship(n, { confirm, dryRun })`                        |
-| `refresh-pr`  | none                                       | `refreshPr(n)`: read the PR at `pr-open` once         |
-| `pr-feedback` | `text?` (1 to 20000 characters after trim) | `feedbackFromPr(n, { text })`                         |
-| `draft`       | none                                       | `draft(n)`: done means `needs-you` with "Draft ready" |
-| `apply-draft` | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                          |
-| `pause`       | none                                       | `pause(n)`: hold the issue after the running stage    |
-| `resume`      | none                                       | `resume(n)`: clear the hold and drive on              |
+| `action`         | Extra fields                               | Runner call                                                       |
+| ---------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `start`          | `override?: boolean`, `flowId?: <flow id>` | `start(n, { override, flowId })`                                  |
+| `approve`        | `note?` (1 to 20000 characters after trim) | `approvePlan(n, { note })`                                        |
+| `feedback`       | `to: <step id>`, `text`                    | `feedback(n, to, text)`                                           |
+| `continue`       | `from?: <step id>`, or `intake`, `setup`   | `continueFrom(n, from)`                                           |
+| `cancel`         | none                                       | `cancel(n)`                                                       |
+| `remove`         | `force?: boolean`                          | `remove(n, { force })`                                            |
+| `ship`           | `confirm: boolean`, `dryRun?: boolean`     | `ship(n, { confirm, dryRun })`                                    |
+| `refresh-pr`     | none                                       | `refreshPr(n)`: read the PR at `pr-open` once                     |
+| `check-pr`       | none                                       | `checkPr(n)`: read the PR's checks and comments once              |
+| `pr-feedback`    | `text?` (1 to 20000 characters after trim) | `feedbackFromPr(n, { text })`                                     |
+| `draft`          | none                                       | `draft(n)`: done means `needs-you` with "Draft ready"             |
+| `apply-draft`    | `confirm: true` (anything else is `400`)   | `applyDraft(n, { confirm })`                                      |
+| `pause`          | none                                       | `pause(n)`: hold the issue after the running stage                |
+| `resume`         | none                                       | `resume(n)`: clear the hold and drive on                          |
+| `steer`          | `note` (1 to 20000 characters after trim)  | `steer(n, note)`: run the agent again with it                     |
+| `take-over`      | none                                       | `takeOver(n)`: stop the agent for the owner                       |
+| `resolve-denial` | `command`, `resolution: "allow" \| "skip"` | `resolveDenial(n, command, resolution)`: answer a refused command |
 
 - Unknown fields are rejected (`400`). There is no field for a path or an organization.
 - `start` without `flowId` runs the issue on the flow of its first label in the config's
@@ -120,10 +134,33 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   `cancelled`, or `finished` (`409 invalid-transition`). A second `pause` changes nothing.
 - `resume` clears the pause and drives on from the stage where the issue waits. It refuses an
   issue that is not paused (`409 invalid-transition`). `cancel` clears a pause.
+- `steer` stops the agent that runs now and runs it again in the same session with `note`
+  (ADR 0022). An agent stopped before it had a session starts again with its first prompt and
+  `note`. It answers at once with `stop: "steered"`. `take-over` stops the agent and
+  answers when the stage has stopped, with `stop: "needs-you"`. The issue detail's sessions
+  give the resume command; the message names `pnpm desk resume <n>` and holds no path or
+  session id, because it reaches the GitHub status comment. Both refuse (`409 invalid-transition`) when no agent of the issue runs in this
+  server, or when the last request has not reached the agent yet. `take-over` also refuses a
+  review or report agent and an issue in Docker isolation.
+- `resolve-denial` answers a command the desk refused to an agent, from `needs-you` at an agent
+  step. The issue detail lists the candidates as `deniedCommands`: the exact commands the last run
+  of the stage to retry tried and the desk refused. It lists them only when the agent can run
+  commands (not a read-only agent), the stop is the agent's own `blockers` stop, and the stop text
+  names the command. A scope violation or a failed check lists none. The server checks `command` against that list
+  again, so a client cannot allow a command the desk never refused (`409 invalid-transition`).
+  Both send feedback to the stage, because a resumed agent trusts the refusals in its own session
+  and would not try again. `allow` keeps the command in `approvedCommands` of the issue state, runs
+  the stage again with it as one exact allow rule, and tells the agent that the command is allowed
+  now. `skip` tells the agent to leave the command out.
+  The desk never offers a chained, piped or pattern command, `gh`, a forbidden git or pnpm script,
+  `pnpm exec`, `pnpm dlx`, or any command that the deny rules or `.ai/permissions.json` deny.
 - Only `start` may run for an issue that has no state. Others give `404 unknown-issue`.
 - `refresh-pr` takes no PR number: the engine reads it from the issue state. It answers `done`
   at the `pr-open` gate while the PR is open, `shipped` after a merge, and `cancelled` after a
   close without a merge. It never writes to the PR.
+- `check-pr` reads the open PR's failing checks and the comments a PR feedback round would read,
+  stores them as `prCheck` on the issue state, and changes no stage. It refuses (`409
+pr-refused`) without a PR number, write-back, or an open PR, and when the GitHub read fails.
 - `pr-feedback` takes no PR number either. At `pr-open` it collects the failing checks and the
   trusted review comments on the PR head, adds `text` as the owner's note, and drives the issue
   through `build`, `check`, and `review` to `pr-review`. A refusal is `409 pr-refused` and
@@ -139,11 +176,11 @@ Artifact ids: `ticket`, `plan`, `build`, `check-report`, `review`, `diff`, `pr-b
   answer is `200 { status: "done", outcome }`. A refusal is an error answer. If the call
   is still running, the answer is `202 { status: "accepted" }`. The result then arrives
   as an `action-result` event.
-- One issue runs one action at a time. A second one gets `409 busy`. `cancel`, `remove`, and
-  `pause` are the exception: they act on a running action. `pause` changes the running action's
+- One issue runs one action at a time. A second one gets `409 busy`. `cancel`, `remove`,
+  `pause`, `steer`, and `take-over` are the exception: they act on a running action. `pause` changes the running action's
   state at once, so it answers `done` with `stop: "paused"` while the stage still runs.
-- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `finished`, `removed`, or
-  `paused`. `finished`: a flow without a ship step ran every step, and nothing shipped. Like
+- `ActionOutcome.stop` is `gate`, `needs-you`, `shipped`, `cancelled`, `finished`, `removed`,
+  `paused`, or `steered`. `finished`: a flow without a ship step ran every step, and nothing shipped. Like
   `shipped` and `cancelled`, the stage `finished` is terminal: no action drives the issue again.
 
 ## Errors
@@ -175,6 +212,10 @@ keeps the two lists equal.
 board never reads one detail for each card. Besides the stage, status, branch, loops,
 `needsYouReason`, `busy`, and times, a readable summary has:
 
+- `needsYouCode`: why the issue stopped while it is in `needs-you`, or `null`: `loop-limit`,
+  `same-failure`, `blocked`, `error`, `pr-round-limit`, `intake` (the issue failed intake),
+  `interrupted`, or `no-provider` (no agent CLI on the machine can run the step). The UI names the
+  stop from it. A stop recorded before the code existed has `null`.
 - `resumeStage`: the stage `continue` re-runs while the issue is in `needs-you`, or `null`.
 - `prUrl`: the draft PR once the ship opened it, or `null`.
 - `prRound` and `prRoundLimit`: the PR feedback rounds so far, and `maxPrRounds` of the config.

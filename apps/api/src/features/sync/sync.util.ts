@@ -51,6 +51,35 @@ export function decodeSyncCursor(cursor: string, organizationId: string): SyncPo
   return { version, floor };
 }
 
+const OLDER_CURSOR_KIND = "sync-older";
+
+/**
+ * Where a list's older rows continue: the list and its page cursor, which
+ * already names its table and Organization.
+ */
+export function encodeOlderCursor(list: string, after: string): string {
+  return Buffer.from(JSON.stringify([OLDER_CURSOR_KIND, list, after])).toString("base64url");
+}
+
+export function decodeOlderCursor<TList extends string>(
+  cursor: string,
+  lists: readonly TList[]
+): { list: TList; after: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+  } catch {
+    throw badInput("invalid cursor");
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 3) throw badInput("invalid cursor");
+  const [kind, list, after] = parsed;
+  const known = lists.find((candidate) => candidate === list);
+  if (kind !== OLDER_CURSOR_KIND || !known || typeof after !== "string") {
+    throw badInput("invalid cursor");
+  }
+  return { list: known, after };
+}
+
 /** Throws `invalid id` unless the value is a UUID, before it reaches a uuid column. */
 export function ensureUuid(value: string): string {
   if (!UUID_PATTERN.test(value)) {
@@ -80,7 +109,7 @@ export function rejectionCode(error: unknown): SyncMutationOutcome["code"] {
   const { message } = error;
   if (message.startsWith("permission required")) return "FORBIDDEN";
   if (message.endsWith(" not found")) return "NOT_FOUND";
-  if (message.endsWith(" id conflict")) return "CONFLICT";
+  if (message.endsWith(" id conflict") || message.endsWith(" body conflict")) return "CONFLICT";
   if (
     message === "invalid id" ||
     message.endsWith(" title is required") ||

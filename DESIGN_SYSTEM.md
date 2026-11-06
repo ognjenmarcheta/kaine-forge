@@ -115,17 +115,19 @@ The active theme sets every color; its `DESIGN.md` describes the palette. Compon
 
 Semantic roles:
 
-| Role        | Meaning                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------- |
-| Neutral     | default chrome, text, dividers                                                              |
-| Brand       | primary actions and product identity                                                        |
-| Information | help, guidance, neutral notices                                                             |
-| Success     | positive outcome or completion                                                              |
-| Warning     | caution or pending risk                                                                     |
-| Danger      | errors or destructive actions                                                               |
-| Discovery   | onboarding, new features, exploration                                                       |
-| Chart       | `--ds-chart-1` to `--ds-chart-6` for data series in order, `--ds-chart-grid` for grid lines |
-| Chart tint  | `--ds-background-chart-1` to `-6` for pale fills, `--ds-text-chart-1` to `-6` for text      |
+| Role        | Meaning                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| Neutral     | default chrome, text, dividers                                                                   |
+| Brand       | primary actions and product identity                                                             |
+| Information | help, guidance, neutral notices                                                                  |
+| Success     | positive outcome or completion                                                                   |
+| Warning     | caution or pending risk                                                                          |
+| Attention   | "your turn": work that waits on a person. It aliases warning today, apart from real warnings     |
+| Danger      | errors or destructive actions                                                                    |
+| Discovery   | onboarding, new features, exploration                                                            |
+| Chart       | `--ds-chart-1` to `--ds-chart-6` for data series in order, `--ds-chart-grid` for grid lines      |
+| Chart tint  | `--ds-background-chart-1` to `-6` for pale fills, `--ds-text-chart-1` to `-6` for text           |
+| State       | `--ds-border-state`: the border of a selected, pressed, or current item, at border-bold contrast |
 
 Rules:
 
@@ -133,6 +135,8 @@ Rules:
 - Use tokenized interaction states such as `hovered`, `pressed`, `focused`, and `disabled`.
 - Do not use opacity hacks, `filter`, or custom hover colors for interaction states in components.
 - Do not hardcode hex, rgb, hsl, or named colors in component code.
+- The light chart series is the same in every theme and stays apart for deuteranopia, protanopia, and tritanopia; dark mode keeps each theme's series. A chart still labels its series.
+- A filled status mark (`--ds-background-warning-bold` and the like) is a graphic on the page and reaches 3:1 against the surface (SC 1.4.11).
 - A category tile, tag, or avatar takes its chart color's tint (`bg-ds-bg-chart-2`), not the chart color at an opacity. The tint carries `text`, `text-subtle`, and its text color (`text-ds-text-chart-2`), which also draws an icon or a mark on the tint; the text color reads on every surface too (COLOR-7).
 
 ## 5. Typography
@@ -152,6 +156,8 @@ Typography tokens define hierarchy and rhythm.
 | `--ds-font-body-xsmall`    | metadata            |
 
 Reading-first workspaces, such as the agent desk, use a larger, airier scale: `--ds-font-body-comfortable` (15px/1.55) for body text, `--ds-font-body-snug` (13.5px) for secondary text such as tables and status bars, `--ds-font-body-compact` (13px) for metadata, `--ds-font-code-small` (12.5px) for code, `--ds-font-heading-row` (15.5px) for list row titles, `--ds-font-heading-card` (19px) for card headings and key figures, and `--ds-font-heading-page` (26px) for the page title. Their headings use `--ds-letter-spacing-heading` (-0.015em). Every step has a `text-*` utility, so a dense table or nav that needs 13px text uses `text-body-compact`, not a changed `body` step.
+
+An app that keeps to a few styles reads them through the five text styles, aliases of the steps above that every theme declares: `--ds-type-title` (heading-large), `--ds-type-heading` (heading-small), `--ds-type-body` (body), `--ds-type-label` (body-small, the floor: nothing reads smaller), and `--ds-type-mono` (code-small). The agent desk uses only these. They are web-only, like every type role.
 
 Each step also has a letter-spacing token, `--ds-letter-spacing-<step>`, which its `text-*` utility sets and `tracking-*` still overrides. It is 0 unless the theme sets it: `letterSpacing` in `createTheme` for every step, or `letterSpacing` on one step in `type`, for example to narrow a wide font.
 
@@ -224,6 +230,14 @@ Component tokens are the per-component values a theme sets for shape, density, a
 | `--ds-overlay-radius`     | `--ds-radius-200`           | `rounded-overlay`        | menus, popovers, select lists                                          |
 | `--ds-dialog-radius`      | `--ds-radius-300`           | `rounded-dialog`         | dialogs and the command menu                                           |
 | `--ds-badge-radius`       | `--ds-radius-pill`          | `rounded-badge`          | badges                                                                 |
+
+### 6.2 Density, layers, and layout
+
+These web-only roles are fixed values, not theme choices:
+
+- **Density.** `--ds-density-row-y`, `--ds-density-row-x`, `--ds-density-card`, `--ds-density-gap`, and `--ds-density-section` read the space scale. `data-density="compact"` on an app root switches them, and the medium and large controls, to the compact values; comfortable is the default.
+- **Layers.** `--ds-layer-raised` (1), `-sticky` (20), `-nav` (30), `-menu` (35), `-blanket` (40), `-popover` (45), and `-toast` (60). A component takes a named layer, never a raw `z-index`.
+- **Layout.** `--ds-layout-sidebar` (15rem), `-sidebar-collapsed` (4rem), `-rail` (20rem), `-measure` (48rem), `-page` (90rem), `-tabbar` (3.5rem), and `-hit` (the 24px minimum target, SC 2.5.8).
 
 ## 7. Elevation
 

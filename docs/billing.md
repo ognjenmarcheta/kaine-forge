@@ -21,7 +21,7 @@ The catalog holds **one price ID for each Plan and interval**. Do not replace a 
 
 1. Create the products and prices. Set the `BILLING_PRICE_*` variables to the price IDs.
 2. Set `BILLING_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, and `WEB_APP_URL`.
-3. Create a webhook endpoint at `<API_URL>/api/billing/webhooks/stripe` on API version `2026-09-30.endive`. Send at least `checkout.session.completed` and the `customer.subscription.*` events. Set `STRIPE_WEBHOOK_SECRET` to its signing secret.
+3. Create a webhook endpoint at `<API_URL>/api/billing/webhooks/stripe` on API version `2026-10-28.endive`. Send at least `checkout.session.completed` and the `customer.subscription.*` events. Set `STRIPE_WEBHOOK_SECRET` to its signing secret.
 4. In the Customer Portal settings, allow plan changes between your prices and cancellation. **Turn off quantity changes:** seat sync owns the quantity of a per-seat Plan.
 
 Test webhooks locally with the Stripe CLI:

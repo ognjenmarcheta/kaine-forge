@@ -1,37 +1,23 @@
 #!/usr/bin/env tsx
 
 import chalk from "chalk";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
 
-import {
-  derivedFlows,
-  LEDGER_PATH,
-  OUT_DIR,
-  parseLedger,
-  renderDashboardHtml,
-  rewriteLedger
-} from "./scorecard.util";
+import { LEDGER_PATH, parseLedger, rewriteLedger } from "./scorecard.util";
 
 const main = (): void => {
   const raw = readFileSync(LEDGER_PATH, "utf8");
   const data = parseLedger(raw);
-  const flows = [...derivedFlows(), ...data.authoredFlows];
 
   const updated = rewriteLedger(raw, data);
   if (updated !== raw) {
     writeFileSync(LEDGER_PATH, updated);
+    console.log(chalk.green(`Ledger generated region updated: ${LEDGER_PATH}`));
+  } else {
+    console.log(chalk.green("Ledger generated region is up to date."));
   }
-
-  mkdirSync(OUT_DIR, { recursive: true });
-  const htmlPath = join(OUT_DIR, "index.html");
-  writeFileSync(htmlPath, renderDashboardHtml(data, flows));
-
-  console.log(chalk.green(`Scorecard rendered: ${htmlPath}`));
-  console.log(chalk.gray(`Runs: ${data.runs.length} · Flows: ${flows.length}`));
-  if (updated !== raw) {
-    console.log(chalk.gray(`Ledger generated region updated: ${LEDGER_PATH}`));
-  }
+  console.log(chalk.gray(`Runs: ${data.runs.length}`));
+  console.log(chalk.gray("See it in the agent desk: pnpm desk:run, then open Scorecard."));
 };
 
 try {

@@ -36,19 +36,20 @@ export const slugify = (text: string): string => {
 };
 
 export interface BranchInput {
-  readonly issue: number;
+  /** `null` for a desk job, which has no GitHub issue: `KAINE-<type>-<slug>` (AGENTS.md). */
+  readonly issue: number | null;
   readonly type: ConventionalType;
   readonly slug: string;
 }
 
 export const branchName = ({ issue, type, slug }: BranchInput): BranchName => {
-  if (!Number.isSafeInteger(issue) || issue <= 0) {
+  if (issue !== null && (!Number.isSafeInteger(issue) || issue <= 0)) {
     throw new RangeError(`Issue number must be a positive integer, got ${issue}`);
   }
   if (!SLUG_PATTERN.test(slug)) {
     throw new RangeError(`Branch slug must be lower-case words joined by hyphens, got '${slug}'`);
   }
-  const name = `KAINE-${issue}-${type}-${slug}`;
+  const name = issue === null ? `KAINE-${type}-${slug}` : `KAINE-${issue}-${type}-${slug}`;
   if (!isValidBranchName(name)) throw new RangeError(`Invalid branch name '${name}'`);
   return name;
 };
@@ -104,7 +105,7 @@ export interface BootstrapStep {
 }
 
 export interface BootstrapInput {
-  readonly issue: number;
+  readonly issue: number | null;
   readonly type: ConventionalType;
   readonly slug: string;
   /** Base branch on `origin`. */
@@ -129,6 +130,23 @@ const assertAll = (what: string, values: readonly string[], pattern: RegExp): vo
   }
 };
 
+/**
+ * The `ai:install` command of an issue worktree. Setup runs it, and the engine runs it again after
+ * a change to the `.ai/` sources, so the tracked generated files follow and local installs stay.
+ */
+export const aiInstallArgv = (
+  input: Pick<BootstrapInput, "agents" | "skills" | "mcp">
+): string[] => {
+  const argv = ["pnpm", "ai:install"];
+  for (const agent of input.agents) argv.push("--agent", agent);
+  argv.push("--non-interactive");
+  if (input.skills.length > 0) argv.push("--skill", input.skills.join(","));
+  if (input.mcp.length > 0) argv.push("--mcp", input.mcp.join(","));
+  // REPL code runs arbitrary Python, past the role allowlists. Desk runs keep one tool per operation.
+  if (input.mcp.includes("serena")) argv.push("--serena-interface", "tools");
+  return argv;
+};
+
 export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
   const branch = branchName(input);
   const { base, worktreeDir } = input;
@@ -143,13 +161,7 @@ export const bootstrapPlan = (input: BootstrapInput): BootstrapPlan => {
   assertAll("skill", input.skills, SKILL_PATTERN);
   assertAll("MCP server", input.mcp, MCP_PATTERN);
 
-  const installArgv = ["pnpm", "ai:install"];
-  for (const agent of agents) installArgv.push("--agent", agent);
-  installArgv.push("--non-interactive");
-  if (input.skills.length > 0) installArgv.push("--skill", input.skills.join(","));
-  if (input.mcp.length > 0) installArgv.push("--mcp", input.mcp.join(","));
-  // REPL code runs arbitrary Python, past the role allowlists. Desk runs keep one tool per operation.
-  if (input.mcp.includes("serena")) installArgv.push("--serena-interface", "tools");
+  const installArgv = aiInstallArgv({ agents, skills: input.skills, mcp: input.mcp });
 
   const steps: BootstrapStep[] = [
     {

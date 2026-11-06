@@ -58,16 +58,26 @@ afterEach(() => {
 });
 
 describe("Shell", () => {
-  it("has one row of navigation pills with the current page marked", async () => {
+  it("has the sidebar's four groups of pages with the current page marked", async () => {
     renderDesk(<DeskApp />, fakeApi());
     const nav = await screen.findByRole("navigation", { name: "Main navigation" });
-    expect(screen.getByRole("link", { name: "Board" }).getAttribute("aria-current")).toBe("page");
+    const inbox = within(nav).getByRole("link", { name: "Inbox" });
+    expect(inbox.getAttribute("aria-current")).toBe("page");
+    expect(Array.from(nav.querySelectorAll(".dk-nav-h"), (head) => head.textContent)).toEqual([
+      "Work",
+      "Configure",
+      "Insights",
+      "Developer"
+    ]);
     expect(Array.from(nav.querySelectorAll("a"), (link) => link.textContent)).toEqual([
-      "Board",
+      "Inbox",
+      "All work",
       "Flows",
       "Agents",
-      "Health",
-      "Runs"
+      "Setup",
+      "Insights",
+      "Scorecard",
+      "Lab"
     ]);
   });
 
@@ -111,12 +121,32 @@ describe("Shell", () => {
     }
   });
 
+  it("wears the default theme for an unknown stored name and keeps a new choice", async () => {
+    window.localStorage.setItem("kaine-desk-theme-name", "retired-theme");
+    renderDesk(<DeskApp />, fakeApi());
+    await screen.findByRole("button", { name: "Preferences" });
+    expect(document.documentElement.dataset["theme"]).toBe("byte-forge");
+    await choose("Moss");
+    expect(document.documentElement.dataset["theme"]).toBe("moss");
+    expect(window.localStorage.getItem("kaine-desk-theme-name")).toBe("moss");
+  });
+
+  it("switches the density for the whole app and keeps the choice", async () => {
+    renderDesk(<DeskApp />, fakeApi());
+    await screen.findByRole("button", { name: "Preferences" });
+    expect(document.documentElement.dataset["density"]).toBe("comfortable");
+    await choose("Compact");
+    expect(document.documentElement.dataset["density"]).toBe("compact");
+    expect(window.localStorage.getItem("kaine-desk-density")).toBe("compact");
+  });
+
   it("switches the language from the same menu", async () => {
     renderDesk(<DeskApp />, fakeApi());
     await screen.findByRole("button", { name: "Preferences" });
     await choose("Deutsch");
-    expect(await screen.findByRole("link", { name: "Übersicht" })).toBeTruthy();
+    const nav = await screen.findByRole("navigation", { name: "Hauptnavigation" });
+    expect(within(nav).getByRole("link", { name: "Eingang" })).toBeTruthy();
     await choose("English", "Einstellungen");
-    expect(await screen.findByRole("link", { name: "Board" })).toBeTruthy();
+    expect(await screen.findByRole("navigation", { name: "Main navigation" })).toBeTruthy();
   });
 });

@@ -21,8 +21,8 @@
     "schema:generate": "node --import tsx src/schema/generate-schema.ts"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^3.0.72",
-    "@ai-sdk/openai": "^4.0.101",
+    "@ai-sdk/deepseek": "^3.0.79",
+    "@ai-sdk/openai": "^4.0.108",
     "@graphql-yoga/plugin-csrf-prevention": "^4.0.1",
     "@repo/auth": "workspace:*",
     "@repo/billing": "workspace:*",
@@ -34,7 +34,7 @@
     "@repo/storage": "workspace:*",
     "@repo/theme": "workspace:*",
     "@repo/translation": "workspace:*",
-    "ai": "^7.0.151",
+    "ai": "^7.0.162",
     "better-auth": "catalog:",
     "dataloader": "^2.2.3",
     "dotenv": "catalog:",
@@ -44,12 +44,13 @@
     "graphql-yoga": "^6.0.1",
     "jszip": "catalog:",
     "sharp": "^0.35.5",
-    "ws": "^8.22.0",
+    "ws": "^8.22.1",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
+    "@types/pg": "catalog:",
     "@types/ws": "^8.18.2",
     "pino": "catalog:",
     "vitest": "catalog:"

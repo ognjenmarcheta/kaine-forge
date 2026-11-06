@@ -82,6 +82,9 @@ export interface IssueLabelEvent {
 }
 
 /** One read of an issue: its content plus the label events that authorize it. */
+/** The label family that names where an issue came from, such as `source:scorecard`. */
+export const SOURCE_LABEL_PREFIX = "source:";
+
 export interface IssueSnapshot {
   readonly number: number;
   readonly title: string;

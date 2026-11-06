@@ -197,6 +197,20 @@ describe("evaluateShipGate", () => {
     }
   });
 
+  it("ships a generated Serena memory copy, and still refuses one the generator does not write", () => {
+    const copy = ".serena/memories/project_overview.md";
+    expect(kindsOf({ ...passing(), changedPaths: ["src/a.ts", copy], aiOutputs: [copy] })).toEqual(
+      []
+    );
+    expect(
+      kindsOf({
+        ...passing(),
+        changedPaths: ["src/a.ts", copy, ".serena/memories/extra.md"],
+        aiOutputs: [copy]
+      })
+    ).toEqual(["protected-paths"]);
+  });
+
   it("skips the review hash comparison when told to (after a rebase)", () => {
     const input: ShipGateInput = {
       ...passing(),

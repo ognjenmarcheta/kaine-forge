@@ -24,6 +24,8 @@ Kaine Forge uses a single-context layout:
 └── apps/
 ```
 
+The single `CONTEXT.md` holds a **Context map** of the API's bounded contexts. The lint rule `api/context-boundaries` enforces it (ADR 0025). Before a change in `apps/api/src/features/`, find the feature's context in that map. Cross a context boundary only along a listed edge and through a public file.
+
 ## Use the glossary's vocabulary
 
 When output names a domain concept in an issue title, refactor proposal, hypothesis, or test name, use the term as defined in `CONTEXT.md`. Do not drift to synonyms the glossary explicitly avoids.

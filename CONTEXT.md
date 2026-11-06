@@ -129,6 +129,27 @@ _Avoid_: queue (alone), sync queue, mutation log
 - An **Outbox** belongs to exactly one **User** and one **Organization** on one device; switching the **Active Organization** switches to that Organization's local data and Outbox.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
+## Context map
+
+The API (`apps/api/src/features/*`) has seven bounded contexts. Each feature folder belongs to exactly one. A context may import only the contexts in its **Uses** column, and the lint rule `api/context-boundaries` enforces it (ADR 0025). The map in `packages/config/eslint/api-contexts.js` is the source; a test fails when this table disagrees with it.
+
+| Context              | Features                                                                                       | Owns                                                                                                                                | Uses    |
+| -------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Tenancy & Access** | `organizations`, `api-keys`                                                                    | **Organization**, **Organization Membership**, **Permission**, **Custom Role**, **Invitation**, **API Key**, **Organization Theme** | —       |
+| **Billing**          | `billing`                                                                                      | **Plan**, **Subscription**, **Entitlement**, **Seat**                                                                               | —       |
+| **Content**          | `todos`, `notes`                                                                               | **Todo**, **Note**                                                                                                                  | Billing |
+| **Files**            | `storage`, `public-assets`                                                                     | **Attachment**, **Public Asset**                                                                                                    | Content |
+| **Sync**             | `sync`                                                                                         | **Sync Version**, **Tombstone**                                                                                                     | Content |
+| **Assistant**        | `assistant`                                                                                    | the assistant's conversations and tools                                                                                             | Content |
+| **Platform**         | `audit`, `notifications`, `webhooks`, `feature-flags`, `data-export`, `housekeeping`, `health` | **Audit Event**, **Notification**, **Webhook Endpoint**                                                                             | Files   |
+
+- Inside a context, features import each other freely.
+- Across contexts, a feature imports only the other feature's public files: `<feature>.module` and `<feature>.type`, unless `API_PUBLIC_FILES` names others (`storage` publishes `attachment.module` and `attachment.store`).
+- The composition root and the shared kernel (`apps/api/src/*.ts`, such as `context.ts`, `context.data.ts`, and `pubsub.ts`) and the `@repo/*` packages are outside the map. Every feature may import them.
+- The **Authenticated Organization Scope** is part of the shared kernel, not of Tenancy & Access: every context uses it through `ScopedData`.
+- A new feature folder fails the check until it is added to a context. Add an edge to **Uses** only when the dependency is intended. Never add an edge that would make the map circular.
+- The map governs imports only. Features still read other contexts' tables through `@repo/db/schema`.
+
 ## Example dialogue
 
 > **Dev:** "Should the todo resolver accept an organization id from the client?"
@@ -150,9 +171,17 @@ _Avoid_: stage (for a definition), node, phase
 A desk definition of one kind of agent run: provider, model, **Output kind**, capabilities, and prompt, in a `<id>.md` file. It is not an AI assistant in general and not an organization role.
 _Avoid_: role, bot, worker
 
+**Provider**:
+The agent CLI a desk run uses: `claude`, `codex`, or `opencode`. The config and each **Agent** name the provider they ask for; the desk moves a run to another provider when that CLI does not run.
+_Avoid_: model (the model is chosen within a provider), vendor
+
 **Output kind**:
 What an **Agent** run produces, which selects its result schema and step handler: `plan`, `change`, `review`, `report`, or `intake`.
 _Avoid_: agent type, role
+
+**Specialist**:
+A built-in read-only **Agent** with the `report` **Output kind** that runs one skill and gives advice, such as the architect or the designer. No built-in **Flow** uses one; the owner adds it to a flow. Its report never blocks; only a gate or the `review` output decides.
+_Avoid_: role agent, advisor, reviewer (the built-in `reviewer` has the `review` output kind)
 
 **Capability profile**:
 What one **Agent** run gets after the desk resolves its preset (`read-only`, `run-checks`, `edit-code`), MCP servers, and skills against the **Policy floor** and the checkout. A run records it as its capability receipt.
@@ -165,6 +194,42 @@ _Avoid_: default permissions, baseline
 **Flow snapshot**:
 The **Flow** and every **Agent** it names, frozen with a hash when an issue starts. The issue runs on its snapshot until it ends, so later definition edits do not reach it.
 _Avoid_: flow version, cached flow
+
+**Steer**:
+The owner's note to the **Agent** that runs now. The desk stops the agent and runs it again with the note: in the same session, or with its first prompt when it had no session yet (ADR 0022). The desk UI labels it "Tell the ‹agent›…".
+_Avoid_: interrupt, nudge, chat
+
+**Take over**:
+The owner stops the running **Agent** and works in its session in a terminal. The stage ends in `needs-you`; continue or feedback hands the session back, and the agent's next run resumes it. The desk UI labels it "Open the agent session in a terminal".
+_Avoid_: hijack, attach, hand off
+
+**Inbox**:
+The desk page of the work that waits on the owner, titled **Your turn**: **Stopped**, **Your decision** (at a gate), and **Merge on GitHub**, in that order. Running and finished work sit in side panels, not in the Inbox groups.
+_Avoid_: board, queue (for the page)
+
+**All work**:
+The desk page of every issue and **Desk job**, as a list or in columns.
+_Avoid_: board, backlog
+
+**Desk job**:
+Work the owner starts on the desk without a GitHub issue: a scorecard run, a recreated screen, a built component, or an audited screen (ADR 0021). It waits at its own gate like an issue does.
+_Avoid_: task, run (for the job itself)
+
+**New work**:
+Starting a GitHub issue on a **Flow**, or a **Desk job**, from one dialog.
+_Avoid_: start issue (for the whole action)
+
+**Issue format**:
+The six sections that intake reads from an issue body, counted as "issue format N/6".
+_Avoid_: issue contract (in the UI)
+
+**Item state**:
+The one name of where an issue or a **Desk job** is, everywhere on the desk: "Stopped · ‹reason›", "‹gate› · your turn", "‹step› · running" or "paused", "Merge on GitHub · your turn", or **Shipped**, **Cancelled**, **Finished**. The built-in gates read **Approve plan** (`plan-gate`), **Approve & ship** (`pr-review`), and **Merge on GitHub** (`pr-open`); the engine ids stay. "Done" names only a step outcome in the history.
+_Avoid_: needs you, waiting for you, done (as an item state)
+
+**Setup** and **Insights**:
+The desk pages of the doctor checks on this machine, and of how agents perform and what they cost. The health of the repository is the **Scorecard**.
+_Avoid_: health (for the doctor page), runs (for the page)
 
 - An issue runs on exactly one **Flow snapshot**.
 - A **Flow snapshot** holds exactly one **Flow** and the **Agents** its agent **Steps** name.

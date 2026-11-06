@@ -11,16 +11,20 @@
 //     pnpm --filter @repo/api exec vitest run src/features/sync/sync.concurrency.test.ts
 import { resolveRolePermissions } from "@repo/auth/permissions";
 import type { AuthenticatedOrganizationScope } from "@repo/auth/scope";
-import { organizationsTable, usersTable } from "@repo/db/schema";
+import { notesTable, organizationsTable, usersTable } from "@repo/db/schema";
 import {
   createPostgresTestDatabase,
   type PostgresTestClient,
   type PostgresTestDatabase
 } from "@repo/db/testing";
+import { createLogger } from "@repo/logger";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createSync } from "./sync.module";
 import { createScopedData } from "../../context.data";
+import { createNotes } from "../notes/notes.module";
+import { createTodos } from "../todos/todos.module";
 
 const adminUrl = process.env.SYNC_POSTGRES_URL;
 
@@ -219,5 +223,55 @@ describe.skipIf(!adminUrl)("sync versions on real Postgres", () => {
       holder.release();
       sameOrganization.release();
     }
+  });
+
+  it("merges concurrent edits of different lines of one Note body without losing one", async () => {
+    const scope = scopeFor(userId, own);
+    const requireOrganizationScope = () => scope;
+    const sync = createSync({
+      db: database.db,
+      data: createScopedData({ db: database.db, requireOrganizationScope }),
+      requireOrganizationScope,
+      publish: () => undefined,
+      createWriters: ({ data, defer }) => ({
+        todos: createTodos({
+          attachments: {
+            detach: async () => ({ purge: async () => defer(async () => undefined) })
+          },
+          data,
+          logger: createLogger({ name: "sync-concurrency-test", level: "silent" }),
+          plan: { withinLimit: (_limit, _countUsed, create) => create(data) },
+          publish: () => undefined
+        }),
+        notes: createNotes({ data, publish: () => undefined })
+      })
+    });
+    // Edits two lines apart, so no two of them touch.
+    const base = Array.from({ length: 2 * WRITERS }, (_, line) => `line ${String(line)}`);
+    const noteId = crypto.randomUUID();
+    await sync.push({
+      idempotencyKey: "merge-seed",
+      mutations: [{ noteCreate: { id: noteId, title: "Shared", body: base.join("\n") } }]
+    });
+
+    await Promise.all(
+      Array.from({ length: WRITERS }, (_, writer) => {
+        const edited = base.map((line, index) => (index === 2 * writer ? `${line} edited` : line));
+        return sync.push({
+          idempotencyKey: `merge-${String(writer)}`,
+          mutations: [
+            { noteUpdate: { id: noteId, body: edited.join("\n"), baseBody: base.join("\n") } }
+          ]
+        });
+      })
+    );
+
+    const [row] = await database.db
+      .select({ body: notesTable.body })
+      .from(notesTable)
+      .where(eq(notesTable.id, noteId));
+    expect(row?.body).toBe(
+      base.map((line, index) => (index % 2 === 0 ? `${line} edited` : line)).join("\n")
+    );
   });
 });

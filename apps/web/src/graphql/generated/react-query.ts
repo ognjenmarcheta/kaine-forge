@@ -185,6 +185,12 @@ export type SyncNoteCreate = {
 };
 
 export type SyncNoteUpdate = {
+  /**
+   * The body this edit started from. With it, the server merges the edit
+   * line by line into a body another device changed since; edits to the
+   * same lines are refused with CONFLICT. Without it, body replaces the body.
+   */
+  baseBody?: string | null | undefined;
   body?: string | null | undefined;
   id: string | number;
   title?: string | null | undefined;
@@ -749,9 +755,35 @@ export type DeleteFileMutationVariables = Exact<{
 
 export type DeleteFileMutation = { deleteFile: boolean };
 
+export type SyncPullPageFragment = {
+  cursor: string | null;
+  hasMore: boolean;
+  resetRequired: boolean;
+  todos: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    completed: boolean;
+    noteId: string | null;
+    createdAt: string;
+    updatedAt: string;
+    attachments: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+  }>;
+  notes: Array<{
+    id: string;
+    title: string;
+    body: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  deleted: Array<{ entity: SyncEntity; id: string }>;
+  older: Array<{ list: string; after: string }>;
+};
+
 export type SyncPullQueryVariables = Exact<{
   cursor?: string | null | undefined;
   first?: number | null | undefined;
+  window?: number | null | undefined;
 }>;
 
 export type SyncPullQuery = {
@@ -777,6 +809,39 @@ export type SyncPullQuery = {
       updatedAt: string;
     }>;
     deleted: Array<{ entity: SyncEntity; id: string }>;
+    older: Array<{ list: string; after: string }>;
+  };
+};
+
+export type SyncPullOlderQueryVariables = Exact<{
+  after: string;
+  first?: number | null | undefined;
+}>;
+
+export type SyncPullOlderQuery = {
+  syncPullOlder: {
+    cursor: string | null;
+    hasMore: boolean;
+    resetRequired: boolean;
+    todos: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      completed: boolean;
+      noteId: string | null;
+      createdAt: string;
+      updatedAt: string;
+      attachments: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+    }>;
+    notes: Array<{
+      id: string;
+      title: string;
+      body: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    deleted: Array<{ entity: SyncEntity; id: string }>;
+    older: Array<{ list: string; after: string }>;
   };
 };
 
@@ -1117,6 +1182,46 @@ export const NotificationFieldsFragmentDoc = new TypedDocumentString(
 }
     `,
   { fragmentName: "NotificationFields" }
+);
+export const SyncPullPageFragmentDoc = new TypedDocumentString(
+  `
+    fragment SyncPullPage on SyncPullPayload {
+  todos {
+    id
+    title
+    description
+    completed
+    noteId
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+    }
+    createdAt
+    updatedAt
+  }
+  notes {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+  }
+  deleted {
+    entity
+    id
+  }
+  cursor
+  hasMore
+  resetRequired
+  older {
+    list
+    after
+  }
+}
+    `,
+  { fragmentName: "SyncPullPage" }
 );
 export const WebhookEndpointFieldsFragmentDoc = new TypedDocumentString(
   `
@@ -2482,40 +2587,46 @@ export const useDeleteFileMutation = <TError = unknown, TContext = unknown>(
 useDeleteFileMutation.getKey = () => ["DeleteFile"];
 
 export const SyncPullDocument = new TypedDocumentString(`
-    query SyncPull($cursor: String, $first: Int) {
-  syncPull(cursor: $cursor, first: $first) {
-    todos {
-      id
-      title
-      description
-      completed
-      noteId
-      attachments {
-        id
-        originalName
-        mimeType
-        sizeBytes
-      }
-      createdAt
-      updatedAt
-    }
-    notes {
-      id
-      title
-      body
-      createdAt
-      updatedAt
-    }
-    deleted {
-      entity
-      id
-    }
-    cursor
-    hasMore
-    resetRequired
+    query SyncPull($cursor: String, $first: Int, $window: Int) {
+  syncPull(cursor: $cursor, first: $first, window: $window) {
+    ...SyncPullPage
   }
 }
-    `);
+    fragment SyncPullPage on SyncPullPayload {
+  todos {
+    id
+    title
+    description
+    completed
+    noteId
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+    }
+    createdAt
+    updatedAt
+  }
+  notes {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+  }
+  deleted {
+    entity
+    id
+  }
+  cursor
+  hasMore
+  resetRequired
+  older {
+    list
+    after
+  }
+}`);
 
 export const useSyncPullQuery = <TData = SyncPullQuery, TError = unknown>(
   variables?: SyncPullQueryVariables,
@@ -2535,6 +2646,68 @@ export const useSyncPullQuery = <TData = SyncPullQuery, TError = unknown>(
 
 useSyncPullQuery.getKey = (variables?: SyncPullQueryVariables) =>
   variables === undefined ? ["SyncPull"] : ["SyncPull", variables];
+
+export const SyncPullOlderDocument = new TypedDocumentString(`
+    query SyncPullOlder($after: String!, $first: Int) {
+  syncPullOlder(after: $after, first: $first) {
+    ...SyncPullPage
+  }
+}
+    fragment SyncPullPage on SyncPullPayload {
+  todos {
+    id
+    title
+    description
+    completed
+    noteId
+    attachments {
+      id
+      originalName
+      mimeType
+      sizeBytes
+    }
+    createdAt
+    updatedAt
+  }
+  notes {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+  }
+  deleted {
+    entity
+    id
+  }
+  cursor
+  hasMore
+  resetRequired
+  older {
+    list
+    after
+  }
+}`);
+
+export const useSyncPullOlderQuery = <TData = SyncPullOlderQuery, TError = unknown>(
+  variables: SyncPullOlderQueryVariables,
+  options?: Omit<UseQueryOptions<SyncPullOlderQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<SyncPullOlderQuery, TError, TData>["queryKey"];
+  }
+) => {
+  return useQuery<SyncPullOlderQuery, TError, TData>({
+    queryKey: ["SyncPullOlder", variables],
+    queryFn: useGraphqlFetcher<SyncPullOlderQuery, SyncPullOlderQueryVariables>(
+      SyncPullOlderDocument
+    ).bind(null, variables),
+    ...options
+  });
+};
+
+useSyncPullOlderQuery.getKey = (variables: SyncPullOlderQueryVariables) => [
+  "SyncPullOlder",
+  variables
+];
 
 export const SyncPushDocument = new TypedDocumentString(`
     mutation SyncPush($input: SyncPushInput!) {

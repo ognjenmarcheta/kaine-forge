@@ -1,15 +1,20 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 
 import { createAgentProcess } from "../agents/agent.process";
-import { createClaudeRunner } from "../agents/claude.runner";
-import { createCodexRunner } from "../agents/codex.runner";
+import { createHostRunners } from "../agents/agent.runners";
+import { createProviderPort } from "../agents/provider.probe";
 import { loadDeskConfig } from "../config/config.load";
+import { allowCodexBuilderIn } from "../config/config.write";
 import {
   flowForLabels,
   type HealthFix,
   type IssueState,
   type LessonReport,
-  type Provider
+  type Provider,
+  type ScorecardBackfillResult,
+  type ScorecardView,
+  type TrackedIssue
 } from "../contracts";
 import type { ServerRunner } from "./server.actions";
 import { readDefinitionViews, type DefinitionViews } from "./server.definitions";
@@ -30,18 +35,28 @@ import {
 import { repoFingerprint } from "../engine/harness.fingerprint";
 import { recoverInterrupted } from "../engine/pipeline.recovery";
 import { createPipelineRunner } from "../engine/pipeline.runner";
-import { diffAgainstBase, createGitPort } from "../git";
+import { worktreeDirFor } from "../engine/pipeline.stage.setup";
+import { diffAgainstBase, createGitPort, tryGit } from "../git";
 import { createGhClient } from "../github/github.gh";
 import { AGENT_LABELS, LABEL_DEFINITIONS } from "../github/github.labels";
+import { SOURCE_LABEL_DEFINITIONS, labelEnsureArgv } from "../github/github.labels";
 import { fetchOpenWork, type OpenWork } from "../github/github.lists";
 import { createGitHubPort } from "../github/github.port";
 import { buildWorkerImage } from "../isolation/docker.admin";
 import { dockerDoctorChecks } from "../isolation/docker.doctor";
 import { createDockerIsolation } from "../isolation/isolation.docker";
 import { containerCleanupFor } from "../isolation/isolation.select";
+import { createJobManager, createJobStore, type JobManager } from "../jobs";
 import { createNotifier } from "../notify";
 import { createExec, systemClock } from "../ports";
 import { createDefinitionWrites, type DefinitionWrites } from "../registry/registry.write";
+import {
+  fetchTrackedIssues,
+  githubRepository,
+  readScorecard,
+  toTrackedIssues,
+  trackedSources
+} from "../scorecard";
 import { createLessonDesk, type LessonActions } from "../stats/stats.lesson-desk";
 import { readRunRecords, type RunRecords } from "../stats/stats.runs";
 import { createIssueStore, type IssueStore } from "../store/store.issue";
@@ -63,6 +78,15 @@ export interface DeskRuntime {
   readonly readRuns?: (() => Promise<RunRecords>) | undefined;
   /** `maxPrRounds` of the config. */
   readonly prRoundLimit?: number | undefined;
+  /** The monorepo health scorecard of the checkout, or of another checkout (a job worktree). */
+  readonly scorecard?: ((checkout?: string) => Promise<ScorecardView>) | undefined;
+  /** Desk jobs: scorecard runs started from the desk. */
+  readonly jobs?: JobManager | undefined;
+  /** The scorecard's issues read live from GitHub. */
+  readonly scorecardTracking?: (() => Promise<TrackedIssue[]>) | undefined;
+  /** Add `source:scorecard` to tracked issues without it. */
+  readonly scorecardBackfill?:
+    ((issues: readonly number[]) => Promise<ScorecardBackfillResult>) | undefined;
   /** `lessons.jsonl` of the desk state, aggregated against the repository's instructions now. */
   readonly lessons?: (() => Promise<LessonReport>) | undefined;
   /** Promote, unpromote, and open an issue for a lesson. */
@@ -101,8 +125,15 @@ export const createDefaultDeskRuntime =
 
     const store = createIssueStore(location.stateRoot);
     const github = createGitHubPort({ exec, cwd: location.repoRoot });
-    const claude = createClaudeRunner();
-    const codex = createCodexRunner();
+    const runners = createHostRunners();
+    // Setup's "Allow Codex to build" turns it on for this server too, without a restart.
+    let allowCodexBuilder = config.allowCodexBuilder;
+    const providers = createProviderPort({
+      exec,
+      cwd: location.repoRoot,
+      clock: systemClock,
+      allowCodexBuilder: () => allowCodexBuilder
+    });
     const log = (message: string): void => onEvent({ type: "log", issue: 0, message });
     const notifier = createNotifier({
       exec,
@@ -117,7 +148,7 @@ export const createDefaultDeskRuntime =
     const docker = createDockerIsolation({
       exec: dockerExec,
       process: createAgentProcess(),
-      hostRunnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      hostRunnerFor: (provider: Provider) => runners[provider],
       repoRoot: location.repoRoot,
       stateRoot: location.stateRoot,
       config
@@ -135,11 +166,27 @@ export const createDefaultDeskRuntime =
       owner: config.owner,
       currentRepo: () => repoFingerprint(location.repoRoot)
     });
+    const jobs = createJobManager({
+      store: createJobStore(location.stateRoot),
+      exec,
+      git: createGitPort(exec),
+      github,
+      // A job runs on the CLI its request names.
+      runner: { run: (request) => runners[request.provider].run(request) },
+      providers,
+      clock: systemClock,
+      repoRoot: location.repoRoot,
+      // Beside the issue worktrees: the folder of `KAINE-<n>` is the folder of `KAINE-job-<n>`.
+      worktreesDir: path.dirname(worktreeDirFor({ config, location }, 1)),
+      base: config.baseBranch
+    });
+    await jobs.recover();
     const runner = createPipelineRunner({
       exec,
       git: createGitPort(exec),
       github,
-      runnerFor: (provider: Provider) => (provider === "claude" ? claude : codex),
+      runnerFor: (provider: Provider) => runners[provider],
+      providers,
       docker,
       store,
       clock: systemClock,
@@ -156,18 +203,92 @@ export const createDefaultDeskRuntime =
         approvePlan: runner.approvePlan,
         feedback: runner.feedback,
         continueFrom: runner.continueFrom,
+        resolveDenial: runner.resolveDenial,
         cancel: runner.cancel,
         remove: runner.remove,
         ship: runner.ship,
         refreshPr: runner.refreshPr,
+        checkPr: runner.checkPr,
         feedbackFromPr: runner.feedbackFromPr,
         draft: runner.draft,
         applyDraft: runner.applyDraft,
         pause: runner.pause,
-        resume: runner.resume
+        resume: runner.resume,
+        steer: runner.steer,
+        takeOver: runner.takeOver
       },
       readRuns: () => readRunRecords(location.stateRoot),
       prRoundLimit: config.maxPrRounds,
+      scorecard: async (checkout) => {
+        const remote = await tryGit(exec, location.repoRoot, ["remote", "get-url", "origin"]);
+        return readScorecard({
+          repoRoot: checkout ?? location.repoRoot,
+          remote: remote.ok ? remote.stdout.trim() : null
+        });
+      },
+      jobs,
+      scorecardTracking: async () => {
+        const remote = await tryGit(exec, location.repoRoot, ["remote", "get-url", "origin"]);
+        const view = await readScorecard({
+          repoRoot: location.repoRoot,
+          remote: remote.ok ? remote.stdout.trim() : null
+        });
+        const repository = remote.ok ? githubRepository(remote.stdout) : null;
+        if (repository === null) throw new Error("The origin remote is not on GitHub.");
+        const filed = (await jobs.list())
+          .filter((job) => job.kind === "scorecard")
+          .flatMap((job) => job.filedIssues);
+        const sources = trackedSources(view.state === "ready" ? view.runs : [], filed);
+        const raw = await fetchTrackedIssues(
+          createGhClient({ exec, cwd: location.repoRoot }),
+          repository,
+          [...sources.slugs.keys()]
+        );
+        const runs = new Map(
+          (await store.list()).flatMap((entry) =>
+            entry.result.status === "ok"
+              ? [
+                  [
+                    entry.issueNumber,
+                    { stage: entry.result.state.stage, status: entry.result.state.status }
+                  ] as const
+                ]
+              : []
+          )
+        );
+        return toTrackedIssues(raw, sources, runs);
+      },
+      scorecardBackfill: async (issues) => {
+        const label = SOURCE_LABEL_DEFINITIONS.scorecard;
+        const made = await exec({
+          argv: labelEnsureArgv(label),
+          cwd: location.repoRoot,
+          timeoutMs: 60_000
+        });
+        if (made.code !== 0) {
+          return {
+            results: issues.map((number) => ({
+              number,
+              ok: false,
+              detail: `gh label create failed: ${made.stderr.trim()}`
+            }))
+          };
+        }
+        const results = [];
+        for (const number of issues) {
+          const edited = await exec({
+            argv: ["gh", "issue", "edit", String(number), "--add-label", label.name],
+            cwd: location.repoRoot,
+            timeoutMs: 60_000
+          });
+          results.push({
+            number,
+            ok: edited.code === 0,
+            detail: edited.code === 0 ? null : edited.stderr.trim()
+          });
+        }
+        return { results };
+      },
       lessons: lessonDesk.report,
       lessonActions: lessonDesk.actions,
       readDefinitions: () => readDefinitionViews({ repoRoot: location.repoRoot, config }),
@@ -198,6 +319,11 @@ export const createDefaultDeskRuntime =
             ? { ok: true, detail: `Built ${result.tag}.` }
             : { ok: false, detail: result.reason };
         },
+        "allow-codex-builder": async () => {
+          const result = await allowCodexBuilderIn(configPath(location.repoRoot));
+          if (result.ok) allowCodexBuilder = true;
+          return result;
+        },
         "agent-labels": async () => {
           for (const definition of LABEL_DEFINITIONS) await github.createLabel(definition);
           return { ok: true, detail: `Created ${AGENT_LABELS.join(", ")}.` };
@@ -223,7 +349,10 @@ export const createDefaultDeskRuntime =
         return (await diffAgainstBase(exec, state.worktreePath, state.baseSha)).diffHash;
       },
       uiDir: await ensureUiBuilt({ exec, repoRoot: location.repoRoot, print }),
-      dispose: () => notifier.settled()
+      dispose: async () => {
+        await notifier.settled();
+        await jobs.close();
+      }
     };
   };
 
@@ -308,6 +437,10 @@ export const launchDeskServer = async (options: LaunchOptions = {}): Promise<Lau
       currentDiffHash: runtime.currentDiffHash,
       readRuns: runtime.readRuns,
       prRoundLimit: runtime.prRoundLimit,
+      scorecard: runtime.scorecard,
+      scorecardTracking: runtime.scorecardTracking,
+      scorecardBackfill: runtime.scorecardBackfill,
+      jobs: runtime.jobs,
       lessons: runtime.lessons,
       lessonActions: runtime.lessonActions,
       readDefinitions: runtime.readDefinitions,

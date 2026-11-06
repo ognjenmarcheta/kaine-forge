@@ -1,0 +1,303 @@
+/* Two breakpoints (64rem, 48rem) move the shell; container queries move the content. Ported from the Agent Desk Redesign canvas; --ds-* roles only. */
+@media (width < 64rem) {
+  .dk {
+    --ds-layout-sidebar: var(--ds-layout-sidebar-collapsed);
+  }
+  .dk-side {
+    padding: var(--ds-space-150) var(--ds-space-100);
+    align-items: center;
+  }
+  .dk-brand-t,
+  .dk-nav .dk-lab,
+  .dk-nav-h,
+  .dk-search-trigger .dk-st-l,
+  .dk-search-trigger .dk-kbd,
+  .dk-side-foot .dk-lab,
+  .dk-nav .dk-count:not(.dk-need) {
+    display: none;
+  }
+  .dk-nav a,
+  .dk-nav button {
+    justify-content: center;
+    padding: 0;
+    width: var(--ds-control-large);
+    min-height: var(--ds-control-large);
+    position: relative;
+  }
+  .dk-nav .dk-count.dk-need {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
+  }
+  .dk-search-trigger {
+    justify-content: center;
+    width: var(--ds-control-large);
+    padding: 0;
+  }
+  .dk-inbox,
+  .dk-ilayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dk-rail {
+    position: static;
+  }
+  .dk-page {
+    padding: var(--ds-space-250) var(--ds-space-300) var(--ds-space-800);
+  }
+  .dk-kanban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dk-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (width < 48rem) {
+  .dk {
+    flex-direction: column;
+  }
+  .dk-side {
+    display: none;
+  }
+  .dk-page {
+    padding: var(--ds-space-200) var(--ds-space-200) 7rem;
+  }
+  .dk-btabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--ds-layer-nav);
+    background: var(--ds-surface);
+    border-top: var(--ds-border-width) solid var(--ds-border);
+  }
+  .dk-btabs a,
+  .dk-btabs button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-025);
+    min-height: 3.5rem;
+    background: none;
+    border: 0;
+    color: var(--ds-text-subtle);
+    font: var(--ds-type-label);
+    text-decoration: none;
+    cursor: pointer;
+    position: relative;
+  }
+  .dk-btabs [aria-current="page"] {
+    color: var(--ds-text);
+    font-weight: var(--ds-font-weight-semibold);
+  }
+  .dk-btabs .dk-count.dk-need {
+    position: absolute;
+    top: var(--ds-space-050);
+    left: 55%;
+  }
+  .dk-rowi,
+  .dk-rowi.dk-two {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--ds-space-150) var(--ds-space-200);
+  }
+  .dk-meta > span + span::before {
+    content: none;
+  }
+  .dk-meta {
+    gap: var(--ds-space-050) var(--ds-space-150);
+  }
+  .dk-rowi > .dk-lead-g {
+    display: none;
+  }
+  .dk-rowi .dk-acts {
+    justify-content: stretch;
+  }
+  .dk-rowi .dk-acts .dk-btn {
+    flex: 1;
+    min-height: var(--ds-control-xlarge);
+  }
+  .dk-grp {
+    padding-left: var(--ds-space-200);
+  }
+  .dk-ph .dk-h-page,
+  .dk-ihead h1 {
+    font: var(--ds-type-heading);
+  }
+  .dk-qnav .dk-t-sub,
+  .dk-ihead .dk-ihead-more {
+    display: none;
+  }
+  .dk-rail,
+  .dk-hide-phone {
+    display: none;
+  }
+  .dk-decide {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 3.5rem;
+    z-index: var(--ds-layer-sticky);
+    margin: 0;
+    padding: var(--ds-space-150) var(--ds-space-200);
+    background: var(--ds-surface);
+    border-top: var(--ds-border-width) solid var(--ds-border);
+  }
+  .dk-decide .dk-btn {
+    flex: 1;
+    min-height: var(--ds-control-xlarge);
+  }
+  .dk-decide .dk-note,
+  .dk-decide .dk-kbd {
+    display: none;
+  }
+  .dk-card {
+    padding: var(--ds-space-200);
+  }
+  .dk-diff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dk-ftree {
+    border-right: 0;
+    border-bottom: var(--ds-border-width) solid var(--ds-border);
+  }
+  .dk-compare,
+  .dk-jobk,
+  .dk-kanban,
+  .dk-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dk-choice {
+    padding: var(--ds-space-150);
+  }
+  .dk-tlr {
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  }
+  .dk-tlr .dk-who,
+  .dk-tlr .dk-tm2,
+  .dk-tlr .dk-cost {
+    display: none;
+  }
+  .dk-tll {
+    padding-left: var(--ds-space-400);
+  }
+  .dk-toasts {
+    left: var(--ds-space-200);
+    right: var(--ds-space-200);
+    bottom: 8rem;
+  }
+  .dk-scrim {
+    padding: var(--ds-space-200);
+  }
+  .dk-dialog {
+    padding: var(--ds-space-200);
+    max-height: calc(100vh - 2rem);
+  }
+  .dk-connbar {
+    padding: var(--ds-space-100) var(--ds-space-200);
+  }
+}
+.dk-phone-only {
+  display: none;
+}
+@media (width < 48rem) {
+  .dk-phone-only {
+    display: flex;
+  }
+  .dk-pop {
+    left: var(--ds-space-200);
+    right: var(--ds-space-200);
+    bottom: 4.5rem;
+    width: auto;
+  }
+  .dk-ihead {
+    flex-wrap: nowrap;
+  }
+  .dk-qnav .dk-btn {
+    min-height: var(--ds-control-xlarge);
+    min-width: var(--ds-control-xlarge);
+  }
+  .dk-ilayout {
+    display: block;
+  }
+  .dk-checks[style] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dk * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.dk-main {
+  container: main/inline-size;
+}
+.dk-icol > .dk-card,
+.dk-inbox > .dk-card {
+  container-type: inline-size;
+}
+@container (max-width:38rem) {
+  .dk-rowi.dk-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dk-rowi .dk-acts {
+    justify-content: flex-start;
+  }
+  .dk-checks.dk-cols2,
+  .dk-checks[style] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .dk-diff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dk-finding {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dk-finding > .dk-st {
+    justify-self: start;
+  }
+  .dk-finding > .dk-btn {
+    justify-self: start;
+    padding-left: 0;
+  }
+  .dk-ftree {
+    border-right: 0;
+    border-bottom: var(--ds-border-width) solid var(--ds-border);
+  }
+}
+@container main (max-width:56rem) {
+  .dk-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dk-dens {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (width < 48rem) {
+  .dk :focus-visible {
+    scroll-margin-block: var(--ds-space-800) 9rem;
+  }
+}
+@media (width < 48rem) {
+  .dk-btabs .dk-count.dk-bad {
+    position: absolute;
+    top: var(--ds-space-050);
+    left: 55%;
+  }
+}
+@media (width < 48rem) {
+  /* Two rows of buttons still leave the page most of the screen. */
+  .dk-decide {
+    gap: var(--ds-space-100);
+  }
+}
+@media (width < 48rem) {
+  /* A page with a decision bar ends above it and the tabs, not under them. */
+  .dk-page:has(.dk-decide) {
+    padding-bottom: calc(var(--ds-layout-tabbar) + 9rem);
+  }
+}

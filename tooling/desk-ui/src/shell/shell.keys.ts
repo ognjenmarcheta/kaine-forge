@@ -63,11 +63,14 @@ export interface ShortcutHint {
 }
 
 export const GLOBAL_SHORTCUTS: readonly ShortcutHint[] = [
-  { keys: ["G", "B"], labelKey: "desk.keys.goBoard" },
+  { keys: ["G", "I"], labelKey: "desk.keys.goInbox" },
+  { keys: ["G", "W"], labelKey: "desk.keys.goWork" },
   { keys: ["G", "F"], labelKey: "desk.keys.goFlows" },
   { keys: ["G", "A"], labelKey: "desk.keys.goAgents" },
-  { keys: ["G", "H"], labelKey: "desk.keys.goHealth" },
-  { keys: ["G", "R"], labelKey: "desk.keys.goRuns" }
+  { keys: ["G", "S"], labelKey: "desk.keys.goSetup" },
+  { keys: ["G", "N"], labelKey: "desk.keys.goInsights" },
+  { keys: ["G", "C"], labelKey: "desk.keys.goScorecard" },
+  { keys: ["G", "L"], labelKey: "desk.keys.goLab" }
 ];
 
 const shortcuts = createRegistry<PageShortcut>();
@@ -96,14 +99,18 @@ export const keyLabel = (key: PageKey): string => ARROWS[key] ?? key.toUpperCase
 /** A `G` then one of these keys within this time goes to a page. */
 export const SEQUENCE_MS = 1200;
 
-export type GoTarget = "board" | "flows" | "agents" | "health" | "stats";
+export type GoTarget =
+  "inbox" | "work" | "flows" | "agents" | "setup" | "insights" | "scorecard" | "lab";
 
 const GO_KEYS: Readonly<Record<string, GoTarget>> = {
-  b: "board",
+  i: "inbox",
+  w: "work",
   f: "flows",
   a: "agents",
-  h: "health",
-  r: "stats"
+  s: "setup",
+  n: "insights",
+  c: "scorecard",
+  l: "lab"
 };
 
 /** The person types here: a single key is a letter, not a command. */
@@ -118,6 +125,8 @@ const isInOverlay = (target: Element): boolean =>
 export interface KeyActions {
   readonly openPalette: () => void;
   readonly go: (target: GoTarget) => void;
+  /** N, when the page does not use it (the review page's next file does). */
+  readonly newWork: () => void;
 }
 
 /**
@@ -164,7 +173,13 @@ export function createKeyHandler(
     }
     const bound = pageShortcuts().filter((shortcut) => shortcut.key === key);
     const last = bound[bound.length - 1];
-    if (last === undefined) return;
+    if (last === undefined) {
+      if (key === "n") {
+        event.preventDefault();
+        actions.newWork();
+      }
+      return;
+    }
     event.preventDefault();
     last.run();
   };
@@ -179,7 +194,8 @@ export function useGlobalKeys(actions: KeyActions): void {
   const [handler] = useState(() =>
     createKeyHandler({
       openPalette: () => latest.current.openPalette(),
-      go: (target) => latest.current.go(target)
+      go: (target) => latest.current.go(target),
+      newWork: () => latest.current.newWork()
     })
   );
   useEffect(() => {

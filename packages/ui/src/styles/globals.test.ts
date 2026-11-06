@@ -53,7 +53,7 @@ describe("globals.css", () => {
     const output = await buildUtilities(["h-ds-control-large"]);
     // Token scopes may stay unlayered; Sonner's injected stylesheet is unlayered, so its override is too.
     const outside = unlayeredSelectors(output).filter(
-      (selector) => !/^(:root|\[data-(theme|color-mode)=)/.test(selector)
+      (selector) => !/^(:root|\[data-(theme|color-mode|density)=)/.test(selector)
     );
 
     expect(outside).toEqual([".ui-toaster[data-sonner-toaster][data-sonner-theme]"]);

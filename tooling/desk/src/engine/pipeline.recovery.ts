@@ -139,7 +139,13 @@ export const recoverIssue = async (
   ]
     .filter((part): part is string => part !== null)
     .join(" ");
-  const event: HistoryEvent = { at, stage: "needs-you", event: "interrupted", note };
+  const event: HistoryEvent = {
+    at,
+    stage: "needs-you",
+    event: "interrupted",
+    note,
+    code: "interrupted"
+  };
   const recovered: IssueState = {
     ...state,
     ...moved.state,

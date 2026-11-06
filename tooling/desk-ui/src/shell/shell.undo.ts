@@ -25,6 +25,15 @@ export type UndoOutcome<T> =
 /** Actions that wait in their undo window, by toast id. */
 const waiting = new Map<string, (keepalive: boolean) => void>();
 let nextId = 0;
+let hold = false;
+
+/**
+ * Hold toasts: the undo window then runs on the toast's own timer, which stops while the
+ * pointer is on the toast, so the person can read it and still undo (WCAG 2.2.1).
+ */
+export function setHoldUndo(on: boolean): void {
+  hold = on;
+}
 
 const titleOf = (issues: readonly number[], label: string): string =>
   issues.length === 0
@@ -49,11 +58,12 @@ export function runUndoable<T>(action: UndoableAction<T>): Promise<UndoOutcome<T
       toast.dismiss(id);
       action.send({ keepalive }).then((value) => resolve({ kind: "sent", value }), reject);
     };
-    const timer = setTimeout(() => fire(false), UNDO_WINDOW_MS);
+    const timer = hold ? undefined : setTimeout(() => fire(false), UNDO_WINDOW_MS);
     waiting.set(id, fire);
     toast(titleOf(action.issues, action.label), {
       id,
       duration: UNDO_WINDOW_MS,
+      ...(hold ? { onAutoClose: () => fire(false), onDismiss: () => fire(false) } : {}),
       description: translate("desk.undo.pending", { seconds: UNDO_WINDOW_MS / 1000 }),
       action: {
         label: translate("desk.undo.undo"),

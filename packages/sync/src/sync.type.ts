@@ -33,7 +33,17 @@ export interface SyncDeletion {
   id: string;
 }
 
-/** One `syncPull` page. */
+/** A list of synced rows: the field of a pull page that holds them. */
+export type SyncList = "todos" | "notes";
+
+/** Rows older than a page returned, for one of its lists. */
+export interface SyncOlder {
+  /** The page field the older rows load into. The server may name lists this client does not sync. */
+  list: string;
+  after: string;
+}
+
+/** One `syncPull` or `syncPullOlder` page. */
 export interface SyncPullPage {
   todos: SyncTodo[];
   notes: SyncNote[];
@@ -41,6 +51,8 @@ export interface SyncPullPage {
   cursor: string | null;
   hasMore: boolean;
   resetRequired: boolean;
+  /** The lists with rows older than this page returned. */
+  older: SyncOlder[];
 }
 
 export interface SyncTodoPatch {
@@ -62,7 +74,7 @@ export type SyncMutation =
   | { todoUpdate: SyncTodoPatch & { id: string } }
   | { todoDelete: { id: string } }
   | { noteCreate: { id: string; title: string; body: string | null } }
-  | { noteUpdate: SyncNotePatch & { id: string } }
+  | { noteUpdate: SyncNotePatch & { id: string; baseBody?: string | null } }
   | { noteDelete: { id: string } };
 
 export type SyncRejectionCode =
@@ -80,7 +92,10 @@ export interface SyncMutationOutcome {
  * `SyncRequestError`. Any other error counts as a network failure and retries.
  */
 export interface SyncTransport {
-  pull: (cursor: string | null) => Promise<SyncPullPage>;
+  /** With no cursor and a window, the server returns only the newest rows of each list. */
+  pull: (cursor: string | null, window?: number) => Promise<SyncPullPage>;
+  /** The next older rows of one list, from a `SyncOlder` cursor. */
+  pullOlder: (after: string) => Promise<SyncPullPage>;
   push: (idempotencyKey: string, mutations: SyncMutation[]) => Promise<SyncMutationOutcome[]>;
 }
 
@@ -91,17 +106,21 @@ export interface SyncTransport {
  * - `error`: the last pull failed while the device looked online.
  * - `signedOut`: the session expired; Pending Changes wait for a new sign-in.
  */
-export type SyncState = "online" | "offline" | "syncing" | "error" | "signedOut";
+export type SyncState = "online" | "offline" | "syncing" | "unreachable" | "error" | "signedOut";
 
 export interface SyncStatus {
   state: SyncState;
   /** Pending Changes in this device's Outbox. */
   pending: number;
+  /** Lists with older rows on the server that this device has not loaded (`loadOlder`). */
+  older: SyncList[];
 }
 
-/** A Pending Change the server refused. The client already rolled it back. */
+/** A Pending Change the server refused. The engine rolls it back right after reporting it. */
 export interface SyncRejection {
   entity: "TODO" | "NOTE";
   id: string;
   code: SyncRejectionCode;
+  /** The refused change as it was sent, so a screen can offer to apply it again. */
+  change: SyncMutation;
 }

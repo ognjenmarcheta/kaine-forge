@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,15 +43,17 @@ const configSchema = z.object({
   mcpServers: z.record(z.string(), serverSchema).optional(),
   mcp_servers: z.record(z.string(), serverSchema).optional(),
   mcp: z
-    .record(
-      z.string(),
-      z.object({
-        command: z.array(z.string()).optional(),
-        url: z.string().optional(),
-        environment: z.record(z.string(), z.string()).optional(),
-        enabled: z.boolean().optional()
-      })
-    )
+    .object({
+      servers: z.record(
+        z.string(),
+        z.object({
+          command: z.array(z.string()).optional(),
+          url: z.string().optional(),
+          environment: z.record(z.string(), z.string()).optional(),
+          disabled: z.boolean().optional()
+        })
+      )
+    })
     .optional()
 });
 export function installedServers(agent: Agent, root = REPO_ROOT, includeDisabled = false) {
@@ -66,23 +69,46 @@ export function installedServers(agent: Agent, root = REPO_ROOT, includeDisabled
     result.data.mcpServers ??
     result.data.mcp_servers ??
     Object.fromEntries(
-      Object.entries(result.data.mcp ?? {}).map(([name, server]) => [
+      Object.entries(result.data.mcp?.servers ?? {}).map(([name, server]) => [
         name,
         {
           command: server.command?.[0],
           args: server.command?.slice(1),
           url: server.url,
           env: server.environment,
-          enabled: server.enabled
+          disabled: server.disabled
         }
       ])
     );
   return Object.fromEntries(
     Object.entries(servers).filter(
       ([, server]) =>
-        includeDisabled || (server.enabled !== false && !("disabled" in server && server.disabled))
+        includeDisabled || (!server.disabled && !("enabled" in server && server.enabled === false))
     )
   );
+}
+
+/**
+ * The generated OpenCode files use 2.x shapes that OpenCode 1.x does not load,
+ * so an installed CLI below 2.2.4 is a problem. An absent CLI is not.
+ */
+function opencodeVersionProblems(): string[] {
+  let output: string;
+  try {
+    output = execFileSync("opencode", ["--version"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+      windowsHide: true
+    });
+  } catch {
+    return [];
+  }
+  const version = /(\d+)\.(\d+)\.(\d+)/.exec(output);
+  if (!version) return [];
+  const [major = 0, minor = 0, patch = 0] = version.slice(1).map(Number);
+  const below = major !== 2 ? major < 2 : minor !== 2 ? minor < 2 : patch < 4;
+  return below ? [`OpenCode ${version[0]} is below 2.2.4; run: opencode upgrade 2.2.5`] : [];
 }
 
 export function inspectInstallation(agent: Agent, includeContext = false) {
@@ -174,6 +200,7 @@ export function inspectInstallation(agent: Agent, includeContext = false) {
     }
   }
   problems.push(...validateMcpPins(readMcpSource()));
+  if (agent === "opencode") problems.push(...opencodeVersionProblems());
   const serena = inspectSerenaPrompt(
     REPO_ROOT,
     agent === "claude" && selection?.mcps.includes("serena") && servers.serena

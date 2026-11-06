@@ -6,7 +6,8 @@ import {
   type LessonCandidate,
   type LessonRecord,
   type LessonReport,
-  type PromotedLesson
+  type PromotedLesson,
+  type PromotedLessonStatus
 } from "../contracts";
 import { appendJsonl } from "../store/store.atomic";
 
@@ -35,7 +36,10 @@ export interface LessonOptions {
   readonly minIssues?: number;
   /** The `repo` instruction hash of the repository now. Splits the counts before and after a change. */
   readonly currentRepo?: string | null;
-  /** Lessons the owner promoted. Their keys leave the candidates and the count below the threshold. */
+  /**
+   * Lessons the owner promoted. Their keys leave the candidates and the count below the threshold;
+   * the observations after a promotion count as the lesson coming back.
+   */
   readonly promoted?: readonly PromotedLesson[];
 }
 
@@ -62,6 +66,16 @@ const candidateOf = (
   };
 };
 
+/** The observations of a promoted key made after its promotion. */
+const recurrenceOf = (records: readonly LessonRecord[]): PromotedLessonStatus["recurrence"] => ({
+  occurrences: records.reduce((sum, record) => sum + record.count, 0),
+  issues: [...new Set(records.map((record) => record.issue))].sort((a, b) => a - b),
+  lastSeen: records.reduce<string | null>(
+    (last, record) => (last === null || record.at > last ? record.at : last),
+    null
+  )
+});
+
 /** Every observation of one key as a candidate, whatever its spread. `null` for an unseen key. */
 export const lessonCandidateFor = (
   records: readonly LessonRecord[],
@@ -80,11 +94,15 @@ export const aggregateLessons = (
   { records, invalidLines }: LessonRecords,
   { minIssues = DEFAULT_MIN_ISSUES, currentRepo = null, promoted = [] }: LessonOptions = {}
 ): LessonReport => {
-  const handled = new Set(promoted.map((lesson) => lesson.key));
+  const promotedAt = new Map(promoted.map((lesson) => [lesson.key, Date.parse(lesson.at)]));
   const byKey = new Map<string, LessonRecord[]>();
+  const cameBack = new Map<string, LessonRecord[]>();
   for (const record of records) {
-    if (handled.has(record.key)) continue;
-    byKey.set(record.key, [...(byKey.get(record.key) ?? []), record]);
+    const at = promotedAt.get(record.key);
+    if (at === undefined) byKey.set(record.key, [...(byKey.get(record.key) ?? []), record]);
+    else if (Date.parse(record.at) > at) {
+      cameBack.set(record.key, [...(cameBack.get(record.key) ?? []), record]);
+    }
   }
   const all = [...byKey.values()].map((group) => candidateOf(group, currentRepo));
   const candidates = all
@@ -96,7 +114,9 @@ export const aggregateLessons = (
     );
   return {
     candidates,
-    promoted: [...promoted].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)),
+    promoted: [...promoted]
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      .map((lesson) => ({ ...lesson, recurrence: recurrenceOf(cameBack.get(lesson.key) ?? []) })),
     belowThreshold: all.length - candidates.length,
     minIssues,
     currentRepo,

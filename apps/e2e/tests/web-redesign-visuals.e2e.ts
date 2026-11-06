@@ -69,7 +69,8 @@ for (const theme of ["light", "dark"] as const) {
                       deleted: [],
                       cursor: "1",
                       hasMore: false,
-                      resetRequired: false
+                      resetRequired: false,
+                      older: []
                     }
                   }
                 }

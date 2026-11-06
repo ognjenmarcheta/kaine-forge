@@ -53,4 +53,4 @@ Kaine Forge ships one default theme, **Byte Forge**, and one example custom them
 | `pnpm theme:build` | checks every theme, then writes the generated token files and each `DESIGN.md` |
 | `pnpm theme:check` | the same checks; fails when a generated file is out of date                    |
 | `pnpm ui:check`    | the UI rules: accessibility lint, token-only CSS, and the theme check          |
-| `pnpm lab`         | the UI lab: every component under every theme, and the recreated screens       |
+| `pnpm lab`         | the UI lab, the Lab view of the agent desk: components, themes, and screens    |

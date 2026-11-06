@@ -44,6 +44,16 @@ The branch-name rule above still applies. Pass the name to the first commit: `bu
 
 To return to plain git, run `but teardown`. It checks out a normal branch and keeps GitButler's metadata, so `but setup` brings you back.
 
+## Optional: worktrunk for worktrees with their own runtime
+
+Use a separate worktree only when a session needs its own dev server, build output, or test run. [worktrunk](https://worktrunk.dev/) (`wt`) creates a ready one with one command. ADR 0024 records the decision.
+
+1. Install the pinned version: `cargo install worktrunk --version 0.81.0` (or `brew install worktrunk`). Then run `wt config shell install`, so `wt switch` can change your shell's directory.
+2. Optional: put worktrees next to the desk's in `~/.config/worktrunk/config.toml`: `worktree-path = "{{ repo_path }}/../{{ repo }}.worktrees/{{ branch | sanitize }}"`.
+3. Optional: install the agent plugins: `wt config plugins claude install` and `wt config plugins codex install`. They show agent activity in `wt list`, and route Claude Code's isolated worktrees through `wt`.
+4. Start work: `wt switch -c -x claude KAINE-<n>-<type>-<description> -- '<task>'`. The first run asks you to approve the commands in `.config/wt.toml`. They copy `.env`, your personal AI setup, and the Turbo cache, run `pnpm install`, build the workspace packages (mostly from the cache), and give the worktree its own web and API ports. `wt list` shows each worktree's URL.
+5. Open a pull request as usual. After the owner merges it, run `wt remove <branch>`. Do not use `wt merge`: it merges into your local `main` without a pull request, and the agent guard denies it.
+
 ## Pull requests and owner approval
 
 Outside contributors submit pull requests from forks. Only the repository owner

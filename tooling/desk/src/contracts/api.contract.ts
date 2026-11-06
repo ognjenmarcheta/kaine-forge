@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import {
   DEFINITION_ID_PATTERN,
+  agentAvatarSchema,
   agentDefinitionSchema,
   agentOutputKindSchema,
+  avatarOf,
   definitionIdSchema
 } from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
@@ -23,7 +25,13 @@ import {
   type FlowSnapshot
 } from "./flow-snapshot.contract";
 import { flowModelSchema, flowNodeIdSchema, nodeStatusSchema } from "./flow.model";
-import { issueStateSchema, issueStatusSchema, loopCountersSchema } from "./issue-state.contract";
+import {
+  issueStateSchema,
+  issueStatusSchema,
+  loopCountersSchema,
+  needsYouCodeSchema
+} from "./issue-state.contract";
+import { jobStateSchema } from "./job.contract";
 import { runRecordSchema } from "./run-metrics.contract";
 import { stepRoleOf, stepRoleSchema } from "./step-role.contract";
 
@@ -158,7 +166,13 @@ export const flowStepViewSchema = z
     label: z.string().min(1),
     kind: stepKindSchema,
     agent: z
-      .object({ id: definitionIdSchema, name: z.string().min(1), output: agentOutputKindSchema })
+      .object({
+        id: definitionIdSchema,
+        name: z.string().min(1),
+        output: agentOutputKindSchema,
+        /** The agent's avatar, or its default from `avatarOf`. */
+        avatar: agentAvatarSchema
+      })
       .strict()
       .nullable(),
     sendBack: z.array(definitionIdSchema),
@@ -176,7 +190,10 @@ export const flowStepViewsOf = (snapshot: FlowSnapshot): FlowStepView[] =>
       id: step.id,
       label: step.label,
       kind: step.kind,
-      agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output },
+      agent:
+        agent === undefined
+          ? null
+          : { id: agent.id, name: agent.name, output: agent.output, avatar: avatarOf(agent) },
       sendBack: step.kind === "gate" ? [...step.sendBack] : [],
       auto: step.kind === "ship" && step.auto,
       // Never `null`: the step is in the snapshot.
@@ -215,10 +232,14 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
       prRoundLimit: z.number().int().positive(),
       /** The engine's reason while the issue is in `needs-you`. */
       needsYouReason: z.string().nullable(),
+      /** Why the issue stopped, while it is in `needs-you`. `null` otherwise or when unknown. */
+      needsYouCode: needsYouCodeSchema.nullable(),
       /** The stage that `continue` re-runs while the issue is in `needs-you`. */
       resumeStage: stageIdSchema.nullable(),
       /** The draft PR, once the ship opened it. */
       prUrl: z.string().nullable(),
+      /** When the PR merged: GitHub's time, else when the desk saw it. `null` before a merge. */
+      mergedAt: timestampSchema.nullable(),
       /** "contract N/6" from `ticket.md`, or `null` before intake wrote it. */
       contract: z
         .object({ found: z.number().int().nonnegative(), total: z.number().int().positive() })
@@ -226,6 +247,11 @@ export const issueSummarySchema = z.discriminatedUnion("readable", [
         .nullable(),
       /** When the issue entered its current stage, from the history. `null` when unknown. */
       stageEnteredAt: timestampSchema.nullable(),
+      /**
+       * How long the engine worked, in milliseconds: the history without the time spent at a
+       * gate, with the PR open, or stopped. It leaves out the stage that runs now.
+       */
+      activeMs: z.number().nonnegative(),
       /** Status of every flow node, in flow order (the flow model's own result): the ticket and the steps. */
       progress: z.array(nodeStatusSchema).min(2),
       /** The flow node that holds the issue now, or `null`. */
@@ -400,6 +426,11 @@ export const issueDetailSchema = z
     buildRevision: z.string().nullable(),
     /** The owner's note at the plan approval, or `null`. */
     approveNote: z.string().nullable(),
+    /**
+     * While the issue is in `needs-you`: the commands the last run of the stage to retry tried and
+     * the desk refused, that the owner may allow. Empty otherwise. Each one is exact.
+     */
+    deniedCommands: z.array(z.string()),
     resume: sessionResumeSchema,
     /** The agent runs of this issue from `runs.jsonl`, oldest first. */
     runs: z.array(runRecordSchema)
@@ -529,16 +560,22 @@ export const ACTION_NAMES = [
   "remove",
   "ship",
   "refresh-pr",
+  "check-pr",
   "pr-feedback",
   "draft",
   "apply-draft",
   "pause",
-  "resume"
+  "resume",
+  "steer",
+  "take-over",
+  "resolve-denial"
 ] as const;
 export const actionNameSchema = z.enum(ACTION_NAMES);
 export type ActionName = z.infer<typeof actionNameSchema>;
 
 export const MAX_FEEDBACK_CHARS = 20_000;
+/** The longest command a `resolve-denial` request may carry. */
+export const MAX_COMMAND_CHARS = 2000;
 
 export const actionRequestSchema = z.discriminatedUnion("action", [
   // Without `flowId` the config picks the flow: `flowLabels`, then `defaultFlow`.
@@ -581,6 +618,8 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
     }),
   // Reads the PR once. It never writes to the PR.
   z.object({ action: z.literal("refresh-pr") }).strict(),
+  // Reads the PR's failing checks and new comments, and keeps a summary. It changes no stage.
+  z.object({ action: z.literal("check-pr") }).strict(),
   // Reads the PR and sends its feedback to build. The PR number comes from the issue state.
   z
     .object({
@@ -593,7 +632,25 @@ export const actionRequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("apply-draft"), confirm: z.literal(true) }).strict(),
   // Hold the issue after the running stage. It never stops a running agent: `cancel` does.
   z.object({ action: z.literal("pause") }).strict(),
-  z.object({ action: z.literal("resume") }).strict()
+  z.object({ action: z.literal("resume") }).strict(),
+  // The owner's note to the agent that runs now. It stops the agent and resumes its session (ADR 0022).
+  z
+    .object({
+      action: z.literal("steer"),
+      note: z.string().trim().min(1).max(MAX_FEEDBACK_CHARS)
+    })
+    .strict(),
+  // Stop the agent that runs now so the owner works in its session (ADR 0022).
+  z.object({ action: z.literal("take-over") }).strict(),
+  // A command the desk refused to an agent. `allow` lets this issue run it and retries the stop.
+  // `skip` tells the agent to leave it out and goes on. The command must be one the desk refused.
+  z
+    .object({
+      action: z.literal("resolve-denial"),
+      command: z.string().trim().min(1).max(MAX_COMMAND_CHARS),
+      resolution: z.enum(["allow", "skip"])
+    })
+    .strict()
 ]);
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionRequestInput = z.input<typeof actionRequestSchema>;
@@ -631,8 +688,20 @@ export const actionTargetProblem = (
 /** How a runner call ended: at a gate, at `needs-you`, or at the end of the issue. */
 export const actionOutcomeSchema = z
   .object({
-    /** `paused`: the issue holds (or holds once the running stage ends) until `resume`. */
-    stop: z.enum(["gate", "needs-you", "shipped", "cancelled", "finished", "removed", "paused"]),
+    /**
+     * `paused`: the issue holds (or holds once the running stage ends) until `resume`.
+     * `steered`: the running agent goes on in its session with the owner's note.
+     */
+    stop: z.enum([
+      "gate",
+      "needs-you",
+      "shipped",
+      "cancelled",
+      "finished",
+      "removed",
+      "paused",
+      "steered"
+    ]),
     stage: stageIdSchema.nullable(),
     message: z.string().nullable()
   })
@@ -700,7 +769,12 @@ export type LogResponse = z.infer<typeof logResponseSchema>;
  * Repairs the desk runs itself, each a fixed command in the engine. No agent decides what
  * runs, and nothing here needs a login or a secret.
  */
-export const HEALTH_FIXES = ["docker-build", "agent-labels", "workspace-builds"] as const;
+export const HEALTH_FIXES = [
+  "docker-build",
+  "agent-labels",
+  "workspace-builds",
+  "allow-codex-builder"
+] as const;
 export const healthFixSchema = z.enum(HEALTH_FIXES);
 export type HealthFix = z.infer<typeof healthFixSchema>;
 
@@ -774,7 +848,28 @@ export const githubPullSchema = z
     author: z.string().nullable(),
     updatedAt: z.string(),
     /** The desk issue it belongs to: the desk shipped it, or its branch is `KAINE-<n>-...`. */
-    issue: z.number().int().positive().nullable()
+    issue: z.number().int().positive().nullable(),
+    /** The head's CI: any failed check makes it `failing`, with how many failed. */
+    ci: z
+      .object({
+        state: z.enum(["passing", "failing", "running", "none"]),
+        failing: z.number().int().nonnegative()
+      })
+      .strict(),
+    review: z.enum(["approved", "changes-requested", "required", "none"]),
+    labels: z.array(z.string()),
+    /** The owner's last `check-pr` of the desk issue: failing checks and new comments. */
+    check: z
+      .object({
+        at: timestampSchema,
+        headSha: z.string(),
+        failingChecks: z.array(z.string()),
+        comments: z.number().int().nonnegative(),
+        authors: z.array(z.string()),
+        skipped: z.array(z.string())
+      })
+      .strict()
+      .nullable()
   })
   .strict();
 export type GithubPull = z.infer<typeof githubPullSchema>;
@@ -801,7 +896,9 @@ export const SERVER_EVENT_TYPES = [
   "action-result",
   "log",
   "health",
-  "health-fix"
+  "health-fix",
+  "job-updated",
+  "job-removed"
 ] as const;
 
 export const serverEventSchema = z.discriminatedUnion("type", [
@@ -819,7 +916,9 @@ export const serverEventSchema = z.discriminatedUnion("type", [
     .strict(),
   z.object({ type: z.literal("log"), entry: logEntrySchema }).strict(),
   z.object({ type: z.literal("health"), report: healthReportSchema }).strict(),
-  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict()
+  z.object({ type: z.literal("health-fix"), result: healthFixResultSchema }).strict(),
+  z.object({ type: z.literal("job-updated"), job: jobStateSchema }).strict(),
+  z.object({ type: z.literal("job-removed"), jobId: z.number().int().positive() }).strict()
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

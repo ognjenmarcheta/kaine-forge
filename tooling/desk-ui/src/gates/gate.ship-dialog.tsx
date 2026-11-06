@@ -1,8 +1,9 @@
 import { shipPlanViewSchema, type ShipPlanView } from "@repo/desk/contracts";
-import { Modal, Spinner } from "@repo/ui";
+import { Button, Modal, Spinner } from "@repo/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { IssueActions } from "./gate.actions";
+import type { UnsentComments } from "./gate.frame";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { useT } from "../i18n/i18n.t";
 import { FailureText, ItemList, List, Muted, Pre, Section } from "../shell/shell.ui";
@@ -25,6 +26,8 @@ export interface ShipDialogProps {
   readonly actions: IssueActions;
   /** Changed files the owner has not marked viewed. The dialog says so; it does not block. */
   readonly unviewed?: readonly string[];
+  /** Comments written and not sent. The dialog warns that a ship does not send them. */
+  readonly unsent?: UnsentComments | null;
 }
 
 const NOTHING_UNVIEWED: readonly string[] = [];
@@ -42,7 +45,8 @@ export function ShipDialog({
   open,
   onOpenChange,
   actions,
-  unviewed = NOTHING_UNVIEWED
+  unviewed = NOTHING_UNVIEWED,
+  unsent = null
 }: ShipDialogProps) {
   const t = useT();
   const { api } = useDesk();
@@ -161,7 +165,7 @@ export function ShipDialog({
     >
       <div className="desk-ship" aria-live="polite">
         {phase.kind === "checking" && (
-          <p className="desk-loading">
+          <p className="dk-row dk-t-sub">
             <Spinner size="sm" label={t("desk.ship.checking")} aria-hidden="true" />
             <span>{t("desk.ship.checking")}</span>
           </p>
@@ -172,6 +176,11 @@ export function ShipDialog({
             prBody={phase.prBody}
             pullRequest={pullRequest}
             unviewed={unviewed}
+            unsent={unsent}
+            onSendBack={() => {
+              onOpenChange(false);
+              unsent?.onSendBack();
+            }}
           />
         )}
         {phase.kind === "confirm" && (
@@ -183,23 +192,23 @@ export function ShipDialog({
                 pr: pullRequest ?? 0
               })}
             </p>
-            <p className="desk-note">{t("desk.ship.youMerge")}</p>
+            <p className="dk-hint">{t("desk.ship.youMerge")}</p>
           </>
         )}
         {phase.kind === "shipping" && (
-          <p className="desk-loading">
+          <p className="dk-row dk-t-sub">
             <Spinner size="sm" label={t("desk.ship.shipping")} aria-hidden="true" />
             <span>{t("desk.ship.shipping")}</span>
           </p>
         )}
         {phase.kind === "shipped" && (
           <>
-            <p className="desk-note">
+            <p className="dk-hint">
               {pullRequest === null
                 ? t("desk.ship.done")
                 : t("desk.ship.updated", { pr: pullRequest })}
             </p>
-            <p className="desk-muted">{t("desk.ship.youMerge")}</p>
+            <p className="dk-t-sub">{t("desk.ship.youMerge")}</p>
           </>
         )}
         {phase.kind === "failed" && <FailureText code={phase.code} detail={phase.detail} />}
@@ -212,20 +221,24 @@ function ShipReview({
   plan,
   prBody,
   pullRequest,
-  unviewed
+  unviewed,
+  unsent,
+  onSendBack
 }: {
   readonly plan: ShipPlanView;
   readonly prBody: string | null;
   readonly pullRequest: number | null;
   readonly unviewed: readonly string[];
+  readonly unsent: UnsentComments | null;
+  readonly onSendBack: () => void;
 }) {
   const t = useT();
   return (
     <div className="desk-artifact">
       <Section title={t("desk.ship.gate")}>
-        {plan.gate.ok && <p className="desk-note">{t("desk.ship.gateOk")}</p>}
+        {plan.gate.ok && <p className="dk-hint">{t("desk.ship.gateOk")}</p>}
         {unviewed.length > 0 && (
-          <div className="desk-warning desk-ship__unviewed">
+          <div className="dk-banner dk-banner-warning desk-ship__unviewed">
             <strong>{t("desk.ship.unviewed")}</strong>
             <span>
               {t("desk.ship.unviewedText", {
@@ -235,8 +248,17 @@ function ShipReview({
             </span>
           </div>
         )}
+        {unsent !== null && (
+          <div className="dk-banner dk-banner-warning desk-ship__unviewed">
+            <strong>{t("desk.ship.unsent")}</strong>
+            <span>{t("desk.ship.unsentText", { count: unsent.count })}</span>
+            <Button type="button" appearance="outline" spacing="compact" onClick={onSendBack}>
+              {t("desk.ship.sendBackInstead")}
+            </Button>
+          </div>
+        )}
         {!plan.gate.ok && (
-          <div className="desk-failure" role="alert">
+          <div className="dk-banner dk-banner-danger dk-stack" role="alert">
             <p>{t("desk.ship.gateFailed")}</p>
             <ItemList
               empty=""
@@ -254,7 +276,7 @@ function ShipReview({
         <p>
           <code>{plan.commitHeader}</code>
         </p>
-        <p className="desk-muted">
+        <p className="dk-t-sub">
           {t("desk.ship.branch")} <code>{plan.branch ?? t("desk.common.unknown")}</code>
         </p>
       </Section>
@@ -262,7 +284,7 @@ function ShipReview({
         {pullRequest === null ? (
           <>
             <p>{plan.pullRequest.title}</p>
-            <p className="desk-muted">{t("desk.ship.draft", { base: plan.pullRequest.base })}</p>
+            <p className="dk-t-sub">{t("desk.ship.draft", { base: plan.pullRequest.base })}</p>
           </>
         ) : (
           <p>{t("desk.ship.updatesPr", { pr: pullRequest })}</p>
@@ -271,7 +293,7 @@ function ShipReview({
       <Section title={t("desk.ship.changeset")}>
         <p>
           <strong>{t(`desk.ship.changesetKind.${plan.changeset.kind}`)}</strong>{" "}
-          <span className="desk-muted">{plan.changeset.reason}</span>
+          <span className="dk-t-sub">{plan.changeset.reason}</span>
         </p>
         {plan.changesetText !== null && (
           <Pre label={t("desk.ship.changeset")}>{plan.changesetText}</Pre>

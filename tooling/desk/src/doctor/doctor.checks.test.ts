@@ -5,14 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import type { DeskConfigLoadResult } from "../config/config.load";
 import { deskConfigSchema } from "../contracts";
-import {
-  REQUIRED_FLAGS,
-  formatDoctorReport,
-  helpMentions,
-  missingFlags,
-  runDoctor,
-  type DoctorReport
-} from "./doctor.checks";
+import { formatDoctorReport, runDoctor, type DoctorReport } from "./doctor.checks";
+import { REQUIRED_FLAGS, helpMentions, missingFlags } from "../agents/provider.probe";
 import { AGENT_LABELS } from "../github/github.labels";
 import { fail, fakeExec, ok, type FakeRoute } from "../testing/exec.fake";
 import { fakeGitHub } from "../testing/github.fake";
@@ -140,6 +134,7 @@ describe("runDoctor", () => {
       "claude-flags",
       "codex",
       "codex-flags",
+      "agent-roles",
       "workspace-builds"
     ]);
     // Every command was one of the read-only probes, and nothing reached GitHub as a write.
@@ -322,12 +317,34 @@ describe("runDoctor", () => {
     expect(result.checks.find((check) => check.id === "config")?.detail).toContain("config.json");
   });
 
-  it("treats a missing provider as an error when a role needs it", async () => {
+  it("warns about a missing provider and says where its role runs instead", async () => {
     // Defaults use claude for the planner and builder and codex for the reviewer.
     const result = await run([{ argv: ["codex"], reply: fail("not found", 127) }, ...healthy])
       .report;
-    expect(statusOf(result, "codex")).toBe("error");
+    expect(result.checks.find((check) => check.id === "codex")).toMatchObject({
+      status: "warn",
+      detail: "codex is not installed. The reviewer runs on claude."
+    });
+    expect(result.checks.find((check) => check.id === "agent-roles")).toMatchObject({
+      status: "ok",
+      detail: "intake claude, planner claude, builder claude, reviewer claude"
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("fails only when a role has no provider, and offers the Codex opt-in when Codex is the only one", async () => {
+    const result = await run([{ argv: ["claude"], reply: fail("not found", 127) }, ...healthy])
+      .report;
+    expect(result.checks.find((check) => check.id === "agent-roles")).toMatchObject({
+      status: "error",
+      detail: expect.stringContaining("Codex is the only agent CLI here"),
+      fix: "allow-codex-builder"
+    });
     expect(result.ok).toBe(false);
+    const allowed = await run([{ argv: ["claude"], reply: fail("not found", 127) }, ...healthy], {
+      load: loaded({ allowCodexBuilder: true })
+    }).report;
+    expect(statusOf(allowed, "agent-roles")).toBe("ok");
   });
 
   it("treats a missing provider as a warning when no role uses it", async () => {
@@ -344,7 +361,7 @@ describe("runDoctor", () => {
     const result = await run([{ argv: ["claude", "--help"], reply: ok(stripped) }, ...healthy])
       .report;
     expect(result.checks.find((check) => check.id === "claude-flags")).toMatchObject({
-      status: "error",
+      status: "warn",
       detail: expect.stringContaining("--permission-prompts")
     });
   });
@@ -359,11 +376,55 @@ describe("runDoctor", () => {
     expect(statusOf(result, "codex-flags")).toBe("warn");
   });
 
-  it("treats every provider as required when the config is invalid", async () => {
-    const result = await run([{ argv: ["codex"], reply: fail("", 127) }, ...healthy], {
-      load: () => Promise.resolve({ ok: false, reason: "invalid-json", detail: "x" })
-    }).report;
-    expect(statusOf(result, "codex")).toBe("error");
+  describe("OpenCode, which only a role that uses it brings in", () => {
+    const OPENCODE_HELP = [
+      "  --standalone            Run with a private server instead of the background service",
+      "  --session, -s string    Session ID to continue, or to create if it does not exist",
+      "  --model, -m string      Model to use in the format provider/model#variant",
+      "  --format choice         Output format (choices: default, json)",
+      "  --title string          Session title"
+    ].join("\n");
+    const opencodeRoutes = (version: string): FakeRoute[] => [
+      { argv: ["opencode", "--version"], reply: ok(`opencode v${version}\n`) },
+      { argv: ["opencode", "run", "--help"], reply: ok(OPENCODE_HELP) },
+      ...healthy
+    ];
+    const reviewerOnOpencode = (models: Record<string, string> = {}) =>
+      loaded({ providers: { reviewer: "opencode" }, models });
+
+    it("passes 2.2.5 with its flags, and is absent when no role uses it", async () => {
+      const used = await run(opencodeRoutes("2.2.5"), {
+        load: reviewerOnOpencode({ reviewer: "anthropic/claude-haiku-4-5" })
+      }).report;
+      expect(statusOf(used, "opencode")).toBe("ok");
+      expect(statusOf(used, "opencode-flags")).toBe("ok");
+      expect(statusOf(used, "opencode-model")).toBeUndefined();
+      expect(statusOf(await run().report, "opencode")).toBeUndefined();
+    });
+
+    it.each(["2.2.3", "1.19.5"])(
+      "refuses %s, which predates the stream the desk reads, and reviews on Codex",
+      async (version) => {
+        const result = await run(opencodeRoutes(version), {
+          load: reviewerOnOpencode({ reviewer: "anthropic/claude-haiku-4-5" })
+        }).report;
+        expect(result.checks.find((check) => check.id === "opencode")).toMatchObject({
+          status: "warn",
+          detail: expect.stringContaining("2.2.4+")
+        });
+        expect(result.checks.find((check) => check.id === "opencode")?.detail).toContain(
+          "The reviewer runs on codex."
+        );
+      }
+    );
+
+    it("warns about a role that runs OpenCode without a model", async () => {
+      const result = await run(opencodeRoutes("2.2.5"), { load: reviewerOnOpencode() }).report;
+      expect(result.checks.find((check) => check.id === "opencode-model")).toMatchObject({
+        status: "warn",
+        detail: expect.stringContaining("reviewer")
+      });
+    });
   });
 });
 

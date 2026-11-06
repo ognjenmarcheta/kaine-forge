@@ -78,6 +78,7 @@ GitButler is the recommended local version-control client. It runs several branc
 - `but commit` does not run the `commit-msg` hook. The `pre-push` hook runs commitlint, including the no-AI-co-author rule, on every pushed commit, but GitButler runs `.husky` hooks only when the project setting "Enable Husky hooks" is on. It is off by default. Before `but push` or `but pr new`, run `pnpm exec commitlint --from origin/main --to <branch>` yourself. Wrap commit body lines at 100 characters.
 - Each contributor installs GitButler's own agent skill: `but skill install --global` the first time, then `but skill install --detect` after a CLI update (`--detect` only updates existing installs). `but skill check` shows whether it matches the CLI version. Do not vendor it into `.ai/skills/`.
 - Use a separate worktree only when an agent needs its own runtime state, such as ports, build output, or a database. The Agent Desk keeps its plain-git worktrees.
+- When the `Worktrunk:` startup line reports `wt` ready, create that worktree with `wt switch -c -x <agent> <branch> -- '<task>'`. `.config/wt.toml` copies `.env`, installs dependencies, and gives the worktree its own web and API ports (`WEB_PORT`, `API_PORT` in its `.env`). Never run `wt merge` or `wt step push`: they merge into local `main` without a pull request. Open a draft PR instead, and remove the worktree with `wt remove` after the owner merges it. Do not remove a worktree that a desk run drives. ADR 0024 records the setup.
 
 ## AI Behavioral Guidelines
 
@@ -94,6 +95,7 @@ Principles to reduce common LLM coding mistakes:
 - Push back when the requested path is likely to be more complex than needed, and offer the simpler alternative with tradeoffs.
 - Fix bugs at the root cause: a report names a symptom. Trace every caller of the function you change and fix the shared function once — one guard there beats one per caller, and patching only the reported path leaves sibling callers broken.
 - If a required fact cannot be discovered locally and guessing would change behavior, stop and ask.
+- When you ask the owner to choose, state the stakes in one sentence, give one recommendation and its reason, and name what each shortcut option gives up.
 
 ### Simplicity First
 
@@ -265,6 +267,7 @@ Selection uses each agent's native discovery and model judgment. These instructi
 This index is generated from canonical skill metadata:
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
+- `kaine-architecture-review`: Independently review the module design of an implementation plan before the build — design it a second, different way, check for module-design red flags, and confirm package boundaries, reuse, failure modes, and test layers. Not for writing the plan (kaine-write-plan) or reviewing a finished diff (kaine-review).
 - `kaine-audit-ui`: Audit a screen, a UI diff, or a recreated screenshot against the UI guidelines and WCAG 2.2, and report findings with rule IDs; in reference mode, also score how closely a recreation matches its image.
 - `kaine-build-3d`: Add or change an interactive 3D view in the web or desktop UI with @repo/ui-3d — decide whether 3D is needed, then build an accessible, theme-colored, on-demand scene that a DOM control drives.
 - `kaine-build-ui`: Build or change a screen or component in the web, desktop, desk, or mobile UI, or recreate a screenshot or brand look, using the theme utilities, the shared components, and the UI guidelines.
@@ -272,18 +275,25 @@ This index is generated from canonical skill metadata:
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
 - `kaine-create-theme`: Create, change, or set the default for a theme in @repo/theme, from a brand color, a brand book, a DESIGN.md, or a reference image, and pass the theme checks.
 - `kaine-debug`: Find and fix the root cause of a local failure — a failing test, broken build, runtime error, or regression — by reproducing, localizing, and reducing it before changing code.
+- `kaine-design-review`: Act as the designer for a UI plan, issue, or diff before or during the build — rate the intended screen on seven design dimensions against the UI guidelines, say what a 10 looks like, and propose a few written directions inside the active theme. Not for auditing a built screen in a browser (kaine-audit-ui) or building UI (kaine-build-ui).
+- `kaine-document-release`: Check product docs (README, MONOREPO_GUIDE.md, CONTEXT.md, docs/) against a range of merged changes and report docs that the changes made wrong or incomplete. Use after merges to main, before a release, or when asked whether the docs still match the code. Fixes docs only on request.
+- `kaine-dx-review`: Review the developer experience of a plan, diff, CLI, or workspace — pick the developer persona, trace their journey from clone to first success, score eight DX passes, and check every error message against a fix-first rubric. Reads only. Not for code review (kaine-review) or the repo-health scorecard (kaine-scorecard).
 - `kaine-encode-knowledge`: Assess repeated workflows, corrections, or review failures; propose an existing skill improvement or a new reusable procedure, and encode authorized lessons in rules, tests, skills, or docs.
 - `kaine-explain`: Give source-grounded explanations in a useful format, and close substantive final replies with In plain language while preserving plan, review, and handoff requirements.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
 - `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, record the verdict in the harness-eval ledger, and choose a better wording for a rule marked tighten.
 - `kaine-intake`: Assess a new issue for implementation readiness, specification work, missing information, or human handling without implementing it.
+- `kaine-motion-review`: Act as a motion designer for a UI plan, issue, or diff — specify or review each animation against the motion contract, the MOTION rules, and the theme motion tokens, and name the test that proves it. Not for building the animation (kaine-build-ui) or a full UI audit (kaine-audit-ui).
 - `kaine-open-pr`: Create a task branch or prepare a draft pull request using Kaine Forge branch naming, checks, changeset rules, and GitHub flow.
+- `kaine-product-review`: Review an issue, idea, or plan from the product side before anyone builds it — challenge the premise, ask for evidence of demand, find the narrowest version that delivers the outcome, and recommend whether to expand, hold, or reduce scope. Not for code review (kaine-review) or issue readiness (kaine-intake).
+- `kaine-qa`: Click through a running local web flow as a user would, find functional bugs (console errors, failed requests, dead links, broken states, wrong organization data), and report them with steps to reproduce; in fix mode, fix each bug behind a failing test. Use for exploratory QA of a route or flow, not for design or accessibility audits.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
+- `kaine-security-audit`: Threat-model audit of existing code in one scope (workspace, feature folder, or repo) — inventory trust boundaries, check STRIDE and the OWASP Top 10 against this repo's controls, and report only findings the code proves. Not for a diff review (kaine-review) or a secret scan (kaine-secret-scan).
 - `kaine-setup-github`: Set up or check a repository's GitHub state (labels, Discussions, merge settings, security, rulesets, Projects board) from .github/repo-setup.json with pnpm github:setup — after creating a repo from the template, or when labels, rulesets, or the board drift.
 - `kaine-shepherd-prs`: Keep a set of open PRs reviewable and mergeable (watch CI, fix failures, resolve conflicts, triage review bots), give the owner the merge order, and watch main after merges.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".
@@ -298,7 +308,7 @@ This index is generated from canonical skill metadata:
 
 The `kaine-graph` skill layers an optional generated knowledge graph over the hand-written knowledge sources (Serena memories, `CONTEXT.md`, `docs/adr/`). Its `graphify-out/` output is local, regenerable, and never committed.
 
-The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region and writes `scorecard-out/`, which is local, regenerable, and never committed. `REVIEW.md` governs diffs; the scorecard governs the repo.
+The `kaine-scorecard` skill tracks repo-level health over time in `docs/agents/monorepo-scorecard.md`, which is the tracked source of truth for band descriptors, scores, finding slugs, and calibration notes. `pnpm scorecard` regenerates that file's marker region; the agent desk's **Scorecard** view reads the ledger and shows the trend, the findings, and the diagrams. `REVIEW.md` governs diffs; the scorecard governs the repo.
 
 Downstream products keep their own guide rules, review checks, skills, and agents in `.ai/project/` (`guide.md`, `review.md`, `skills/`, `agents/`). Project skill and agent names start with the `repoSlug` from `.ai/project/template.json`. `pnpm ai:sync` merges upstream changes into the other `.ai/` sources and never writes `.ai/project/` (ADR 0014).
 
@@ -349,6 +359,13 @@ failure behavior are documented in `docs/agents/agent-engineering.md`.
 - **ask** `but ... --skip-force-push-protection` — Turns off GitButler's lease check, so a force push can overwrite commits someone else pushed.
 - **ask** `but push ... -s` — Short form of --skip-force-push-protection.
 - **ask** `but pr new ... -s` — Short form of --skip-force-push-protection.
+- **deny** `wt merge` — Squashes, rebases, and fast-forwards the local target branch, usually main, and rewrites its worktree, without a pull request. Only the repository owner merges into main. Use `but pr new <branch> --draft` instead.
+- **deny** `wt step push` — Fast-forwards the local target branch, usually main, to this branch without a pull request. Only the repository owner merges into main. Use `but pr new <branch> --draft` instead.
+- **ask** `wt step prune` — Removes every worktree whose branch looks merged, including worktrees that an agent desk run or another session drives.
+- **ask** `wt remove ... --force` — Removes a worktree with uncommitted changes, which deletes that work.
+- **ask** `wt remove ... -f` — Short form of --force.
+- **ask** `wt remove ... --force-delete` — Deletes a branch that is not merged, which loses its commits unless they are pushed.
+- **ask** `wt remove ... -D` — Short form of --force-delete.
 - **ask** `agent-desktop ... --headed` — Moves the owner's real pointer and keyboard and can take focus from the app they are using. Headless ref actions need no approval.
 - **ask** `agent-desktop clipboard-get` — Reads the owner's clipboard, which often holds passwords, tokens, or private text.
 - **ask** `agent-desktop close-app` — Closes a desktop app and can lose its unsaved work.

@@ -461,6 +461,9 @@ function TodosWorkspace({
             {t(todos.list.isFetchingNextPage ? "todos.loading" : "todos.loadMore")}
           </Button>
         ) : null}
+        {todos.list.olderNeedsConnection ? (
+          <p className="text-ds-text-subtle">{t("sync.older.offline")}</p>
+        ) : null}
       </div>
       <TodoFormDialog
         open={createOpen}

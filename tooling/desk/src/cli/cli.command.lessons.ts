@@ -14,7 +14,23 @@ const USAGE =
 /** Agent text is data: no terminal control sequences reach the screen. */
 const plain = (text: string): string => stripVTControlCharacters(text);
 
-const formatLessons = (report: LessonReport): string[] => {
+/** A promoted lesson that comes back was not covered by its encoding. */
+const formatPromoted = (report: LessonReport): string[] => {
+  if (report.promoted.length === 0) return [];
+  const lines = ["", "Promoted lessons, and whether they came back after the promotion:"];
+  for (const lesson of report.promoted) {
+    const since = lesson.at.slice(0, 10);
+    const { occurrences, issues, lastSeen } = lesson.recurrence;
+    lines.push(
+      lastSeen === null
+        ? `${plain(lesson.key)}  not seen since ${since}`
+        : `${plain(lesson.key)}  came back ${occurrences} time(s) in ${issues.length} issue(s) (${issues.map((issue) => `#${issue}`).join(" ")}) since ${since}, last ${lastSeen.slice(0, 10)}`
+    );
+  }
+  return lines;
+};
+
+const formatCandidates = (report: LessonReport): string[] => {
   const scope = `seen in ${report.minIssues} or more issues`;
   if (report.candidates.length === 0) {
     return [
@@ -48,6 +64,11 @@ const formatLessons = (report: LessonReport): string[] => {
   }
   return lines;
 };
+
+const formatLessons = (report: LessonReport): string[] => [
+  ...formatCandidates(report),
+  ...formatPromoted(report)
+];
 
 /** Reads `lessons.jsonl` and the repository's instructions. It changes nothing. */
 export const commandLessons: CliCommand = async (args, deps, io) => {

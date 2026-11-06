@@ -6,6 +6,7 @@ import { anomaliesOf } from "./inspector.model";
 import { Anomalies } from "./inspector.parts";
 import { StageResult } from "./inspector.result";
 import { StageSection } from "./inspector.stage";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
 import { agentName, flowStepOf, issueFlowOfView } from "../flow/flow.steps";
 import { nodeStatusText } from "../flow/flow.text";
@@ -135,6 +136,7 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
 
   if (node === undefined) return null;
   const tone = NODE_TONE[node.status];
+  const agent = flowStepOf(issueFlowOfView(detail.flowDefinition), node.id)?.agent ?? null;
   return (
     <div
       ref={sheet}
@@ -148,16 +150,20 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
       <div className="desk-sheet__head">
         <div className="desk-sheet__title">
           <p className="desk-sheet__where">
-            {t("desk.sheet.position", {
-              index: index + 1,
-              total: flow.nodes.length,
-              who: subtitleOf(t, node, detail)
-            })}
+            <span className="desk-who">
+              {agent !== null && <AgentAvatar avatar={agent.avatar} />}
+              {t("desk.sheet.position", {
+                index: index + 1,
+                total: flow.nodes.length,
+                who: subtitleOf(t, node, detail)
+              })}
+            </span>
           </p>
           <h2 id={`${id}-title`}>{names.node(node.id)}</h2>
           <StatusChip tone={tone}>{nodeStatusText(t, node)}</StatusChip>
         </div>
         <Button
+          type="button"
           appearance="ghost"
           className="desk-sheet__button"
           aria-label={t("desk.sheet.previous")}
@@ -165,9 +171,10 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           disabled={previous === null}
           onClick={goPrevious}
         >
-          <ArrowRight aria-hidden="true" className="desk-icon desk-icon--back" />
+          <ArrowRight aria-hidden="true" className="dk-ic desk-icon--back" />
         </Button>
         <Button
+          type="button"
           appearance="ghost"
           className="desk-sheet__button"
           aria-label={t("desk.sheet.next")}
@@ -175,16 +182,17 @@ function Sheet({ detail, summary, flow, nodeId, revision, onSelect, onClose }: S
           disabled={next === null}
           onClick={goNext}
         >
-          <ArrowRight aria-hidden="true" className="desk-icon" />
+          <ArrowRight aria-hidden="true" className="dk-ic" />
         </Button>
         <Button
+          type="button"
           appearance="ghost"
           className="desk-sheet__button"
           aria-label={t("desk.common.close")}
           aria-keyshortcuts="Escape"
           onClick={onClose}
         >
-          <X aria-hidden="true" className="desk-icon" />
+          <X aria-hidden="true" className="dk-ic" />
         </Button>
       </div>
       <div className="desk-sheet__body">

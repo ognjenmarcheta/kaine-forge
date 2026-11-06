@@ -1,9 +1,12 @@
-import { SyncAuthError, SyncRequestError, type SyncTransport } from "@repo/sync";
+import { SyncAuthError, SyncNetworkError, SyncRequestError, type SyncTransport } from "@repo/sync";
 import { ClientError, type GraphQLClient } from "graphql-request";
 
 import {
   SyncPullDocument,
+  SyncPullOlderDocument,
   SyncPushDocument,
+  type SyncPullOlderQuery,
+  type SyncPullOlderQueryVariables,
   type SyncPullQuery,
   type SyncPullQueryVariables,
   type SyncPushMutation,
@@ -17,13 +20,21 @@ const AUTH_MESSAGES = new Set([
   "organization not accessible"
 ]);
 
+/** A proxy's answer when the API behind it does not respond. */
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
 /**
  * Turns a failed request into what the sync engine acts on: a session
  * problem pauses the Outbox, a refused request drops it, and anything else
- * (no network, a server error) retries.
+ * retries. No response at all (fetch rejects with a TypeError) or a gateway
+ * error means the server cannot be reached; the status says so.
  */
 function classify(error: unknown): unknown {
+  if (error instanceof TypeError) return new SyncNetworkError(error.message);
   if (!(error instanceof ClientError)) return error;
+  if (GATEWAY_STATUSES.has(error.response.status)) {
+    return new SyncNetworkError(`server responded ${String(error.response.status)}`);
+  }
   if (error.response.status === 401) return new SyncAuthError("authentication required");
   for (const graphqlError of error.response.errors ?? []) {
     if (AUTH_MESSAGES.has(graphqlError.message)) return new SyncAuthError(graphqlError.message);
@@ -36,13 +47,24 @@ function classify(error: unknown): unknown {
 
 export function createSyncTransport(client: GraphQLClient): SyncTransport {
   return {
-    async pull(cursor) {
+    async pull(cursor, window) {
       try {
         const { syncPull } = await client.request<SyncPullQuery, SyncPullQueryVariables>(
           String(SyncPullDocument),
-          { cursor }
+          { cursor, ...(window === undefined ? {} : { window }) }
         );
         return syncPull;
+      } catch (error) {
+        throw classify(error);
+      }
+    },
+    async pullOlder(after) {
+      try {
+        const { syncPullOlder } = await client.request<
+          SyncPullOlderQuery,
+          SyncPullOlderQueryVariables
+        >(String(SyncPullOlderDocument), { after });
+        return syncPullOlder;
       } catch (error) {
         throw classify(error);
       }

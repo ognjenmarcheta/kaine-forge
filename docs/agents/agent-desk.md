@@ -91,7 +91,8 @@ A terminal bell rings at a gate and at `needs-you` (not with `--json`).
   reading until Ctrl-C. `--json` prints the raw records, one per line.
 - `resume <n>`: print the command that opens an agent session by hand, for example
   `cd <worktree> && claude --resume <session id>`. It lists the builder first, then the
-  planner, with `codex resume <id>` for a Codex role. It refuses when the issue has no
+  planner, with `codex resume <id>` for a Codex role and `opencode --session <id>` for an
+  OpenCode role. It refuses when the issue has no
   worktree, the worktree is gone, or no agent has run yet. Stop every desk run for the
   issue first, and close your session before the next desk command.
 - `contract <n> | --file P [--json]`: how intake reads an issue body: the contract score, the
@@ -138,6 +139,35 @@ Ctrl-C (or a crash) during a stage leaves the issue `running`. Every driving com
 runs recovery: each `running` or `queued` issue becomes `needs-you` with a note, and a
 leftover agent process group is stopped. Then run `pnpm desk continue <n>`. Recovery never
 resumes by itself, and it skips an issue that a live desk process drives.
+
+### Steer and take over
+
+While an agent runs, the issue card in the desk UI shows two more controls (ADR 0022). The
+desk acts on them only for an agent that this desk process runs, so the CLI has no command for
+them.
+
+- **Steer**: type a note and select **Steer**. The desk stops the agent and runs it again in
+  the same session with your note. The agent keeps what it read and did. An agent stopped
+  before it had a session starts again with its first prompt and your note. The note goes into
+  the issue's feedback artifact, and the history records `steered`. The engine checks the
+  steered runs together, as one run, and `runs.jsonl` counts them in `steers`.
+- **Take over**: the desk stops the agent, and the issue goes to `needs-you`. The issue card
+  and `pnpm desk resume <n>` give the command that resumes the session in your terminal:
+  `claude --resume <id>`, `codex resume <id>`, or `opencode --session <id>` in the worktree.
+  An agent stopped before it had a session has none to resume: **Continue** runs it again. The reason does not hold that command, because
+  the reason goes to the GitHub status comment. Work in the session. Then select **Continue**, or
+  send feedback to the step: the agent goes on in the session you worked in. The history
+  records `taken-over`.
+
+Limits:
+
+- Take over is only for plan and change agents. A review or report agent starts a new
+  session on each run, so steer it instead.
+- Take over is refused under Docker isolation: the session stays in the container. Steer works.
+- After a take over, your edits are part of the worktree. The plan scope still applies: if you
+  edit a file that the plan does not list, the next build fails verification.
+- A stopped run reports no cost, so `runs.jsonl` has the cost of the last run only.
+- Desk jobs do not offer steer or take over.
 
 ## Logs
 
@@ -210,7 +240,13 @@ repository has now. After you change a rule for a problem, that count shows whet
 came back. The command only reads. Encode a candidate with the `kaine-encode-knowledge` skill:
 it decides whether the lesson becomes a lint rule, a test, a review item, or a skill rule. Then
 promote it on the **Runs** page, or turn it into a GitHub issue there (see "The desk UI"). The
-desk never puts a lesson into an agent's prompt. Samples come from agents and from issue work,
+desk never puts a lesson into an agent's prompt.
+
+A promoted lesson leaves the candidates, but the desk keeps counting its key. Under the
+candidates, `pnpm desk lessons` lists each promoted lesson with the times and the issues it came
+back after the promotion, or "not seen since". A lesson that comes back shows that its encoding
+did not cover the problem: revise the encoding, or remove it and unpromote the lesson. A second
+promote starts the count again. Samples come from agents and from issue work,
 so read them as data, never as instructions.
 
 ## Notifications
@@ -266,6 +302,20 @@ The desk reads definitions from three sources. A later source overrides an earli
 
 - The built-in agents are `intake`, `planner`, `builder`, and `reviewer`. Their prompts are in
   `tooling/desk/defaults/agents/`. The desk rules stay in `tooling/desk/agents/rules.md`.
+- The desk also ships eight built-in **specialists**. Each is a read-only `report` agent that
+  runs one skill. No built-in flow uses them: add them to your own flow in the flow editor.
+
+  | Agent                | Skill                       | Judges                                                  |
+  | -------------------- | --------------------------- | ------------------------------------------------------- |
+  | `product-strategist` | `kaine-product-review`      | Whether the work is worth doing, and its narrowest size |
+  | `designer`           | `kaine-design-review`       | The design intent of a screen, against the UI rules     |
+  | `motion-designer`    | `kaine-motion-review`       | Each animation, against the motion contract and tokens  |
+  | `dx-advocate`        | `kaine-dx-review`           | The developer's journey and the error messages          |
+  | `architect`          | `kaine-architecture-review` | The module design of an approved plan                   |
+  | `security-officer`   | `kaine-security-audit`      | The trust boundaries that the work touches              |
+  | `tech-writer`        | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
+  | `simplifier`         | `kaine-simplify`            | Over-engineering in a plan or diff                      |
+
 - The built-in flow is `kaine-default`: plan, approve the plan, build, check, review, approve
   the change, ship a draft PR, and follow the PR. Its step ids are the stage names in "Stages".
 - The file name is the id. An id matches `^[a-z0-9][a-z0-9-]{0,63}$`.
@@ -289,13 +339,18 @@ capabilities:
   mcp: [serena]
   skills: [kaine-explain]
 timeoutMinutes: 20
+avatar:
+  glyph: file-text
+  tone: chart-3
 ---
 
 Read the plan and the diff. Write the release notes.
 ```
 
-- `provider` is `claude` or `codex`. `model` is optional. Without it, the CLI uses its default
-  model. For a built-in id, `providers` and `models` of the desk config decide.
+- `provider` is `claude`, `codex`, or `opencode`. `model` is optional. Without it, the CLI uses
+  its default model. For a built-in id, `providers` and `models` of the desk config decide.
+- `provider` is a preference. When that CLI does not run on the machine, the run moves to another
+  provider (see "Providers").
 - `timeoutMinutes` is optional. Without it, the desk uses its default.
 - `capabilities.mcp` names servers of `.ai/mcp.json`. `capabilities.skills` names skills of
   `.ai/skills/`. A run does not get a name that the checkout does not have. The run records the
@@ -305,18 +360,29 @@ Read the plan and the diff. Write the release notes.
   `kaine-` name in `.ai/skills/`.
 - `capabilities.tools` is optional (default `[]`). It names extra tools from the fixed catalog
   `AGENT_TOOLS`. See "Extra tools".
+- `avatar` is optional. It marks the agent in the desk UI: on the agent list, the flow graph, the
+  stage rail, and the run tables. `glyph` is one icon of `AGENT_AVATAR_GLYPHS` (`bot`,
+  `notebook-pen`, `hammer`, `shield-check`, `file-text`, `lightbulb`, `palette`, `wand`,
+  `terminal`, `blocks`, `lock`, `book-open`, `scissors`, `search`, `compass`, `gauge`). `tone` is
+  one theme tone of `AGENT_AVATAR_TONES` (`brand`, `discovery`, `information`, `chart-1` to
+  `chart-6`). The desk refuses any other value. There are no images.
+- Without `avatar`, the desk shows a default avatar. A fixed hash of the id picks the glyph and
+  the tone, so an agent keeps its default on every machine. The agent editor picks an avatar, and
+  its "Use default" removes the field from the file.
+- The avatar is cosmetic. It is not part of the definition hash or the flow snapshot hash, so a
+  new avatar does not make a new harness version.
 
 ### Output kinds
 
 The output kind says what a run produces. It selects the result schema and the step handler.
 
-| Output   | What the run does                                              | What it means for the flow                                                                    |
-| -------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | A gate right after it is the plan approval. A flow that ships needs a plan agent before ship. |
-| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                     |
-| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.      |
-| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it.                                                             |
-| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                      |
+| Output   | What the run does                                              | What it means for the flow                                                                                                     |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | The next gate after it is the plan approval, also with report steps between. A flow that ships needs a plan agent before ship. |
+| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                                                      |
+| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.                                       |
+| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it. Later agent steps read the report. See "Report steps".                                       |
+| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                                                       |
 
 ### Capabilities
 
@@ -343,6 +409,8 @@ skills into the **capability profile** of a run. These rules always hold:
 - Codex gets no rule lists and no MCP server. Its sandbox is the whole policy
   (`Codex: sandbox only, no MCP`): `read-only`, or `workspace-write` for an `edit-code` agent.
   A Codex `change` agent stays disabled on the host.
+- OpenCode gets the same rule lists as Claude and no MCP server
+  (`OpenCode: the desk's permission rules, no MCP, no OS sandbox`). See "OpenCode".
 - The profile lists each thing the agent asked for and does not get, with the reason: for
   example `policy floor: ...`, `not installed`, or `no MCP inside the container`.
 
@@ -444,6 +512,46 @@ Every step has `id`, `kind`, `label`, and an optional `loopBack`.
 - The built-in `kaine-default` flow takes its limits from the config (`maxTestLoops`,
   `maxReviewLoops`, `maxPrRounds`). Every other flow carries its own.
 
+### Report steps
+
+A report step decides nothing, so you can put it anywhere in a flow. These rules hold:
+
+- A gate looks past report steps to the nearest earlier step that is not a report. When that
+  step is the plan agent, the gate is the plan approval. The plan gate shows the reports of the
+  report steps between the plan and the gate.
+- Each agent step gets the reports of the report steps before it in the flow, in flow order.
+- When feedback sends the work back to a step, the rerun also gets the reports of the report
+  steps after it that ran. For example, after a send-back from the plan gate, the planner reads
+  the report on its plan.
+- A step never reads the report of its own agent. An agent that two steps use writes one
+  `report-<agent>.json`, so a later run replaces it.
+- The prompt fences each report as untrusted data. A report is advice: the approved plan stays
+  authoritative, and the agent says which findings it acts on.
+
+```yaml
+id: reviewed-plan
+name: Reviewed plan
+description: Plan, review the plan, approve it, build, check, review, and ship a draft PR.
+steps:
+  - { id: plan, kind: agent, label: Plan, agent: planner }
+  - { id: design, kind: agent, label: Design review, agent: designer }
+  - { id: plan-gate, kind: gate, label: Approve the plan, sendBack: [plan] }
+  - { id: build, kind: agent, label: Build, agent: builder }
+  - id: check
+    kind: check
+    label: Check
+    commands: loop
+    loopBack: { to: build, limit: 3, stopOnSameFailure: true }
+  - { id: security, kind: agent, label: Security review, agent: security-officer }
+  - { id: review, kind: agent, label: Review, agent: reviewer, loopBack: { to: build, limit: 2 } }
+  - { id: pr-review, kind: gate, label: Approve the change, sendBack: [plan, build, review] }
+  - { id: ship, kind: ship, label: Ship, auto: false }
+```
+
+Here `designer` and `security-officer` are specialists: built-in `report` agents. `plan-gate`
+stays the plan approval. The builder reads the design report. The reviewer reads both reports.
+When the review sends the work back to `build`, the builder also reads the security report.
+
 ### Validation
 
 `validateFlow` (`src/contracts/flow-definition.validate.ts`) runs in the engine and in the
@@ -453,6 +561,8 @@ browser. Every rule reports. Nothing stops at the first error.
 - `loopBack.to`, `sendBack`, and `backTo` name an earlier step. `loopBack.limit` is 1 or more.
 - An agent step names an agent that exists. An intake agent cannot be a step.
 - A `pr-wait` step comes directly after the ship step.
+- A gate cannot both approve a plan and confirm a ship. Report steps before the gate do not
+  count.
 - A flow has at least one agent step and at most one ship step.
 - The ship step has a plan agent step before it. Ship writes the PR summary and the changeset
   from `plan.json`.
@@ -521,19 +631,20 @@ side effects and reports an outcome. Only the runner applies it. The runner writ
 `state.json`, appends to `events.jsonl`, sets labels and the status comment, and calls
 `notify` at a gate or a stop.
 
-| Call                                  | What it does                                                                                                           |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `start(n, {override, snapshotFile?})` | Run intake, then drive to the next stop. Run it again to retry intake.                                                 |
-| `advance(n)`                          | Drive from the current stage to a gate, `needs-you`, or the end.                                                       |
-| `approvePlan(n)`                      | At a gate: approve, then drive. At a gate after a plan step, also rename the branch if the planner chose another name. |
-| `feedback(n, target, text)`           | Send feedback to a step of the flow (from a gate, one of its `sendBack` steps). Then drive.                            |
-| `continueFrom(n, stage?)`             | From `needs-you`, retry the recorded stage. Never automatic. Then drive.                                               |
-| `cancel(n)`                           | Stop the running agent, end the issue. The worktree stays.                                                             |
-| `remove(n, {force, keepWorktree})`    | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.                                      |
-| `status(n?)`                          | Read one issue or all. It also returns the `needs-you` reason.                                                         |
-| `ship(n, {confirm, dryRun?})`         | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".                                      |
-| `refreshPr(n)`                        | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR".                                 |
-| `feedbackFromPr(n, {text?})`          | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".                                          |
+| Call                                    | What it does                                                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `start(n, {override, snapshotFile?})`   | Run intake, then drive to the next stop. Run it again to retry intake.                                                 |
+| `advance(n)`                            | Drive from the current stage to a gate, `needs-you`, or the end.                                                       |
+| `approvePlan(n)`                        | At a gate: approve, then drive. At a gate after a plan step, also rename the branch if the planner chose another name. |
+| `feedback(n, target, text)`             | Send feedback to a step of the flow (from a gate, one of its `sendBack` steps). Then drive.                            |
+| `continueFrom(n, stage?)`               | From `needs-you`, retry the recorded stage. Never automatic. Then drive.                                               |
+| `resolveDenial(n, command, resolution)` | From `needs-you`, allow a command the desk refused to the agent and retry, or tell the agent to skip it. Then drive.   |
+| `cancel(n)`                             | Stop the running agent, end the issue. The worktree stays.                                                             |
+| `remove(n, {force, keepWorktree})`      | Delete the state and the worktree. It refuses a dirty worktree. The branch stays.                                      |
+| `status(n?)`                            | Read one issue or all. It also returns the `needs-you` reason.                                                         |
+| `ship(n, {confirm, dryRun?})`           | From `pr-review`: commit, push, draft PR. A dry run changes no state. See "Ship".                                      |
+| `refreshPr(n)`                          | At `pr-open`: read the PR once. Merged: `shipped`. Closed: `cancelled`. See "Open PR".                                 |
+| `feedbackFromPr(n, {text?})`            | At `pr-open`: send the PR feedback to `build`, then drive. See "PR feedback".                                          |
 
 Each call returns `stopped` (`gate`, `needs-you`, `shipped`, `cancelled`, `finished`, with a
 message) or `refused` (a typed `refusal` such as `leased`, `invalid-transition`,
@@ -580,12 +691,26 @@ agent stage it checks these rules, whether the run succeeded or not:
 - No forbidden command, no permission denial, no claimed check that did not run.
 - A change agent changed only files that the plan lists (or generated GraphQL output),
   and no protected path.
+
+After a change agent whose diff touches `.ai/` or a file that `pnpm ai:install` writes, the engine
+runs the worktree's own `ai:install` command (the one setup ran). No agent may run it. The tracked
+copies then follow their sources: `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, and each
+`.serena/memories/<name>` that has an `.ai/serena-memories/<name>` source. These copies need no plan
+entry, and they pass the protected-path rule here and at ship. The history gets an
+`ai-regenerated` entry. A Serena memory without a source stays protected, and the `pre-push` hook
+(`ai:doctor --strict`) refuses a copy that differs from the generator's output.
+
 - The result passes the contract schema. The runner parses it, and the engine parses it again.
 
 While the agent runs, the engine also watches its tool calls. When the same call (tool, command,
 and paths) fails 8 times in a row, the engine stops the run and does not wait for the time limit.
 The stage goes to `needs-you`, and the reason names the command. A call that the permission rules
 denied does not count. A success or a different call starts the count again.
+
+When an agent asks for a command that its allow list does not hold, the desk refuses it and keeps
+the command in `agent-<id>.json`. If the agent then stops in `needs-you` with a blocker that names the command, the issue card offers
+two buttons for that command: **Allow … and retry** (the exact command, for this issue only; the agent is told it is allowed) and
+**Skip it and continue**. The desk never offers a command that its deny rules refuse.
 
 A violation moves the issue to `needs-you` with every violation in the reason. The
 worktree stays as the agent left it. The agent session is not kept.
@@ -694,10 +819,23 @@ PR, mark it ready, and merge it yourself on GitHub. Then run `pnpm desk refresh 
 GitHub (`--no-writeback` or a snapshot file), when it has no PR number, or when the GitHub read
 fails. Outside `pr-open` it refuses with `invalid-transition`.
 
-`shipped` means one thing: the desk saw the PR merged during a `refresh` that you ran. The desk
-never polls the state of an issue's PR. (The server's once-a-minute `gh` query only refreshes the
-repository-wide **Open pull requests** list in the UI. It moves no issue.) At `pr-open`, as everywhere, it never merges, approves, marks the PR
-ready, enables auto-merge, or force-pushes.
+`shipped` means one thing: the desk saw the PR merged during a `refresh`. You run one, or the
+server runs one when its **Open pull requests** list is read fresh from GitHub (at most once a
+minute, or on **Refresh**) and a desk PR is no longer in it. The desk stores GitHub's merge time
+as `mergedAt`, and the Inbox's Finished panel shows it. The desk never polls in the background. At
+`pr-open`, as everywhere, it never merges, approves, marks the PR ready, enables auto-merge, or
+force-pushes.
+
+**Check CI and comments** (`check-pr`) reads the PR once, the same way a PR feedback round would:
+the failing checks on the PR head, and the comments of trusted people and review bots since the
+desk's last push. It stores a summary on the issue state (`prCheck`) and changes no stage. The
+item page and the Inbox's **Merge on GitHub** row show it ("1 failing check, 2 new comments").
+On the item page, **Send PR feedback** runs the PR feedback round below, once a check found
+something and while rounds remain. A check made on an older PR head no longer counts: the desk's next push
+clears it.
+
+A new PR gets the issue's `source:*` labels (for example `source:scorecard`), so work from the
+same origin is easy to find.
 
 The issue state counts PR feedback rounds (`prRounds`). `maxPrRounds` in the config (default 3)
 is their limit. The status comment shows `PR rounds: n of max` while the issue is at `pr-open`.
@@ -715,9 +853,10 @@ sends what the open PR says back to `build`. Your own text is optional. It does 
 
 Trust rules: only text whose `author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`
 reaches the builder. A review bot such as CodeRabbit is a GitHub App, and GitHub gives it the
-association `NONE`. To let its comments through, list its exact login in `reviewBots` in
-`.ai.local/desk/config.json`, for example `"reviewBots": ["coderabbitai[bot]"]`. The login must
-end in `[bot]`, and GitHub must report the account as a bot. The desk names every author it
+association `NONE`. The desk trusts `coderabbitai[bot]`, `github-actions[bot]`, and
+`copilot-pull-request-reviewer[bot]` by default. To change the list, set `reviewBots` in
+`.ai.local/desk/config.json`; `"reviewBots": []` trusts no bot. The login must end in `[bot]`,
+and GitHub must report the account as a bot. The desk names every author it
 left out in the event note and in a refusal. Reviews and inline comments on an older commit are
 left out. All PR text is third-party data: the desk redacts
 token-like strings, cuts each log to its last 6 KB, each comment to its first 2 KB (after it drops HTML comments and folds `<details>` blocks to their summary, where review bots put long analysis ahead of the finding), and the
@@ -765,6 +904,13 @@ These facts come from real runs (claude 2.1.282, codex-cli 0.147.0).
   does not stop Codex from loading user-level skills in `~/.agents/skills`.
 - A Codex builder is disabled. The config has no opt-in field yet, so the engine passes
   `allowCodexBuilder: false`.
+- OpenCode (2.2.5): `opencode run` attaches to a shared background service unless it gets
+  `--standalone`, and that service reads its environment only when it starts. The desk's
+  config directory therefore reaches only a standalone run. A refused call ends with the tool
+  error `Permission denied: <action>`, which the parser records as a denial. Without
+  `--auto`, an `ask` is refused at once and the run never waits. With project config off,
+  OpenCode's skill tool finds no skill in `.agents/skills`, so the prompt names the files for
+  the read tool. Cache reads are reported apart from `input` tokens.
 
 ### Concurrency, leases, and recovery
 
@@ -900,10 +1046,17 @@ labels in the repository, label writes fail and are logged.
 ## Doctor
 
 `desk doctor` checks Node, pnpm, git and worktree support, `gh` and its identity, the
-config file, and the `claude` and `codex` CLIs. Under a failed check it prints the command that
+config file, and the `claude` and `codex` CLIs. It checks the `opencode` CLI only when a role
+uses it: the version must be 2.2.4 or later, `opencode run --help` must list the required flags,
+and a warning names each OpenCode role that has no `models.<role>`. Under a failed check it prints the command that
 repairs it (`run: gh auth login`). It reads `claude --help` and
-`codex exec --help` and checks that each required flag exists. A missing provider
-that a role uses is an error. A provider that no role uses is a warning.
+`codex exec --help` and checks that each required flag exists.
+
+A provider CLI that is missing, too old, or lacks a flag is a warning. The row says where its roles
+run instead, for example `codex is not installed. The reviewer runs on claude.` The **Agent
+roles** row shows the provider of each role. It is an error only when a role has no provider that
+can run it. When Codex is the only CLI and `allowCodexBuilder` is off, that row offers the fix
+**Allow Codex to build**.
 
 It also checks Docker: the daemon, the worker image, and the provider logins. With
 `isolation: "host"` a missing daemon or image is a warning. With `isolation: "docker"` it is an
@@ -947,6 +1100,31 @@ defaults. A file that exists but is invalid is an error. Fields are listed in
   lists picks the flow. `start --flow` (or `flowId` in the API) overrides both. The Start
   dialog shows the pick for each open issue (`flowId` in `GET /api/github`).
 
+- `providers` and `models` set the provider and model each role asks for. The defaults are
+  Claude for intake, planner, and builder, and Codex for the reviewer. See "Providers".
+- `allowCodexBuilder` (default `false`) lets Codex change code: a Codex builder, and a screen or
+  component job on Codex. Setup's **Allow Codex to build** fix sets it.
+
+### Providers
+
+Before each agent run, the desk checks which provider CLIs run on the machine
+(`agents/provider.probe.ts`: `<cli> --version` and the required flags, cached for 60 seconds).
+Then it chooses (`agents/provider.choose.ts`):
+
+1. The provider the role asks for, when its CLI runs.
+2. Otherwise, the best other provider for the role. The reviewer ranks Codex, Claude, OpenCode,
+   and avoids the builder's provider when it has a choice, so a review stays a second opinion.
+   Intake, planner, and builder rank Claude, Codex, OpenCode.
+
+- Codex changes code only with `allowCodexBuilder`. Read-only roles run on Codex without it.
+- OpenCode runs only where a role names it with a `provider/model` model. It is never a fallback.
+- A run that moves drops the model of the provider it asked for, uses the CLI default, and starts a
+  new session. The issue history gets a `provider-moved` note, for example
+  `The reviewer ran on claude: codex is not installed or does not work.`
+- When a spawn still finds the CLI missing, the desk leaves that CLI out and chooses once more.
+- The run stops at `needs-you` only when no provider can run the step. The reason says what to
+  install or allow.
+
 The `docker` block sets the limits of the containers. All fields are optional:
 
 ```json
@@ -962,9 +1140,43 @@ The `docker` block sets the limits of the containers. All fields are optional:
 ```
 
 `forwardEnv` lists host variables that go into the agent container by name. Only
-`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `CLAUDE_CODE_OAUTH_TOKEN` are allowed. The default is
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENROUTER_API_KEY`, and
+`GOOGLE_GENERATIVE_AI_API_KEY` are allowed. The default is
 empty: the container uses the login in the auth volume. Docker Desktop must have enough memory
 for the limits (8 GB in the VM is the minimum that was tested).
+
+## OpenCode
+
+OpenCode runs any model provider under one CLI, so one role, often the reviewer, can use a
+different model family. The desk supports OpenCode 2.2.4 or later; Docker mode pins 2.2.5.
+OpenCode 1.x is not supported. Set the provider and a model for the role:
+
+```json
+{
+  "providers": { "reviewer": "opencode" },
+  "models": { "reviewer": "anthropic/claude-haiku-4-5" }
+}
+```
+
+- The model is required, as `provider/model` or `provider/model#variant`. A run hides the user
+  config, so OpenCode has no default model.
+- The runner starts `opencode run --standalone --format json -m <model> --title desk-<role>`,
+  with `--session <id>` to resume. It does not pass `--auto`.
+- Permissions: the runner writes the run's rules to a temporary config folder
+  (`OPENCODE_CONFIG_DIR`) and sets `OPENCODE_DISABLE_PROJECT_CONFIG=1`. The user and project
+  rules do not load. The first rule denies every action. The role's allow rules follow, then its
+  deny rules, so a deny always wins. A call that no rule allows is refused, as under Claude's
+  `dontAsk`.
+- OpenCode has no structured-output flag. The prompt asks for one JSON object that matches the
+  schema, and the desk parses the last assistant message.
+- `runs.jsonl` gets the session id, tokens, cost, and turns (the number of steps).
+- Limits: no receipts (there is no hook), no MCP server, and no OS sandbox. The ref and diff
+  checks still guard the worktree.
+- Docker: the image installs the pinned release binary, checked against a pinned SHA-256, and
+  ripgrep. `pnpm desk docker login --provider opencode` runs `opencode auth login` and stores
+  `opencode auth export` in the auth volume; a run imports it. A forwarded API key needs no
+  login. The proxy allows the API hosts of `anthropic`, `openai`, `openrouter`, `google`, and
+  `opencode` (Zen) models; a model from another provider is refused before the container starts.
 
 ## Try it without GitHub
 
@@ -1019,75 +1231,98 @@ build output.
 ## The desk UI
 
 `tooling/desk-ui` (`@repo/desk-ui`) is the React front end of the same engine. It is local
-developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**, **Health**, and
-**Runs**.
+developer tooling. A sidebar holds its pages in four groups: **Work** (**Inbox**, **All work**),
+**Configure** (**Flows**, **Agents**, **Setup**), **Insights** (**Insights**, **Scorecard**), and
+**Developer** (**Lab**). Each issue and each desk job has its own item page. On a phone the
+sidebar becomes four tabs at the bottom. **New work** (in the sidebar, on the Inbox, and on
+**N**) starts an issue or a desk job. **G** then **I W F A S N C L** goes to a page.
 
-- **Board.** The board opens on **Your turn**: the issues that wait on you, and nothing else.
-  - _Needs you_ comes first (stopped issues, with the engine's reason), then _Your decisions_
-    (issues at a gate, oldest first). The first row is **Next up** and holds the one primary
-    button. A plan the planner graded high risk has a chip that says so. A low-risk plan has a
-    quick **Approve** on its row; with two or more of them, **Approve N low-risk plans…** asks
-    first and lists the plans. A card has the progress bar of its flow, one segment for each node
-    of the issue's own flow, and its name says the stage in words ("Stage 4 of 9: Build
-    (Running)"). A row or card names the flow ("Flow: Quick fix") only when it is not the
-    built-in default.
-  - A side list shows the running issues (a paused issue says so), the open pull requests of the
-    repository (read-only: number, title, draft, branch, author), and the done issues, folded.
-    The desk does not continue a pull request; you review and merge on GitHub.
-  - **Columns** is the kanban: _Needs you_, _Waiting for you_, _Running_, and _Done_, with filter
-    chips. The board keeps your choice of layout in the browser. The search filters both layouts
-    by number (with or without `#`) or by words of the title.
-  - **Start issue** opens a dialog with the open issues of the repository (`GET /api/github`),
-    the number, the flow, and the `override` box. Each issue shows whether it carries
-    `ready-for-agent` and its contract count. Picking an issue fills the number and selects the
-    flow the desk picks for it (its label rule, else the default flow), marked "Default for this
-    issue". The flow list (`GET /api/flows`) shows each valid flow with its source (built-in,
-    repository, or local); the start sends the chosen `flowId`. Without a choice the desk picks.
-    The dialog never checks the override box for you. A refusal keeps the dialog open.
-  - `tooling/desk-ui/src/status/status.model.ts` is the one mapping from a summary to the board
-    group, the tone, the chip words, the gate mode, and the next action. Every view reads it.
-    The gate mode follows the step kind in the issue's own flow: a gate right after a plan agent
-    is the plan approval, a gate right before a ship the owner confirms is the review and ship,
-    and any other gate approves or sends back. Stage names come from the flow: a built-in step
-    has translated words, and a step the owner wrote shows its own label as it is.
-- **Issue.** A short header, the decision, then the history.
-  - The header has the way back, the place of the issue in Your turn (**J** and **K** go to the
-    next and the previous decision), the number and title, and a **More** menu (Cancel run,
-    Show graph, Copy branch name, Open on GitHub, Remove). Below it is one status line (the
-    chip, the time in the stage, the flow as "name · short hash" with its source and its steps
-    on hover or focus, the cost) and the stages of the issue's flow as a compact stepper.
-  - **Show graph** shows the React Flow graph of the flow model. It is read-only, and it fits
-    itself on the first size and on a resize only. A phone has the stepper only.
-  - A stage of the stepper or the graph opens the **stage side sheet**. The sheet is not modal:
-    the page stays usable. It shows who works in the stage, its status, its tiles (for an agent
-    stage, the agent usage of all runs), its checklists, what went wrong, and the full result.
-    An agent stage also lists **Capabilities**: for each run, the receipt of what it got. That
-    is the provider and model, the tool set, where it ran (isolated in a container, or on your
-    machine under the Claude allowlist or the Codex sandbox), the network, the MCP servers and
-    skills, the allowed and denied tool rules (counted, listed on request), what it asked for
-    and did not get with the reason, and the engine's notes. A run from before the receipt
-    says so.
-    **←** and **→** step through the stages, **Esc** closes it, and focus returns to its opener.
-    On a phone the sheet covers the screen.
-  - The decision card follows the gate mode. At the plan gate: the plan risk and its reasons,
-    the track record of that risk, the revision note of a later round, **Approve plan** (**A**;
-    an optional note and the answer to the planner's question go with it), and **Request
-    changes**. At PR review: the files ordered by risk, with viewed progress. **Ship as draft
-    PR…** (**S**) stays secondary until you viewed every file; **N** opens the next file not
-    viewed. The ship dialog runs the dry run first, then asks for the final yes. Only that yes
-    sends `confirm: true`. At any other gate of a flow: **Approve** (**A**) and **Request
-    changes**, which sends the work back to one of the steps the gate names, by label. When the
-    desk needs you: an incident card with the engine's reason, a jump to the failure in the
-    trace, **Resume from** (the stages of the issue's flow that the server restarts), and
-    **Continue** (**C**). While an agent
-    runs: **Pause** (**P**) stops the issue after its current stage, and **Resume** continues it.
-    After a stop at intake: **Draft the issue format**, the review of the draft, and **Apply to
-    GitHub…**, which asks a second time. On a phone the decision's buttons are a bar fixed to the
-    bottom of the screen.
-  - **History** has the **Trace**: one row per stage and round on one time axis, with a bar, the
-    duration, the agent cost, the outcome, and its log lines. Filters show the problems or the
-    agent steps only. A link shows every raw event. The live **Log** has a local `<time>` per
-    row. The card opens by itself when the issue runs, needs you, or is in intake.
+- **Words.** One name for each state, everywhere. A stop is "Stopped · ‹reason›" ("Stopped · same
+  failure twice", "Stopped · issue format 0/6"); the reason comes from the summary's
+  `needsYouCode`. A gate is "‹gate› · your turn" ("Approve plan · your turn"). Running work is
+  "‹step› · running" or "‹step› · paused". An open PR is "Merge on GitHub · your turn". Work that
+  ended is **Shipped**, **Cancelled**, or **Finished**. "Done" is only a step outcome in the
+  history. The built-in gates are **Approve plan** (`plan-gate`), **Approve & ship**
+  (`pr-review`), and **Merge on GitHub** (`pr-open`); the engine ids do not change. A status
+  always shows a glyph beside its words: ✓ passed, ◷ your turn, ▲ warning, ! stopped, ↻ running,
+  – cancelled.
+- **Inbox.** What waits on you, and nothing else: **Your turn** with its count.
+  - Three groups, in this order: **Stopped** (nothing runs until you act), **Your decision** (at a
+    gate, oldest first), and **Merge on GitHub** (the desk never merges; a row says how many checks
+    fail and how many comments are new). A desk job at its gate or stopped sits in the same groups.
+  - The first row is **Next up** and holds the page's one primary button: **Diagnose**, **Fix the
+    issue**, **Review plan**, **Review and ship**, **Check PR**, **Pick findings**, or **Review
+    scorecard**. A low-risk plan has a quick **Approve** with an 8-second undo; with two or more,
+    **Approve N low-risk plans…** on the Your decision heading asks first, lists the plans, and
+    one undo covers the batch. A high-risk plan has a chip that says so.
+  - An item is **New** (a dot and the word) when it changed after you last opened it. The marks
+    live in this browser (`localStorage`); a first visit takes what it sees as read.
+  - Side panels show what runs (the latest log line; a paused item says so) and the newest few
+    that finished. A setup error shows as a banner with the way to Setup. Until an issue gets past
+    its plan, a **Get started** guide shows the three steps: fix the setup, start an issue,
+    approve its plan.
+  - **J** and **K** move between rows, **A** approves a low-risk plan (any other plan opens), and
+    **C** continues a stopped issue.
+- **All work.** Every issue and desk job, newest first, as a **List** or in **Columns**. Filters:
+  All, Stopped, Your decision, On GitHub, Running, Finished, Jobs; a filter with no match hides.
+  The search matches a number (with or without `#`) or words of the title. The list shows the
+  status, the flow, the steps done, the cost, and when it changed. The columns put a PR to merge
+  among the decisions. The choice of view is kept in the browser.
+- **New work.** One dialog with two tabs. **GitHub issue** lists the open issues of the
+  repository (`GET /api/github`) with their ready label and issue format count, the number, the
+  flow (`GET /api/flows`, the one the desk would pick marked "Default for this issue"), and **Run
+  without the ready label**, which the dialog never checks for you. A refusal keeps it open.
+  **Desk job** picks the kind (scorecard, recreate a screen, build a component, audit a screen)
+  and its limits. The Lab, the Scorecard, and a flow's page open the same dialog on their kind or
+  flow.
+- **Item page.** The way back to the Inbox with the place in the queue (**J**, **K**), the title,
+  one status line (the status, the wait, the flow as "name · short hash", the cost, the loops,
+  the branch, the PR), and a **⋯** menu: Show the flow map, Open the agent session in a
+  terminal… (while an agent that resumes its session runs; it asks first), Copy the branch name,
+  Open on GitHub, Cancel…, Remove from the desk….
+  - Beside the page, the **Steps** rail lists the steps of the item's frozen flow with a glyph,
+    the runs and time, and who works there (Agent · name, You decide, or Engine). A step opens in
+    place with its facts (status, runs, time, cost, tokens, model); **Open details** opens the
+    stage side sheet. The sheet is not modal and shows the step's tiles, checklists, what went
+    wrong, the full result, and for an agent step the capability receipt of each run. **←** and
+    **→** step through the stages and **Esc** closes it.
+  - **Show the flow map** opens the read-only React Flow graph above the decision, with the
+    current step and the loop counts on the edges. A phone has the rail only.
+  - The decision card follows the gate mode. At **Approve plan**: the plan risk with its reasons
+    and record, what changed since the last round (the planner's own list, else what you asked
+    for), the plan, **Approve plan** (**A**; the answer to the planner's questions goes with
+    it), and **Send back…**. At **Approve & ship**: readiness, findings, and the changed files
+    by risk with viewed progress. **N** opens the next file not viewed; **Ship as draft PR…**
+    (**S**) turns primary when every file is viewed and runs the dry run before the final yes.
+    A **+** on a diff line starts a comment for the builder. **Apply fix** on a finding that has a
+    suggested fix queues the finding and its fix as a comment. A strip above the buttons counts
+    the comments not sent. **Send back…** opens the form with the list of comments; they go
+    with your note, and the note is optional when there are comments. Nothing is sent before
+    that, and **Ship as draft PR…** never sends them: its dialog warns about comments not sent
+    and offers **Send back instead**. The builder applies a queued fix after the send back, and
+    the checks and the review run again.
+    When the desk stopped: the reason, the failing command, the likely cause, a link to the
+    trace, and **What to do**: **Tell the builder** (recommended), **Retry from a step**, or
+    **Open the agent session in a terminal**; one primary button acts on the choice (**C**).
+    While an item runs: the step, its latest line, the live log, **Pause** or **Resume** (**P**),
+    and **Tell the ‹agent›…** for a note to the running agent (not on a step the engine runs).
+    At **Merge on GitHub**: check the PR, read its failing checks and new comments, and send them
+    back to build. After a stop at intake: the issue format, **Draft the issue format**, and
+    **Start again**.
+  - Below the decision, **Details** has three tabs: **History** (every run of a step with its
+    events), **Files and outputs** (what each step wrote), and **Agent runs** (each run's agent,
+    model, time, tokens, turns, cost, and result; a run opens its capability receipt, and
+    **Show trace** opens the trace of its step).
+- **Desk jobs** use the same item page: their steps in the rail, the gate's card, the history,
+  and Cancel and Remove in the ⋯ menu. Filing issues from an audit or a scorecard asks first;
+  filed issues cannot be unfiled from the desk.
+- **Preferences** (the sliders in the sidebar): theme (Byte Forge, Moss), color mode, density
+  (Comfortable or Compact, through `data-density` on the root), language, keeping a message with
+  Undo on screen while the pointer is on it, and browser notifications for Stopped and Your turn
+  (off by default; the browser asks on the toggle). The tab title always shows the count.
+- `tooling/desk-ui/src/status/status.model.ts` maps a summary to its Inbox group, tone, words,
+  gate mode, and next action, and `tooling/desk-ui/src/work/work.model.ts` puts issues and desk
+  jobs in one list. Every view reads them.
 - **Flows.** The flows the desk can run an issue on (`GET /api/flows`).
   - Each row has the name, the id, the source badge, "Overrides ..." when it overrides a lower
     source, **Read-only** for a built-in flow, the number of problems, and **Default** for the
@@ -1126,7 +1361,8 @@ developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**
     config of the desk now; before a save it shows only what the agent asks for.
   - Clone, Edit locally, Save, Promote, and Delete work as on Flows. Delete refuses an agent
     that a flow uses and lists those flows.
-- **Health.** The doctor report.
+- **Setup.** The doctor report: the checks that this machine can run the desk. The health of
+  the repository is the Scorecard.
   - A summary chip (Ready or Problems found), the time of the check, and **Setup X of Y ready**
     with a progress bar. While errors remain, a line says to fix them first: they stop a run.
   - Each check has its status in words, its label, and the engine's detail. A failed check shows
@@ -1135,9 +1371,63 @@ developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**
     packages), **Fix** asks first, then the engine runs that fixed command. No agent runs, one
     repair runs at a time, and the report runs again when it ends. A toast says how it ended.
   - **Check again** runs the doctor again. Placeholder lines show while it runs.
-- **Runs.** `GET /api/stats` and `GET /api/lessons`.
+- **Scorecard.** The monorepo health scorecard, `GET /api/scorecard`. The server reads
+  `docs/agents/monorepo-scorecard.md` of the checkout each time, so the page shows the ledger as
+  it is now. The `kaine-scorecard` skill writes that ledger; `pnpm scorecard` renders its
+  generated region.
+  - The top line names the selected run: date, mode, agent, the number of scored dimensions, and
+    the commit (a link when the origin is on GitHub). **Run** picks an older run.
+  - Four cards: the overall score with its band word and its change, the dimensions that moved
+    up, down, or held, the open findings (with the regressions), and the findings fixed since the
+    previous run.
+  - **Overall score by run** draws every run on one axis. A dashed line marks where the number of
+    scored dimensions changed: the ledger says overalls across it do not compare.
+  - **Dimensions** has one row per dimension: the score, a bar, the band in words with a glyph,
+    the change in words, and its history. Sort by number, weakest first, or biggest drop first.
+    A row opens to its evidence and a **What holds it back** list, split from the ledger's
+    "Not 9:" reasons.
+  - **Findings** shows the open work by default (open, observed, regression), most severe first.
+    **Fixed** and **All** show the rest. Search the slug or the title, or pick one dimension. A
+    finding the run proposed for filing carries **Proposed**.
+  - The run's calibration notes, a table of every dimension across the runs (each number on the
+    tint of its band), and the workspace, CI, and authored diagrams, folded.
+  - A checkout without the ledger says how to create it. A ledger that does not parse shows the
+    reason. **Load again** reads the file again.
+  - **Run scorecard** starts a scorecard job (see "Jobs" below). While one is open, the page links
+    to it instead. `?view=scorecard&job=<n>` is the preview of a job's ledger, read from its
+    worktree.
+  - **Tracking.** The page reads the scorecard's issues live from GitHub (cached a minute;
+    **Refresh** reads again): the issues the ledger names, the ones scorecard jobs filed, and
+    every issue labelled `source:scorecard`. **Recently solved** lists the findings whose issue a
+    merged PR closed, newest merge first, with the dimension's score in the last run before the
+    merge and the first run after it. In **Findings**, the issue cell shows the issue, its PR,
+    and its desk run, and an open issue without a run offers **Fix with desk** (New
+    work). **Sort** orders the findings by severity, recently solved, recently opened,
+    dimension, or state. **Label N older issues** adds `source:scorecard` to tracked issues
+    without it, after a preview you confirm.
+- **Lab.** The UI lab (`?view=lab`), under Developer, in four tabs: **Components** (every
+  `@repo/ui` component under every theme, their options, the new components' specimens, and the
+  chart primitives), **Tokens** (the five text styles, the chart colors, the status roles with
+  their glyphs, the densities, and the named layers and widths, read from the page), **Screens**
+  (the recreated screens), and **Compare**. Its pages are `#/…` routes on that address
+  (`?view=lab#/charts`). The lab calls no desk API, so it opens
+  without a session: `pnpm lab` starts only the desk UI dev server, at
+  `http://localhost:5174/?view=lab`.
+  - Each recreated screen lives in `tooling/desk-ui/src/lab/screens/<id>/`, and its reference
+    image in `tooling/desk-ui/public/references/` (gitignored). The lab finds a screen by its file
+    name. `tooling/desk-ui/src/lab/screens/README.md` has the rules.
+  - `lab-frame.html` is the lab alone, without the desk shell. The compare view shows each
+    recreation in an iframe of it, and `pnpm lab:shots` and `pnpm lab:diff` drive it (`LAB_URL`,
+    default `http://localhost:5174/lab-frame.html`). It is the one page of the desk another page
+    may frame, and only the desk itself (`frame-ancestors 'self'`); every other response keeps
+    `frame-ancestors 'none'`.
+  - Lab themes reach the page as a constructed stylesheet, because the CSP blocks a `<style>`
+    element. A screen sets its theme on `<html>` while it shows, and the desk theme comes back
+    when it closes.
+- **Insights.** `GET /api/stats` and `GET /api/lessons`. "Agent runs" is now only the tab of an
+  item page.
   - **Today** is one line from the last day of `days`: agent runs, shipped issues, and the cost,
-    with the issues that need you or wait for you now.
+    with the issues that stopped or wait for your decision now.
   - **Last 7 days** has three cards: agent runs, cost, and shipped issues. Each card has the
     total, a line of the seven days, and today's value. The line is decorative; a text for a
     screen reader gives each day's value. A day without a reported cost reads "none", not zero.
@@ -1154,7 +1444,9 @@ developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**
     _High_ (seen in 4 or more issues and still seen now), _Medium_ (fewer issues), and _Low_
     (seen only under older instructions; check it first).
   - **Promote…** marks a lesson handled, with an optional note. It leaves the candidates and
-    shows under **Promoted lessons** with its time, its note, and its GitHub issue. **Unpromote**
+    shows under **Promoted lessons** with its time, its note, its GitHub issue, and whether the
+    problem came back after the promotion (a warning chip with the times and the issues, or
+    "Not seen again since the promotion"). **Unpromote**
     makes it a candidate again. **Turn into issue…** loads the preview and shows the exact title
     and body that the desk sends. Only **Open the issue** sends the request, with the digest of
     that preview. The page then links the new issue. A lesson that changed after the preview is
@@ -1163,25 +1455,28 @@ developer tooling. It has six views: **Board**, **Issue**, **Flows**, **Agents**
 
 The shell is the same on every view.
 
-- The top bar is one row at every width: the brand mark, the **Board**, **Flows**, **Agents**,
-  **Health**, and **Runs**
-  pills (Board has the count of Your turn), the search, one polite "Live"/"Reconnecting" status,
-  and a preferences menu. A banner shows while the connection is lost.
+- The sidebar has the brand, the search, the four groups of pages (the Inbox has the count of
+  Your turn, Setup the count of its errors), **New work**, one polite "Live"/"Reconnecting"
+  status, and the preferences. A bar shows while the connection is lost. Below 64 rem the sidebar
+  keeps its icons; below 48 rem it becomes four tabs at the bottom.
 - **Ctrl+K** (or **⌘K**) or **/** opens the command palette: actions of this page (for example
-  **Check again** on Health and **Load again** on Runs), recent issues, Your turn, the views,
-  and every issue. Its footer lists the shortcuts of the page. **G** then **B**, **F**, **A**, **H**, or **R**
-  goes to Board, Flows, Agents, Health, or Runs. A single-key shortcut does nothing while you type or while a
-  dialog or a menu is open.
-- Approve, Request changes, Continue, Cancel run, and Remove wait 8 seconds before they are
+  **New work** on the Inbox, **Check again** on Setup, and **Load again** on Insights), recent
+  issues, Your turn, the pages, and every issue. Its footer lists the shortcuts of the page.
+  **G** then **I**, **W**, **F**, **A**, **S**, **N**, **C**, or **L** goes to Inbox, All work,
+  Flows, Agents, Setup, Insights, Scorecard, or Lab. **N** alone opens New work where the page
+  does not use it. A single-key shortcut does nothing while you type or while a dialog or a
+  menu is open.
+- Approve, Send back, Continue, Cancel, and Remove wait 8 seconds before they are
   sent. A toast says what will happen and offers **Undo**; Undo sends nothing. A page that closes
   in that time sends the action at once. Cancel and Remove also ask first. A ship and the lesson
   actions have no undo window: the ship asks twice, and the lesson actions act at once.
 - The tab title is "(3) Agent Desk" while three issues wait on you. In the preferences you can
   turn on browser notifications: the browser then notifies when an issue newly needs you or
-  reaches a gate. Theme (light, dark, or system) and language (English, German, Serbian) switch
-  there at once and keep what you typed and where you scrolled.
-- A phone (below 40 rem) is for triage: the board shows Your turn only, the issue page shows the
-  stepper without the graph, Runs hides the week cards, and touch targets are at least 44 px.
+  reaches a gate. Appearance (light, dark, or system), theme (Byte Forge or Moss, every theme
+  that `@repo/theme` registers), and language (English, German, Serbian) switch there at once and keep what you typed and where you scrolled.
+- A phone (below 48 rem) is for triage: the Inbox and the item page fit it, the decision's
+  buttons sit in a bar at the bottom, the item page drops the steps rail and the flow map, and
+  touch targets are at least 44 px.
   No view scrolls sideways; a wide table scrolls inside its card.
 
 The page needs no polling. It loads `GET /api/issues` once, opens `GET /api/events`, and
@@ -1191,6 +1486,104 @@ samples, issue bodies) is shown as text, never as markup. The strings are in the
 namespace of `packages/translation`. Colors, spaces, and fonts are `--ds-*` tokens only,
 including the React Flow variables. Bars and lines are SVG attributes, never style attributes,
 because the CSP blocks those.
+
+### Jobs
+
+A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). There are
+five kinds: the **scorecard job**, the lab's **screen job**, **component job**, and **audit
+job**, and the **specialist job**. A job's page is `?job=<n>`; the Inbox and All work list jobs with the
+issues. One job of each kind runs at a time, and one specialist job per agent.
+
+- **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model
+  (Opus by default), a budget in dollars, and a time limit (defaults $15 and 60 minutes). One
+  scorecard job runs at a time.
+- **Steps.** Setup makes a worktree `KAINE-job-<n>` on a branch `KAINE-chore-scorecard-<date>-job-<n>`
+  from `origin/<baseBranch>`, with the same install and AI setup as an issue worktree. Checks: the
+  engine runs `pnpm boundaries`, `knip`, `audit`, `ai:doctor --strict`, and the `gh` reads (CI
+  runs, code scanning, Dependabot, rulesets, issues, open PRs, the latest coverage totals) and
+  writes them to `.ai.local/desk-job/sweep.json`. Score: one Claude run follows `kaine-scorecard`,
+  fans out `kaine-explorer` subagents, and returns the run and the proposed issues; the engine
+  writes the ledger (date, commit, mode, agent, and overall are the engine's) and renders it.
+- **What the agent may do.** Read, the job's skills, read-only git, Serena reads, and subagents.
+  Subagents inherit the same rules. No shell, no `gh`, no token, no web: the engine reads and
+  writes GitHub.
+- **Your review.** The job waits for you: the preview link, the open questions, and the proposed
+  issues with their bodies. Tick the issues to file. **Approve…** asks once more, then files the
+  ticked issues, commits and pushes the ledger, and opens a draft PR labelled
+  `release:skip-changeset`. **Send back** reruns the scorer with your note.
+- **Stops.** A failed step, the budget (Claude's `--max-budget-usd`, subagents included), the time
+  limit, or a desk restart stops the job as **Needs you** with the reason. **Continue** runs the
+  stopped step again. **Cancel job** stops it; **Remove job** deletes it and its worktree (a pushed
+  branch and an open PR stay on GitHub).
+- **Provider.** A job runs on Claude. When Claude does not run, it moves to Codex (a screen or
+  component job needs `allowCodexBuilder` for that) and the job history says so. The budget then
+  does not stop the run; the time limit does. See "Providers".
+
+The **screen job** recreates a reference image as a lab screen:
+
+- **Start.** **Recreate screen** in the Lab view asks for the screen id (`10-medspa`), the title,
+  the reference image (PNG, JPEG, or WebP, at most 10 MB), the frame size, and the mode, then the
+  note, model, and limits (defaults $10 and 60 minutes). One screen job runs at a time.
+- **Steps.** Setup makes the worktree on `KAINE-feat-lab-<id>-job-<n>` and copies the reference
+  into its `tooling/desk-ui/public/references/`. Build: the engine starts a lab server for the job
+  on a free port, and one Claude run follows `kaine-build-ui` with the Playwright browser,
+  `lab:diff`, and `lab:shots`. Checks: the engine runs the lab tests, eslint on the screen folder,
+  the desk UI typecheck, and `ui:check`, then `lab:diff` for the gate. A failed check stops the job;
+  **Continue** hands the output to the builder.
+- **What the agent may do.** The scorecard job's rights, plus: write only
+  `tooling/desk-ui/src/lab/screens/<id>/`, run the lab and desk UI check commands, and use the
+  Playwright browser. No `gh`, no installs, no other files.
+- **Your review.** The job page links to the compare view on the job's lab server and shows the
+  diff percent, the deviations, and the open questions. **Approve…** asks once more, then commits
+  only the screen folder, pushes, opens a draft PR, and stops the lab server. **Send back** builds
+  again with your note.
+
+The **component job** adds one `@repo/ui` component, with a plan you approve first:
+
+- **Start.** **Build component** in the Lab view asks for the export name (`RatingStars`), the
+  layer (primitive or composed), and what the component is for, then the model and limits
+  (defaults $10 and 60 minutes). The desk refuses a name that `@repo/ui` already has.
+- **Plan.** One Claude run follows `kaine-build-ui` and writes nothing. The job waits for you with
+  the props and variants, what the component builds on, what the tests prove, and the open
+  questions. **Approve the plan and build** starts the build; **Send back** plans again.
+- **Build and checks.** In the job's lab server, one Claude run builds the plan with `kaine-test`
+  and the Playwright browser. It may write only the component, its test, the `@repo/ui` index, its
+  lab specimen (`#/specimens/<file>`), and `DESIGN_SYSTEM.md`. The engine then runs the component's
+  test, eslint, both typechecks, and `ui:check`; a failure goes back to the builder on **Continue**.
+- **Your review.** The job page links to the specimen. **Approve…** asks once more, then writes
+  the changeset, commits only those files, pushes, and opens a draft PR.
+
+The **audit job** checks one lab screen and files the findings you tick:
+
+- **Start.** **Audit screen** in the Lab view asks for a lab screen id, then the note, model, and
+  limits (defaults $5 and 30 minutes).
+- **Audit.** In the job's lab server, one Claude run follows `kaine-audit-ui` with the Playwright
+  browser, in reference mode when your checkout has the screen's reference image. It writes
+  nothing.
+- **Your review.** The job page links to the screen (its compare view in reference mode) and lists
+  the findings with their rule IDs and severity. Tick the ones to file. **Approve…** asks once more,
+  then files exactly those as issues. Nothing is pushed.
+
+The **specialist job** runs one report agent from the agent library on its own, without an issue.
+The built-in specialists are its main use; a repository or local report agent runs the same way:
+
+- **Start.** **Run a specialist** in New work, or **Run** on a report agent in Agents, asks for the agent
+  and a target, then the note, model, and limits (defaults $5 and 30 minutes). The target is a
+  path in the repository (`apps/web/src/features/todos`), a GitHub issue number, or your brief.
+  The picker lists only agents with `output: report` and the `read-only` or `run-checks` preset;
+  the desk refuses any other agent, an unknown agent, and a path the checkout does not have.
+- **Steps.** Setup makes the worktree on `KAINE-chore-specialist-<agent>-job-<n>`, with the agent's own
+  skills and MCP servers. There is no lab server. Report: one run on the job's model, like every
+  job (the agent file's provider and model do not apply), with the agent's prompt and a Target
+  section: the path to read, the issue's title and body (the engine reads it and fences it as
+  untrusted), or your brief. The agent reviews `origin/<baseBranch>`, not your local changes: a
+  path that exists only in your checkout stops the job before the run, with the revision named.
+- **What the agent may do.** The scorecard job's rights, with the agent's skills and MCP servers
+  in place of the job's. A `run-checks` agent runs read-only here: a specialist job runs no command.
+- **Your review.** The job page shows the report: the summary, the findings, and the plain-language
+  version. **Close the job** ends it; it pushes nothing and files nothing. **Send back** runs the
+  agent again with your note. **Remove job** deletes the job and its worktree, and keeps its local
+  branch; delete that branch with git.
 
 ### Dev flow
 
@@ -1263,7 +1656,8 @@ repository. In a container the agent has:
 - no network interface (`--network none`). Its only way out is a unix socket to a proxy
   container that tunnels CONNECT to the provider hosts (`api.anthropic.com`, `claude.ai`,
   `platform.claude.com`, `console.anthropic.com`, `api.openai.com`, `chatgpt.com`,
-  `auth.openai.com`, `auth0.openai.com`) on port 443. TLS stays end to end.
+  `auth.openai.com`, `auth0.openai.com`, and for OpenCode `openrouter.ai`,
+  `generativelanguage.googleapis.com`, `opencode.ai`) on port 443. TLS stays end to end.
 - no host file. The container sees only its volumes and one read-only folder of staged files.
 - no `GH_TOKEN`, no cloud credential, no SSH agent, no Docker socket. Environment variables
   are explicit, never inherited.
@@ -1285,6 +1679,7 @@ It does not protect against these, and the owner still decides on them:
 pnpm desk docker build                       # build the image (about 2 GB, a few minutes the first time)
 pnpm desk docker login --provider claude     # log in inside a container (needs a terminal)
 pnpm desk docker login --provider codex
+pnpm desk docker login --provider opencode
 pnpm desk docker doctor                      # daemon, image, logins, and the isolation probes
 pnpm desk docker status                      # desk containers, volumes, and images
 pnpm desk docker prune --issue 123           # remove the containers and volumes of one issue
@@ -1327,7 +1722,7 @@ to the host worktree as a patch, as it stays in the tree in host mode.
 
 ### Logins
 
-`pnpm desk docker login --provider claude|codex` runs the provider's own login flow in a container
+`pnpm desk docker login --provider claude|codex|opencode` runs the provider's own login flow in a container
 with a terminal. The login lands in the volume `kaine-desk-auth-<provider>`. The desk never reads
 it. An agent container mounts that volume read-only. The entry script copies the login files into
 the per-issue state volume, where the CLI works (and keeps its sessions, so `--resume` works). If

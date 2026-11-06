@@ -60,7 +60,13 @@ describe("promoted lessons", () => {
     const report = await desk().report();
     expect(report.candidates).toEqual([]);
     expect(report.promoted).toEqual([
-      { key: KEY, at: "2026-10-20T12:00:00.000Z", note: "Encoded in the lint config.", issue: null }
+      {
+        key: KEY,
+        at: "2026-10-20T12:00:00.000Z",
+        note: "Encoded in the lint config.",
+        issue: null,
+        recurrence: { occurrences: 0, issues: [], lastSeen: null }
+      }
     ]);
 
     const restored = await desk().actions.unpromote(KEY);

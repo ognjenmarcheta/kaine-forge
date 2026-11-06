@@ -1,6 +1,7 @@
 import { createPubSub, filter, pipe } from "graphql-yoga";
 
 import type { NotificationView } from "./features/notifications/notifications.module";
+import { ReplicaEventTarget } from "./pubsub.replicas";
 
 export interface TodoSubscriptionPayload {
   id: string;
@@ -56,7 +57,10 @@ export type PubSubEventMap = {
   "notification:created": [NotificationCreatedPayload];
 };
 
-export const pubsub = createPubSub<PubSubEventMap>();
+/** Events also reach the other API replicas once `startReplicaEvents` connects it (index.ts). */
+export const replicaEvents = new ReplicaEventTarget();
+
+export const pubsub = createPubSub<PubSubEventMap>({ eventTarget: replicaEvents });
 
 type OrganizationEventName = Exclude<
   keyof PubSubEventMap,

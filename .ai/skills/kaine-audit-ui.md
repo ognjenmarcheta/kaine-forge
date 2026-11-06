@@ -10,6 +10,8 @@ argument-hint: route, component, diff, or recreation plus its reference image
 
 Find what breaks the UI rules, with evidence, and rank it. Do not fix while auditing unless asked; do not report taste as a finding. Every finding names a rule ID from `docs/ui/guidelines.md`.
 
+The agent desk runs this skill on a lab screen as an **audit job** (ADR 0021): the auditor writes nothing, works in the job's own lab server with the Playwright browser, and returns each finding as an issue; the owner ticks the findings the desk files.
+
 ## Steps
 
 1. **Run the gates**: `pnpm ui:check`. Copy each failure as a finding.

@@ -1,0 +1,26 @@
+# worktrunk project config (https://worktrunk.dev). Optional: ADR 0024 and
+# docs/agents/agent-engineering.md explain why and how to set it up.
+# worktrunk asks once per machine before it runs these commands, and again after they change.
+
+# pre-start blocks until the new worktree is ready, so `wt switch -c -x <agent>` starts the
+# agent only after setup. Blocks run in order; keys inside one block run in parallel.
+
+[[pre-start]]
+# Copies only what .worktreeinclude lists: .env, personal AI setup, and the Turbo cache.
+copy = "wt step copy-ignored --require-include"
+
+[[pre-start]]
+install = "pnpm install --frozen-lockfile --prefer-offline"
+
+[[pre-start]]
+# Workspace packages need build output before `pnpm dev`; the copied .turbo/ cache makes this
+# mostly cache hits.
+build = "pnpm exec turbo run build --filter='./packages/*'"
+# Each branch gets stable web and API ports, so worktrees run `pnpm dev` side by side.
+ports = "node scripts/worktree-env.mjs --web {{ ('web-' ~ branch) | hash_port }} --api {{ ('api-' ~ branch) | hash_port }}"
+ai = "pnpm ai:install --auto"
+
+[list]
+# Only `branch` reaches this template. The primary checkout (on main, or on
+# gitbutler/workspace with GitButler) keeps port 3000; worktree:env never moves it.
+url = "http://localhost:{{ 3000 if branch in ['main', 'gitbutler/workspace'] else ('web-' ~ branch) | hash_port }}"

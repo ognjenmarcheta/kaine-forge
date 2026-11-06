@@ -39,6 +39,8 @@ export interface DeskContextValue {
     options?: { readonly wait?: boolean; readonly keepalive?: boolean }
   ) => Promise<ActionSettled>;
   readonly reloadIssues: () => Promise<boolean>;
+  /** Read the desk jobs again. A failure leaves the ones the page has. */
+  readonly reloadJobs: () => Promise<void>;
   readonly loadDetail: (issueNumber: number) => Promise<void>;
   readonly loadLog: (issueNumber: number) => Promise<void>;
   readonly loadHealth: () => Promise<void>;
@@ -87,10 +89,20 @@ export function DeskProvider({ children, api: apiOverride, createSource }: DeskP
     []
   );
 
+  const reloadJobs = useCallback(async (): Promise<void> => {
+    try {
+      dispatch({ type: "jobs-loaded", jobs: await api.jobs() });
+    } catch {
+      // The jobs stay as they were; the live events bring the next change.
+    }
+  }, [api]);
+
   const reloadIssues = useCallback(async (): Promise<boolean> => {
     try {
       const issues = await api.issues();
       dispatch({ type: "issues-loaded", issues });
+      // Apart from the issues: a jobs failure must not take the session down.
+      void reloadJobs();
       // An action that was accepted before the connection dropped has ended
       // when its issue is no longer busy: the result event may have been missed.
       for (const issue of issues) {
@@ -105,7 +117,7 @@ export function DeskProvider({ children, api: apiOverride, createSource }: DeskP
       });
       return !isSessionLost(failure.code);
     }
-  }, [api, settleWaiters]);
+  }, [api, reloadJobs, settleWaiters]);
 
   const handleEvent = useCallback(
     (event: ServerEvent): void => {
@@ -208,8 +220,8 @@ export function DeskProvider({ children, api: apiOverride, createSource }: DeskP
   }, [api]);
 
   const value = useMemo<DeskContextValue>(
-    () => ({ state, api, act, reloadIssues, loadDetail, loadLog, loadHealth }),
-    [state, api, act, reloadIssues, loadDetail, loadLog, loadHealth]
+    () => ({ state, api, act, reloadIssues, reloadJobs, loadDetail, loadLog, loadHealth }),
+    [state, api, act, reloadIssues, reloadJobs, loadDetail, loadLog, loadHealth]
   );
   return <DeskContext.Provider value={value}>{children}</DeskContext.Provider>;
 }

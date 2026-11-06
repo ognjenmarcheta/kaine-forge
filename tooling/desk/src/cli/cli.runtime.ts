@@ -134,6 +134,7 @@ export const openRuntime = async (
     git: deps.git,
     github: deps.createGitHub(location.repoRoot),
     runnerFor: deps.runnerFor,
+    providers: deps.providers?.(location.repoRoot, config),
     docker,
     store,
     clock: deps.clock,

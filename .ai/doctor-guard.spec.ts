@@ -24,7 +24,7 @@ it("makes doctor fail even without --strict when a guard contract fails", async 
       [
         join(REPO_ROOT, ".cursor"),
         join(REPO_ROOT, ".opencode"),
-        join(REPO_ROOT, ".opencode/plugins/kaine-guardrail.ts")
+        join(REPO_ROOT, ".opencode/plugins/kaine-guardrail/index.ts")
       ].includes(String(path))
     )
       return true;
@@ -32,7 +32,7 @@ it("makes doctor fail even without --strict when a guard contract fails", async 
     return existsSync(path);
   });
   vi.spyOn(fs, "readFileSync").mockImplementation((path, options) => {
-    if (String(path) === join(REPO_ROOT, ".opencode/plugins/kaine-guardrail.ts"))
+    if (String(path) === join(REPO_ROOT, ".opencode/plugins/kaine-guardrail/index.ts"))
       return "stale plugin";
     return readFileSync(path, options);
   });
@@ -43,7 +43,7 @@ it("makes doctor fail even without --strict when a guard contract fails", async 
     expect(log.mock.calls.flat().join("\n")).toContain("cursor configuration: wrong verdict");
     expect(log.mock.calls.flat().join("\n")).toMatch(/\.cursor\/hooks.json\s+missing/);
     expect(log.mock.calls.flat().join("\n")).toMatch(
-      /\.opencode\/plugins\/kaine-guardrail.ts\s+stale/
+      /\.opencode\/plugins\/kaine-guardrail\/index.ts\s+stale/
     );
   } finally {
     process.exitCode = exitCode;

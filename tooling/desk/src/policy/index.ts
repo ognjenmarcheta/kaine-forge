@@ -1,3 +1,4 @@
+export { generatedAiOutputs } from "./ai-outputs";
 export {
   isGeneratedOutput,
   isProtectedPath,

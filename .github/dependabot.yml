@@ -105,6 +105,15 @@ updates:
       # @types/node tracks the Node major in .nvmrc / engines / Dockerfiles.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # @journeyapps/wa-sqlite follows the peer range of @tanstack/browser-db-sqlite-persistence
+      # (^1.4.1 through 1.0.0-rc.1.3); 2.x arrives with the persistence upgrade (#829).
+      - dependency-name: "@journeyapps/wa-sqlite"
+        update-types: ["version-update:semver-major"]
+      # @simplewebauthn/server is in the catalog only so packages/auth can name the passkey
+      # plugin's inferred types; it follows @better-auth/passkey's own dependency (^13.3.2), so a
+      # catalog major installs a second copy without moving the plugin (#828).
+      - dependency-name: "@simplewebauthn/server"
+        update-types: ["version-update:semver-major"]
       # tailwindcss lives in two catalogs like React: web on v4 in the default
       # catalog and mobile pinned to 3.4.17 in catalogs.mobile under the Expo SDK
       # freeze (pnpm-workspace.yaml). Any update can rewrite one lane to the

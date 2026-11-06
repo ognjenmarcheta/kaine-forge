@@ -2,7 +2,7 @@
 
 # Digest-pinned so Trivy CRITICAL can be a hard gate (issue #155). Dependabot bumps the
 # digest within the Node major; Node majors move with .nvmrc, engines, and CI (#323).
-FROM node:22-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS base
+FROM node:22-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS base
 # Debian security fixes (e.g. perl-base) land before the pinned Node image is rebuilt.
 # CI passes the ISO week as APT_REFRESH so the cached upgrade layer reruns weekly.
 ARG APT_REFRESH
@@ -42,6 +42,7 @@ RUN pnpm turbo run build --filter=@repo/api... \
     packages/jobs/dist \
     packages/logger/dist \
     packages/storage/dist \
+    packages/theme/dist \
     packages/translation/dist \
   && test -f apps/api/dist/index.js \
   && test -f apps/api/dist/worker.js
@@ -65,7 +66,13 @@ COPY --from=builder /app/packages/feature-flags/dist/ ./packages/feature-flags/d
 COPY --from=builder /app/packages/jobs/dist/ ./packages/jobs/dist/
 COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
 COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
+COPY --from=builder /app/packages/theme/dist/ ./packages/theme/dist/
 COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
+
+# A workspace package the API imports but this image lacks would crash every
+# container at start, while the old container keeps serving. Fail the build instead.
+COPY --from=pruner /app/scripts/check-image-packages.mjs ./scripts/check-image-packages.mjs
+RUN node scripts/check-image-packages.mjs apps/api
 
 # Runtime only needs `node` + app files. Drop install toolchains that ship
 # nested vulnerable packages (base npm tar, corepack-cached pnpm's tar) so

@@ -3,6 +3,23 @@ import type { Note, SyncMutationOutcome, SyncTombstone, Todo } from "@repo/db";
 export interface SyncPullArgs {
   cursor?: string | null | undefined;
   first?: number | null | undefined;
+  /**
+   * On a first pull, the newest rows of each list to return instead of every
+   * row; the rest load through `syncPullOlder`.
+   */
+  window?: number | null | undefined;
+}
+
+export interface SyncPullOlderArgs {
+  after: string;
+  first?: number | null | undefined;
+}
+
+/** Rows older than a payload returned, for one of its lists. */
+export interface SyncOlder {
+  /** The payload field the older rows load into, such as `todos`. */
+  list: keyof SyncedRows;
+  after: string;
 }
 
 export interface SyncDeletion {
@@ -27,6 +44,7 @@ export interface SyncPullPayload extends SyncedRows {
   cursor: string | null;
   hasMore: boolean;
   resetRequired: boolean;
+  older: SyncOlder[];
 }
 
 export interface SyncTodoCreate {
@@ -53,6 +71,7 @@ export interface SyncNoteUpdate {
   id: string;
   title?: string | null;
   body?: string | null;
+  baseBody?: string | null;
 }
 
 export interface SyncDelete {

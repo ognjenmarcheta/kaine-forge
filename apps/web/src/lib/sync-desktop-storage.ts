@@ -52,11 +52,17 @@ export async function openDesktopDatabase(name: string): Promise<{
   }
 }
 
-/** Closes and deletes the device databases whose names `match` selects. */
-export async function deleteDesktopDatabases(match: (name: string) => boolean): Promise<void> {
+/**
+ * Closes and deletes the device databases whose names `match` selects.
+ * Resolves false when one stays: it is listed again at the next deletion.
+ */
+export async function deleteDesktopDatabases(match: (name: string) => boolean): Promise<boolean> {
+  let deleted = true;
   for (const name of (await invoke<string[]>("device_db_list")).filter(match)) {
     handles.delete(name);
-    // A database that stays is listed again at the next deletion.
-    await invoke("device_db_delete", { name }).catch(() => undefined);
+    await invoke("device_db_delete", { name }).catch(() => {
+      deleted = false;
+    });
   }
+  return deleted;
 }

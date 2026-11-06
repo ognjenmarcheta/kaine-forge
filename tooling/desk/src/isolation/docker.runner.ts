@@ -11,6 +11,7 @@ import type {
 } from "../agents/agent.runner";
 import { createClaudeRunner } from "../agents/claude.runner";
 import { createCodexRunner } from "../agents/codex.runner";
+import { createOpencodeRunner } from "../agents/opencode.runner";
 import { buildRunSettings } from "../agents/permissions";
 import type { Provider } from "../contracts";
 import { agentContainer, dockerRunArgs, authSyncContainer, INPUT, WORKSPACE } from "./docker.args";
@@ -63,6 +64,18 @@ const LOGIN_PATTERN = /log.?in|credential|unauthori[sz]ed|authenticat/i;
 const loginHint = (provider: Provider): string =>
   ` Run 'pnpm desk docker login --provider ${provider}' if the login is missing or expired.`;
 
+/**
+ * OpenCode model providers a container can reach. `desk-proxy.mjs` allows their API hosts and
+ * no others, so a model from another provider could not connect.
+ */
+export const OPENCODE_DOCKER_PROVIDERS: readonly string[] = [
+  "anthropic",
+  "openai",
+  "openrouter",
+  "google",
+  "opencode"
+];
+
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
 
@@ -83,6 +96,12 @@ export const createDockerAgentRunner = (
     const { context } = deps;
     const provider = request.provider;
     const receipts = `/state/receipts-${request.role}.jsonl`;
+    const modelProvider = request.model?.split("/")[0];
+    if (provider === "opencode" && !OPENCODE_DOCKER_PROVIDERS.includes(modelProvider ?? "")) {
+      return failure(
+        `The OpenCode model '${request.model ?? ""}' is not reachable from a container. Use a model from ${OPENCODE_DOCKER_PROVIDERS.join(", ")}.`
+      );
+    }
 
     // 1. Import. A failure here means the agent never started.
     let synced;
@@ -172,10 +191,12 @@ export const createDockerAgentRunner = (
         };
 
         const binary = deps.binaries?.[provider] ?? provider;
-        const runner =
-          provider === "claude"
-            ? createClaudeRunner({ process: dockerProcess, binary })
-            : createCodexRunner({
+        const runnerFor = (): AgentRunner => {
+          switch (provider) {
+            case "claude":
+              return createClaudeRunner({ process: dockerProcess, binary });
+            case "codex":
+              return createCodexRunner({
                 process: dockerProcess,
                 binary,
                 insideContainer: true,
@@ -185,7 +206,17 @@ export const createDockerAgentRunner = (
                   outputPath: "/tmp/desk-last-message.txt"
                 })
               });
-        return runner.run(mapped);
+            case "opencode":
+              // The run's rules file goes to the staging folder, which the container sees at INPUT.
+              return createOpencodeRunner({
+                process: dockerProcess,
+                binary,
+                makeTempDir: () => Promise.resolve(staging),
+                configDirPath: () => INPUT
+              });
+          }
+        };
+        return runnerFor().run(mapped);
       });
     } catch (error) {
       outcome = failure(`The Docker run failed: ${describe(error)}`);

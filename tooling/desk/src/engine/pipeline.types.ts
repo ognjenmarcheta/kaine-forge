@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentRunner } from "../agents/agent.runner";
+import type { ProviderPort } from "../agents/provider.probe";
 import type { RolePromptDeps } from "../agents/roles";
 import type {
   AgentDefinition,
@@ -8,13 +9,14 @@ import type {
   HistoryEvent,
   IssueDraft,
   IssueState,
+  NeedsYouCode,
   Provider,
   StageId
 } from "../contracts";
 import type { GitPort } from "../git";
+import type { Trigger } from "./pipeline.machine";
 import type { IsolationPort } from "../isolation/isolation.port";
 import type { Clock, Exec, GitHubPort } from "../ports";
-import type { Trigger } from "./pipeline.machine";
 import type { Scheduler } from "./pipeline.scheduler";
 import type { ShipPlan } from "../ship/ship.contract";
 import type { IssueReadResult, IssueStore } from "../store/store.issue";
@@ -50,6 +52,11 @@ export interface PipelineDeps {
   /** Labels, status comment. Reads for intake come from here unless a snapshot file is used. */
   readonly github: GitHubPort;
   readonly runnerFor: (provider: Provider) => AgentRunner;
+  /**
+   * The provider CLIs that run on this machine. A run moves off a CLI that does not run. Without
+   * it every provider counts as installed and the Codex opt-in comes from the config.
+   */
+  readonly providers?: ProviderPort | undefined;
   /**
    * Docker isolation. Used for an issue whose mode is `docker`. Without it such an issue
    * stops at its first agent or check stage with a clear reason.
@@ -104,8 +111,12 @@ export const REFUSALS = [
 ] as const;
 export type Refusal = (typeof REFUSALS)[number];
 
-/** `paused`: the owner holds the issue. Nothing more runs until `resume`. */
-export type StopKind = "gate" | "needs-you" | "shipped" | "cancelled" | "finished" | "paused";
+/**
+ * `paused`: the owner holds the issue. Nothing more runs until `resume`. `steered`: the running
+ * agent goes on in its session with the owner's note.
+ */
+export type StopKind =
+  "gate" | "needs-you" | "shipped" | "cancelled" | "finished" | "paused" | "steered";
 
 /**
  * What an API call returns. `stopped`: the call did its work and the issue
@@ -208,7 +219,10 @@ export type StatePatch = Partial<
     | "prUrl"
     | "prNumber"
     | "prHeadSha"
+    | "prCheck"
+    | "mergedAt"
     | "approveNote"
+    | "approvedCommands"
     | "pauseRequested"
     | "pausedAt"
   >
@@ -235,10 +249,27 @@ export type StageOutcome =
   | {
       readonly kind: "needs-you";
       readonly reason: string;
+      /** The stop code. Default: `error`. */
+      readonly code?: NeedsYouCode;
       readonly patch?: StatePatch;
     }
   /** The run was cancelled. The runner makes no transition. */
   | { readonly kind: "aborted" };
+
+/**
+ * What the owner asked of a running agent: go on in the same session with a note (`steer`), or
+ * stop so the owner works in the session (`take-over`).
+ */
+export type OwnerInterrupt =
+  { readonly kind: "steer"; readonly note: string } | { readonly kind: "take-over" };
+
+/** The owner's way into the agent run of a stage. One agent run is armed at a time. */
+export interface OwnerChannel {
+  /** Called when an agent run starts. The signal aborts when the owner steers or takes over. */
+  readonly arm: () => AbortSignal;
+  /** Called when the run has returned. The owner's request since `arm`, or `null`. */
+  readonly disarm: () => OwnerInterrupt | null;
+}
 
 /** The view of a running issue that a stage handler gets. */
 export interface StageContext {
@@ -254,6 +285,7 @@ export interface StageContext {
   /** Merge into the state and write it now (a pid, a session). */
   readonly patch: (patch: StatePatch) => Promise<void>;
   readonly emitAgent: (role: AgentStageRole, event: AgentEvent) => void;
+  readonly owner: OwnerChannel;
 }
 
 export type StageHandler = (context: StageContext) => Promise<StageOutcome>;

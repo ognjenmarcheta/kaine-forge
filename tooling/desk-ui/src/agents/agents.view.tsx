@@ -1,6 +1,8 @@
 import {
   AGENT_OUTPUT_KINDS,
   DEFINITION_SOURCES,
+  avatarOf,
+  specialistProblem,
   type AgentView,
   type DefinitionKind,
   type DefinitionProblem
@@ -8,6 +10,7 @@ import {
 import { Badge, Button, Card, Input, Plus, Search, X, buttonVariants } from "@repo/ui";
 import { useRef, useState } from "react";
 
+import { AgentAvatar } from "./agent.avatar";
 import { CloneDialog } from "./agents.clone-dialog";
 import {
   filterAgents,
@@ -17,6 +20,7 @@ import {
 } from "./agents.model";
 import { useAgentList } from "./agents.use";
 import { useT } from "../i18n/i18n.t";
+import { useNewWork } from "../shell/shell.newwork";
 import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink, useRouter } from "../shell/shell.router";
 import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
@@ -37,7 +41,7 @@ export function DefinitionBadges({
         {t(`desk.flow.source.${view.source}`)}
       </Badge>
       {view.shadows !== null && (
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {t("desk.agents.shadows", { source: t(`desk.flow.source.${view.shadows}`) })}
         </span>
       )}
@@ -62,7 +66,7 @@ export function DefinitionProblems({
   const t = useT();
   if (problems.length === 0) return null;
   return (
-    <div className="desk-failure" role="alert">
+    <div className="dk-banner dk-banner-danger dk-stack" role="alert">
       <p>{t(kind === "agent" ? "desk.agents.problems" : "desk.flows.problems")}</p>
       <ul className="desk-agent__problems">
         {problems.map((problem) => (
@@ -139,12 +143,16 @@ function Chips<T extends string>({
 
 function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClone: () => void }) {
   const t = useT();
+  const newWork = useNewWork();
   const { definition, resolved } = view;
   const { capabilities } = definition;
+  // A report agent that edits nothing runs on its own as a specialist job.
+  const runnable = view.problems.length === 0 && specialistProblem(definition) === null;
   const isolated = resolved.sandbox === "docker";
   return (
     <li className="desk-agent">
       <div className="desk-agent__head">
+        <AgentAvatar avatar={avatarOf(definition)} size="md" />
         <h2 className="desk-agent__name">{definition.name}</h2>
         <code className="desk-agent__id">{definition.id}</code>
         <DefinitionBadges view={view} />
@@ -183,6 +191,19 @@ function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClon
           {t(isolated ? "desk.caps.isolated" : "desk.caps.onHost")}
         </StatusChip>
         <span className="desk-agent__actions">
+          {runnable && (
+            <Button
+              type="button"
+              appearance="subtle"
+              spacing="compact"
+              aria-label={t("desk.agents.runNamed", { name: definition.name })}
+              onClick={() =>
+                newWork.open({ tab: "job", kind: "specialist", agentId: definition.id })
+              }
+            >
+              {t("desk.agents.run")}
+            </Button>
+          )}
           <RouteLink
             to={{ view: "agent", agentId: definition.id }}
             className={OPEN_LINK}
@@ -226,19 +247,19 @@ export function AgentsView() {
 
   return (
     <>
-      <div className="desk-heading">
-        <div>
-          <h1>{t("desk.agents.title")}</h1>
-          <p className="desk-muted">{t("desk.agents.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.agents.title")}</h1>
+          <p className="dk-lead">{t("desk.agents.intro")}</p>
         </div>
         <RouteLink
           to={{ view: "agent", agentId: null }}
           className={buttonVariants({ appearance: "default" })}
         >
-          <Plus aria-hidden="true" className="desk-icon" />
+          <Plus aria-hidden="true" className="dk-ic" />
           {t("desk.agents.new")}
         </RouteLink>
-      </div>
+      </header>
       {state.status === "loading" && <LoadingLines label={t("desk.agents.loading")} lines={4} />}
       {state.status === "error" && <FailureText code={state.code} detail={state.detail} />}
       {state.status === "ok" && (
@@ -246,7 +267,7 @@ export function AgentsView() {
           <DefinitionProblems problems={state.list.problems} />
           <div className="desk-toolbar">
             <div className="desk-search" role="search">
-              <Search aria-hidden="true" className="desk-icon desk-search__icon" />
+              <Search aria-hidden="true" className="dk-ic desk-search__icon" />
               <Input
                 ref={searchBox}
                 type="search"
@@ -258,6 +279,7 @@ export function AgentsView() {
               />
               {filter.query !== "" && (
                 <Button
+                  type="button"
                   appearance="ghost"
                   spacing="compact"
                   className="desk-search__clear"
@@ -267,7 +289,7 @@ export function AgentsView() {
                     searchBox.current?.focus();
                   }}
                 >
-                  <X aria-hidden="true" className="desk-icon" />
+                  <X aria-hidden="true" className="dk-ic" />
                 </Button>
               )}
             </div>
@@ -293,7 +315,7 @@ export function AgentsView() {
             />
           </div>
           {found.length === 0 ? (
-            <Card className="desk-panel">
+            <Card className="dk-card">
               <Muted>{t(agents.length === 0 ? "desk.agents.empty" : "desk.agents.noMatch")}</Muted>
             </Card>
           ) : (
