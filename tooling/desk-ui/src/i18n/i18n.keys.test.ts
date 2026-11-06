@@ -1,5 +1,7 @@
 import {
   ACTION_NAMES,
+  AGENT_AVATAR_GLYPHS,
+  AGENT_AVATAR_TONES,
   AGENT_OUTPUT_KINDS,
   AGENT_STAGE_ROLES,
   AGENT_TOOLS,
@@ -174,6 +176,8 @@ describe("desk translations", () => {
       "desk.agents.provider.": PROVIDERS,
       "desk.agents.presetAbout.": CAPABILITY_PRESETS,
       "desk.agents.toolAbout.": AGENT_TOOLS,
+      "desk.agents.avatar.glyph.": AGENT_AVATAR_GLYPHS,
+      "desk.agents.avatar.tone.": AGENT_AVATAR_TONES,
       "desk.flows.kind.": [...STEP_KINDS, "setup"],
       "desk.flows.commandSet.": ["loop", "ship", "custom"],
       "desk.flows.commandSetAbout.": ["loop", "ship", "custom"],

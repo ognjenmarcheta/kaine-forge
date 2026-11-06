@@ -124,4 +124,26 @@ describe("AgentsView", () => {
       })
     );
   });
+
+  it("shows each agent's avatar, and a default from the id for an agent without one", async () => {
+    const agents = [
+      agentView(agentDefinition({ id: "notes", name: "Release notes" }), "repo"),
+      agentView(
+        agentDefinition({
+          id: "scout",
+          name: "Scout",
+          avatar: { glyph: "compass", tone: "chart-4" }
+        }),
+        "local"
+      )
+    ];
+    renderDesk(
+      <DeskApp />,
+      fakeApi({ agents: () => Promise.resolve({ agents, problems: [], installed: INSTALLED }) })
+    );
+
+    // The avatar is decorative, so the drawn icon is all there is to find.
+    expect((await rowOf("Release notes")).querySelector("svg.lucide-lock")).not.toBeNull();
+    expect((await rowOf("Scout")).querySelector("svg.lucide-compass")).not.toBeNull();
+  });
 });

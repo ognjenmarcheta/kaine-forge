@@ -11,6 +11,8 @@ import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 
 import { LessonsPanel } from "./insights.lessons";
 import { costByAgent, sparkPoints, weekOf, type WeekSeries } from "./insights.model";
+import { AgentAvatar } from "../agents/agent.avatar";
+import { useAvatarOfId } from "../agents/agents.use";
 import { toApiError, type FailureCode } from "../api/api.client";
 import { agentName, issueFlowOf, loopsText, stageName, type IssueFlow } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
@@ -61,7 +63,16 @@ const GROUP_COLUMNS = [
 ] as const;
 const TEXT_COLUMNS: ReadonlySet<string> = new Set(["agent", "provider", "model"]);
 
-function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
+/** The avatar of an agent by its id. */
+type AvatarFor = ReturnType<typeof useAvatarOfId>;
+
+function GroupsTable({
+  groups,
+  avatarFor
+}: {
+  readonly groups: readonly RunGroup[];
+  readonly avatarFor: AvatarFor;
+}) {
   const t = useT();
   const { language } = useLanguage();
   const count = (value: number): string => formatCount(value, language);
@@ -85,7 +96,12 @@ function GroupsTable({ groups }: { readonly groups: readonly RunGroup[] }) {
         <tbody>
           {groups.map((group) => (
             <tr key={`${group.role}:${group.agentId}:${group.provider}:${group.model ?? ""}`}>
-              <th scope="row">{agentText(t, group.agentId)}</th>
+              <th scope="row">
+                <span className="desk-who">
+                  <AgentAvatar avatar={avatarFor(group.agentId)} />
+                  {agentText(t, group.agentId)}
+                </span>
+              </th>
               <td>{group.provider}</td>
               <td>
                 {group.model ?? <span className="dk-t-sub">{t("desk.stats.defaultModel")}</span>}
@@ -271,7 +287,13 @@ function WeekCards({ days }: { readonly days: readonly StatsDay[] }) {
 }
 
 /** The cost of each agent as a bar. The value is written beside it, so the bar only repeats it. */
-function CostByAgent({ groups }: { readonly groups: readonly RunGroup[] }) {
+function CostByAgent({
+  groups,
+  avatarFor
+}: {
+  readonly groups: readonly RunGroup[];
+  readonly avatarFor: AvatarFor;
+}) {
   const t = useT();
   const { language } = useLanguage();
   return (
@@ -280,7 +302,10 @@ function CostByAgent({ groups }: { readonly groups: readonly RunGroup[] }) {
       <ul className="desk-bars">
         {costByAgent(groups).map((entry) => (
           <li key={entry.agentId} className="desk-bars__row">
-            <span>{agentText(t, entry.agentId)}</span>
+            <span className="desk-who">
+              <AgentAvatar avatar={avatarFor(entry.agentId)} />
+              {agentText(t, entry.agentId)}
+            </span>
             <svg className="desk-bars__track" aria-hidden="true" focusable="false">
               <rect className="desk-bars__rail" width="100%" height="100%" rx="4" />
               {entry.share > 0 && (
@@ -305,12 +330,13 @@ function CostByAgent({ groups }: { readonly groups: readonly RunGroup[] }) {
 
 function Report({ stats }: { readonly stats: RunStats }) {
   const t = useT();
+  const avatarFor = useAvatarOfId();
   if (stats.groups.length === 0) return <Muted>{t("desk.stats.empty")}</Muted>;
   return (
     <>
       <Card className="dk-card">
         <h2>{t("desk.stats.groups")}</h2>
-        <GroupsTable groups={stats.groups} />
+        <GroupsTable groups={stats.groups} avatarFor={avatarFor} />
         <Muted>{t("desk.stats.groupsHint")}</Muted>
       </Card>
       <div className="desk-split">
@@ -318,7 +344,7 @@ function Report({ stats }: { readonly stats: RunStats }) {
           <h2>{t("desk.stats.issues")}</h2>
           <IssuesTable issues={stats.issues} />
         </Card>
-        <CostByAgent groups={stats.groups} />
+        <CostByAgent groups={stats.groups} avatarFor={avatarFor} />
       </div>
       {stats.invalidLines > 0 && (
         <Muted>{t("desk.stats.invalidLines", { count: stats.invalidLines })}</Muted>
