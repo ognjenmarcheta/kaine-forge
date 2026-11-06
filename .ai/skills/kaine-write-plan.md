@@ -40,10 +40,19 @@ Plan mode do not trigger this workflow.
 4. Record relevant interface, migration, risk and rollout decisions. Use verified
    paths and commands where they remove ambiguity. Include code only when it conveys
    a necessary decision more precisely than prose. Avoid speculative detail.
-5. Check coverage of the request, consistency between stages, open decisions and
+5. Challenge a non-trivial plan before you finish it. Scale this to the work; a
+   small fix needs a sentence, not a section.
+   - Premise: is this the right problem, and what happens if we do nothing?
+   - What already exists: name the helper, package or pattern you reuse (the
+     reuse ladder in the guide's "Simplicity First").
+   - Design twice: for a new interface or module, sketch one structurally
+     different option. Keep the one that hides more behind a smaller interface.
+   - Not in scope: list what the plan deliberately leaves out.
+   - Failure modes: say what can break and how we would notice.
+6. Check coverage of the request, consistency between stages, open decisions and
    unnecessary detail. Match the plan's length to the work; a small task needs a
    small plan. Describe intended checks without claiming they have already passed.
-6. End every completed plan with the **In plain language** section below. Keep it
+7. End every completed plan with the **In plain language** section below. Keep it
    when shortening or revising a plan, and update it to match any changed decisions.
 
 ## Delivery and boundaries

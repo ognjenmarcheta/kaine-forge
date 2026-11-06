@@ -3346,18 +3346,172 @@ main:focus {
 .desk-job-issues {
   display: grid;
   gap: var(--ds-space-150);
-  margin: 0 0 var(--ds-space-150);
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.desk-job-issue p {
-  margin: var(--ds-space-050) 0;
+/* A gate reads top to bottom: the result, what moved, the questions, the issues, the decision. */
+.desk-job-gate {
+  display: grid;
+  gap: var(--ds-space-300);
+}
+
+.desk-job-gate > h2 {
+  margin: 0;
+}
+
+/* The gate's card is narrower than the page, so its tiles wrap by their own width. */
+.desk-job-gate .desk-score-summary {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  margin: 0;
+}
+
+.desk-job-lead {
+  max-width: 48rem;
+  margin: 0;
+  font: var(--ds-font-body-large);
+}
+
+.desk-job-sec {
+  display: grid;
+  gap: var(--ds-space-150);
+  padding-block-start: var(--ds-space-250);
+  border-block-start: var(--ds-border-width) solid var(--ds-border);
+}
+
+.desk-job-sec > h3,
+.desk-job-sec > p,
+.desk-job-decide > h3 {
+  margin: 0;
+}
+
+.desk-job-list {
+  display: grid;
+  gap: var(--ds-space-075);
+  max-width: 48rem;
+  margin: 0;
+  padding-inline-start: var(--ds-space-250);
+}
+
+/* A folded block: a technical summary or an issue body. */
+.desk-job-fold > summary {
+  width: fit-content;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+  cursor: pointer;
+}
+
+.desk-job-fold[open] > summary {
+  margin-block-end: var(--ds-space-100);
+}
+
+/* The dimensions that moved: name, new score, change, and the evidence under them. */
+.desk-job-moved {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-job-moved__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--ds-space-050) var(--ds-space-200);
+  align-items: baseline;
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-job-moved__name {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-job-moved__why {
+  grid-column: 1 / -1;
+  max-width: 48rem;
+  margin: 0;
+}
+
+/* Each open question is its own numbered block, so long questions do not run together. */
+.desk-job-questions {
+  display: grid;
+  gap: var(--ds-space-100);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: desk-question;
+}
+
+.desk-job-question {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ds-space-150);
+  max-width: 56rem;
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-inline-start: var(--ds-border-width-thick) solid var(--ds-border-warning);
+  border-radius: var(--ds-radius-200);
+  counter-increment: desk-question;
+}
+
+.desk-job-question::before {
+  content: counter(desk-question);
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A proposed issue as a card; a ticked one is marked with the selected tint. */
+.desk-job-issue {
+  display: grid;
+  gap: var(--ds-space-100);
+  padding: var(--ds-space-150) var(--ds-space-200);
+  background: var(--ds-surface-raised);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-job-issue[data-checked="true"] {
+  background: var(--ds-background-selected);
+  border-color: var(--ds-border-selected);
+}
+
+.desk-job-issue__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-075);
+  padding-inline-start: var(--ds-space-300);
+}
+
+.desk-job-issue .desk-job-fold {
+  padding-inline-start: var(--ds-space-300);
+}
+
+.desk-job-decide {
+  display: grid;
+  gap: var(--ds-space-150);
+  padding: var(--ds-space-200);
+  background: var(--ds-surface-sunken);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-job-decide .desk-job-actions {
+  margin: 0;
+}
+
+.desk-job-decide > .ui-button {
+  justify-self: start;
 }
 
 /* An agent's summary keeps its own line breaks and bullets, as text. */
 .desk-job-text {
   max-width: 48rem;
+  margin: 0;
   white-space: pre-line;
 }
 

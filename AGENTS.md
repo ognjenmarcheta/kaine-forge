@@ -95,6 +95,7 @@ Principles to reduce common LLM coding mistakes:
 - Push back when the requested path is likely to be more complex than needed, and offer the simpler alternative with tradeoffs.
 - Fix bugs at the root cause: a report names a symptom. Trace every caller of the function you change and fix the shared function once — one guard there beats one per caller, and patching only the reported path leaves sibling callers broken.
 - If a required fact cannot be discovered locally and guessing would change behavior, stop and ask.
+- When you ask the owner to choose, state the stakes in one sentence, give one recommendation and its reason, and name what each shortcut option gives up.
 
 ### Simplicity First
 
