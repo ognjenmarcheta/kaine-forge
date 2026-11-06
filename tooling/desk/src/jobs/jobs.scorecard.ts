@@ -27,6 +27,7 @@ export const scorecardPrompt = (input: ScorecardPromptInput): string =>
     "- Step 5: do not edit any file. Return the run in your answer. The engine appends it to the ledger, adds your calibration bullets under a heading it writes, and renders the ledger.",
     "- Findings: carry every finding of the previous run forward with its current disposition, and add the new ones with deterministic slugs.",
     "- proposedIssues: only findings that meet the skill's filing rule. Write each body with kaine-write-issue in the six-heading issue format, and end it with an Origin section that names this run's date, commit, overall score, and docs/agents/monorepo-scorecard.md. The owner ticks the ones the desk files; you file nothing.",
+    "- summary: at most three short sentences on what changed overall. The owner reads it at the gate beside a score table, so put each dimension's detail in its evidence and your reasoning in calibration. Put every decision the owner must make in openQuestions, one question each.",
     ...(input.labels.length === 0
       ? []
       : [`- Issue labels: use only labels the repository has: ${input.labels.join(", ")}.`]),
