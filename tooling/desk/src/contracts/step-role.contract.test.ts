@@ -23,6 +23,27 @@ const AUTO_SHIP_SNAPSHOT: FlowSnapshot = {
   }
 };
 
+/** A report agent between steps: `design` after the plan, and a flow that starts with one. */
+const withDesign = (steps: FlowSnapshot["flow"]["steps"]): FlowSnapshot => ({
+  ...DEFAULT_SNAPSHOT,
+  agents: [...DEFAULT_SNAPSHOT.agents, { ...reviewer, id: "design-partner", output: "report" }],
+  flow: { ...DEFAULT_SNAPSHOT.flow, steps }
+});
+const designStep = {
+  id: "design",
+  kind: "agent",
+  label: "Design",
+  agent: "design-partner"
+} as const;
+const REPORT_AFTER_PLAN = withDesign(
+  DEFAULT_SNAPSHOT.flow.steps.flatMap((step) => (step.id === "plan" ? [step, designStep] : [step]))
+);
+const REPORT_FIRST = withDesign([
+  designStep,
+  { id: "approve", kind: "gate", label: "Approve", sendBack: ["design"] },
+  ...DEFAULT_SNAPSHOT.flow.steps
+]);
+
 describe("stepRoleOf", () => {
   const cases: readonly {
     readonly flow: string;
@@ -40,7 +61,14 @@ describe("stepRoleOf", () => {
     { flow: "default", snapshot: DEFAULT_SNAPSHOT, step: "pr-open", role: "pr-wait" },
     { flow: "default", snapshot: DEFAULT_SNAPSHOT, step: "needs-you", role: null },
     { flow: "auto-ship", snapshot: AUTO_SHIP_SNAPSHOT, step: "review", role: "report" },
-    { flow: "auto-ship", snapshot: AUTO_SHIP_SNAPSHOT, step: "pr-review", role: "gate" }
+    { flow: "auto-ship", snapshot: AUTO_SHIP_SNAPSHOT, step: "pr-review", role: "gate" },
+    {
+      flow: "plan, report, gate",
+      snapshot: REPORT_AFTER_PLAN,
+      step: "plan-gate",
+      role: "plan-gate"
+    },
+    { flow: "report, gate", snapshot: REPORT_FIRST, step: "approve", role: "gate" }
   ];
 
   it.each(cases)("$flow flow: '$step' is $role", ({ snapshot, step, role }) => {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { FlowStep } from "./flow-definition.contract";
+import type { FlowSnapshot } from "./flow-snapshot.contract";
 import {
   FLOW_NODE_IDS,
   buildFlowModel,
@@ -622,6 +624,29 @@ describe("buildFlowModel loops and feedback", () => {
       feedbackCount: 2,
       count: 0,
       state: "traversed",
+      loopKind: "replan"
+    });
+  });
+
+  it("keeps the feedback at the plan gate a re-plan when a report step runs between them", () => {
+    const [planner] = DEFAULT_SNAPSHOT.agents;
+    if (planner === undefined) throw new Error("the default flow has a planner");
+    const flowSnapshot: FlowSnapshot = {
+      ...DEFAULT_SNAPSHOT,
+      agents: [...DEFAULT_SNAPSHOT.agents, { ...planner, id: "design-partner", output: "report" }],
+      flow: {
+        ...DEFAULT_SNAPSHOT.flow,
+        steps: DEFAULT_SNAPSHOT.flow.steps.flatMap((step): FlowStep[] =>
+          step.id === "plan"
+            ? [step, { id: "design", kind: "agent", label: "Design", agent: "design-partner" }]
+            : [step]
+        )
+      }
+    };
+    const state = issue({ stage: "plan", status: "running", steps: TO_PLAN_GATE });
+    expect(
+      edge(buildFlowModel({ ...state, flowSnapshot }, AFTER_LAST), "plan-gate->plan")
+    ).toMatchObject({
       loopKind: "replan"
     });
   });

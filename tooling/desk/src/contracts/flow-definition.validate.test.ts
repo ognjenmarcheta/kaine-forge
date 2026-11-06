@@ -43,6 +43,7 @@ describe("validateFlow", () => {
   });
 
   const intakeAgent = { id: "intake", output: "intake" } as const;
+  const reportAgent = { id: "design-partner", output: "report" } as const;
   const cases: readonly {
     readonly rule: string;
     readonly edit: (steps: FlowStep[]) => FlowStep[];
@@ -173,13 +174,28 @@ describe("validateFlow", () => {
         ),
       step: "pr-review",
       message: "A gate cannot both approve a plan and confirm a ship"
+    },
+    {
+      rule: "a report between the plan and the gate does not hide that the gate approves the plan",
+      edit: (steps) =>
+        steps.flatMap((step): FlowStep[] =>
+          step.id === "review"
+            ? [
+                { id: "review", kind: "agent", label: "Re-plan", agent: "planner" },
+                { id: "design", kind: "agent", label: "Design", agent: reportAgent.id }
+              ]
+            : [step]
+        ),
+      step: "pr-review",
+      message: "A gate cannot both approve a plan and confirm a ship"
     }
   ];
 
   it.each(cases)("rejects a flow that breaks the rule: $rule", async ({ edit, step, message }) => {
     const errors = validateFlow(withSteps(await defaultFlow(), edit), [
       ...(await defaultAgents()),
-      intakeAgent
+      intakeAgent,
+      reportAgent
     ]);
     expect(errors).toEqual([{ step, message: expect.stringContaining(message) }]);
   });

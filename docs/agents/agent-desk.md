@@ -348,13 +348,13 @@ Read the plan and the diff. Write the release notes.
 
 The output kind says what a run produces. It selects the result schema and the step handler.
 
-| Output   | What the run does                                              | What it means for the flow                                                                    |
-| -------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | A gate right after it is the plan approval. A flow that ships needs a plan agent before ship. |
-| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                     |
-| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.      |
-| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it.                                                             |
-| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                      |
+| Output   | What the run does                                              | What it means for the flow                                                                                                     |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | The next gate after it is the plan approval, also with report steps between. A flow that ships needs a plan agent before ship. |
+| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                                                      |
+| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.                                       |
+| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it. Later agent steps read the report. See "Report steps".                                       |
+| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                                                       |
 
 ### Capabilities
 
@@ -484,6 +484,46 @@ Every step has `id`, `kind`, `label`, and an optional `loopBack`.
 - The built-in `kaine-default` flow takes its limits from the config (`maxTestLoops`,
   `maxReviewLoops`, `maxPrRounds`). Every other flow carries its own.
 
+### Report steps
+
+A report step decides nothing, so you can put it anywhere in a flow. These rules hold:
+
+- A gate looks past report steps to the nearest earlier step that is not a report. When that
+  step is the plan agent, the gate is the plan approval. The plan gate shows the reports of the
+  report steps between the plan and the gate.
+- Each agent step gets the reports of the report steps before it in the flow, in flow order.
+- When feedback sends the work back to a step, the rerun also gets the reports of the report
+  steps after it that ran. For example, after a send-back from the plan gate, the planner reads
+  the report on its plan.
+- A step never reads the report of its own agent. An agent that two steps use writes one
+  `report-<agent>.json`, so a later run replaces it.
+- The prompt fences each report as untrusted data. A report is advice: the approved plan stays
+  authoritative, and the agent says which findings it acts on.
+
+```yaml
+id: reviewed-plan
+name: Reviewed plan
+description: Plan, review the plan, approve it, build, check, review, and ship a draft PR.
+steps:
+  - { id: plan, kind: agent, label: Plan, agent: planner }
+  - { id: design, kind: agent, label: Design review, agent: design-partner }
+  - { id: plan-gate, kind: gate, label: Approve the plan, sendBack: [plan] }
+  - { id: build, kind: agent, label: Build, agent: builder }
+  - id: check
+    kind: check
+    label: Check
+    commands: loop
+    loopBack: { to: build, limit: 3, stopOnSameFailure: true }
+  - { id: security, kind: agent, label: Security review, agent: security-officer }
+  - { id: review, kind: agent, label: Review, agent: reviewer, loopBack: { to: build, limit: 2 } }
+  - { id: pr-review, kind: gate, label: Approve the change, sendBack: [plan, build, review] }
+  - { id: ship, kind: ship, label: Ship, auto: false }
+```
+
+Here `design-partner` and `security-officer` are `report` agents. `plan-gate` stays the plan
+approval. The builder reads the design report. The reviewer reads both reports. When the review
+sends the work back to `build`, the builder also reads the security report.
+
 ### Validation
 
 `validateFlow` (`src/contracts/flow-definition.validate.ts`) runs in the engine and in the
@@ -493,6 +533,8 @@ browser. Every rule reports. Nothing stops at the first error.
 - `loopBack.to`, `sendBack`, and `backTo` name an earlier step. `loopBack.limit` is 1 or more.
 - An agent step names an agent that exists. An intake agent cannot be a step.
 - A `pr-wait` step comes directly after the ship step.
+- A gate cannot both approve a plan and confirm a ship. Report steps before the gate do not
+  count.
 - A flow has at least one agent step and at most one ship step.
 - The ship step has a plan agent step before it. Ship writes the PR summary and the changeset
   from `plan.json`.

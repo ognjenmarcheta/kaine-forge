@@ -1,4 +1,4 @@
-import type { IssueDetail, RiskOutcome, RunStats } from "@repo/desk/contracts";
+import type { FlowSnapshot, IssueDetail, RiskOutcome, RunStats } from "@repo/desk/contracts";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import { GatePanel } from "./gate.panel";
 import { finishedResearchIssue, planArtifact } from "../../tests/fixture.data";
 import type { DeskApi } from "../api/api.client";
 import type { ActionSettled } from "../state/desk.provider";
-import { CUSTOM_FLOW_SNAPSHOT } from "../test/test.flow";
+import { CUSTOM_FLOW_SNAPSHOT, DEFAULT_FLOW_SNAPSHOT } from "../test/test.flow";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
 
 const DONE: ActionSettled = {
@@ -131,6 +131,59 @@ describe("GatePanel at the plan gate", () => {
     await userEvent.type(screen.getByRole("textbox", { name: /Your answer/ }), "  Yes, link it  ");
     await userEvent.click(screen.getByRole("button", { name: "Approve plan" }));
     expect(actions.run).toHaveBeenLastCalledWith({ action: "approve", note: "Yes, link it" });
+  });
+
+  it("shows the report of a step between the plan and the gate under its step", async () => {
+    const [planner] = DEFAULT_FLOW_SNAPSHOT.agents;
+    if (planner === undefined) throw new Error("the default flow has a planner");
+    const snapshot: FlowSnapshot = {
+      ...DEFAULT_FLOW_SNAPSHOT,
+      agents: [
+        ...DEFAULT_FLOW_SNAPSHOT.agents,
+        { ...planner, id: "design-partner", output: "report" }
+      ],
+      flow: {
+        ...DEFAULT_FLOW_SNAPSHOT.flow,
+        steps: DEFAULT_FLOW_SNAPSHOT.flow.steps.flatMap((step) =>
+          step.id === "plan"
+            ? [step, { id: "design", kind: "agent", label: "Design", agent: "design-partner" }]
+            : [step]
+        )
+      }
+    };
+    const at = "2026-03-01T10:00:00.000Z";
+    show(
+      {
+        flowSnapshot: snapshot,
+        stage: "plan-gate",
+        history: [
+          { at, stage: "plan", event: "stage-started" },
+          { at, stage: "plan", event: "plan-ready" },
+          { at, stage: "design", event: "stage-started" },
+          { at, stage: "design", event: "report-ready" }
+        ]
+      },
+      actionsOf(),
+      {
+        api: fakeApi({
+          artifactJson: (_issue, id, schema) =>
+            id === "plan"
+              ? Promise.resolve(schema.parse(JSON.parse(planArtifact("low"))))
+              : id === "report-design-partner"
+                ? Promise.resolve(
+                    schema.parse({
+                      summary: "The plan misses the empty state.",
+                      findings: ["Add an empty state to the board."],
+                      plainLanguage: "The board needs an empty state."
+                    })
+                  )
+                : Promise.reject(new Error(`no artifact ${id}`))
+        })
+      }
+    );
+    expect(screen.getByRole("heading", { name: "Result of Design" })).toBeTruthy();
+    expect(await screen.findByText("The board needs an empty state.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve plan" })).toBeTruthy();
   });
 
   it("shows how earlier plans of the same risk ended", async () => {
