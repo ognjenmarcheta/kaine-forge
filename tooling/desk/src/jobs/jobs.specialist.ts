@@ -43,6 +43,8 @@ export const specialistPrompt = (input: {
   readonly target: SpecialistTarget;
   /** An issue target's title and body, already wrapped by `fenceUntrusted`. */
   readonly issueText: string | null;
+  /** What the worktree holds, such as `origin/main at 1a2b3c4`. */
+  readonly revision: string;
   readonly provider: Provider;
   /** The skills the run gets after the policy floor, in the agent's order. */
   readonly skills: readonly string[];
@@ -57,6 +59,7 @@ export const specialistPrompt = (input: {
       "## How this run works",
       "",
       `You run as the agent desk's specialist job with the agent ${input.agent.id}. Change no file. Report only what you can show from the target, with file paths and lines.`,
+      `The worktree is ${input.revision}. You review that revision, not the owner's local changes.`,
       "Put each finding in findings, one per entry. Put your overall view in summary, and say it again for a non-technical reader in plainLanguage."
     ].join("\n")
   );

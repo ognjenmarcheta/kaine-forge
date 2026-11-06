@@ -1576,12 +1576,14 @@ The built-in specialists are its main use; a repository or local report agent ru
   skills and MCP servers. There is no lab server. Report: one run on the job's model, like every
   job (the agent file's provider and model do not apply), with the agent's prompt and a Target
   section: the path to read, the issue's title and body (the engine reads it and fences it as
-  untrusted), or your brief.
+  untrusted), or your brief. The agent reviews `origin/<baseBranch>`, not your local changes: a
+  path that exists only in your checkout stops the job before the run, with the revision named.
 - **What the agent may do.** The scorecard job's rights, with the agent's skills and MCP servers
   in place of the job's. A `run-checks` agent runs read-only here: a specialist job runs no command.
 - **Your review.** The job page shows the report: the summary, the findings, and the plain-language
   version. **Close the job** ends it; it pushes nothing and files nothing. **Send back** runs the
-  agent again with your note. **Remove job** deletes the worktree and its local branch.
+  agent again with your note. **Remove job** deletes the job and its worktree, and keeps its local
+  branch; delete that branch with git.
 
 ### Dev flow
 

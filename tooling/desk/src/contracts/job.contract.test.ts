@@ -44,8 +44,23 @@ describe("a specialist job's start request", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it.each(["apps/mobile/app/(app)/dashboard.tsx", "apps/web/src/routes/[id]/+page.tsx"])(
+    "takes the real file path %s",
+    (value) => {
+      const parsed = jobStartRequestSchema.safeParse({
+        kind: "specialist",
+        specialist: { agentId: "product-strategist", target: { kind: "path", value } }
+      });
+      expect(parsed.success).toBe(true);
+    }
+  );
+
   it.each([
     ["a path out of the checkout", { kind: "path", value: "apps/../../etc" }],
+    [
+      "a path out of the checkout through a route group",
+      { kind: "path", value: "apps/mobile/app/(app)/../../../../etc" }
+    ],
     ["an absolute path", { kind: "path", value: "/etc/passwd" }],
     ["an empty brief", { kind: "brief", value: "  " }],
     ["an issue number as text", { kind: "issue", value: "42" }]

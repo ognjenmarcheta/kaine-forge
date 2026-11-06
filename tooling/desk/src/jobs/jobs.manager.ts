@@ -843,6 +843,16 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     if (spec === undefined || agent === undefined) {
       throw new JobStop("failed", "The job has no agent to run.");
     }
+    const worktree = worktreeOf(state);
+    const head = await deps.git.headSha(worktree);
+    const revision = `origin/${deps.base} at ${head.slice(0, 7)}`;
+    // The start check looked in the main checkout; the agent reads the worktree, cut from the base.
+    if (spec.target.kind === "path" && !existsSync(path.join(worktree, spec.target.value))) {
+      throw new JobStop(
+        "failed",
+        `${spec.target.value} is not in the job's worktree, which is ${revision}. A specialist job reviews that revision: pick a path that exists there, or start the job after the path reaches ${deps.base}.`
+      );
+    }
     const issueText = await issueTextOf(state);
     const outcome = await runAgent(state, "report", {
       prompt: (provider, skills) =>
@@ -850,6 +860,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           agent,
           target: spec.target,
           issueText,
+          revision,
           provider,
           skills,
           note: state.input.note,
@@ -1132,6 +1143,127 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     if (running.has(id)) throw new JobRefusal("busy", `Job ${id} is still running a step.`);
   };
 
+  /**
+   * Check, create, and start one job. Start admission runs one call at a time: the open-job
+   * check and the first save have awaits between them, and two overlapping starts must not both
+   * pass and run two paid agents.
+   */
+  let admission: Promise<unknown> = Promise.resolve();
+  const admit = async (request: JobStartRequest): Promise<JobState> => {
+    // One job of a kind at a time; for specialist jobs, one per agent.
+    const open = (await deps.store.list()).find(
+      (job) =>
+        job.kind === request.kind &&
+        job.input.specialist?.agentId === request.specialist?.agentId &&
+        !FINAL.has(job.status)
+    );
+    if (open !== undefined) {
+      throw new JobRefusal(
+        "busy",
+        `Job ${open.id} of this kind is not finished. Finish, cancel, or remove it first.`
+      );
+    }
+    let specialistAgent: NonNullable<JobState["specialist"]>["agent"] | undefined;
+    if (request.specialist !== undefined) {
+      const { agentId, target } = request.specialist;
+      const agents =
+        deps.agents === undefined
+          ? (await loadRegistry({ repoRoot: deps.repoRoot })).agents.map(
+              (entry) => entry.definition
+            )
+          : await deps.agents();
+      const agent = agents.find((entry) => entry.id === agentId);
+      if (agent === undefined) {
+        throw new JobRefusal("bad-request", `There is no agent ${agentId} in the registry.`);
+      }
+      const problem = specialistProblem(agent);
+      if (problem !== null) throw new JobRefusal("bad-request", problem);
+      if (target.kind === "path" && !existsSync(path.join(deps.repoRoot, target.value))) {
+        throw new JobRefusal("bad-request", `There is no ${target.value} in the checkout.`);
+      }
+      specialistAgent = {
+        id: agent.id,
+        name: agent.name,
+        prompt: agent.prompt,
+        skills: [...agent.capabilities.skills],
+        mcp: [...agent.capabilities.mcp]
+      };
+    }
+    const limits = JOB_LIMITS[request.kind];
+    const now = deps.clock.now().toISOString();
+    const id = await deps.store.nextId();
+    if (request.component !== undefined) {
+      const { name, layer } = request.component;
+      const file = `packages/ui/src/components/${layer}/${componentFileName(name)}.tsx`;
+      if (
+        existsSync(path.join(deps.repoRoot, file)) ||
+        (await uiExportNames(deps.repoRoot)).has(name)
+      ) {
+        throw new JobRefusal(
+          "bad-request",
+          `@repo/ui already exports ${name} or has ${file}. Pick another name.`
+        );
+      }
+    }
+    if (
+      request.audit !== undefined &&
+      !existsSync(path.join(deps.repoRoot, screenFolder(request.audit.screenId)))
+    ) {
+      throw new JobRefusal("bad-request", `There is no lab screen ${request.audit.screenId}.`);
+    }
+    let screen: JobState["input"]["screen"];
+    if (request.screen !== undefined) {
+      const { reference, ...spec } = request.screen;
+      let decoded: ReturnType<typeof decodeReference>;
+      try {
+        decoded = decodeReference(spec.id, reference);
+      } catch (error) {
+        if (error instanceof ReferenceError) throw new JobRefusal("bad-request", error.message);
+        throw error;
+      }
+      await writeFile(path.join(await deps.store.filesDir(id), decoded.fileName), decoded.bytes);
+      screen = { ...spec, reference: decoded.fileName };
+    }
+    const state = await save({
+      schema: 1,
+      id,
+      kind: request.kind,
+      createdAt: now,
+      updatedAt: now,
+      input: {
+        note: request.note ?? "",
+        model: request.model ?? JOB_DEFAULT_MODEL,
+        budgetUsd: request.budgetUsd ?? limits.costUsd,
+        minutes: request.minutes ?? limits.minutes,
+        ...(screen === undefined ? {} : { screen }),
+        ...(request.component === undefined ? {} : { component: request.component }),
+        ...(request.audit === undefined ? {} : { audit: request.audit }),
+        ...(request.specialist === undefined ? {} : { specialist: request.specialist })
+      },
+      status: "running",
+      stage: "setup",
+      stop: null,
+      branch: null,
+      worktree: null,
+      spentUsd: 0,
+      feedback: [],
+      history: [],
+      result: null,
+      screen: request.kind === "screen" ? { result: null, diffPercent: null, port: null } : null,
+      component:
+        request.kind === "component"
+          ? { plan: null, planApproved: false, result: null, port: null }
+          : null,
+      audit: request.kind === "audit" ? { result: null, port: null } : null,
+      specialist: specialistAgent === undefined ? null : { agent: specialistAgent, result: null },
+      approvedIssues: [],
+      filedIssues: [],
+      pr: null
+    });
+    runFrom(state.id, "setup");
+    return state;
+  };
+
   return {
     subscribe: (listener) => {
       listeners.add(listener);
@@ -1139,119 +1271,10 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     },
     list: () => deps.store.list(),
     get: (id) => deps.store.read(id),
-    start: async (request) => {
-      // One job of a kind at a time; for specialist jobs, one per agent.
-      const open = (await deps.store.list()).find(
-        (job) =>
-          job.kind === request.kind &&
-          job.input.specialist?.agentId === request.specialist?.agentId &&
-          !FINAL.has(job.status)
-      );
-      if (open !== undefined) {
-        throw new JobRefusal(
-          "busy",
-          `Job ${open.id} of this kind is not finished. Finish, cancel, or remove it first.`
-        );
-      }
-      let specialistAgent: NonNullable<JobState["specialist"]>["agent"] | undefined;
-      if (request.specialist !== undefined) {
-        const { agentId, target } = request.specialist;
-        const agents =
-          deps.agents === undefined
-            ? (await loadRegistry({ repoRoot: deps.repoRoot })).agents.map(
-                (entry) => entry.definition
-              )
-            : await deps.agents();
-        const agent = agents.find((entry) => entry.id === agentId);
-        if (agent === undefined) {
-          throw new JobRefusal("bad-request", `There is no agent ${agentId} in the registry.`);
-        }
-        const problem = specialistProblem(agent);
-        if (problem !== null) throw new JobRefusal("bad-request", problem);
-        if (target.kind === "path" && !existsSync(path.join(deps.repoRoot, target.value))) {
-          throw new JobRefusal("bad-request", `There is no ${target.value} in the checkout.`);
-        }
-        specialistAgent = {
-          id: agent.id,
-          name: agent.name,
-          prompt: agent.prompt,
-          skills: [...agent.capabilities.skills],
-          mcp: [...agent.capabilities.mcp]
-        };
-      }
-      const limits = JOB_LIMITS[request.kind];
-      const now = deps.clock.now().toISOString();
-      const id = await deps.store.nextId();
-      if (request.component !== undefined) {
-        const { name, layer } = request.component;
-        const file = `packages/ui/src/components/${layer}/${componentFileName(name)}.tsx`;
-        if (
-          existsSync(path.join(deps.repoRoot, file)) ||
-          (await uiExportNames(deps.repoRoot)).has(name)
-        ) {
-          throw new JobRefusal(
-            "bad-request",
-            `@repo/ui already exports ${name} or has ${file}. Pick another name.`
-          );
-        }
-      }
-      if (
-        request.audit !== undefined &&
-        !existsSync(path.join(deps.repoRoot, screenFolder(request.audit.screenId)))
-      ) {
-        throw new JobRefusal("bad-request", `There is no lab screen ${request.audit.screenId}.`);
-      }
-      let screen: JobState["input"]["screen"];
-      if (request.screen !== undefined) {
-        const { reference, ...spec } = request.screen;
-        let decoded: ReturnType<typeof decodeReference>;
-        try {
-          decoded = decodeReference(spec.id, reference);
-        } catch (error) {
-          if (error instanceof ReferenceError) throw new JobRefusal("bad-request", error.message);
-          throw error;
-        }
-        await writeFile(path.join(await deps.store.filesDir(id), decoded.fileName), decoded.bytes);
-        screen = { ...spec, reference: decoded.fileName };
-      }
-      const state = await save({
-        schema: 1,
-        id,
-        kind: request.kind,
-        createdAt: now,
-        updatedAt: now,
-        input: {
-          note: request.note ?? "",
-          model: request.model ?? JOB_DEFAULT_MODEL,
-          budgetUsd: request.budgetUsd ?? limits.costUsd,
-          minutes: request.minutes ?? limits.minutes,
-          ...(screen === undefined ? {} : { screen }),
-          ...(request.component === undefined ? {} : { component: request.component }),
-          ...(request.audit === undefined ? {} : { audit: request.audit }),
-          ...(request.specialist === undefined ? {} : { specialist: request.specialist })
-        },
-        status: "running",
-        stage: "setup",
-        stop: null,
-        branch: null,
-        worktree: null,
-        spentUsd: 0,
-        feedback: [],
-        history: [],
-        result: null,
-        screen: request.kind === "screen" ? { result: null, diffPercent: null, port: null } : null,
-        component:
-          request.kind === "component"
-            ? { plan: null, planApproved: false, result: null, port: null }
-            : null,
-        audit: request.kind === "audit" ? { result: null, port: null } : null,
-        specialist: specialistAgent === undefined ? null : { agent: specialistAgent, result: null },
-        approvedIssues: [],
-        filedIssues: [],
-        pr: null
-      });
-      runFrom(state.id, "setup");
-      return state;
+    start: (request) => {
+      const admitted = admission.catch(() => undefined).then(() => admit(request));
+      admission = admitted;
+      return admitted;
     },
     act: async (id, action) => {
       const state = await require(id);

@@ -106,8 +106,12 @@ export type AuditSpec = z.infer<typeof auditSpecSchema>;
 export const SPECIALIST_TARGET_KINDS = ["path", "issue", "brief"] as const;
 export type SpecialistTargetKind = (typeof SPECIALIST_TARGET_KINDS)[number];
 
-/** A path in the checkout: relative, with forward slashes, and without a `..` segment. */
-export const REPO_PATH = /^(?!.*(?:^|\/)\.\.(?:\/|$))[\w.@-]+(?:\/[\w.@-]+)*\/?$/;
+/**
+ * A path in the checkout: relative, with forward slashes, and without a `..` segment. A segment
+ * may hold the characters real file names use, such as an Expo route group `(app)`, a dynamic
+ * route `[id]`, `+`, `,`, `~`, and spaces.
+ */
+export const REPO_PATH = /^(?!.*(?:^|\/)\.\.(?:\/|$))[\w.@()[\]+,~ -]+(?:\/[\w.@()[\]+,~ -]+)*\/?$/;
 
 export const specialistTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("path"), value: z.string().regex(REPO_PATH).max(300) }).strict(),
@@ -426,7 +430,7 @@ export const jobActionRequestSchema = z.discriminatedUnion("action", [
   /** Run the step that stopped again. */
   z.object({ action: z.literal("continue") }).strict(),
   z.object({ action: z.literal("cancel") }).strict(),
-  /** Delete the job, its worktree, and its local branch. A pushed branch stays. */
+  /** Delete the job and its worktree. Its local branch and a pushed branch stay. */
   z.object({ action: z.literal("remove") }).strict()
 ]);
 export type JobActionRequest = z.infer<typeof jobActionRequestSchema>;
