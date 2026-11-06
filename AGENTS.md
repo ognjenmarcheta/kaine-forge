@@ -282,6 +282,7 @@ This index is generated from canonical skill metadata:
 - `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, record the verdict in the harness-eval ledger, and choose a better wording for a rule marked tighten.
 - `kaine-intake`: Assess a new issue for implementation readiness, specification work, missing information, or human handling without implementing it.
 - `kaine-open-pr`: Create a task branch or prepare a draft pull request using Kaine Forge branch naming, checks, changeset rules, and GitHub flow.
+- `kaine-qa`: Click through a running local web flow as a user would, find functional bugs (console errors, failed requests, dead links, broken states, wrong organization data), and report them with steps to reproduce; in fix mode, fix each bug behind a failing test. Use for exploratory QA of a route or flow, not for design or accessibility audits.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
