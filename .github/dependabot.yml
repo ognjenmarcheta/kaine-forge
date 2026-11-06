@@ -40,6 +40,15 @@ updates:
         patterns:
           - "vitest"
           - "@vitest/*"
+      # The TanStack DB release-candidate set is one exact-pinned graph in the
+      # catalog: a lone bump installs a second @tanstack/db and the sync engine
+      # stops typechecking (#876 to #881).
+      tanstack-db:
+        patterns:
+          - "@tanstack/db"
+          - "@tanstack/react-db"
+          - "@tanstack/offline-transactions"
+          - "@tanstack/*db-sqlite-persistence*"
       # One weekly PR for every minor and patch bump instead of a PR storm.
       non-major:
         update-types:
@@ -50,6 +59,10 @@ updates:
           - "@better-auth/*"
           - "vitest"
           - "@vitest/*"
+          - "@tanstack/db"
+          - "@tanstack/react-db"
+          - "@tanstack/offline-transactions"
+          - "@tanstack/*db-sqlite-persistence*"
     # Mobile Expo/RN singleton graph moves only with intentional Expo SDK
     # upgrades (catalogs.mobile + monorepo-alignment tests, issue #198). Scoped
     # `@expo/*` packages need their own entry: `expo-*` does not match them.

@@ -155,7 +155,7 @@ describe("Scorecard tracking", () => {
       "div.dk-card"
     );
     if (!(recent instanceof HTMLElement)) throw new Error("no Recently solved panel");
-    expect(within(recent).getByText("old finding")).toBeTruthy();
+    expect(await within(recent).findByText("old finding")).toBeTruthy();
 
     await userEvent.click(await screen.findByRole("button", { name: "Fix with desk" }));
     expect(act).toHaveBeenCalledWith(848, { action: "start" });
