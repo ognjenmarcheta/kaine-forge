@@ -18,7 +18,7 @@ const CODE = new RegExp(
 );
 
 /** Agent text as it is, with its paths, lines, and quoted code as code. No Markdown is rendered. */
-function ReportText({ text }: { readonly text: string }) {
+export function ReportText({ text }: { readonly text: string }) {
   const parts: ReactNode[] = [];
   let last = 0;
   for (const match of text.matchAll(CODE)) {
