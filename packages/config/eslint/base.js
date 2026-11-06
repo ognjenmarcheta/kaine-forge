@@ -6,6 +6,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 import antiSlopConfig from "./anti-slop.js";
+import apiBoundariesConfig from "./api-boundaries.js";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
@@ -37,6 +38,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...antiSlopConfig,
+  ...apiBoundariesConfig,
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
