@@ -95,6 +95,7 @@ Principles to reduce common LLM coding mistakes:
 - Push back when the requested path is likely to be more complex than needed, and offer the simpler alternative with tradeoffs.
 - Fix bugs at the root cause: a report names a symptom. Trace every caller of the function you change and fix the shared function once — one guard there beats one per caller, and patching only the reported path leaves sibling callers broken.
 - If a required fact cannot be discovered locally and guessing would change behavior, stop and ask.
+- When you ask the owner to choose, state the stakes in one sentence, give one recommendation and its reason, and name what each shortcut option gives up.
 
 ### Simplicity First
 
@@ -273,6 +274,7 @@ This index is generated from canonical skill metadata:
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
 - `kaine-create-theme`: Create, change, or set the default for a theme in @repo/theme, from a brand color, a brand book, a DESIGN.md, or a reference image, and pass the theme checks.
 - `kaine-debug`: Find and fix the root cause of a local failure — a failing test, broken build, runtime error, or regression — by reproducing, localizing, and reducing it before changing code.
+- `kaine-document-release`: Check product docs (README, MONOREPO_GUIDE.md, CONTEXT.md, docs/) against a range of merged changes and report docs that the changes made wrong or incomplete. Use after merges to main, before a release, or when asked whether the docs still match the code. Fixes docs only on request.
 - `kaine-encode-knowledge`: Assess repeated workflows, corrections, or review failures; propose an existing skill improvement or a new reusable procedure, and encode authorized lessons in rules, tests, skills, or docs.
 - `kaine-explain`: Give source-grounded explanations in a useful format, and close substantive final replies with In plain language while preserving plan, review, and handoff requirements.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
@@ -286,6 +288,7 @@ This index is generated from canonical skill metadata:
 - `kaine-review`: Perform code-review style analysis focused on bugs, regressions, missing tests, security, performance, and template-rule violations.
 - `kaine-scorecard`: Scan the monorepo, score it on ten health dimensions against evidence, render a visual dashboard, and file evidence-verified must-fix findings as GitHub issues.
 - `kaine-secret-scan`: Run a full-history gitleaks secret scan and triage its findings before history becomes more visible.
+- `kaine-security-audit`: Threat-model audit of existing code in one scope (workspace, feature folder, or repo) — inventory trust boundaries, check STRIDE and the OWASP Top 10 against this repo's controls, and report only findings the code proves. Not for a diff review (kaine-review) or a secret scan (kaine-secret-scan).
 - `kaine-setup-github`: Set up or check a repository's GitHub state (labels, Discussions, merge settings, security, rulesets, Projects board) from .github/repo-setup.json with pnpm github:setup — after creating a repo from the template, or when labels, rulesets, or the board drift.
 - `kaine-shepherd-prs`: Keep a set of open PRs reviewable and mergeable (watch CI, fix failures, resolve conflicts, triage review bots), give the owner the merge order, and watch main after merges.
 - `kaine-simplify`: Review a diff or audit the repo for over-engineering only — what to delete, replace with stdlib/platform features, or shrink. Use when asked "is this over-engineered", "what can we delete", "simplify review", "find bloat", or "audit for over-engineering".

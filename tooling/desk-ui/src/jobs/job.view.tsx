@@ -1,4 +1,4 @@
-import type { JobActionRequest, JobState, ProposedIssue } from "@repo/desk/contracts";
+import type { JobActionRequest, JobState, ProposedIssue, ScorecardRun } from "@repo/desk/contracts";
 import {
   Button,
   Card,
@@ -10,16 +10,20 @@ import {
   Ellipsis,
   Label,
   Modal,
+  Tag,
   Textarea
 } from "@repo/ui";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 import { JOB_STEPS, previewUrlOf, stepStates } from "./job.model";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
+import { ReportText } from "../artifacts/artifact.report";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { useMarkSeen } from "../inbox/inbox.unread";
 import { Crumb } from "../issue/issue.header";
+import { dimensionRows } from "../scorecard/scorecard.model";
+import { Delta, Summary, score } from "../scorecard/scorecard.view";
 import { formatUsd } from "../shell/shell.format";
 import { RouteLink, useRouter } from "../shell/shell.router";
 import { Loading, Muted, Pre } from "../shell/shell.ui";
@@ -104,19 +108,24 @@ function IssueChoice({
   const t = useT();
   const id = useId();
   return (
-    <li className="desk-job-issue">
+    <li className="desk-job-issue" data-checked={checked ? "true" : undefined}>
       <div className="dk-check">
         <Checkbox id={id} checked={checked} onCheckedChange={(next) => onChange(next === true)} />
         <Label htmlFor={id}>{issue.title}</Label>
       </div>
-      <p className="dk-t-sub">
-        {detail ?? (
+      <div className="desk-job-issue__meta">
+        {detail === undefined ? (
           <>
-            <code>{issue.slug}</code> {issue.labels.join(", ")}
+            <code className="dk-mono">{issue.slug}</code>
+            {issue.labels.map((label) => (
+              <Tag key={label}>{label}</Tag>
+            ))}
           </>
+        ) : (
+          <span className="dk-t-sub">{detail}</span>
         )}
-      </p>
-      <details>
+      </div>
+      <details className="desk-job-fold">
         <summary>{t("desk.job.review.body")}</summary>
         <Pre>{issue.body}</Pre>
       </details>
@@ -124,18 +133,127 @@ function IssueChoice({
   );
 }
 
-/** A titled list, left out when it has no items. */
+/** A titled section of a gate. */
+function GateSection({
+  title,
+  children
+}: {
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <section className="desk-job-sec" aria-labelledby={id}>
+      <h3 id={id} className="dk-h-sec">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+/** A titled list, left out when it has no items. Paths and quoted code show as code. */
 function TextList({ title, items }: { readonly title: string; readonly items: readonly string[] }) {
   if (items.length === 0) return null;
   return (
-    <>
-      <h3>{title}</h3>
-      <ul>
+    <GateSection title={title}>
+      <ul className="desk-job-list">
         {items.map((item) => (
-          <li key={item}>{item}</li>
+          <li key={item}>
+            <ReportText text={item} />
+          </li>
         ))}
       </ul>
+    </GateSection>
+  );
+}
+
+/** What the agent could not decide alone: one numbered block per question. */
+function Questions({ items }: { readonly items: readonly string[] }) {
+  const t = useT();
+  if (items.length === 0) return null;
+  return (
+    <GateSection title={t("desk.job.review.questions", { count: items.length })}>
+      <ol className="desk-job-questions">
+        {items.map((item) => (
+          <li key={item} className="desk-job-question">
+            <span>
+              <ReportText text={item} />
+            </span>
+          </li>
+        ))}
+      </ol>
+    </GateSection>
+  );
+}
+
+/** The agent's plain-language result first; its technical summary folded under it. */
+function Lead({ plain, summary }: { readonly plain: string; readonly summary: string }) {
+  const t = useT();
+  return (
+    <>
+      <p className="desk-job-lead">{plain}</p>
+      <details className="desk-job-fold">
+        <summary>{t("desk.job.review.technical")}</summary>
+        <p className="desk-job-text">
+          <ReportText text={summary} />
+        </p>
+      </details>
     </>
+  );
+}
+
+/**
+ * Every ledger run up to this job's, from the job's worktree, so the gate can compare the new
+ * run with the last one. `null` until it loads, or when the ledger cannot be read.
+ */
+function useJobRuns(jobId: number): readonly ScorecardRun[] | null {
+  const { api } = useDesk();
+  const [runs, setRuns] = useState<readonly ScorecardRun[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    api
+      .scorecard(jobId)
+      .then((view) => {
+        if (live && view.state === "ready" && view.runs.length > 0) setRuns(view.runs);
+      })
+      // The comparison is extra: without it the gate still shows the result and the preview link.
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [api, jobId]);
+  return runs;
+}
+
+/** The dimensions whose score changed in the last run, with the evidence for the new score. */
+function Moved({ runs }: { readonly runs: readonly ScorecardRun[] }) {
+  const t = useT();
+  const { language } = useLanguage();
+  const rows = dimensionRows(runs, runs.length - 1).filter(
+    (row) => row.delta !== null && row.delta !== 0
+  );
+  if (rows.length === 0) return <Muted>{t("desk.job.review.nothingMoved")}</Muted>;
+  return (
+    <ul className="desk-job-moved">
+      {rows.map((row) => (
+        <li key={row.number} className="desk-job-moved__row">
+          <span className="desk-job-moved__name">
+            <span className="dk-t-sub dk-num">{row.number}</span> {row.name}
+          </span>
+          <strong className="dk-num">{score(row.score, language)}</strong>
+          <Delta value={row.delta} />
+          {row.evidence.summary !== "" && (
+            <details className="desk-job-fold desk-job-moved__why">
+              <summary>{t("desk.job.review.evidence")}</summary>
+              <p className="desk-job-text dk-t-sub">
+                <ReportText text={row.evidence.summary} />
+              </p>
+            </details>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -187,7 +305,10 @@ function GateActions({
   const approve = (): void =>
     void action.run({ action: "approve", issues: [...issues], confirm: true });
   return (
-    <>
+    <section className="desk-job-decide" aria-labelledby={`${id}-decide`}>
+      <h3 id={`${id}-decide`} className="dk-h-sec">
+        {t("desk.job.review.decide")}
+      </h3>
       <div className="desk-job-actions">
         <Button
           type="button"
@@ -246,7 +367,7 @@ function GateActions({
           ]}
         />
       )}
-    </>
+    </section>
   );
 }
 
@@ -263,40 +384,58 @@ function useTicked() {
   return { ticked, toggle };
 }
 
-/** The gate: the preview, the open questions, the issues to tick, and approve or send back. */
+/**
+ * The scorecard gate, in reading order: the result at a glance, the dimensions that moved, the
+ * questions to answer, the issues to tick, and approve or send back.
+ */
 function Review({ job }: { readonly job: JobState }) {
   const t = useT();
   const result = job.result;
+  const runs = useJobRuns(job.id);
   const { ticked, toggle } = useTicked();
   if (result === null) return null;
   return (
-    <Card className="dk-card">
+    <Card className="dk-card desk-job-gate">
       <h2>{t("desk.job.review.title")}</h2>
-      <p className="desk-job-text">{result.summary}</p>
-      <p>
-        <RouteLink to={{ view: "scorecard", jobId: job.id }}>
-          {t("desk.job.review.preview")}
-        </RouteLink>
-      </p>
-      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
-      <h3>{t("desk.job.review.issues", { count: result.proposedIssues.length })}</h3>
-      {result.proposedIssues.length === 0 ? (
-        <Muted>{t("desk.job.review.noIssues")}</Muted>
-      ) : (
-        <ul className="desk-job-issues">
-          {result.proposedIssues.map((issue) => (
-            <IssueChoice
-              key={issue.slug}
-              issue={issue}
-              checked={ticked.has(issue.slug)}
-              onChange={(on) => toggle(issue.slug, on)}
-            />
-          ))}
-        </ul>
-      )}
+      {runs !== null && <Summary runs={runs} index={runs.length - 1} />}
+      <Lead plain={result.plainLanguage} summary={result.summary} />
+      <GateSection title={t("desk.job.review.moved")}>
+        {runs === null ? null : <Moved runs={runs} />}
+        <p>
+          <RouteLink to={{ view: "scorecard", jobId: job.id }}>
+            {t("desk.job.review.preview")}
+          </RouteLink>
+        </p>
+      </GateSection>
+      <Questions items={result.openQuestions} />
+      <GateSection
+        title={t("desk.job.review.issues", {
+          ticked: ticked.size,
+          count: result.proposedIssues.length
+        })}
+      >
+        {result.proposedIssues.length === 0 ? (
+          <Muted>{t("desk.job.review.noIssues")}</Muted>
+        ) : (
+          <ul className="desk-job-issues">
+            {result.proposedIssues.map((issue) => (
+              <IssueChoice
+                key={issue.slug}
+                issue={issue}
+                checked={ticked.has(issue.slug)}
+                onChange={(on) => toggle(issue.slug, on)}
+              />
+            ))}
+          </ul>
+        )}
+      </GateSection>
       <GateActions
         job={job}
-        approveLabel={t("desk.job.review.approve")}
+        approveLabel={
+          ticked.size === 0
+            ? t("desk.job.review.approveNone")
+            : t("desk.job.review.approveFile", { count: ticked.size })
+        }
         issues={[...ticked]}
         confirm={{
           title: t("desk.job.review.confirmTitle"),
@@ -316,9 +455,9 @@ function ScreenReview({ job }: { readonly job: JobState }) {
   if (result === null) return null;
   const diff = job.screen?.diffPercent ?? null;
   return (
-    <Card className="dk-card">
+    <Card className="dk-card desk-job-gate">
       <h2>{t("desk.job.screenReview.title")}</h2>
-      <p className="desk-job-text">{result.summary}</p>
+      <Lead plain={result.plainLanguage} summary={result.summary} />
       <p>
         {diff === null
           ? t("desk.job.screenReview.noDiff")
@@ -326,7 +465,7 @@ function ScreenReview({ job }: { readonly job: JobState }) {
       </p>
       <PreviewLink job={job} label={t("desk.job.screenReview.compare")} />
       <TextList title={t("desk.job.screenReview.deviations")} items={result.deviations} />
-      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
+      <Questions items={result.openQuestions} />
       <GateActions
         job={job}
         approveLabel={t("desk.job.review.approve")}
@@ -347,13 +486,13 @@ function PlanReview({ job }: { readonly job: JobState }) {
   const plan = job.component?.plan ?? null;
   if (plan === null) return null;
   return (
-    <Card className="dk-card">
+    <Card className="dk-card desk-job-gate">
       <h2>{t("desk.job.planReview.title")}</h2>
-      <p className="desk-job-text">{plan.summary}</p>
+      <Lead plain={plan.plainLanguage} summary={plan.summary} />
       <TextList title={t("desk.job.planReview.api")} items={plan.api} />
       <TextList title={t("desk.job.planReview.reuse")} items={plan.reuse} />
       <TextList title={t("desk.job.planReview.tests")} items={plan.tests} />
-      <TextList title={t("desk.job.review.questions")} items={plan.openQuestions} />
+      <Questions items={plan.openQuestions} />
       <GateActions
         job={job}
         approveLabel={t("desk.job.planReview.approve")}
@@ -370,12 +509,12 @@ function ComponentReview({ job }: { readonly job: JobState }) {
   const result = job.component?.result ?? null;
   if (result === null) return null;
   return (
-    <Card className="dk-card">
+    <Card className="dk-card desk-job-gate">
       <h2>{t("desk.job.componentReview.title")}</h2>
-      <p className="desk-job-text">{result.summary}</p>
+      <Lead plain={result.plainLanguage} summary={result.summary} />
       <PreviewLink job={job} label={t("desk.job.componentReview.preview")} />
       <TextList title={t("desk.job.componentReview.deviations")} items={result.deviations} />
-      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
+      <Questions items={result.openQuestions} />
       <GateActions
         job={job}
         approveLabel={t("desk.job.review.approve")}
@@ -397,32 +536,33 @@ function AuditReview({ job }: { readonly job: JobState }) {
   const { ticked, toggle } = useTicked();
   if (result === null) return null;
   return (
-    <Card className="dk-card">
+    <Card className="dk-card desk-job-gate">
       <h2>{t("desk.job.auditReview.title")}</h2>
-      <p className="desk-job-text">{result.summary}</p>
+      <Lead plain={result.plainLanguage} summary={result.summary} />
       <p>
         {result.matchPercent === null
           ? t("desk.job.auditReview.noReference")
           : t("desk.job.auditReview.match", { value: result.matchPercent })}
       </p>
       <PreviewLink job={job} label={t("desk.job.auditReview.preview")} />
-      <TextList title={t("desk.job.review.questions")} items={result.openQuestions} />
-      <h3>{t("desk.job.auditReview.findings", { count: result.findings.length })}</h3>
-      {result.findings.length === 0 ? (
-        <Muted>{t("desk.job.auditReview.noFindings")}</Muted>
-      ) : (
-        <ul className="desk-job-issues">
-          {result.findings.map((finding) => (
-            <IssueChoice
-              key={finding.slug}
-              issue={finding}
-              detail={`${finding.ruleId} · ${t(`desk.job.auditReview.severity.${finding.severity}`)}`}
-              checked={ticked.has(finding.slug)}
-              onChange={(on) => toggle(finding.slug, on)}
-            />
-          ))}
-        </ul>
-      )}
+      <Questions items={result.openQuestions} />
+      <GateSection title={t("desk.job.auditReview.findings", { count: result.findings.length })}>
+        {result.findings.length === 0 ? (
+          <Muted>{t("desk.job.auditReview.noFindings")}</Muted>
+        ) : (
+          <ul className="desk-job-issues">
+            {result.findings.map((finding) => (
+              <IssueChoice
+                key={finding.slug}
+                issue={finding}
+                detail={`${finding.ruleId} · ${t(`desk.job.auditReview.severity.${finding.severity}`)}`}
+                checked={ticked.has(finding.slug)}
+                onChange={(on) => toggle(finding.slug, on)}
+              />
+            ))}
+          </ul>
+        )}
+      </GateSection>
       <GateActions
         job={job}
         approveLabel={t("desk.job.review.approve")}
