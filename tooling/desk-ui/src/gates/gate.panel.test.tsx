@@ -138,15 +138,12 @@ describe("GatePanel at the plan gate", () => {
     if (planner === undefined) throw new Error("the default flow has a planner");
     const snapshot: FlowSnapshot = {
       ...DEFAULT_FLOW_SNAPSHOT,
-      agents: [
-        ...DEFAULT_FLOW_SNAPSHOT.agents,
-        { ...planner, id: "design-partner", output: "report" }
-      ],
+      agents: [...DEFAULT_FLOW_SNAPSHOT.agents, { ...planner, id: "designer", output: "report" }],
       flow: {
         ...DEFAULT_FLOW_SNAPSHOT.flow,
         steps: DEFAULT_FLOW_SNAPSHOT.flow.steps.flatMap((step) =>
           step.id === "plan"
-            ? [step, { id: "design", kind: "agent", label: "Design", agent: "design-partner" }]
+            ? [step, { id: "design", kind: "agent", label: "Design", agent: "designer" }]
             : [step]
         )
       }
@@ -169,7 +166,7 @@ describe("GatePanel at the plan gate", () => {
           artifactJson: (_issue, id, schema) =>
             id === "plan"
               ? Promise.resolve(schema.parse(JSON.parse(planArtifact("low"))))
-              : id === "report-design-partner"
+              : id === "report-designer"
                 ? Promise.resolve(
                     schema.parse({
                       summary: "The plan misses the empty state.",

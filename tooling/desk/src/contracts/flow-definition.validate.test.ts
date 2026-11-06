@@ -43,7 +43,7 @@ describe("validateFlow", () => {
   });
 
   const intakeAgent = { id: "intake", output: "intake" } as const;
-  const reportAgent = { id: "design-partner", output: "report" } as const;
+  const reportAgent = { id: "designer", output: "report" } as const;
   const cases: readonly {
     readonly rule: string;
     readonly edit: (steps: FlowStep[]) => FlowStep[];

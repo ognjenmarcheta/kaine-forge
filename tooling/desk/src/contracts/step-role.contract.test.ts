@@ -26,14 +26,14 @@ const AUTO_SHIP_SNAPSHOT: FlowSnapshot = {
 /** A report agent between steps: `design` after the plan, and a flow that starts with one. */
 const withDesign = (steps: FlowSnapshot["flow"]["steps"]): FlowSnapshot => ({
   ...DEFAULT_SNAPSHOT,
-  agents: [...DEFAULT_SNAPSHOT.agents, { ...reviewer, id: "design-partner", output: "report" }],
+  agents: [...DEFAULT_SNAPSHOT.agents, { ...reviewer, id: "designer", output: "report" }],
   flow: { ...DEFAULT_SNAPSHOT.flow, steps }
 });
 const designStep = {
   id: "design",
   kind: "agent",
   label: "Design",
-  agent: "design-partner"
+  agent: "designer"
 } as const;
 const REPORT_AFTER_PLAN = withDesign(
   DEFAULT_SNAPSHOT.flow.steps.flatMap((step) => (step.id === "plan" ? [step, designStep] : [step]))

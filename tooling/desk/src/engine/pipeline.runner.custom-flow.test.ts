@@ -150,7 +150,7 @@ describe("a flow of the repository's own", () => {
       id: "design",
       kind: "agent",
       label: "Design",
-      agent: "design-partner"
+      agent: "designer"
     };
     const designRun: ScriptedStep = {
       role: "planner",
@@ -162,7 +162,7 @@ describe("a flow of the repository's own", () => {
     };
     const e = await open([planStep, designRun, planStep, designRun, buildStep, approveStep]);
     await writeFlow(e, flowWith("plan", designStep), {
-      "design-partner": agentFile("design-partner", "report", "# Design partner")
+      designer: agentFile("designer", "report", "# Designer")
     });
 
     // The gate looks past the report to the plan: it stops as the plan approval.

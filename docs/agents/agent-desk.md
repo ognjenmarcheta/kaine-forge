@@ -506,7 +506,7 @@ name: Reviewed plan
 description: Plan, review the plan, approve it, build, check, review, and ship a draft PR.
 steps:
   - { id: plan, kind: agent, label: Plan, agent: planner }
-  - { id: design, kind: agent, label: Design review, agent: design-partner }
+  - { id: design, kind: agent, label: Design review, agent: designer }
   - { id: plan-gate, kind: gate, label: Approve the plan, sendBack: [plan] }
   - { id: build, kind: agent, label: Build, agent: builder }
   - id: check
@@ -520,9 +520,9 @@ steps:
   - { id: ship, kind: ship, label: Ship, auto: false }
 ```
 
-Here `design-partner` and `security-officer` are `report` agents. `plan-gate` stays the plan
-approval. The builder reads the design report. The reviewer reads both reports. When the review
-sends the work back to `build`, the builder also reads the security report.
+Here `designer` and `security-officer` are specialists: built-in `report` agents. `plan-gate`
+stays the plan approval. The builder reads the design report. The reviewer reads both reports.
+When the review sends the work back to `build`, the builder also reads the security report.
 
 ### Validation
 

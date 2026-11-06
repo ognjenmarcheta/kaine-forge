@@ -633,12 +633,12 @@ describe("buildFlowModel loops and feedback", () => {
     if (planner === undefined) throw new Error("the default flow has a planner");
     const flowSnapshot: FlowSnapshot = {
       ...DEFAULT_SNAPSHOT,
-      agents: [...DEFAULT_SNAPSHOT.agents, { ...planner, id: "design-partner", output: "report" }],
+      agents: [...DEFAULT_SNAPSHOT.agents, { ...planner, id: "designer", output: "report" }],
       flow: {
         ...DEFAULT_SNAPSHOT.flow,
         steps: DEFAULT_SNAPSHOT.flow.steps.flatMap((step): FlowStep[] =>
           step.id === "plan"
-            ? [step, { id: "design", kind: "agent", label: "Design", agent: "design-partner" }]
+            ? [step, { id: "design", kind: "agent", label: "Design", agent: "designer" }]
             : [step]
         )
       }
