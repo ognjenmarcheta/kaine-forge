@@ -42,6 +42,8 @@ Use this skill when something fails or misbehaves on a local checkout: a test, t
 ## Stop conditions
 
 - Two reruns of the same failing command without a new hypothesis: stop, write down what is known, and change the approach (smaller repro, bisect, or ask).
+- Two fixes that rest on the same premise fail: stop. Write the premise down and test whether it is false before a third attempt.
+- The fix touches more than 5 files: stop and ask first. A fix that wide usually means the root cause is somewhere else.
 - The fix needs a behavior decision that the code and docs do not settle: ask before choosing.
 
 ## Canonical commands
