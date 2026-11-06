@@ -1097,6 +1097,32 @@ describe("monorepo alignment", () => {
     // (run 39399822538), past vitest's 5s default.
   }, 30_000);
 
+  it("applies the API context-boundary rule to feature sources only (ADR 0025)", async () => {
+    // A glob typo would turn the gate off with a green lint run, as the
+    // resolver-less import/* rules already are. Ask ESLint what each file gets.
+    const { ESLint } = await import("eslint");
+    const eslint = new ESLint({ cwd: repoRoot });
+    const boundaryRule = async (file: string): Promise<unknown> => {
+      const config: unknown = await eslint.calculateConfigForFile(resolve(repoRoot, file));
+      const rules =
+        typeof config === "object" && config !== null && "rules" in config
+          ? (config as { rules?: Record<string, unknown> }).rules
+          : undefined;
+      const entry = rules?.["api/context-boundaries"];
+      return Array.isArray(entry) ? entry[0] : entry;
+    };
+
+    const [feature, compositionRoot, featureTest] = await Promise.all([
+      boundaryRule("apps/api/src/features/todos/todos.module.ts"),
+      boundaryRule("apps/api/src/context.ts"),
+      boundaryRule("apps/api/src/features/todos/todos.module.test.ts")
+    ]);
+
+    expect(feature, "feature sources must get the rule at error").toBe(2);
+    expect(compositionRoot, "the composition root wires every context").toBeUndefined();
+    expect(featureTest, "tests may wire collaborators across contexts").toBeUndefined();
+  }, 30_000);
+
   it("requires each source workspace to ship at least one vitest test", () => {
     // Every workspace uses `vitest run --passWithNoTests`, so a package with no
     // tests still passes green. This gate keeps that flag safe by asserting the

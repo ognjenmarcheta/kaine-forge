@@ -4,6 +4,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 import antiSlopConfig from "./anti-slop.js";
+import apiBoundariesConfig from "./api-boundaries.js";
 
 // Package entries that pull Node-only dependencies (AWS SDK, Postgres, mail,
 // node:crypto) and must never reach a browser or React Native bundle. Kept as
@@ -33,6 +34,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...antiSlopConfig,
+  ...apiBoundariesConfig,
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
