@@ -1,10 +1,17 @@
-import type { FlowModel, FlowNodeId, IssueDetail, RunRecord } from "@repo/desk/contracts";
+import {
+  avatarOf,
+  type FlowModel,
+  type FlowNodeId,
+  type IssueDetail,
+  type RunRecord
+} from "@repo/desk/contracts";
 import { Button, Checkbox, Label, Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ui";
 import { Fragment, useId, useState, type Ref } from "react";
 
 import { Activity } from "./issue.tabs";
 import type { Trace, TraceFilter } from "./issue.trace";
 import { Handoffs, TraceView, type TraceFocus } from "./issue.waterfall";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { useStageNames } from "../flow/flow.names";
 import { agentName } from "../flow/flow.steps";
 import { useLanguage, useT } from "../i18n/i18n.t";
@@ -126,6 +133,12 @@ function AgentRuns({
   const [traced, setTraced] = useState<number | null>(null);
   const [filter, setFilter] = useState<TraceFilter>("all");
   const none = t("desk.inspector.kpi.empty");
+  // A run names its agent by id, or by role before agents were data: the issue's flow has it.
+  const runAvatar = (run: RunRecord) => {
+    const id = run.agentId ?? run.role;
+    const agent = detail.flowDefinition.steps.find((step) => step.agent?.id === id)?.agent;
+    return agent?.avatar ?? avatarOf({ id });
+  };
   if (detail.runs.length === 0 && control.focus === null) {
     return (
       <div className="dk-empty">
@@ -202,11 +215,14 @@ function AgentRuns({
                       )}
                     </td>
                     <td>
-                      {agentName(
-                        t,
-                        run.agentId === undefined ? null : { id: run.agentId },
-                        run.role
-                      )}{" "}
+                      <span className="desk-who">
+                        <AgentAvatar avatar={runAvatar(run)} />
+                        {agentName(
+                          t,
+                          run.agentId === undefined ? null : { id: run.agentId },
+                          run.role
+                        )}
+                      </span>{" "}
                       <span className="dk-t-sub dk-dot">
                         {run.model ?? t("desk.rail.defaultModel")}
                       </span>

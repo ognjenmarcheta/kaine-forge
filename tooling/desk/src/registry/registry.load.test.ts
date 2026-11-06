@@ -1,9 +1,11 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadRegistry, type Registry } from "./registry.load";
+import { resolveFlowSnapshot } from "./registry.snapshot";
+import { deskConfigSchema } from "../contracts";
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -159,5 +161,32 @@ describe("loadRegistry", () => {
 
     expect(await hashOf(reordered)).toBe(await hashOf(plain));
     expect(await hashOf(agentFile("scout", "Look further."))).not.toBe(await hashOf(plain));
+  });
+
+  it("hashes two agents that differ only in their avatar the same, in the registry and the flow snapshot", async () => {
+    const planner = await readFile(
+      new URL("../../defaults/agents/planner.md", import.meta.url),
+      "utf8"
+    );
+    const repainted = planner.replace("glyph: notebook-pen", "glyph: compass");
+    expect(repainted).not.toBe(planner);
+    const config = deskConfigSchema.parse({});
+    const builtin = await makeRepo();
+    const override = await makeRepo({ ".desk/agents/planner.md": repainted });
+
+    expect(agentById(await loadRegistry({ repoRoot: override }), "planner")?.hash).toBe(
+      agentById(await loadRegistry({ repoRoot: builtin }), "planner")?.hash
+    );
+    const snapshotIn = async (repoRoot: string) => {
+      const result = await resolveFlowSnapshot({ repoRoot, config });
+      if (!result.ok) throw new Error(result.reason);
+      return result.snapshot;
+    };
+    const repaintedSnapshot = await snapshotIn(override);
+    expect(repaintedSnapshot.agents.find((agent) => agent.id === "planner")?.avatar).toEqual({
+      glyph: "compass",
+      tone: "brand"
+    });
+    expect(repaintedSnapshot.hash).toBe((await snapshotIn(builtin)).hash);
   });
 });

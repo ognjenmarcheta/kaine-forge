@@ -79,8 +79,11 @@ const normalize = (definition: AgentDefinition | FlowDefinition): string =>
       : value
   );
 
+/** The avatar is cosmetic: an agent that differs only in it is the same version. */
 const hashOf = (definition: AgentDefinition | FlowDefinition): string =>
-  createHash("sha256").update(normalize(definition)).digest("hex");
+  createHash("sha256")
+    .update(normalize({ ...definition, avatar: undefined }))
+    .digest("hex");
 
 interface Candidate<T> {
   readonly definition: T;

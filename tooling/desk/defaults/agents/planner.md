@@ -9,6 +9,9 @@ capabilities:
   mcp: [serena, context7]
   skills: [kaine-write-plan]
 timeoutMinutes: 20
+avatar:
+  glyph: notebook-pen
+  tone: brand
 ---
 
 # Agent Desk planner

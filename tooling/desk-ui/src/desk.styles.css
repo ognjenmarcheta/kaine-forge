@@ -2555,6 +2555,68 @@ main:focus {
   text-align: end;
 }
 
+/* An agent's avatar: the icon fills the middle of the circle at every avatar size. */
+.desk-avatar__glyph {
+  width: 60%;
+  height: 60%;
+}
+
+/* The avatar picker: the avatar it gives, then the icons, then the tones. */
+.desk-avatar-pick__current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-150);
+  margin-block: var(--ds-space-100);
+}
+
+.desk-avatar-pick__group {
+  margin-block-end: var(--ds-space-150);
+}
+
+.desk-avatar-pick__label {
+  margin: 0 0 var(--ds-space-075);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.desk-avatar-pick__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--ds-space-075);
+}
+
+.desk-avatar-pick__option {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  min-width: 0;
+  padding: var(--ds-space-075) var(--ds-space-100);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+}
+
+.desk-avatar-pick__option[data-checked="true"] {
+  border-color: var(--ds-border-selected);
+  background: var(--ds-background-selected);
+}
+
+.desk-avatar-pick__name {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* An avatar before a name in running text or a row. */
+.desk-who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+  min-width: 0;
+  vertical-align: middle;
+}
+
 .desk-flowpick__item[data-disabled="true"] {
   color: var(--ds-text-subtle);
   background: var(--ds-surface-sunken);

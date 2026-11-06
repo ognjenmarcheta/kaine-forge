@@ -9,6 +9,9 @@ capabilities:
   mcp: [serena, context7]
   skills: [kaine-intake, kaine-write-issue]
 timeoutMinutes: 10
+avatar:
+  glyph: file-text
+  tone: information
 ---
 
 # Agent Desk intake

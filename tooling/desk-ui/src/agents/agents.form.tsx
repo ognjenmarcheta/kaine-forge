@@ -1,16 +1,30 @@
 import {
+  AGENT_AVATAR_GLYPHS,
+  AGENT_AVATAR_TONES,
   AGENT_OUTPUT_KINDS,
   AGENT_TOOLS,
   CAPABILITY_PRESETS,
   PROVIDERS,
+  avatarOf,
+  type AgentAvatarSpec,
   type AgentList,
   type AgentOutputKind,
   type CapabilityPreset,
   type Provider
 } from "@repo/desk/contracts";
-import { Badge, Checkbox, Input, Label, RadioGroup, RadioGroupItem, Textarea } from "@repo/ui";
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  RadioGroup,
+  RadioGroupItem,
+  Textarea
+} from "@repo/ui";
 import type { ReactNode } from "react";
 
+import { AgentAvatar } from "./agent.avatar";
 import {
   presetFits,
   withOutput,
@@ -300,6 +314,123 @@ function ToolList({
   );
 }
 
+/** One radio group of the avatar picker: each option shows the avatar it would give, and its name. */
+function AvatarOptions<T extends string>({
+  id,
+  label,
+  options,
+  value,
+  editable,
+  avatarFor,
+  name,
+  onChange
+}: {
+  /** The id of the first option; the others are `<id>-<option>`. */
+  readonly id: string;
+  readonly label: string;
+  readonly options: readonly T[];
+  readonly value: T;
+  readonly editable: boolean;
+  readonly avatarFor: (option: T) => AgentAvatarSpec;
+  readonly name: (option: T) => string;
+  readonly onChange: (option: T) => void;
+}) {
+  return (
+    <div className="desk-avatar-pick__group">
+      <p id={`${id}-label`} className="desk-avatar-pick__label">
+        {label}
+      </p>
+      <RadioGroup
+        value={value}
+        aria-labelledby={`${id}-label`}
+        className="desk-avatar-pick__grid"
+        onValueChange={(next) => {
+          const option = options.find((candidate) => candidate === next);
+          if (option !== undefined) onChange(option);
+        }}
+      >
+        {options.map((option, index) => {
+          const optionId = index === 0 ? id : `${id}-${option}`;
+          return (
+            <div
+              key={option}
+              className="desk-avatar-pick__option"
+              data-checked={option === value ? "true" : undefined}
+            >
+              <RadioGroupItem value={option} id={optionId} disabled={!editable} />
+              <Label htmlFor={optionId} className="desk-avatar-pick__name">
+                <AgentAvatar avatar={avatarFor(option)} size="sm" />
+                {name(option)}
+              </Label>
+            </div>
+          );
+        })}
+      </RadioGroup>
+    </div>
+  );
+}
+
+/**
+ * The avatar: an icon and a tone, with the avatar they give. Without a choice the page shows the
+ * default from the id; picking one part keeps the other part of what shows. "Use default" removes
+ * the field from the file.
+ */
+function AvatarPicker({
+  base,
+  draft,
+  editable,
+  error,
+  onChange
+}: {
+  readonly base: string;
+  readonly draft: AgentDraft;
+  readonly editable: boolean;
+  readonly error: string | null;
+  readonly onChange: (avatar: AgentAvatarSpec | null) => void;
+}) {
+  const t = useT();
+  const id = fieldId(base, "avatar");
+  const shown = avatarOf({ id: draft.id.trim(), avatar: draft.avatar ?? undefined });
+  return (
+    <fieldset className="dk-fieldset desk-avatar-pick" aria-describedby={`${id}-hint`}>
+      <legend>{t("desk.agents.field.avatar")}</legend>
+      <div className="desk-avatar-pick__current">
+        <AgentAvatar avatar={shown} size="xl" />
+        <Button
+          type="button"
+          appearance="subtle"
+          spacing="compact"
+          disabled={!editable || draft.avatar === null}
+          onClick={() => onChange(null)}
+        >
+          {t("desk.agents.avatar.default")}
+        </Button>
+      </div>
+      <AvatarOptions
+        id={id}
+        label={t("desk.agents.avatar.glyphs")}
+        options={AGENT_AVATAR_GLYPHS}
+        value={shown.glyph}
+        editable={editable}
+        avatarFor={(glyph) => ({ glyph, tone: shown.tone })}
+        name={(glyph) => t(`desk.agents.avatar.glyph.${glyph}`)}
+        onChange={(glyph) => onChange({ ...shown, glyph })}
+      />
+      <AvatarOptions
+        id={`${id}-tone`}
+        label={t("desk.agents.avatar.tones")}
+        options={AGENT_AVATAR_TONES}
+        value={shown.tone}
+        editable={editable}
+        avatarFor={(tone) => ({ glyph: shown.glyph, tone })}
+        name={(tone) => t(`desk.agents.avatar.tone.${tone}`)}
+        onChange={(tone) => onChange({ ...shown, tone })}
+      />
+      <Hint id={id} help={t("desk.agents.field.avatarHelp")} error={error} />
+    </fieldset>
+  );
+}
+
 /**
  * The fields of an agent definition. The id is typed only for a new agent. A preset that the
  * output does not allow is disabled with the reason; a changed output takes a preset it allows.
@@ -363,6 +494,13 @@ export function AgentForm({
         editable={editable}
         error={errorOf("description")}
         onChange={(value) => set("description", "description", value)}
+      />
+      <AvatarPicker
+        base={base}
+        draft={draft}
+        editable={editable}
+        error={errorOf("avatar")}
+        onChange={(avatar) => set("avatar", "avatar", avatar)}
       />
       <div className="desk-agent-form__pair">
         <Choices<Provider>
