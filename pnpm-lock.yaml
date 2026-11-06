@@ -46,8 +46,8 @@ catalogs:
       specifier: 1.0.0-rc.1
       version: 1.0.0-rc.1
     '@tanstack/db':
-      specifier: 1.0.0-rc.1
-      version: 1.0.0-rc.1
+      specifier: 1.0.0-rc.1.2
+      version: 1.0.0-rc.1.2
     '@tanstack/db-sqlite-persistence-core':
       specifier: 1.0.0-rc.1
       version: 1.0.0-rc.1
@@ -1114,13 +1114,13 @@ importers:
     dependencies:
       '@tanstack/db':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1(typescript@5.9.3)
+        version: 1.0.0-rc.1.2(typescript@5.9.3)
       '@tanstack/db-sqlite-persistence-core':
         specifier: 'catalog:'
         version: 1.0.0-rc.1(typescript@5.9.3)
       '@tanstack/offline-transactions':
         specifier: 'catalog:'
-        version: 1.2.0(@tanstack/db@1.0.0-rc.1(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))
+        version: 1.2.0(@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))
     devDependencies:
       '@repo/config':
         specifier: workspace:*
@@ -6215,6 +6215,11 @@ packages:
     peerDependencies:
       typescript: '>=4.7'
 
+  '@tanstack/db-ivm@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-kF5XbkzNmDuJBr+p2//ijZO9CzAGp0fK8gRGRX6gzt9QZM9RNIizAPVLdXM9kcg+VlZC6xB28ZmScsX9j4LMuw==}
+    peerDependencies:
+      typescript: '>=4.7'
+
   '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1':
     resolution: {integrity: sha512-RcdVHzmRjdpqLMrdyFRCkvstjgl9o18nA+m+KAGEh1JgljGcuL9HjPbbwE8fCBz83h5PannicjBqET4M8pAyjg==}
     peerDependencies:
@@ -6222,6 +6227,11 @@ packages:
 
   '@tanstack/db@1.0.0-rc.1':
     resolution: {integrity: sha512-Kwk4bMDr2XkYCkIyA8h2rEbqACspvLhiGFeciz1FHWFrR4Oqa8IrJjUAJgpKEtBXdLbYinxDcFv0rxvbTtz/MQ==}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@tanstack/db@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-CV7LeIezOpPTeNrBRlRv/4n8l2z6p/y2OJ9sPU/OwL3rM7XUgXGdzDC+OtyzKxelGZUcd1YS61GY2cs5/MWIMQ==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -18622,6 +18632,11 @@ snapshots:
       fractional-indexing: 3.4.0
       typescript: 5.9.3
 
+  '@tanstack/db-ivm@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      fractional-indexing: 3.4.0
+      typescript: 5.9.3
+
   '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -18632,6 +18647,13 @@ snapshots:
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@tanstack/db-ivm': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/pacer-lite': 0.2.2
+      typescript: 5.9.3
+
+  '@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db-ivm': 1.0.0-rc.1.2(typescript@5.9.3)
       '@tanstack/pacer-lite': 0.2.2
       typescript: 5.9.3
 
@@ -18653,9 +18675,9 @@ snapshots:
     dependencies:
       remove-accents: 0.5.0
 
-  '@tanstack/offline-transactions@1.2.0(@tanstack/db@1.0.0-rc.1(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))':
+  '@tanstack/offline-transactions@1.2.0(@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))':
     dependencies:
-      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
     optionalDependencies:
       react-native: 0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8)
 

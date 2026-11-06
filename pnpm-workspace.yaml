@@ -43,7 +43,7 @@ catalog:
   yaml: "^2.9.1"
   "@tanstack/react-query": "^5.105.0"
   # Offline sync (ADR 0020): exact pins, the 1.0 RC set (rc.1 and offline-transactions 1.2.0 passed minimumReleaseAge).
-  "@tanstack/db": "1.0.0-rc.1"
+  "@tanstack/db": "1.0.0-rc.1.2"
   "@tanstack/react-db": "1.0.0-rc.1"
   "@tanstack/offline-transactions": "1.2.0"
   # Device storage for synced rows (M3b): the persistence RC set matching @tanstack/db, and the
