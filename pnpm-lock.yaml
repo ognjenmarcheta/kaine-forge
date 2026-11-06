@@ -121,8 +121,8 @@ catalogs:
       specifier: 1.1.1
       version: 1.1.1
     docx:
-      specifier: 9.15.1
-      version: 9.15.1
+      specifier: 9.15.2
+      version: 9.15.2
     dotenv:
       specifier: ^18.0.9
       version: 18.0.9
@@ -1384,7 +1384,7 @@ importers:
         version: link:../desk
       docx:
         specifier: 'catalog:'
-        version: 9.15.1
+        version: 9.15.2
       jszip:
         specifier: 'catalog:'
         version: 3.10.2
@@ -7981,8 +7981,8 @@ packages:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
 
-  docx@9.15.1:
-    resolution: {integrity: sha512-wp8K+wsDov+gjtIE4fA7g4SkCcuefIjwdYUc2OYa8YViCqxKvbASwSODpUXsTIH5BCmoWw7cMVOB1xl3A7Uqig==}
+  docx@9.15.2:
+    resolution: {integrity: sha512-G/R41dlYE5RS3TG2ybX1DIodQv+TchMspmdvrrovFyzTpvLZe0pLKVqiGosBhZszLkRonrK9+zxJDPWHDYx4NA==}
     engines: {node: '>=16'}
 
   dom-accessibility-api@0.5.16:
@@ -20430,7 +20430,7 @@ snapshots:
     dependencies:
       esutils: 2.0.3
 
-  docx@9.15.1:
+  docx@9.15.2:
     dependencies:
       '@types/node': 26.6.5
       fflate: 0.8.3
