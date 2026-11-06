@@ -1,5 +1,35 @@
 # @repo/email
 
+## 1.3.4
+
+### Patch Changes
+
+- Updated dependencies [d1325ed]
+- Updated dependencies [1a3fc0f]
+- Updated dependencies [6a13c9b]
+- Updated dependencies [cef5a53]
+- Updated dependencies [cd5c89e]
+- Updated dependencies [a4943a9]
+- Updated dependencies [cc50650]
+- Updated dependencies [b1b7350]
+- Updated dependencies [d2ade33]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [5c0f6b4]
+- Updated dependencies [4c41c94]
+- Updated dependencies [cc50650]
+- Updated dependencies [87b8219]
+- Updated dependencies [2271b43]
+- Updated dependencies [e4a6c42]
+- Updated dependencies [27abb62]
+- Updated dependencies [87b8219]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [3e8bb66]
+- Updated dependencies [bdbfa41]
+  - @repo/translation@1.15.0
+  - @repo/theme@0.2.0
+  - @repo/logger@1.2.1
+
 ## 1.3.3
 
 ### Patch Changes

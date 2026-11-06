@@ -1,5 +1,124 @@
 # @repo/desk-ui
 
+## 0.6.0
+
+### Minor Changes
+
+- d1325ed: The issue header shows the active time of a finished issue beside the total. The active time
+  leaves out the waits at a gate, the open pull request, and a stop in `needs-you`, so a PR that
+  sat on GitHub for hours no longer counts as work.
+- 1a3fc0f: Every agent now has an avatar, an icon on a theme tone, which the agent file sets with an optional `avatar` field and the agent editor picks; an agent without one gets a stable default from its id, and the avatar is not part of the definition or snapshot hash.
+- cef5a53: The agent desk adds two lab jobs (ADR 0021). Build component plans a new @repo/ui component, waits
+  for your approval of the plan, then builds it with its test and a lab specimen, and opens a draft
+  PR with its changeset. Audit screen checks a lab screen against the UI guidelines, WCAG 2.2, and
+  its reference image, and files only the findings you tick. The lab gains a Specimens page.
+- cd5c89e: The agent desk keeps watching a promoted lesson. `pnpm desk lessons` and the **Promoted lessons**
+  list show the times and the issues a promoted lesson's problem came back after the promotion, so an
+  encoding that did not cover the problem can be revised or removed. The lessons report gives each
+  promoted lesson a `recurrence` field.
+- cc50650: The agent desk can fix a PR until merge. The Board's Open pull requests list shows each PR's CI and
+  review state. A desk PR offers Check CI and comments, which reads what a fix round would read and
+  keeps a summary, and Address feedback, which runs the PR feedback round. A fresh list notices a
+  merged desk PR and moves its issue to done with the merge date, which the Done list shows and sorts
+  by. A new PR carries its issue's `source:*` labels, and the desk trusts the usual review bots
+  (CodeRabbit, GitHub Actions, Copilot) by default.
+- bdbfa41: The agent desk has a new look and new names. A sidebar groups the pages: Inbox and All work,
+  Flows, Agents and Setup, Insights and Scorecard, and Lab. The Inbox (was the Board's Your turn)
+  shows Stopped, Your decision, and Merge on GitHub, with desk jobs beside issues, unread marks, and
+  a first-run guide; All work lists everything as a list or in columns. New work starts an issue or a
+  desk job from one dialog. The item page has a steps rail, Details tabs (History, Files and outputs,
+  Agent runs), a single choice list when work stopped, Tell the agent and Pause side by side while it
+  runs, and line comments on the review diff for the builder. Health is now Setup and Runs is now
+  Insights; the Lab has Components, Tokens, Screens, and Compare tabs. Preferences add density and
+  keeping an undo message while the pointer is on it. Old `?view=health` and `?view=stats` addresses
+  open the Inbox.
+- a554319: A report step can go anywhere in a flow. A gate after the plan stays the plan approval when
+  report steps sit between them, and the validator applies the same rule. Every agent step now
+  reads the reports of earlier report steps as fenced advice, and a rerun after feedback also reads
+  the reports on its earlier output. The plan gate shows the reports on the plan.
+- 5c0f6b4: A desk stop that comes from a command the desk refused to an agent now has two buttons on the issue card: "Allow this command and retry" and "Skip it and continue". Allow keeps the exact command for that issue only, as one exact allow rule, and the desk never offers a command that its deny rules refuse. Skip tells the agent to leave the command out. The new `resolve-denial` action and the `deniedCommands` field of the issue detail carry it.
+- 4c41c94: The agent desk runs the monorepo scorecard as a desk job (ADR 0021). Run scorecard on the
+  Scorecard view starts it: the engine runs the checks and the GitHub reads, one Claude run scores
+  with kaine-explorer subagents under a dollar budget and a time limit, and the engine writes the
+  ledger. At the job's gate you preview the new scores and tick the issues to file; approve files
+  them and opens a draft PR with the ledger. Desk agent runs can now carry a budget
+  (`--max-budget-usd`), and issue-less branches are named `KAINE-<type>-<slug>`.
+- cc50650: The Scorecard view tracks scorecard work end to end. Scorecard and audit jobs label the issues they
+  file `source:scorecard` and `source:audit`, the ledger PR gets `source:scorecard`, and ship writes
+  each filed issue's number on its finding. The view reads the scorecard's issues live from GitHub
+  and shows Recently solved (with the dimension's score change), each finding's issue, PR, and desk
+  run, Fix with desk, findings sorts, and a confirmed backfill of the label on older issues.
+- 87b8219: The agent desk has a Scorecard view. `GET /api/scorecard` reads the monorepo health ledger of the
+  checkout through one contract, and the view shows the selected run's scores and their change, the
+  overall trend, each dimension's reasons, the open findings, and the diagrams. The desk preferences
+  also choose the theme (Byte Forge or Moss). `pnpm scorecard` no longer writes `scorecard-out/`.
+- 2271b43: The agent desk recreates a reference image as a lab screen in a desk job (ADR 0021). Recreate
+  screen in the Lab view uploads the image; the job builds the screen in its own worktree and lab
+  server with the Playwright browser, may write only its screen folder, and passes the lab checks
+  and `lab:diff`. At the gate you open the live compare view, then approve to push the folder as a
+  draft PR.
+- e4a6c42: The agent desk adds the specialist job (ADR 0021). Run a specialist in New work, or Run on a report
+  agent in Agents, runs one report agent from the agent library, such as a built-in specialist,
+  against a repository path, a GitHub issue, or your brief, without an issue run. The agent reads and
+  reports; you read the report at the gate and close the job. Nothing is pushed or filed.
+- 27abb62: The agent desk lets the owner reach a running agent (ADR 0022). Steer sends a note: the agent
+  stops and goes on in the same session with it, or starts again with it when it had no session
+  yet. Take over stops a plan or change agent so the
+  owner works in its session; continue or feedback hands it back. Both are on the running issue's
+  card and in the HTTP API.
+- 87b8219: The UI lab is now the agent desk's Lab view (`?view=lab`, G then L), and `@repo/ui-lab` is gone.
+  `pnpm lab` starts the desk UI dev server; the lab opens without a desk server. `lab-frame.html`
+  shows the lab alone for the compare view and `lab:shots`/`lab:diff`, and it is the one desk page
+  that the desk itself may frame. Lab themes load as a constructed stylesheet under the desk CSP.
+
+### Patch Changes
+
+- 6a13c9b: The PR-review gate has an Apply fix button on each finding that has a suggested fix. It queues the
+  fix as a comment for the builder. A strip shows the comments not sent, and Send back lists them
+  and sends them with your note. The ship dialog now warns when comments are not sent.
+- d9eecbc: A desk job page now updates while the job runs. The server sent `job-updated` and `job-removed`
+  events, but the browser did not listen for them, so a job page stayed on its first state until a
+  reload.
+- b1b7350: The agent desk no longer stops when a provider CLI is missing. Before each run it checks which of Claude Code, Codex, and OpenCode run, keeps the provider the role asks for when it can, and otherwise moves the run to the best other one with a note in the history. Desk jobs follow the same rule. A new config opt-in, `allowCodexBuilder`, lets Codex change code, and Setup offers it as a fix. A step that no CLI can run stops with the new code `no-provider`, and the step rail names the provider that ran.
+- d2ade33: The scorecard review gate now reads top to bottom: the score tiles and the plain-language result,
+  the dimensions that moved, each open question in its own numbered block, the proposed issues as
+  cards with label tags, and the decision. The technical summary and evidence are folded. The other
+  job gates use the same question blocks and issue cards. The scorer prompt asks for a summary of
+  at most three sentences.
+- Updated dependencies [d1325ed]
+- Updated dependencies [1a3fc0f]
+- Updated dependencies [d947f31]
+- Updated dependencies [91e33eb]
+- Updated dependencies [6a13c9b]
+- Updated dependencies [cef5a53]
+- Updated dependencies [40b44ce]
+- Updated dependencies [d9eecbc]
+- Updated dependencies [cd5c89e]
+- Updated dependencies [a4943a9]
+- Updated dependencies [cc50650]
+- Updated dependencies [b1b7350]
+- Updated dependencies [d2ade33]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [a554319]
+- Updated dependencies [5c0f6b4]
+- Updated dependencies [69d84bb]
+- Updated dependencies [4c41c94]
+- Updated dependencies [cc50650]
+- Updated dependencies [87b8219]
+- Updated dependencies [2271b43]
+- Updated dependencies [e4a6c42]
+- Updated dependencies [27abb62]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [87b8219]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [3e8bb66]
+- Updated dependencies [bdbfa41]
+  - @repo/desk@0.6.0
+  - @repo/translation@1.15.0
+  - @repo/theme@0.2.0
+  - @repo/ui@2.1.0
+
 ## 0.5.7
 
 ### Patch Changes

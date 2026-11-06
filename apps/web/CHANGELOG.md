@@ -1,5 +1,92 @@
 # @repo/web
 
+## 1.17.0
+
+### Minor Changes
+
+- a9a2d2c: A first sync of a large Organization loads only the newest 500 Todos and Notes (issue #800).
+  `syncPull` takes `window`, payloads name lists with older rows in `older`, and the new
+  `syncPullOlder` loads them page by page. The engine stores where each list continues and exposes
+  `loadOlder`; the web and mobile lists load older rows past the local ones, online only. Every later
+  change of any row still syncs.
+- a9a2d2c: Two offline edits of the same Note body no longer lose one of them (issue #801). A body edit now
+  sends `baseBody`, and `syncPush` merges it line by line into the current body under a row lock.
+  Edits of the same lines are refused with `CONFLICT`, and the web app shows both versions so the
+  second writer keeps theirs or the current one. `SyncRejection` now carries the refused `change`.
+- 3e8bb66: The sync status now says why sync stops. Web and desktop show "Offline" with no network: the
+  engine gets `createBrowserOnlineDetector(window)`, because TanStack's default detector counted any
+  visible tab as online. A request with no response, or a gateway error, shows the new `unreachable`
+  state ("Can't reach the server – retrying"); other failures keep "Sync failed – retrying". A failure
+  now wins over Syncing while changes wait. `engine.retry()` pulls and sends waiting changes at once,
+  and the web header and mobile Todos header offer it as Retry now.
+- 1aa632d: The web app keeps synced Todos and Notes in a device database (SQLite on OPFS), one per User and
+  Organization, shared by every open tab. A reload while offline shows them, and the next pull asks
+  only for the changes after the stored cursor. `createSyncEngine` takes an optional `persistence`;
+  without it, or where the browser has no OPFS, rows stay in memory as before. Signing out deletes
+  the User's device databases, and signing in as another User deletes the previous User's stored rows. Screens key their live queries on the new `engine.id`, so an
+  Organization switch never reuses a collection for another engine.
+- 4d635a1: The web app keeps its shell in a service worker, so it starts with no network and shows the data
+  stored on the device. A new version waits until the user chooses Reload in a toast. The desktop
+  shell never registers the worker. nginx sends `no-cache` for `sw.js` and compresses WebAssembly.
+
+### Patch Changes
+
+- b8c2718: Text typed into a new Note right as its first save finishes now stays with that Note. The draft
+  moves to its saved id before the page leaves "new", and in that moment an empty draft replaced it,
+  so the typed text landed in an untitled draft.
+- 54a7471: The desktop app keeps synced Todos and Notes in a SQLite database per User and Organization, so a
+  restart with no network shows them. The shell runs its own database commands with one connection
+  per file, because `tauri-plugin-sql` pools connections and splits a transaction. Signing out
+  deletes the User's database files.
+- a9a2d2c: Sign-out now warns when some of the User's data could not be deleted from this device: a toast on
+  web and desktop, an alert on mobile. The sign-out still completes, and the next deletion retries.
+- be77d99: Signing out now always deletes the User's device database, even when the database was still
+  opening or closing at that moment: a sign-out waits for a close already under way, and an open
+  that started before the sign-out removes its own files.
+- ebffe67: Pin the TanStack DB 1.0 RC set for offline sync (`@tanstack/db` and `@tanstack/react-db` 1.0.0-rc.1, `@tanstack/offline-transactions` 1.2.0). The sync engine now waits for a local change with `transaction.when("settled")`, and `useLiveQuery` no longer takes a dependency array.
+- fee830e: The Todos quick-add field keeps text typed while the previous Todo is still being stored. Before,
+  the field cleared once that save finished and wiped the new text.
+- 7766e29: The Vite dev server reads its port from `WEB_PORT` in the root `.env` (default 3000), so a linked
+  worktree can run `pnpm dev` beside the primary checkout. Builds and the shipped app do not change.
+- Updated dependencies [ba578e9]
+- Updated dependencies [d1325ed]
+- Updated dependencies [1a3fc0f]
+- Updated dependencies [6a13c9b]
+- Updated dependencies [cef5a53]
+- Updated dependencies [cd5c89e]
+- Updated dependencies [a4943a9]
+- Updated dependencies [cc50650]
+- Updated dependencies [b1b7350]
+- Updated dependencies [d2ade33]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [5c0f6b4]
+- Updated dependencies [4c41c94]
+- Updated dependencies [cc50650]
+- Updated dependencies [87b8219]
+- Updated dependencies [2271b43]
+- Updated dependencies [e4a6c42]
+- Updated dependencies [27abb62]
+- Updated dependencies [87b8219]
+- Updated dependencies [db42d07]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [0a0832a]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [3e8bb66]
+- Updated dependencies [1aa632d]
+- Updated dependencies [ebffe67]
+- Updated dependencies [bdbfa41]
+  - @repo/storage@1.7.0
+  - @repo/translation@1.15.0
+  - @repo/sync@0.2.0
+  - @repo/theme@0.2.0
+  - @repo/ui@2.1.0
+  - @repo/auth@5.2.1
+  - @repo/feature-flags@1.2.0
+  - @repo/persistence@1.1.2
+  - @repo/query@2.0.0
+  - @repo/todos@1.1.0
+
 ## 1.16.0
 
 ### Minor Changes
