@@ -1,6 +1,6 @@
 ---
 name: kaine-design-review
-description: Act as a design partner for a UI plan, issue, or diff before or during the build — rate the intended screen on seven design dimensions against the UI guidelines, say what a 10 looks like, and propose a few written directions inside the active theme. Not for auditing a built screen in a browser (kaine-audit-ui) or building UI (kaine-build-ui).
+description: Act as the designer for a UI plan, issue, or diff before or during the build — rate the intended screen on seven design dimensions against the UI guidelines, say what a 10 looks like, and propose a few written directions inside the active theme. Not for auditing a built screen in a browser (kaine-audit-ui) or building UI (kaine-build-ui).
 argument-hint: issue number, plan, diff, or screen path
 ---
 

@@ -349,20 +349,20 @@ describe("the built-in agents", () => {
 
     const all = await builtinAgents();
     expect(all.map((agent) => agent.id).sort()).toEqual([
-      "architecture-reviewer",
+      "architect",
       "builder",
-      "design-partner",
-      "docs-editor",
-      "dx-reviewer",
+      "designer",
+      "dx-advocate",
       "intake",
       "motion-designer",
       "planner",
-      "product-reviewer",
+      "product-strategist",
       "reviewer",
       "security-officer",
-      "simplifier"
+      "simplifier",
+      "tech-writer"
     ]);
-    // Parity covers the four role agents that predate agent files; the report agents are newer.
+    // Parity covers the four agents that predate agent files; the specialists are newer.
     const ROLE_IDS = new Set(["builder", "intake", "planner", "reviewer"]);
     const agents = all.filter((agent) => ROLE_IDS.has(agent.id));
     for (const isolation of ["host", "docker"] as const) {

@@ -77,19 +77,19 @@ describe("GET /api/agents", () => {
     const { agents, problems, installed } = agentListSchema.parse(reply.json());
 
     expect(agents.map((agent) => [agent.definition.id, agent.source, agent.readOnly])).toEqual([
-      ["architecture-reviewer", "builtin", true],
+      ["architect", "builtin", true],
       ["builder", "builtin", true],
-      ["design-partner", "builtin", true],
-      ["docs-editor", "builtin", true],
-      ["dx-reviewer", "builtin", true],
+      ["designer", "builtin", true],
+      ["dx-advocate", "builtin", true],
       ["intake", "builtin", true],
       ["motion-designer", "builtin", true],
       ["planner", "builtin", true],
-      ["product-reviewer", "builtin", true],
+      ["product-strategist", "builtin", true],
       ["reviewer", "builtin", true],
       ["scout", "repo", false],
       ["security-officer", "builtin", true],
-      ["simplifier", "builtin", true]
+      ["simplifier", "builtin", true],
+      ["tech-writer", "builtin", true]
     ]);
     const byId = new Map(agents.map((agent) => [agent.definition.id, agent]));
     expect(byId.get("planner")?.problems).toEqual([

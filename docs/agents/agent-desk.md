@@ -302,19 +302,19 @@ The desk reads definitions from three sources. A later source overrides an earli
 
 - The built-in agents are `intake`, `planner`, `builder`, and `reviewer`. Their prompts are in
   `tooling/desk/defaults/agents/`. The desk rules stay in `tooling/desk/agents/rules.md`.
-- The desk also ships eight built-in role agents. Each is a read-only `report` agent that runs
-  one skill. No built-in flow uses them: add them to your own flow in the flow editor.
+- The desk also ships eight built-in **specialists**. Each is a read-only `report` agent that
+  runs one skill. No built-in flow uses them: add them to your own flow in the flow editor.
 
-  | Agent                   | Skill                       | Judges                                                  |
-  | ----------------------- | --------------------------- | ------------------------------------------------------- |
-  | `product-reviewer`      | `kaine-product-review`      | Whether the work is worth doing, and its narrowest size |
-  | `design-partner`        | `kaine-design-review`       | The design intent of a screen, against the UI rules     |
-  | `motion-designer`       | `kaine-motion-review`       | Each animation, against the motion contract and tokens  |
-  | `dx-reviewer`           | `kaine-dx-review`           | The developer's journey and the error messages          |
-  | `architecture-reviewer` | `kaine-architecture-review` | The module design of an approved plan                   |
-  | `security-officer`      | `kaine-security-audit`      | The trust boundaries that the work touches              |
-  | `docs-editor`           | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
-  | `simplifier`            | `kaine-simplify`            | Over-engineering in a plan or diff                      |
+  | Agent                | Skill                       | Judges                                                  |
+  | -------------------- | --------------------------- | ------------------------------------------------------- |
+  | `product-strategist` | `kaine-product-review`      | Whether the work is worth doing, and its narrowest size |
+  | `designer`           | `kaine-design-review`       | The design intent of a screen, against the UI rules     |
+  | `motion-designer`    | `kaine-motion-review`       | Each animation, against the motion contract and tokens  |
+  | `dx-advocate`        | `kaine-dx-review`           | The developer's journey and the error messages          |
+  | `architect`          | `kaine-architecture-review` | The module design of an approved plan                   |
+  | `security-officer`   | `kaine-security-audit`      | The trust boundaries that the work touches              |
+  | `tech-writer`        | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
+  | `simplifier`         | `kaine-simplify`            | Over-engineering in a plan or diff                      |
 
 - The built-in flow is `kaine-default`: plan, approve the plan, build, check, review, approve
   the change, ship a draft PR, and follow the PR. Its step ids are the stage names in "Stages".

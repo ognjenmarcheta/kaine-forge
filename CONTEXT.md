@@ -158,6 +158,10 @@ _Avoid_: model (the model is chosen within a provider), vendor
 What an **Agent** run produces, which selects its result schema and step handler: `plan`, `change`, `review`, `report`, or `intake`.
 _Avoid_: agent type, role
 
+**Specialist**:
+A built-in read-only **Agent** with the `report` **Output kind** that runs one skill and gives advice, such as the architect or the designer. No built-in **Flow** uses one; the owner adds it to a flow. Its report never blocks; only a gate or the `review` output decides.
+_Avoid_: role agent, advisor, reviewer (the built-in `reviewer` has the `review` output kind)
+
 **Capability profile**:
 What one **Agent** run gets after the desk resolves its preset (`read-only`, `run-checks`, `edit-code`), MCP servers, and skills against the **Policy floor** and the checkout. A run records it as its capability receipt.
 _Avoid_: permissions (for the resolved result), tool config
