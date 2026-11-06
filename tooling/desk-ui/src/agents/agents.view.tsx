@@ -1,6 +1,8 @@
 import {
   AGENT_OUTPUT_KINDS,
   DEFINITION_SOURCES,
+  avatarOf,
+  specialistProblem,
   type AgentView,
   type DefinitionKind,
   type DefinitionProblem
@@ -8,6 +10,7 @@ import {
 import { Badge, Button, Card, Input, Plus, Search, X, buttonVariants } from "@repo/ui";
 import { useRef, useState } from "react";
 
+import { AgentAvatar } from "./agent.avatar";
 import { CloneDialog } from "./agents.clone-dialog";
 import {
   filterAgents,
@@ -17,6 +20,7 @@ import {
 } from "./agents.model";
 import { useAgentList } from "./agents.use";
 import { useT } from "../i18n/i18n.t";
+import { useNewWork } from "../shell/shell.newwork";
 import { usePaletteActions } from "../shell/shell.palette";
 import { RouteLink, useRouter } from "../shell/shell.router";
 import { FailureText, LoadingLines, Muted } from "../shell/shell.ui";
@@ -139,12 +143,16 @@ function Chips<T extends string>({
 
 function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClone: () => void }) {
   const t = useT();
+  const newWork = useNewWork();
   const { definition, resolved } = view;
   const { capabilities } = definition;
+  // A report agent that edits nothing runs on its own as a specialist job.
+  const runnable = view.problems.length === 0 && specialistProblem(definition) === null;
   const isolated = resolved.sandbox === "docker";
   return (
     <li className="desk-agent">
       <div className="desk-agent__head">
+        <AgentAvatar avatar={avatarOf(definition)} size="md" />
         <h2 className="desk-agent__name">{definition.name}</h2>
         <code className="desk-agent__id">{definition.id}</code>
         <DefinitionBadges view={view} />
@@ -183,6 +191,19 @@ function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClon
           {t(isolated ? "desk.caps.isolated" : "desk.caps.onHost")}
         </StatusChip>
         <span className="desk-agent__actions">
+          {runnable && (
+            <Button
+              type="button"
+              appearance="subtle"
+              spacing="compact"
+              aria-label={t("desk.agents.runNamed", { name: definition.name })}
+              onClick={() =>
+                newWork.open({ tab: "job", kind: "specialist", agentId: definition.id })
+              }
+            >
+              {t("desk.agents.run")}
+            </Button>
+          )}
           <RouteLink
             to={{ view: "agent", agentId: definition.id }}
             className={OPEN_LINK}

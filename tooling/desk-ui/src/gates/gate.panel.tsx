@@ -16,6 +16,7 @@ import { IntakeGate, NeedsYouGate } from "./gate.needs";
 import { PlanGate } from "./gate.plan";
 import { ReviewGate } from "./gate.review";
 import { ShipDialog } from "./gate.ship-dialog";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { ReportArtifact } from "../artifacts/artifact.report";
 import { IssueFlowProvider, useStageNames } from "../flow/flow.names";
 import { agentName, flowStepOf, issueFlowOf } from "../flow/flow.steps";
@@ -204,6 +205,7 @@ function RunningGate({ summary, send }: GateBodyProps) {
             aria-expanded={telling}
             onClick={() => setTelling((open) => !open)}
           >
+            {agent !== null && <AgentAvatar avatar={agent.avatar} />}
             {t("desk.gate.working.tell.open", { agent: who })}
           </Button>
         )}

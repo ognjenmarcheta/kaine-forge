@@ -302,6 +302,20 @@ The desk reads definitions from three sources. A later source overrides an earli
 
 - The built-in agents are `intake`, `planner`, `builder`, and `reviewer`. Their prompts are in
   `tooling/desk/defaults/agents/`. The desk rules stay in `tooling/desk/agents/rules.md`.
+- The desk also ships eight built-in **specialists**. Each is a read-only `report` agent that
+  runs one skill. No built-in flow uses them: add them to your own flow in the flow editor.
+
+  | Agent                | Skill                       | Judges                                                  |
+  | -------------------- | --------------------------- | ------------------------------------------------------- |
+  | `product-strategist` | `kaine-product-review`      | Whether the work is worth doing, and its narrowest size |
+  | `designer`           | `kaine-design-review`       | The design intent of a screen, against the UI rules     |
+  | `motion-designer`    | `kaine-motion-review`       | Each animation, against the motion contract and tokens  |
+  | `dx-advocate`        | `kaine-dx-review`           | The developer's journey and the error messages          |
+  | `architect`          | `kaine-architecture-review` | The module design of an approved plan                   |
+  | `security-officer`   | `kaine-security-audit`      | The trust boundaries that the work touches              |
+  | `tech-writer`        | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
+  | `simplifier`         | `kaine-simplify`            | Over-engineering in a plan or diff                      |
+
 - The built-in flow is `kaine-default`: plan, approve the plan, build, check, review, approve
   the change, ship a draft PR, and follow the PR. Its step ids are the stage names in "Stages".
 - The file name is the id. An id matches `^[a-z0-9][a-z0-9-]{0,63}$`.
@@ -325,6 +339,9 @@ capabilities:
   mcp: [serena]
   skills: [kaine-explain]
 timeoutMinutes: 20
+avatar:
+  glyph: file-text
+  tone: chart-3
 ---
 
 Read the plan and the diff. Write the release notes.
@@ -343,18 +360,29 @@ Read the plan and the diff. Write the release notes.
   `kaine-` name in `.ai/skills/`.
 - `capabilities.tools` is optional (default `[]`). It names extra tools from the fixed catalog
   `AGENT_TOOLS`. See "Extra tools".
+- `avatar` is optional. It marks the agent in the desk UI: on the agent list, the flow graph, the
+  stage rail, and the run tables. `glyph` is one icon of `AGENT_AVATAR_GLYPHS` (`bot`,
+  `notebook-pen`, `hammer`, `shield-check`, `file-text`, `lightbulb`, `palette`, `wand`,
+  `terminal`, `blocks`, `lock`, `book-open`, `scissors`, `search`, `compass`, `gauge`). `tone` is
+  one theme tone of `AGENT_AVATAR_TONES` (`brand`, `discovery`, `information`, `chart-1` to
+  `chart-6`). The desk refuses any other value. There are no images.
+- Without `avatar`, the desk shows a default avatar. A fixed hash of the id picks the glyph and
+  the tone, so an agent keeps its default on every machine. The agent editor picks an avatar, and
+  its "Use default" removes the field from the file.
+- The avatar is cosmetic. It is not part of the definition hash or the flow snapshot hash, so a
+  new avatar does not make a new harness version.
 
 ### Output kinds
 
 The output kind says what a run produces. It selects the result schema and the step handler.
 
-| Output   | What the run does                                              | What it means for the flow                                                                    |
-| -------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | A gate right after it is the plan approval. A flow that ships needs a plan agent before ship. |
-| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                     |
-| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.      |
-| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it.                                                             |
-| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                      |
+| Output   | What the run does                                              | What it means for the flow                                                                                                     |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `plan`   | Writes `plan.json` and `plan.md`. Read-only.                   | The next gate after it is the plan approval, also with report steps between. A flow that ships needs a plan agent before ship. |
+| `change` | Changes code in the worktree. It needs the `edit-code` preset. | A check step must follow the last change before the ship.                                                                      |
+| `review` | Reviews the diff and the check results. Read-only.             | `approve` goes forward. `changes` takes the step's `loopBack`, else the issue needs you.                                       |
+| `report` | Writes `report-<agent>.json`. Read-only. It decides nothing.   | The flow always goes on after it. Later agent steps read the report. See "Report steps".                                       |
+| `intake` | Checks a new issue before a flow starts.                       | No flow step can use it.                                                                                                       |
 
 ### Capabilities
 
@@ -484,6 +512,46 @@ Every step has `id`, `kind`, `label`, and an optional `loopBack`.
 - The built-in `kaine-default` flow takes its limits from the config (`maxTestLoops`,
   `maxReviewLoops`, `maxPrRounds`). Every other flow carries its own.
 
+### Report steps
+
+A report step decides nothing, so you can put it anywhere in a flow. These rules hold:
+
+- A gate looks past report steps to the nearest earlier step that is not a report. When that
+  step is the plan agent, the gate is the plan approval. The plan gate shows the reports of the
+  report steps between the plan and the gate.
+- Each agent step gets the reports of the report steps before it in the flow, in flow order.
+- When feedback sends the work back to a step, the rerun also gets the reports of the report
+  steps after it that ran. For example, after a send-back from the plan gate, the planner reads
+  the report on its plan.
+- A step never reads the report of its own agent. An agent that two steps use writes one
+  `report-<agent>.json`, so a later run replaces it.
+- The prompt fences each report as untrusted data. A report is advice: the approved plan stays
+  authoritative, and the agent says which findings it acts on.
+
+```yaml
+id: reviewed-plan
+name: Reviewed plan
+description: Plan, review the plan, approve it, build, check, review, and ship a draft PR.
+steps:
+  - { id: plan, kind: agent, label: Plan, agent: planner }
+  - { id: design, kind: agent, label: Design review, agent: designer }
+  - { id: plan-gate, kind: gate, label: Approve the plan, sendBack: [plan] }
+  - { id: build, kind: agent, label: Build, agent: builder }
+  - id: check
+    kind: check
+    label: Check
+    commands: loop
+    loopBack: { to: build, limit: 3, stopOnSameFailure: true }
+  - { id: security, kind: agent, label: Security review, agent: security-officer }
+  - { id: review, kind: agent, label: Review, agent: reviewer, loopBack: { to: build, limit: 2 } }
+  - { id: pr-review, kind: gate, label: Approve the change, sendBack: [plan, build, review] }
+  - { id: ship, kind: ship, label: Ship, auto: false }
+```
+
+Here `designer` and `security-officer` are specialists: built-in `report` agents. `plan-gate`
+stays the plan approval. The builder reads the design report. The reviewer reads both reports.
+When the review sends the work back to `build`, the builder also reads the security report.
+
 ### Validation
 
 `validateFlow` (`src/contracts/flow-definition.validate.ts`) runs in the engine and in the
@@ -493,6 +561,8 @@ browser. Every rule reports. Nothing stops at the first error.
 - `loopBack.to`, `sendBack`, and `backTo` name an earlier step. `loopBack.limit` is 1 or more.
 - An agent step names an agent that exists. An intake agent cannot be a step.
 - A `pr-wait` step comes directly after the ship step.
+- A gate cannot both approve a plan and confirm a ship. Report steps before the gate do not
+  count.
 - A flow has at least one agent step and at most one ship step.
 - The ship step has a plan agent step before it. Ship writes the PR summary and the changeset
   from `plan.json`.
@@ -1420,9 +1490,9 @@ because the CSP blocks those.
 ### Jobs
 
 A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). There are
-four kinds: the **scorecard job**, and the lab's **screen job**, **component job**, and **audit
-job**. A job's page is `?job=<n>`; the Inbox and All work list jobs with the issues. One job of each kind
-runs at a time.
+five kinds: the **scorecard job**, the lab's **screen job**, **component job**, and **audit
+job**, and the **specialist job**. A job's page is `?job=<n>`; the Inbox and All work list jobs with the
+issues. One job of each kind runs at a time, and one specialist job per agent.
 
 - **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model
   (Opus by default), a budget in dollars, and a time limit (defaults $15 and 60 minutes). One
@@ -1493,6 +1563,27 @@ The **audit job** checks one lab screen and files the findings you tick:
 - **Your review.** The job page links to the screen (its compare view in reference mode) and lists
   the findings with their rule IDs and severity. Tick the ones to file. **Approve…** asks once more,
   then files exactly those as issues. Nothing is pushed.
+
+The **specialist job** runs one report agent from the agent library on its own, without an issue.
+The built-in specialists are its main use; a repository or local report agent runs the same way:
+
+- **Start.** **Run a specialist** in New work, or **Run** on a report agent in Agents, asks for the agent
+  and a target, then the note, model, and limits (defaults $5 and 30 minutes). The target is a
+  path in the repository (`apps/web/src/features/todos`), a GitHub issue number, or your brief.
+  The picker lists only agents with `output: report` and the `read-only` or `run-checks` preset;
+  the desk refuses any other agent, an unknown agent, and a path the checkout does not have.
+- **Steps.** Setup makes the worktree on `KAINE-chore-specialist-<agent>-job-<n>`, with the agent's own
+  skills and MCP servers. There is no lab server. Report: one run on the job's model, like every
+  job (the agent file's provider and model do not apply), with the agent's prompt and a Target
+  section: the path to read, the issue's title and body (the engine reads it and fences it as
+  untrusted), or your brief. The agent reviews `origin/<baseBranch>`, not your local changes: a
+  path that exists only in your checkout stops the job before the run, with the revision named.
+- **What the agent may do.** The scorecard job's rights, with the agent's skills and MCP servers
+  in place of the job's. A `run-checks` agent runs read-only here: a specialist job runs no command.
+- **Your review.** The job page shows the report: the summary, the findings, and the plain-language
+  version. **Close the job** ends it; it pushes nothing and files nothing. **Send back** runs the
+  agent again with your note. **Remove job** deletes the job and its worktree, and keeps its local
+  branch; delete that branch with git.
 
 ### Dev flow
 

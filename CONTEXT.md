@@ -129,6 +129,27 @@ _Avoid_: queue (alone), sync queue, mutation log
 - An **Outbox** belongs to exactly one **User** and one **Organization** on one device; switching the **Active Organization** switches to that Organization's local data and Outbox.
 - An **Audit Event** belongs to zero or one **Organization** and is written by the system, never edited. It outlives its actor and its Organization until retention removes it.
 
+## Context map
+
+The API (`apps/api/src/features/*`) has seven bounded contexts. Each feature folder belongs to exactly one. A context may import only the contexts in its **Uses** column, and the lint rule `api/context-boundaries` enforces it (ADR 0025). The map in `packages/config/eslint/api-contexts.js` is the source; a test fails when this table disagrees with it.
+
+| Context              | Features                                                                                       | Owns                                                                                                                                | Uses    |
+| -------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Tenancy & Access** | `organizations`, `api-keys`                                                                    | **Organization**, **Organization Membership**, **Permission**, **Custom Role**, **Invitation**, **API Key**, **Organization Theme** | —       |
+| **Billing**          | `billing`                                                                                      | **Plan**, **Subscription**, **Entitlement**, **Seat**                                                                               | —       |
+| **Content**          | `todos`, `notes`                                                                               | **Todo**, **Note**                                                                                                                  | Billing |
+| **Files**            | `storage`, `public-assets`                                                                     | **Attachment**, **Public Asset**                                                                                                    | Content |
+| **Sync**             | `sync`                                                                                         | **Sync Version**, **Tombstone**                                                                                                     | Content |
+| **Assistant**        | `assistant`                                                                                    | the assistant's conversations and tools                                                                                             | Content |
+| **Platform**         | `audit`, `notifications`, `webhooks`, `feature-flags`, `data-export`, `housekeeping`, `health` | **Audit Event**, **Notification**, **Webhook Endpoint**                                                                             | Files   |
+
+- Inside a context, features import each other freely.
+- Across contexts, a feature imports only the other feature's public files: `<feature>.module` and `<feature>.type`, unless `API_PUBLIC_FILES` names others (`storage` publishes `attachment.module` and `attachment.store`).
+- The composition root and the shared kernel (`apps/api/src/*.ts`, such as `context.ts`, `context.data.ts`, and `pubsub.ts`) and the `@repo/*` packages are outside the map. Every feature may import them.
+- The **Authenticated Organization Scope** is part of the shared kernel, not of Tenancy & Access: every context uses it through `ScopedData`.
+- A new feature folder fails the check until it is added to a context. Add an edge to **Uses** only when the dependency is intended. Never add an edge that would make the map circular.
+- The map governs imports only. Features still read other contexts' tables through `@repo/db/schema`.
+
 ## Example dialogue
 
 > **Dev:** "Should the todo resolver accept an organization id from the client?"
@@ -157,6 +178,10 @@ _Avoid_: model (the model is chosen within a provider), vendor
 **Output kind**:
 What an **Agent** run produces, which selects its result schema and step handler: `plan`, `change`, `review`, `report`, or `intake`.
 _Avoid_: agent type, role
+
+**Specialist**:
+A built-in read-only **Agent** with the `report` **Output kind** that runs one skill and gives advice, such as the architect or the designer. No built-in **Flow** uses one; the owner adds it to a flow. Its report never blocks; only a gate or the `review` output decides.
+_Avoid_: role agent, advisor, reviewer (the built-in `reviewer` has the `review` output kind)
 
 **Capability profile**:
 What one **Agent** run gets after the desk resolves its preset (`read-only`, `run-checks`, `edit-code`), MCP servers, and skills against the **Policy floor** and the checkout. A run records it as its capability receipt.

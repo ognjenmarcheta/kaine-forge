@@ -18,7 +18,7 @@ const CODE = new RegExp(
 );
 
 /** Agent text as it is, with its paths, lines, and quoted code as code. No Markdown is rendered. */
-function ReportText({ text }: { readonly text: string }) {
+export function ReportText({ text }: { readonly text: string }) {
   const parts: ReactNode[] = [];
   let last = 0;
   for (const match of text.matchAll(CODE)) {
@@ -33,7 +33,7 @@ function ReportText({ text }: { readonly text: string }) {
 }
 
 /** What a report agent wrote: its summary, its findings, and the plain-language version. */
-function ReportResult({ report }: { readonly report: ReportView }) {
+export function ReportResult({ report }: { readonly report: ReportView }) {
   const t = useT();
   return (
     <div className="desk-artifact">

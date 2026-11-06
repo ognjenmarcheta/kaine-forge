@@ -1097,6 +1097,77 @@ describe("monorepo alignment", () => {
     // (run 39399822538), past vitest's 5s default.
   }, 30_000);
 
+  it("resolves TypeScript imports, so the import rules check .ts files", async () => {
+    // eslint-plugin-import shipped with only the node resolver and the default
+    // .js-only `import/extensions`: every TS import was unresolved and
+    // import/no-cycle never followed a .ts dependency, so the gate passed
+    // silently. Lint two real files with injected imports. They are small
+    // tooling files outside the type-aware block, so the probe builds no
+    // TypeScript program and no-cycle walks a two-file graph: the API files
+    // used first took 53s under the parallel coverage run.
+    const { ESLint } = await import("eslint");
+    const eslint = new ESLint({
+      cwd: repoRoot,
+      overrideConfig: { rules: { "import/no-unresolved": "error" } }
+    });
+    const lintWithImport = async (file: string, injected: string) => {
+      const source = `${readText(file)}\n${injected}\n`;
+      const [result] = await eslint.lintText(source, { filePath: resolve(repoRoot, file) });
+      return (result?.messages ?? []).filter(
+        (message) =>
+          message.ruleId === "import/no-unresolved" || message.ruleId === "import/no-cycle"
+      );
+    };
+
+    // The real imports (a relative TS module, an npm package) and an injected
+    // workspace subpath export resolve; only the injected missing module is
+    // reported. no-cycle skips side-effect imports, so the injections add no
+    // graph walk.
+    const unresolved = await lintWithImport(
+      "tooling/doc-export/src/docx/docx.render.ts",
+      'import "@repo/desk/contracts";\nimport "./docx.missing-module";'
+    );
+    expect(unresolved.map((message) => [message.ruleId, message.message])).toEqual([
+      ["import/no-unresolved", "Unable to resolve path to module './docx.missing-module'."]
+    ]);
+
+    // docx.render.ts imports markdown.parse.ts, so importing it back closes a
+    // cycle; no-cycle needs a binding import. The cycle exists only in the
+    // linted text, which base.js's `disableScc` lets the rule see: the SCC
+    // pre-pass reads the files on disk.
+    const cycle = await lintWithImport(
+      "tooling/doc-export/src/markdown/markdown.parse.ts",
+      'import { renderDocx } from "../docx/docx.render";\nvoid renderDocx;'
+    );
+    expect(cycle.map((message) => message.ruleId)).toEqual(["import/no-cycle"]);
+  }, 30_000);
+
+  it("applies the API context-boundary rule to feature sources only (ADR 0025)", async () => {
+    // A glob typo would turn the gate off with a green lint run, as the
+    // resolver-less import/* rules already are. Ask ESLint what each file gets.
+    const { ESLint } = await import("eslint");
+    const eslint = new ESLint({ cwd: repoRoot });
+    const boundaryRule = async (file: string): Promise<unknown> => {
+      const config: unknown = await eslint.calculateConfigForFile(resolve(repoRoot, file));
+      const rules =
+        typeof config === "object" && config !== null && "rules" in config
+          ? (config as { rules?: Record<string, unknown> }).rules
+          : undefined;
+      const entry = rules?.["api/context-boundaries"];
+      return Array.isArray(entry) ? entry[0] : entry;
+    };
+
+    const [feature, compositionRoot, featureTest] = await Promise.all([
+      boundaryRule("apps/api/src/features/todos/todos.module.ts"),
+      boundaryRule("apps/api/src/context.ts"),
+      boundaryRule("apps/api/src/features/todos/todos.module.test.ts")
+    ]);
+
+    expect(feature, "feature sources must get the rule at error").toBe(2);
+    expect(compositionRoot, "the composition root wires every context").toBeUndefined();
+    expect(featureTest, "tests may wire collaborators across contexts").toBeUndefined();
+  }, 30_000);
+
   it("requires each source workspace to ship at least one vitest test", () => {
     // Every workspace uses `vitest run --passWithNoTests`, so a package with no
     // tests still passes green. This gate keeps that flag safe by asserting the

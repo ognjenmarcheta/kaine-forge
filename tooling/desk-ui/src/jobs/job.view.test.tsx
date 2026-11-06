@@ -1,4 +1,4 @@
-import type { JobState } from "@repo/desk/contracts";
+import type { JobState, ScorecardRun } from "@repo/desk/contracts";
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -46,6 +46,7 @@ const job = (over: Partial<JobState> = {}): JobState => ({
   screen: null,
   component: null,
   audit: null,
+  specialist: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null,
@@ -62,7 +63,7 @@ describe("JobView", () => {
 
     expect(await screen.findByText("Should dim 6 drop?")).toBeTruthy();
     await userEvent.click(screen.getByRole("checkbox", { name: "docs: adr-index-drift" }));
-    await userEvent.click(screen.getByRole("button", { name: "Approve…" }));
+    await userEvent.click(screen.getByRole("button", { name: "Approve and file issues (1)…" }));
     const dialog = screen.getByRole("dialog", { name: "File the issues and open the PR?" });
     expect(within(dialog).getByText(/files 1 ticked issues/)).toBeTruthy();
     expect(jobAction).not.toHaveBeenCalled();
@@ -73,6 +74,47 @@ describe("JobView", () => {
       issues: ["adr-index-drift"],
       confirm: true
     });
+  });
+
+  it("puts the result and what moved first, and folds the technical summary", async () => {
+    window.history.replaceState(null, "", "?job=2");
+    const run = (commit: string, overall: number, dims: Record<string, number>): ScorecardRun => ({
+      date: "2026-11-02",
+      commit,
+      mode: "fan-out",
+      agent: "desk-job",
+      overall,
+      dimensions: Object.fromEntries(
+        Object.entries(dims).map(([key, score]) => [key, { score, evidence: `Dim ${key} cite.` }])
+      ),
+      findings: []
+    });
+    const scorecard = vi.fn(() =>
+      Promise.resolve({
+        state: "ready" as const,
+        ledgerPath: "docs/agents/monorepo-scorecard.md",
+        updatedAt: "2026-11-02T12:00:00.000Z",
+        repository: null,
+        runs: [
+          run("b".repeat(40), 7.5, { "1": 8, "5": 8 }),
+          run("a".repeat(40), 7.0, { "1": 8, "5": 7 })
+        ],
+        calibration: {},
+        flows: []
+      })
+    );
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([job()]), scorecard }));
+
+    expect(await screen.findByText("Plain.")).toBeTruthy();
+    const moved = await screen.findByRole("region", { name: "What moved" });
+    expect(await within(moved).findByText("Dependency Hygiene")).toBeTruthy();
+    expect(within(moved).getByText("down 1.0")).toBeTruthy();
+    expect(within(moved).queryByText("Workspace & Boundaries")).toBeNull();
+    expect(scorecard).toHaveBeenCalledWith(2);
+    const technical = screen.getByText("Technical summary").closest("details");
+    if (technical === null) throw new Error("The technical summary is not in a details block.");
+    expect(technical.open).toBe(false);
+    expect(within(technical).getByText("Two dimensions dropped.")).toBeTruthy();
   });
 
   it("shows a job change the server sends while the page is open", async () => {
@@ -384,5 +426,49 @@ describe("Component and audit jobs", () => {
       issues: ["missing-focus-ring"],
       confirm: true
     });
+  });
+});
+
+describe("Specialist jobs", () => {
+  it("shows the agent's report at the gate and closes the job in one step", async () => {
+    window.history.replaceState(null, "", "?job=2");
+    const specialistJob = job({
+      kind: "specialist",
+      result: null,
+      input: {
+        note: "",
+        model: "opus",
+        budgetUsd: 5,
+        minutes: 30,
+        specialist: {
+          agentId: "product-strategist",
+          target: { kind: "path", value: "apps/web/src/features/todos" }
+        }
+      },
+      specialist: {
+        agent: {
+          id: "product-strategist",
+          name: "Product strategist",
+          prompt: "Review it.",
+          skills: [],
+          mcp: []
+        },
+        result: {
+          summary: "One problem.",
+          findings: ["The list shows a false empty state."],
+          plainLanguage: "The list flickers."
+        }
+      }
+    });
+    const jobAction = vi.fn(() => Promise.resolve(specialistJob));
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([specialistJob]), jobAction }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Report from Product strategist" })
+    ).toBeTruthy();
+    expect(screen.getByText("The list shows a false empty state.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Close the job" }));
+
+    expect(jobAction).toHaveBeenCalledWith(2, { action: "approve", issues: [], confirm: true });
   });
 });

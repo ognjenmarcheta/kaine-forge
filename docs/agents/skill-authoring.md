@@ -54,6 +54,8 @@ Write skills as thin, re-runnable procedures — not essays.
 - End multi-step skills with a **Canonical commands** block when agents need copy-paste `gh` / `pnpm` / git recipes.
 - Keep the skill short; put long procedure in `docs/agents/`, ADRs, or domain guides and point to them.
 - Expand an existing skill before creating a near-duplicate.
+- Put each fact at the lowest level that still reaches the agent in time: the `description`, the skill body, a `docs/agents/` reference, the command's `--help`, or its error message.
+- Climb the edit ladder before you add a line: fix the tool before the prose; back each new line with a real failure or request; edit an existing line before you append one; write a rule, not a story.
 
 ## After you add a skill
 
