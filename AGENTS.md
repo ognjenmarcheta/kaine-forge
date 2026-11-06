@@ -267,6 +267,7 @@ Selection uses each agent's native discovery and model judgment. These instructi
 This index is generated from canonical skill metadata:
 
 - `kaine-adopt-template`: Replace leftover upstream template identity with downstream project identity using the template adoption CLI.
+- `kaine-architecture-review`: Independently review the module design of an implementation plan before the build — design it a second, different way, check for module-design red flags, and confirm package boundaries, reuse, failure modes, and test layers. Not for writing the plan (kaine-write-plan) or reviewing a finished diff (kaine-review).
 - `kaine-audit-ui`: Audit a screen, a UI diff, or a recreated screenshot against the UI guidelines and WCAG 2.2, and report findings with rule IDs; in reference mode, also score how closely a recreation matches its image.
 - `kaine-build-3d`: Add or change an interactive 3D view in the web or desktop UI with @repo/ui-3d — decide whether 3D is needed, then build an accessible, theme-colored, on-demand scene that a DOM control drives.
 - `kaine-build-ui`: Build or change a screen or component in the web, desktop, desk, or mobile UI, or recreate a screenshot or brand look, using the theme utilities, the shared components, and the UI guidelines.
@@ -274,14 +275,18 @@ This index is generated from canonical skill metadata:
 - `kaine-create-feature`: Scaffold an organization-scoped CRUD feature slice with the create-feature CLI, then finish the parts the generator deliberately leaves to a human.
 - `kaine-create-theme`: Create, change, or set the default for a theme in @repo/theme, from a brand color, a brand book, a DESIGN.md, or a reference image, and pass the theme checks.
 - `kaine-debug`: Find and fix the root cause of a local failure — a failing test, broken build, runtime error, or regression — by reproducing, localizing, and reducing it before changing code.
+- `kaine-design-review`: Act as a design partner for a UI plan, issue, or diff before or during the build — rate the intended screen on seven design dimensions against the UI guidelines, say what a 10 looks like, and propose a few written directions inside the active theme. Not for auditing a built screen in a browser (kaine-audit-ui) or building UI (kaine-build-ui).
 - `kaine-document-release`: Check product docs (README, MONOREPO_GUIDE.md, CONTEXT.md, docs/) against a range of merged changes and report docs that the changes made wrong or incomplete. Use after merges to main, before a release, or when asked whether the docs still match the code. Fixes docs only on request.
+- `kaine-dx-review`: Review the developer experience of a plan, diff, CLI, or workspace — pick the developer persona, trace their journey from clone to first success, score eight DX passes, and check every error message against a fix-first rubric. Reads only. Not for code review (kaine-review) or the repo-health scorecard (kaine-scorecard).
 - `kaine-encode-knowledge`: Assess repeated workflows, corrections, or review failures; propose an existing skill improvement or a new reusable procedure, and encode authorized lessons in rules, tests, skills, or docs.
 - `kaine-explain`: Give source-grounded explanations in a useful format, and close substantive final replies with In plain language while preserving plan, review, and handoff requirements.
 - `kaine-fix-ci`: Investigate failing CI by reading logs, reproducing locally, and implementing the smallest safe fix.
 - `kaine-graph`: Build and query the Graphify codebase knowledge graph for architecture, impact analysis, and cross-layer tracing.
 - `kaine-harness-eval`: Measure whether a specific guide or agent-definition rule actually changes agent output, record the verdict in the harness-eval ledger, and choose a better wording for a rule marked tighten.
 - `kaine-intake`: Assess a new issue for implementation readiness, specification work, missing information, or human handling without implementing it.
+- `kaine-motion-review`: Act as a motion designer for a UI plan, issue, or diff — specify or review each animation against the motion contract, the MOTION rules, and the theme motion tokens, and name the test that proves it. Not for building the animation (kaine-build-ui) or a full UI audit (kaine-audit-ui).
 - `kaine-open-pr`: Create a task branch or prepare a draft pull request using Kaine Forge branch naming, checks, changeset rules, and GitHub flow.
+- `kaine-product-review`: Review an issue, idea, or plan from the product side before anyone builds it — challenge the premise, ask for evidence of demand, find the narrowest version that delivers the outcome, and recommend whether to expand, hold, or reduce scope. Not for code review (kaine-review) or issue readiness (kaine-intake).
 - `kaine-qa`: Click through a running local web flow as a user would, find functional bugs (console errors, failed requests, dead links, broken states, wrong organization data), and report them with steps to reproduce; in fix mode, fix each bug behind a failing test. Use for exploratory QA of a route or flow, not for design or accessibility audits.
 - `kaine-rebase`: Safely rebase a feature branch onto main with conflict-resolution and verification rules.
 - `kaine-release-apps`: Update per-app release branches after merge to main so only affected Docker-backed apps redeploy.

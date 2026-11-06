@@ -54,3 +54,7 @@ Use this skill to audit existing code for security defects in one scope. For a d
 4. Controls checked with no finding, so the next audit does not repeat them.
 
 State the scope, the files you read, and the local tests you ran with their results.
+
+## Headless runs (Agent Desk)
+
+When the prompt supplies a result schema, fill the schema. Do not ask the user a question. Do not run `gh`; the Agent Desk denies it. When the run supplies a diff file, take the scope from that diff. Record each unknown as a finding, and state the default you chose. Put the plain-language ending in the schema's plain-language field. Do not print a banner or add any text outside the schema.

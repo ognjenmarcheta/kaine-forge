@@ -16,6 +16,7 @@ import {
 import type { AgentPermissions } from "./agent.runner";
 import { loadCapabilities } from "./capabilities.load";
 import { resolveCapabilities, toAgentPermissions } from "./capabilities.resolve";
+import { KAINE_SKILLS } from "./permissions";
 import { parseAgentFile } from "../registry/registry.parse";
 import { readInstalledCapabilities } from "../registry/registry.snapshot";
 
@@ -320,23 +321,50 @@ describe("the built-in agents", () => {
       )
     );
     const checkout = await parityCheckout();
+    // KAINE_SKILLS has grown since the capture. A skill the fixture never names is checked on
+    // its own below, so parity compares every other rule exactly.
+    const SKILL_DENY = /^Skill\(skill:(.+)\)$/;
+    const captured = new Set(
+      Object.values(parity).flatMap((entry) =>
+        entry.disallow.flatMap((rule) => SKILL_DENY.exec(rule)?.[1] ?? [])
+      )
+    );
+    const newer = KAINE_SKILLS.filter((skill) => !captured.has(skill));
     const permissions = async (
       agent: Pick<AgentDefinition, "capabilities">,
       provider: Provider,
       isolation: Isolation,
       workspaces?: readonly string[]
-    ): Promise<AgentPermissions> =>
-      toAgentPermissions(
+    ): Promise<AgentPermissions> => {
+      const resolved = toAgentPermissions(
         await loadCapabilities({ agent, provider, model: null, checkout, isolation, workspaces })
       );
+      if (provider !== "claude") return resolved;
+      for (const skill of newer.filter((name) => !agent.capabilities.skills.includes(name))) {
+        expect(resolved.disallow).toContain(`Skill(skill:${skill})`);
+      }
+      const isNewer = (rule: string): boolean => newer.includes(SKILL_DENY.exec(rule)?.[1] ?? "");
+      return { ...resolved, disallow: resolved.disallow.filter((rule) => !isNewer(rule)) };
+    };
 
-    const agents = await builtinAgents();
-    expect(agents.map((agent) => agent.id).sort()).toEqual([
+    const all = await builtinAgents();
+    expect(all.map((agent) => agent.id).sort()).toEqual([
+      "architecture-reviewer",
       "builder",
+      "design-partner",
+      "docs-editor",
+      "dx-reviewer",
       "intake",
+      "motion-designer",
       "planner",
-      "reviewer"
+      "product-reviewer",
+      "reviewer",
+      "security-officer",
+      "simplifier"
     ]);
+    // Parity covers the four role agents that predate agent files; the report agents are newer.
+    const ROLE_IDS = new Set(["builder", "intake", "planner", "reviewer"]);
+    const agents = all.filter((agent) => ROLE_IDS.has(agent.id));
     for (const isolation of ["host", "docker"] as const) {
       for (const provider of ["claude", "codex"] as const) {
         for (const agent of agents) {
