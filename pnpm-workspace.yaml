@@ -51,7 +51,7 @@ catalog:
   "@tanstack/db-sqlite-persistence-core": "1.0.0-rc.1"
   "@tanstack/browser-db-sqlite-persistence": "1.0.0-rc.1"
   "@tanstack/expo-db-sqlite-persistence": "1.0.0-rc.1"
-  "@tanstack/tauri-db-sqlite-persistence": "1.0.0-rc.1"
+  "@tanstack/tauri-db-sqlite-persistence": "1.0.0-rc.1.2"
   # The desktop shell's commands. plugin-sql is only the Tauri driver's type peer: the shell
   # keeps its own single-connection databases, because the plugin pools connections.
   "@tauri-apps/api": "2.12.4"

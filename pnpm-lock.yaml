@@ -64,8 +64,8 @@ catalogs:
       specifier: ^5.105.0
       version: 5.105.0
     '@tanstack/tauri-db-sqlite-persistence':
-      specifier: 1.0.0-rc.1
-      version: 1.0.0-rc.1
+      specifier: 1.0.0-rc.1.2
+      version: 1.0.0-rc.1.2
     '@tauri-apps/api':
       specifier: 2.12.4
       version: 2.12.4
@@ -715,7 +715,7 @@ importers:
         version: 5.105.0(@tanstack/react-query@5.105.0(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(csstype@3.2.3)(react@19.2.8)
       '@tanstack/tauri-db-sqlite-persistence':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)
+        version: 1.0.0-rc.1.2(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.12.4
@@ -6215,13 +6215,28 @@ packages:
     peerDependencies:
       typescript: '>=4.7'
 
+  '@tanstack/db-ivm@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-kF5XbkzNmDuJBr+p2//ijZO9CzAGp0fK8gRGRX6gzt9QZM9RNIizAPVLdXM9kcg+VlZC6xB28ZmScsX9j4LMuw==}
+    peerDependencies:
+      typescript: '>=4.7'
+
   '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1':
     resolution: {integrity: sha512-RcdVHzmRjdpqLMrdyFRCkvstjgl9o18nA+m+KAGEh1JgljGcuL9HjPbbwE8fCBz83h5PannicjBqET4M8pAyjg==}
     peerDependencies:
       typescript: '>=4.7'
 
+  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-zxLiYfvojDqk5UHXd1Z6V/T5WXwTSn31iVW7FtBMLGY7oE6HQnu8d5qfPb84RhALZB6aRjPsrctItiVSxP/e4A==}
+    peerDependencies:
+      typescript: '>=4.7'
+
   '@tanstack/db@1.0.0-rc.1':
     resolution: {integrity: sha512-Kwk4bMDr2XkYCkIyA8h2rEbqACspvLhiGFeciz1FHWFrR4Oqa8IrJjUAJgpKEtBXdLbYinxDcFv0rxvbTtz/MQ==}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@tanstack/db@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-CV7LeIezOpPTeNrBRlRv/4n8l2z6p/y2OJ9sPU/OwL3rM7XUgXGdzDC+OtyzKxelGZUcd1YS61GY2cs5/MWIMQ==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -6311,8 +6326,8 @@ packages:
   '@tanstack/store@0.11.0':
     resolution: {integrity: sha512-WlzzCt3xi0G6pCAJu1U+2jiECwabETDpQDi3hfkFZvJii9AuZqEKbOiVarX1/bWhTNjU486yQtJCCasi/0q+Cw==}
 
-  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1':
-    resolution: {integrity: sha512-+6eezT+H2uv8WrG4Lahm0nDorpMMxHxCwvfsFhjBtGR2FGsyYGH30KMEaUUNTxxsui4WKsWrVJzC6iEYq0p82g==}
+  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-KZiadgXwmdVn4J3/puwKkMNWABlBQw3cn4i8/2QIL2KNuD4xtuh92rW6TljJTIzRKSTrOUG51L0GiXpjoIwSTw==}
     peerDependencies:
       '@tauri-apps/plugin-sql': ^2.3.2
       typescript: '>=4.7'
@@ -18622,16 +18637,34 @@ snapshots:
       fractional-indexing: 3.4.0
       typescript: 5.9.3
 
+  '@tanstack/db-ivm@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      fractional-indexing: 3.4.0
+      typescript: 5.9.3
+
   '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
       typescript: 5.9.3
 
+  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
+      typescript: 5.9.3
+
   '@tanstack/db@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@tanstack/db-ivm': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/pacer-lite': 0.2.2
+      typescript: 5.9.3
+
+  '@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db-ivm': 1.0.0-rc.1.2(typescript@5.9.3)
       '@tanstack/pacer-lite': 0.2.2
       typescript: 5.9.3
 
@@ -18736,9 +18769,9 @@ snapshots:
 
   '@tanstack/store@0.11.0': {}
 
-  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)':
+  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1.2(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.2(typescript@5.9.3)
       '@tauri-apps/plugin-sql': 2.6.0
       typescript: 5.9.3
 
