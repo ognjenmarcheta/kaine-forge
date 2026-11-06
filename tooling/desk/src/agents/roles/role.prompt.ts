@@ -114,7 +114,8 @@ const REPO_SOURCE: Partial<Record<DeskRole, { readonly file: string; readonly ti
   reviewer: { file: ".ai/review.md", title: "Review checklist (REVIEW.md)" }
 };
 
-const skillInstruction = (provider: Provider, skills: readonly string[]): string => {
+/** The opening line that tells the agent to use each skill, in the words its CLI needs. */
+export const skillInstruction = (provider: Provider, skills: readonly string[]): string => {
   const list = skills.map((skill) => `\`${skill}\``).join(", ");
   switch (provider) {
     case "claude":

@@ -15,7 +15,9 @@ export const JOB_STEPS: Readonly<Record<JobState["kind"], readonly JobStage[]>> 
   scorecard: ["setup", "sweep", "score", "review", "ship"],
   screen: ["setup", "build", "check", "review", "ship"],
   component: ["setup", "plan", "build", "check", "review", "ship"],
-  audit: ["setup", "audit", "review", "ship"]
+  audit: ["setup", "audit", "review", "ship"],
+  // A specialist job closes at its gate: it pushes and files nothing.
+  specialist: ["setup", "report", "review"]
 };
 
 export type StepState = "done" | "current" | "todo";
