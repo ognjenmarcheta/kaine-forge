@@ -8,12 +8,12 @@ packages:
 catalog:
   lucide-react: "^0.577.0"
   # Runtime libraries shared across workspaces
-  better-auth: "^1.7.12"
-  "@better-auth/expo": "1.7.12"
+  better-auth: "^1.7.15"
+  "@better-auth/expo": "1.7.15"
   # Organization-owned API keys (packages/auth, #709). Keep on the better-auth line.
-  "@better-auth/api-key": "1.7.12"
+  "@better-auth/api-key": "1.7.15"
   # WebAuthn passkeys (ADR 0015); same exact pin as the better-auth line it plugs into.
-  "@better-auth/passkey": "1.7.12"
+  "@better-auth/passkey": "1.7.15"
   # The passkey plugin's inferred auth types name it; @repo/auth imports its types for declaration emit (TS2742).
   "@simplewebauthn/server": "^13.3.3"
   dotenv: "^18.0.9"
@@ -42,16 +42,16 @@ catalog:
   # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
   yaml: "^2.9.1"
   "@tanstack/react-query": "^5.105.3"
-  # Offline sync (ADR 0020): exact pins, the 1.0 RC set (rc.1 and offline-transactions 1.2.0 passed minimumReleaseAge).
-  "@tanstack/db": "1.0.0-rc.1"
-  "@tanstack/react-db": "1.0.0-rc.1"
+  # Offline sync (ADR 0020): exact pins, the 1.0 RC set (rc.1.2 and offline-transactions 1.2.0 passed minimumReleaseAge).
+  "@tanstack/db": "1.0.0-rc.1.2"
+  "@tanstack/react-db": "1.0.0-rc.1.2"
   "@tanstack/offline-transactions": "1.2.0"
   # Device storage for synced rows (M3b): the persistence RC set matching @tanstack/db, and the
   # wa-sqlite 1.x line its browser package declares as a peer.
-  "@tanstack/db-sqlite-persistence-core": "1.0.0-rc.1"
-  "@tanstack/browser-db-sqlite-persistence": "1.0.0-rc.1"
-  "@tanstack/expo-db-sqlite-persistence": "1.0.0-rc.1"
-  "@tanstack/tauri-db-sqlite-persistence": "1.0.0-rc.1"
+  "@tanstack/db-sqlite-persistence-core": "1.0.0-rc.1.2"
+  "@tanstack/browser-db-sqlite-persistence": "1.0.0-rc.1.2"
+  "@tanstack/expo-db-sqlite-persistence": "1.0.0-rc.1.2"
+  "@tanstack/tauri-db-sqlite-persistence": "1.0.0-rc.1.2"
   # The desktop shell's commands. plugin-sql is only the Tauri driver's type peer: the shell
   # keeps its own single-connection databases, because the plugin pools connections.
   "@tauri-apps/api": "2.12.4"
