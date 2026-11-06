@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import {
   DEFINITION_ID_PATTERN,
+  agentAvatarSchema,
   agentDefinitionSchema,
   agentOutputKindSchema,
+  avatarOf,
   definitionIdSchema
 } from "./agent-definition.contract";
 import { planRiskSchema } from "./agent-output.contract";
@@ -164,7 +166,13 @@ export const flowStepViewSchema = z
     label: z.string().min(1),
     kind: stepKindSchema,
     agent: z
-      .object({ id: definitionIdSchema, name: z.string().min(1), output: agentOutputKindSchema })
+      .object({
+        id: definitionIdSchema,
+        name: z.string().min(1),
+        output: agentOutputKindSchema,
+        /** The agent's avatar, or its default from `avatarOf`. */
+        avatar: agentAvatarSchema
+      })
       .strict()
       .nullable(),
     sendBack: z.array(definitionIdSchema),
@@ -182,7 +190,10 @@ export const flowStepViewsOf = (snapshot: FlowSnapshot): FlowStepView[] =>
       id: step.id,
       label: step.label,
       kind: step.kind,
-      agent: agent === undefined ? null : { id: agent.id, name: agent.name, output: agent.output },
+      agent:
+        agent === undefined
+          ? null
+          : { id: agent.id, name: agent.name, output: agent.output, avatar: avatarOf(agent) },
       sendBack: step.kind === "gate" ? [...step.sendBack] : [],
       auto: step.kind === "ship" && step.auto,
       // Never `null`: the step is in the snapshot.

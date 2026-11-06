@@ -4,7 +4,9 @@ import { Handle, type NodeProps } from "@xyflow/react";
 import { StageIcon } from "./flow.icon";
 import { HANDLE_OFFSET, HANDLE_POSITION, HANDLE_TYPE, type DeskFlowNode } from "./flow.mapping";
 import { useStageNames } from "./flow.names";
+import { flowStepOf } from "./flow.steps";
 import { nodeMetricText, nodeStatusText } from "./flow.text";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { OverflowTooltip, useOverflow } from "../shell/shell.overflow";
 import { NODE_TONE, toneClass } from "../status/status.model";
@@ -20,6 +22,11 @@ export function DeskNode({ data, selected }: NodeProps<DeskFlowNode>) {
   const { node, note } = data;
   const metric = nodeMetricText(t, node, language);
   const [noteRef, noteCut] = useOverflow<HTMLDivElement>(note?.short ?? "");
+  // An agent step shows its agent's avatar; every other step its kind.
+  const agent =
+    node.kind === "agent" && names.flow !== null
+      ? (flowStepOf(names.flow, node.id)?.agent ?? null)
+      : null;
   return (
     <div
       className={`desk-node ${toneClass(NODE_TONE[node.status])}`}
@@ -42,9 +49,13 @@ export function DeskNode({ data, selected }: NodeProps<DeskFlowNode>) {
         );
       })}
       <div className="desk-node__head">
-        <span className="desk-node__icon">
-          <StageIcon kind={node.kind} />
-        </span>
+        {agent === null ? (
+          <span className="desk-node__icon">
+            <StageIcon kind={node.kind} />
+          </span>
+        ) : (
+          <AgentAvatar avatar={agent.avatar} />
+        )}
         <span className="desk-node__title">{names.node(node.id)}</span>
       </div>
       <div className="desk-node__status">

@@ -232,6 +232,25 @@ describe("issue summary", () => {
     expect(issueSummarySchema.parse(summary)).toEqual(summary);
   });
 
+  it("names each agent step with its agent's avatar, or the default of an agent without one", () => {
+    const snapshot = {
+      ...DEFAULT_SNAPSHOT,
+      agents: DEFAULT_SNAPSHOT.agents.map((agent) =>
+        agent.id === "builder" ? { ...agent, avatar: undefined } : agent
+      )
+    };
+    const avatars = Object.fromEntries(
+      flowStepViewsOf(snapshot).flatMap((step) =>
+        step.agent === null ? [] : [[step.agent.id, step.agent.avatar]]
+      )
+    );
+    expect(avatars).toEqual({
+      planner: { glyph: "notebook-pen", tone: "brand" },
+      builder: { glyph: "bot", tone: "chart-3" },
+      reviewer: { glyph: "shield-check", tone: "discovery" }
+    });
+  });
+
   // A flow sets its own node count, so the list needs the ticket and at least one step.
   it("rejects a progress list without the ticket and a step", () => {
     expect(

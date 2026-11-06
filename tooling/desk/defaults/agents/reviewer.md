@@ -9,6 +9,9 @@ capabilities:
   mcp: [serena, context7]
   skills: [kaine-review]
 timeoutMinutes: 20
+avatar:
+  glyph: shield-check
+  tone: discovery
 ---
 
 # Agent Desk reviewer

@@ -325,6 +325,9 @@ capabilities:
   mcp: [serena]
   skills: [kaine-explain]
 timeoutMinutes: 20
+avatar:
+  glyph: file-text
+  tone: chart-3
 ---
 
 Read the plan and the diff. Write the release notes.
@@ -343,6 +346,17 @@ Read the plan and the diff. Write the release notes.
   `kaine-` name in `.ai/skills/`.
 - `capabilities.tools` is optional (default `[]`). It names extra tools from the fixed catalog
   `AGENT_TOOLS`. See "Extra tools".
+- `avatar` is optional. It marks the agent in the desk UI: on the agent list, the flow graph, the
+  stage rail, and the run tables. `glyph` is one icon of `AGENT_AVATAR_GLYPHS` (`bot`,
+  `notebook-pen`, `hammer`, `shield-check`, `file-text`, `lightbulb`, `palette`, `wand`,
+  `terminal`, `blocks`, `lock`, `book-open`, `scissors`, `search`, `compass`, `gauge`). `tone` is
+  one theme tone of `AGENT_AVATAR_TONES` (`brand`, `discovery`, `information`, `chart-1` to
+  `chart-6`). The desk refuses any other value. There are no images.
+- Without `avatar`, the desk shows a default avatar. A fixed hash of the id picks the glyph and
+  the tone, so an agent keeps its default on every machine. The agent editor picks an avatar, and
+  its "Use default" removes the field from the file.
+- The avatar is cosmetic. It is not part of the definition hash or the flow snapshot hash, so a
+  new avatar does not make a new harness version.
 
 ### Output kinds
 

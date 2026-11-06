@@ -1,4 +1,4 @@
-import type { AgentList } from "@repo/desk/contracts";
+import { avatarOf, type AgentAvatarSpec, type AgentList } from "@repo/desk/contracts";
 import { useCallback, useEffect, useState } from "react";
 
 import { toApiError, type FailureCode } from "../api/api.client";
@@ -31,4 +31,21 @@ export function useAgentList(): { readonly state: AgentListState; readonly reloa
   }, [api, round]);
   const reload = useCallback(() => setRound((value) => value + 1), []);
   return { state, reload };
+}
+
+/**
+ * The avatar of an agent that the page knows only by its id: its own from the agent list, or the
+ * default of the id while the list loads or when it has no such agent.
+ */
+export function useAvatarOfId(): (id: string) => AgentAvatarSpec {
+  const { state } = useAgentList();
+  return useCallback(
+    (id: string) =>
+      avatarOf(
+        (state.status === "ok"
+          ? state.list.agents.find((view) => view.definition.id === id)?.definition
+          : undefined) ?? { id }
+      ),
+    [state]
+  );
 }

@@ -331,6 +331,7 @@ function EditorBody({
           </p>
           <FlowCanvas
             draft={draft}
+            agents={agents}
             editable={editing}
             invalid={invalidKeys}
             selected={selected}

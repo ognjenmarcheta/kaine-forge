@@ -115,6 +115,39 @@ describe("AgentEditor", () => {
     );
   });
 
+  it("saves the avatar the owner picks", async () => {
+    const saveAgent = vi.fn(() =>
+      Promise.reject(new DeskApiError("invalid-definition", 422, "refused in this test"))
+    );
+    open("ui-builder", () => [LOCAL], { saveAgent });
+    await userEvent.click(await screen.findByRole("radio", { name: "Compass" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Category 4" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(saveAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ avatar: { glyph: "compass", tone: "chart-4" } })
+    );
+  });
+
+  it("keeps an agent's avatar through a save, and Use default removes it from the file", async () => {
+    const saveAgent = vi.fn<DeskApi["saveAgent"]>(() =>
+      Promise.reject(new DeskApiError("invalid-definition", 422, "refused in this test"))
+    );
+    const painted = agentView(
+      agentDefinition({ id: "painted", avatar: { glyph: "gauge", tone: "information" } }),
+      "local"
+    );
+    open("painted", () => [painted], { saveAgent });
+    await userEvent.type(await screen.findByLabelText("Description"), " Now longer.");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(saveAgent.mock.lastCall?.[0].avatar).toEqual({ glyph: "gauge", tone: "information" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Use default" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(saveAgent).toHaveBeenCalledTimes(2);
+    expect(saveAgent.mock.lastCall?.[0]).not.toHaveProperty("avatar");
+  });
+
   it("puts each problem of a refused save under its field", async () => {
     const saveAgent = vi.fn(() =>
       Promise.reject(
