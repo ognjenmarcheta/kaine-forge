@@ -58,8 +58,8 @@ catalogs:
       specifier: 1.2.0
       version: 1.2.0
     '@tanstack/react-db':
-      specifier: 1.0.0-rc.1
-      version: 1.0.0-rc.1
+      specifier: 1.0.0-rc.1.2
+      version: 1.0.0-rc.1.2
     '@tanstack/react-query':
       specifier: ^5.105.0
       version: 5.105.0
@@ -546,7 +546,7 @@ importers:
         version: 1.0.0-rc.1(expo-sqlite@55.0.20(expo@55.0.28)(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(typescript@5.9.3)
       '@tanstack/react-db':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1(react@19.2.0)(typescript@5.9.3)
+        version: 1.0.0-rc.1.2(react@19.2.0)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.0(@types/react@19.2.14)(react@19.2.0)
@@ -706,7 +706,7 @@ importers:
         version: 1.0.0-rc.1(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)
       '@tanstack/react-db':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1(react@19.2.8)(typescript@5.9.3)
+        version: 1.0.0-rc.1.2(react@19.2.8)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.0(@types/react@19.2.18)(react@19.2.8)
@@ -6215,6 +6215,11 @@ packages:
     peerDependencies:
       typescript: '>=4.7'
 
+  '@tanstack/db-ivm@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-kF5XbkzNmDuJBr+p2//ijZO9CzAGp0fK8gRGRX6gzt9QZM9RNIizAPVLdXM9kcg+VlZC6xB28ZmScsX9j4LMuw==}
+    peerDependencies:
+      typescript: '>=4.7'
+
   '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1':
     resolution: {integrity: sha512-RcdVHzmRjdpqLMrdyFRCkvstjgl9o18nA+m+KAGEh1JgljGcuL9HjPbbwE8fCBz83h5PannicjBqET4M8pAyjg==}
     peerDependencies:
@@ -6222,6 +6227,11 @@ packages:
 
   '@tanstack/db@1.0.0-rc.1':
     resolution: {integrity: sha512-Kwk4bMDr2XkYCkIyA8h2rEbqACspvLhiGFeciz1FHWFrR4Oqa8IrJjUAJgpKEtBXdLbYinxDcFv0rxvbTtz/MQ==}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@tanstack/db@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-CV7LeIezOpPTeNrBRlRv/4n8l2z6p/y2OJ9sPU/OwL3rM7XUgXGdzDC+OtyzKxelGZUcd1YS61GY2cs5/MWIMQ==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -6269,8 +6279,8 @@ packages:
   '@tanstack/query-devtools@5.105.0':
     resolution: {integrity: sha512-vRJf9XRHB+P2aMSAEHWtMLsAf1nC9NSsHVqSHiT/FZYU/+5LEo2BOrXKskURQnJEzg6whaBeP6iMn0PS30KJrQ==}
 
-  '@tanstack/react-db@1.0.0-rc.1':
-    resolution: {integrity: sha512-eCwKDW4IwhU1ycxFaquXAZxbzF6/XLZuXQbqt819j52tmaE4/zxxnx9WUsUosQ32P3RFEwds0OC2NCrny8pTFw==}
+  '@tanstack/react-db@1.0.0-rc.1.2':
+    resolution: {integrity: sha512-Mjh2muEuzT5F1qAZYzzzqjT6HrpZ0//kjaqwZWW25TD3T1Xrg4Yt9Xx80mbdUeC4HPtoaxnMpjjWIVORsNX/vw==}
     peerDependencies:
       react: '>=18.0.0'
 
@@ -18622,6 +18632,11 @@ snapshots:
       fractional-indexing: 3.4.0
       typescript: 5.9.3
 
+  '@tanstack/db-ivm@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      fractional-indexing: 3.4.0
+      typescript: 5.9.3
+
   '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -18632,6 +18647,13 @@ snapshots:
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@tanstack/db-ivm': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/pacer-lite': 0.2.2
+      typescript: 5.9.3
+
+  '@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db-ivm': 1.0.0-rc.1.2(typescript@5.9.3)
       '@tanstack/pacer-lite': 0.2.2
       typescript: 5.9.3
 
@@ -18681,16 +18703,16 @@ snapshots:
     transitivePeerDependencies:
       - csstype
 
-  '@tanstack/react-db@1.0.0-rc.1(react@19.2.0)(typescript@5.9.3)':
+  '@tanstack/react-db@1.0.0-rc.1.2(react@19.2.0)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
       react: 19.2.0
     transitivePeerDependencies:
       - typescript
 
-  '@tanstack/react-db@1.0.0-rc.1(react@19.2.8)(typescript@5.9.3)':
+  '@tanstack/react-db@1.0.0-rc.1.2(react@19.2.8)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db': 1.0.0-rc.1(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
       react: 19.2.8
     transitivePeerDependencies:
       - typescript
