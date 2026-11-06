@@ -31,7 +31,7 @@ services:
   # Creates the buckets through the S3 API: the private Attachment bucket, with
   # CORS for the browser's direct PUT, and the public-read Public Asset bucket.
   storage-init:
-    image: amazon/aws-cli:2.39.2
+    image: amazon/aws-cli:2.39.3
     depends_on:
       - storage
     environment:
