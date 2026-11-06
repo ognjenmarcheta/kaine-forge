@@ -153,6 +153,16 @@
       "description": "Marks changes that do not require a changeset"
     },
     {
+      "name": "source:audit",
+      "color": "c5def5",
+      "description": "Found by a UI audit"
+    },
+    {
+      "name": "source:scorecard",
+      "color": "5319e7",
+      "description": "Found by a monorepo scorecard run"
+    },
+    {
       "name": "type:build",
       "color": "bfe5bf",
       "description": "Build system or external dependency change"

@@ -125,3 +125,33 @@ export const labelSyncCommands = (): string[] =>
   LABEL_DEFINITIONS.map(
     (definition) => `gh ${labelCreateArgv(definition).map(quoteArg).join(" ")}`
   );
+
+/** A label the desk owns outside the agent set: where an issue or a PR came from. */
+export interface SourceLabelDefinition {
+  readonly name: string;
+  readonly color: string;
+  readonly description: string;
+}
+
+/** The source labels, as `.github/repo-setup.json` lists them. */
+export const SOURCE_LABEL_DEFINITIONS = {
+  scorecard: {
+    name: "source:scorecard",
+    color: "5319e7",
+    description: "Found by a monorepo scorecard run"
+  },
+  audit: { name: "source:audit", color: "c5def5", description: "Found by a UI audit" }
+} as const satisfies Record<string, SourceLabelDefinition>;
+
+/** `gh label create --force`: create the label, or update it when it exists. */
+export const labelEnsureArgv = (label: SourceLabelDefinition): string[] => [
+  "gh",
+  "label",
+  "create",
+  label.name,
+  "--color",
+  label.color,
+  "--description",
+  label.description,
+  "--force"
+];

@@ -10,7 +10,7 @@ import { StatusChip } from "../status/status.chip";
 function Names({ names }: { readonly names: readonly string[] }) {
   const t = useT();
   return names.length === 0 ? (
-    <span className="desk-muted">{t("desk.caps.noneListed")}</span>
+    <span className="dk-t-sub">{t("desk.caps.noneListed")}</span>
   ) : (
     <>{names.join(", ")}</>
   );
@@ -45,7 +45,7 @@ export function CapabilityReceipt({ profile }: { readonly profile: CapabilityPro
   const { allow, deny } = profile.tools;
   return (
     <div className="desk-caps__receipt">
-      <dl className="desk-kv">
+      <dl className="dk-kv">
         <dt>{t("desk.caps.provider")}</dt>
         <dd>
           {t("desk.caps.providerValue", {
@@ -99,7 +99,7 @@ export function CapabilityReceipt({ profile }: { readonly profile: CapabilityPro
             {profile.removed.map((entry) => (
               <li key={`${entry.kind}-${entry.name}`}>
                 <strong>{entry.name}</strong>{" "}
-                <span className="desk-muted">{t(`desk.caps.kind.${entry.kind}`)}</span>{" "}
+                <span className="dk-t-sub">{t(`desk.caps.kind.${entry.kind}`)}</span>{" "}
                 <span>{entry.reason}</span>
               </li>
             ))}
@@ -127,7 +127,7 @@ function RunReceipt({ run, index }: { readonly run: RunRecord; readonly index: n
     <li className="desk-caps__run">
       <h4>{t("desk.caps.run", { index: index + 1, time: formatClock(run.at, language) })}</h4>
       {run.capabilities === undefined ? (
-        <p className="desk-muted">{t("desk.caps.none")}</p>
+        <p className="dk-t-sub">{t("desk.caps.none")}</p>
       ) : (
         <CapabilityReceipt profile={run.capabilities} />
       )}

@@ -3,6 +3,12 @@ import "@xyflow/react/dist/style.css";
 // Sonner injects its styles with a <style> element, which the server CSP blocks. Bundle them instead.
 import "sonner/dist/styles.css";
 import "./desk.styles.css";
+import "./styles/dk.base.css";
+import "./styles/dk.components.css";
+import "./styles/dk.shell.css";
+import "./styles/dk.screens.css";
+import "./styles/dk.audit.css";
+import "./styles/dk.responsive.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

@@ -21,6 +21,7 @@ export interface LoadCapabilitiesInput {
   readonly checkout: string;
   readonly isolation: Isolation;
   readonly workspaces?: readonly string[] | undefined;
+  readonly approvedCommands?: readonly string[] | undefined;
 }
 
 export const loadCapabilities = async (input: LoadCapabilitiesInput): Promise<CapabilityProfile> =>
@@ -31,7 +32,8 @@ export const loadCapabilities = async (input: LoadCapabilitiesInput): Promise<Ca
     policy: { denies: await readPolicyDenies(input.checkout) },
     installed: await readInstalledCapabilities(input.checkout),
     isolation: input.isolation,
-    workspaces: input.workspaces
+    workspaces: input.workspaces,
+    approvedCommands: input.approvedCommands
   });
 
 /** The capabilities of a built-in role, as its agent file states them. */

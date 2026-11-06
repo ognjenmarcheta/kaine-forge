@@ -1,5 +1,7 @@
 import {
   ACTION_NAMES,
+  AGENT_AVATAR_GLYPHS,
+  AGENT_AVATAR_TONES,
   AGENT_OUTPUT_KINDS,
   AGENT_STAGE_ROLES,
   AGENT_TOOLS,
@@ -8,6 +10,12 @@ import {
   DEFINITION_SOURCES,
   HEALTH_FIXES,
   INTAKE_RECOMMENDATIONS,
+  COMPONENT_LAYERS,
+  JOB_KINDS,
+  JOB_STAGES,
+  JOB_STATUSES,
+  JOB_STOP_REASONS,
+  NEEDS_YOU_CODES,
   ISSUE_SECTIONS,
   FLOW_NODE_IDS,
   LOOP_KINDS,
@@ -15,7 +23,10 @@ import {
   NODE_STATUSES,
   PLAN_RISKS,
   PROVIDERS,
+  SPECIALIST_TARGET_KINDS,
   RUN_FAILURE_KINDS,
+  SCORECARD_DISPOSITIONS,
+  SCORECARD_MODES,
   STAGES,
   STEP_KINDS
 } from "@repo/desk/contracts";
@@ -26,9 +37,13 @@ import { describe, expect, it } from "vitest";
 import { BACK_KINDS } from "../flows/flows.model";
 import { UNDOABLE_ACTIONS } from "../gates/gate.actions";
 import { FILE_GROUPS } from "../gates/gate.model";
+import { DETAIL_TABS } from "../issue/issue.details";
 import { TRACE_FILTERS } from "../issue/issue.trace";
-import { THEMES } from "../shell/shell.preferences";
-import { CHIP_STATES } from "../status/status.model";
+import { BANDS, FINDING_FILTERS, FINDING_SORTS, SORTS } from "../scorecard/scorecard.model";
+import { DENSITIES, THEMES, WORK_VIEWS } from "../shell/shell.preferences";
+import { CHIP_STATES, INBOX_GROUPS } from "../status/status.model";
+import { TURN_GROUPS } from "../work/work.model";
+import { WORK_FILTERS } from "../work/work.view";
 
 const SRC = path.resolve(import.meta.dirname, "..");
 const LOCALES = path.resolve(SRC, "../../../packages/translation/src/locales");
@@ -92,9 +107,22 @@ describe("desk translations", () => {
         "finished",
         "idle"
       ],
-      "desk.board.group.": ["needs-you", "waiting", "running", "done"],
-      "desk.board.groupHelp.": ["needs-you", "waiting", "running", "done"],
-      "desk.board.columnEmpty.": ["needs-you", "waiting", "running", "done"],
+      "desk.inbox.group.": INBOX_GROUPS,
+      "desk.inbox.groupNote.": TURN_GROUPS,
+      "desk.stop.": NEEDS_YOU_CODES,
+      "desk.work.filter.": WORK_FILTERS,
+      "desk.work.view.": WORK_VIEWS,
+      "desk.work.jobKind.": JOB_KINDS,
+      "desk.job.gate.": JOB_KINDS,
+      "desk.job.stopShort.": JOB_STOP_REASONS,
+      "desk.inbox.action.job.": JOB_KINDS,
+      "desk.inbox.reason.job.": JOB_KINDS,
+      "desk.newWork.jobText.": JOB_KINDS,
+      "desk.newWork.tab.": ["issue", "job"],
+      "desk.details.tab.": DETAIL_TABS,
+      "desk.prefs.density.": DENSITIES,
+      "desk.nav.": ["inbox", "work", "flows", "agents", "setup", "insights", "scorecard", "lab"],
+      "desk.nav.group.": ["work", "configure", "insights", "developer"],
       "desk.connection.": ["connecting", "live", "reconnecting"],
       "desk.review.severity.": ["Critical", "Consider", "Nit", "FYI"],
       "desk.review.verdict.": ["approve", "changes-requested"],
@@ -148,10 +176,41 @@ describe("desk translations", () => {
       "desk.agents.provider.": PROVIDERS,
       "desk.agents.presetAbout.": CAPABILITY_PRESETS,
       "desk.agents.toolAbout.": AGENT_TOOLS,
+      "desk.agents.avatar.glyph.": AGENT_AVATAR_GLYPHS,
+      "desk.agents.avatar.tone.": AGENT_AVATAR_TONES,
       "desk.flows.kind.": [...STEP_KINDS, "setup"],
       "desk.flows.commandSet.": ["loop", "ship", "custom"],
       "desk.flows.commandSetAbout.": ["loop", "ship", "custom"],
-      "desk.flows.edge.": [...BACK_KINDS, ...BACK_KINDS.map((kind) => `${kind}Name`)]
+      "desk.flows.edge.": [...BACK_KINDS, ...BACK_KINDS.map((kind) => `${kind}Name`)],
+      "desk.scorecard.band.": BANDS,
+      "desk.scorecard.disposition.": SCORECARD_DISPOSITIONS,
+      "desk.scorecard.mode.": SCORECARD_MODES,
+      "desk.scorecard.delta.": ["up", "down", "held"],
+      "desk.scorecard.sort.": SORTS,
+      "desk.scorecard.findings.show.": FINDING_FILTERS,
+      "desk.scorecard.findings.sortBy.": FINDING_SORTS,
+      "desk.scorecard.tracking.issue.": ["open", "closed"],
+      "desk.scorecard.tracking.fix.": ["open", "closed", "merged"],
+      "desk.job.title.": JOB_KINDS,
+      "desk.job.start.title.": JOB_KINDS,
+      "desk.job.start.description.": JOB_KINDS,
+      "desk.job.stage.": JOB_STAGES,
+      "desk.job.status.": JOB_STATUSES,
+      "desk.job.stop.": JOB_STOP_REASONS,
+      "desk.job.stepState.": ["done", "current", "todo"],
+      "desk.job.start.component.layer.": COMPONENT_LAYERS,
+      "desk.job.auditReview.severity.": ["must", "should", "could"],
+      "desk.job.start.specialist.targetKind.": SPECIALIST_TARGET_KINDS,
+      "desk.job.start.specialist.targetValue.": SPECIALIST_TARGET_KINDS,
+      "desk.job.start.specialist.targetHelp.": SPECIALIST_TARGET_KINDS,
+      "desk.job.": [
+        "cancel",
+        "remove",
+        "cancelConfirm.title",
+        "cancelConfirm.text",
+        "removeConfirm.title",
+        "removeConfirm.text"
+      ]
     };
     const missing = Object.entries(families).flatMap(([prefix, values]) =>
       values.map((value) => `${prefix}${value}`).filter((key) => !(key in en))

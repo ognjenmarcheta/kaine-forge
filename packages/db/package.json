@@ -65,7 +65,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
     "@repo/config": "workspace:*",
-    "@types/pg": "^8.23.1",
+    "@types/pg": "catalog:",
     "drizzle-kit": "^0.31.11",
     "vitest": "catalog:"
   },

@@ -32,6 +32,12 @@ construction, because the two are not comparable. The `kaine-harness-eval` skill
 holds the protocol, and the behavioural probe that verifies an arm before it is
 paid for — asking an agent what its context contains returns false negatives.
 
+An encoding made from experience, such as a promoted desk lesson, uses the
+encoded-lesson arms of the skill. Each trial records `encountered`, `consulted`,
+and `recurrence`, and a control task on unrelated work shows the work the
+encoding adds. The run counts only when most trials without the encoding met the
+problem.
+
 A rule marked `tighten` gets a candidate screen before its next run. Up to three
 rewordings, each aimed at a failure a recorded trial shows, run once each on the
 same task. A screen only ranks the candidates, so it never enters the data block;

@@ -109,6 +109,39 @@ it("validates quick creation, sends the normalized Todo once, and shows it at on
   ]);
 });
 
+it("keeps text typed while the last Todo is still being stored", async () => {
+  await render();
+  await act(async () => current.setDraft({ title: "First", description: "" }));
+  let adding: Promise<boolean> = Promise.resolve(false);
+  await act(async () => {
+    adding = current.add();
+    current.setDraft({ title: "Second", description: "" });
+  });
+  await act(async () => {
+    await adding;
+  });
+
+  expect(current.rows.map((row) => row.title)).toContain("First");
+  expect(current.draft).toEqual({ title: "Second", description: "" });
+});
+
+it("loads older Todos from the server once the local rows run out", async () => {
+  server.window = 2;
+  server.todos.set("b", todo("b"));
+  server.todos.set("c", todo("c"));
+  await render();
+  expect(current.rows.map((row) => row.id)).toEqual(["c", "b"]);
+  expect(current.list.hasNextPage).toBe(true);
+
+  await act(async () => {
+    current.list.fetchNextPage();
+    await vi.waitFor(() => expect(current.list.isFetchingNextPage).toBe(false));
+  });
+
+  expect(current.rows.map((row) => row.id)).toEqual(["c", "b", "a"]);
+  expect(current.list.hasNextPage).toBe(false);
+});
+
 it("keeps quick and edit drafts through searches and status changes", async () => {
   await render();
   await act(async () => {

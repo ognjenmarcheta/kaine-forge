@@ -54,7 +54,9 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 
 6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. The generator writes English placeholders. `locale-consistency.test.ts` rejects values identical to English, so `pnpm check` fails until translation is complete. Add a locale/key exception only for a term that is legitimately identical in both languages; stale exceptions also fail.
 
-7. Verify, in this order:
+7. Add `{plural}` to one bounded context in `packages/config/eslint/api-contexts.js` and to the `CONTEXT.md` **Context map** table (ADR 0025). `api-boundaries.test.js` fails `pnpm check` until the folder is mapped and the table matches. The context is a domain decision: propose the one whose terms the feature uses, and let the user confirm it. Add an edge to `uses` only for an import the feature needs, and only through the other feature's `.module.ts` or `.type.ts`.
+
+8. Verify, in this order:
 
    ```bash
    pnpm check
@@ -77,4 +79,4 @@ Do not "improve" these — they are the contract `.ai/create-feature.util.spec.t
 
 ## Reporting
 
-State which names you used, whether you passed `--sync`, that `pnpm check` passed, and which of steps 4-6 the user still owns — the columns, the migration (with the trigger statements for `--sync`), and the two untranslated locales.
+State which names you used, whether you passed `--sync`, that `pnpm check` passed, and which of steps 4-7 the user still owns — the columns, the migration (with the trigger statements for `--sync`), the two untranslated locales, and the bounded context.

@@ -57,7 +57,9 @@ describe("permissions policy", () => {
       "but-land",
       "but-pr-auto-merge",
       "but-no-verify",
-      "but-no-hooks"
+      "but-no-hooks",
+      "wt-merge",
+      "wt-step-push"
     ]);
   });
 
@@ -70,7 +72,11 @@ describe("permissions policy", () => {
     "but --json land KAINE-1-feat-x",
     "but -C . --status-after land KAINE-1-feat-x",
     "but --current-dir=. land KAINE-1-feat-x",
-    "but pr auto-merge 123"
+    "but pr auto-merge 123",
+    "wt merge",
+    "wt -C . -y merge main",
+    "wt --config-set 'merge.verify = false' merge --no-remove",
+    "wt step push main"
   ])("blocks agent merging through %s", (command) => {
     expect(matchGuardedCommand(command, rules)?.decision).toBe("deny");
     expect(runHook(command).status).toBe(2);
@@ -112,7 +118,11 @@ describe("matchGuardedCommand", () => {
     "but branch new -s KAINE-1-feat-x",
     "agent-desktop snapshot --app firefox -i --compact",
     "agent-desktop --session s1 --agent-id a1 click @s8f3k2p9:e8",
-    "agent-desktop --trace .ai.local/agent-desktop/t.jsonl snapshot --app nautilus"
+    "agent-desktop --trace .ai.local/agent-desktop/t.jsonl snapshot --app nautilus",
+    "wt switch -c -x claude KAINE-1-feat-x -- 'add login'",
+    "wt -C . switch KAINE-1-feat-x",
+    "wt remove KAINE-1-feat-x",
+    "wt list --format json"
   ])("allows argument data and safe variants: %s", (command) => {
     expect(matchGuardedCommand(command, rules)).toBeNull();
   });
@@ -143,6 +153,16 @@ describe("matchGuardedCommand", () => {
     ["agent-desktop dismiss-all-notifications", "agent-desktop-dismiss-all-notifications"],
     ["agent-desktop notification-action 3 Reply", "agent-desktop-notification-action"]
   ])("asks before agent-desktop touches the owner's real desktop: %s", (command, id) => {
+    expect(matchGuardedCommand(command, rules)).toMatchObject({ id, decision: "ask" });
+  });
+
+  it.each([
+    ["wt step prune --min-age 1d", "wt-step-prune"],
+    ["wt -y remove KAINE-1-feat-x --force", "wt-remove-force"],
+    ["wt remove KAINE-1-feat-x -f", "wt-remove-force-short"],
+    ["wt remove --force-delete KAINE-1-feat-x", "wt-remove-force-delete"],
+    ["wt remove -D KAINE-1-feat-x", "wt-remove-force-delete-short"]
+  ])("asks before worktrunk deletes worktrees or unmerged work: %s", (command, id) => {
     expect(matchGuardedCommand(command, rules)).toMatchObject({ id, decision: "ask" });
   });
 

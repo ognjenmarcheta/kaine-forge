@@ -21,8 +21,8 @@ import { NewFlowDialog, useFlowPaletteActions } from "./flows.view";
 import { CloneDialog } from "../agents/agents.clone-dialog";
 import { DefinitionBadges, DefinitionProblems } from "../agents/agents.view";
 import { toApiError, type DeskApiError } from "../api/api.client";
-import { StartDialog } from "../board/board.start-dialog";
 import { useT } from "../i18n/i18n.t";
+import { useNewWork } from "../shell/shell.newwork";
 import { RouteLink, useLeaveGuard, useRouter } from "../shell/shell.router";
 import { FailureText, LoadingLines, Pre } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
@@ -67,7 +67,7 @@ function EditorBody({
   const [dialog, setDialog] = useState<Dialog>(null);
   const [overwriteDetail, setOverwriteDetail] = useState<string | null>(null);
   const [cloning, setCloning] = useState(false);
-  const [starting, setStarting] = useState(false);
+  const newWork = useNewWork();
 
   const dirty = editing && isChanged(draft, baseline);
   const problems = flowProblems(
@@ -190,12 +190,12 @@ function EditorBody({
 
   return (
     <>
-      <div className="desk-heading desk-editor__heading">
+      <div className="dk-row dk-between desk-editor__heading">
         <div>
-          <RouteLink to={{ view: "flows" }} className="desk-editor__back">
+          <RouteLink to={{ view: "flows" }} className="dk-backlink">
             {t("desk.flows.back")}
           </RouteLink>
-          <h1>{name}</h1>
+          <h1 className="dk-h-page">{name}</h1>
           <p className="desk-editor__facts">
             <code className="desk-agent__id">{flowId}</code>
             <DefinitionBadges view={view} />
@@ -222,23 +222,21 @@ function EditorBody({
             type="button"
             appearance="subtle"
             disabled={dirty}
-            onClick={() => setStarting(true)}
+            onClick={() => newWork.open({ tab: "issue", flowId })}
           >
             {t("desk.flows.start")}
           </Button>
         </div>
       </div>
       <DefinitionProblems problems={view.problems} kind="flow" />
-      {view.source === "builtin" && <p className="desk-note">{t("desk.flows.builtinNote")}</p>}
-      {view.source === "repo" && !editing && (
-        <p className="desk-note">{t("desk.flows.repoNote")}</p>
-      )}
+      {view.source === "builtin" && <p className="dk-hint">{t("desk.flows.builtinNote")}</p>}
+      {view.source === "repo" && !editing && <p className="dk-hint">{t("desk.flows.repoNote")}</p>}
       {view.source === "repo" && editing && (
-        <p className="desk-warning">{t("desk.flows.overrideNote")}</p>
+        <p className="dk-banner dk-banner-warning">{t("desk.flows.overrideNote")}</p>
       )}
       {failure !== null && <FailureText code={failure.code} detail={failure.detail} />}
       {editing && (blocked || flowRules.length > 0) && (
-        <div className="desk-failure" role="status">
+        <div className="dk-banner dk-banner-danger dk-stack" role="status">
           <p>
             {blocked
               ? t("desk.flows.problemSummary", { count: total })
@@ -254,7 +252,7 @@ function EditorBody({
         </div>
       )}
       <div className="desk-flows-editor">
-        <Card className="desk-panel">
+        <Card className="dk-card">
           <FlowForm
             base={base}
             draft={draft}
@@ -313,12 +311,12 @@ function EditorBody({
                   </>
                 )}
                 {blocked && (
-                  <p id={reason} className="desk-muted">
+                  <p id={reason} className="dk-t-sub">
                     {t("desk.flows.saveBlocked")}
                   </p>
                 )}
                 {view.source === "local" && dirty && (
-                  <p id={`${base}-save-first`} className="desk-muted">
+                  <p id={`${base}-save-first`} className="dk-t-sub">
                     {t("desk.agents.promote.saveFirst")}
                   </p>
                 )}
@@ -328,11 +326,12 @@ function EditorBody({
         </Card>
         <section className="desk-flows-editor__canvas" aria-labelledby={`${base}-graph`}>
           <h2 id={`${base}-graph`}>{t("desk.flows.graph")}</h2>
-          <p className="desk-muted">
+          <p className="dk-t-sub">
             {t(editing ? "desk.flows.graphHelp" : "desk.flows.graphHelpReadOnly")}
           </p>
           <FlowCanvas
             draft={draft}
+            agents={agents}
             editable={editing}
             invalid={invalidKeys}
             selected={selected}
@@ -424,7 +423,6 @@ function EditorBody({
         taken={flows.map((flow) => flow.definition.id)}
         onOpenChange={setCloning}
       />
-      <StartDialog open={starting} flowId={flowId} onOpenChange={setStarting} />
     </>
   );
 }
@@ -445,11 +443,11 @@ export function FlowEditor({ flowId }: { readonly flowId: string }) {
   if (view === undefined) {
     return (
       <>
-        <RouteLink to={{ view: "flows" }} className="desk-editor__back">
+        <RouteLink to={{ view: "flows" }} className="dk-backlink">
           {t("desk.flows.back")}
         </RouteLink>
-        <h1>{t("desk.flows.missingTitle")}</h1>
-        <p className="desk-muted">{t("desk.flows.missing", { id: flowId })}</p>
+        <h1 className="dk-h-page">{t("desk.flows.missingTitle")}</h1>
+        <p className="dk-t-sub">{t("desk.flows.missing", { id: flowId })}</p>
         {dialog}
       </>
     );
@@ -457,7 +455,7 @@ export function FlowEditor({ flowId }: { readonly flowId: string }) {
   return (
     <>
       {promoted !== null && (
-        <p className="desk-note" role="status">
+        <p className="dk-hint" role="status">
           {t("desk.agents.uncommitted", { path: promoted })}
         </p>
       )}

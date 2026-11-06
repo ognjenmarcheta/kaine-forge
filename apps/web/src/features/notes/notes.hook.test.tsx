@@ -98,6 +98,22 @@ it("creates only on Save, validates the title, and saves normalized fields with 
   expect(current.externalChange).toBe(false);
 });
 
+it("keeps typing in a new Note that is promoted to its saved id before the page leaves it", async () => {
+  await render("new");
+  await edit("A new idea", "new", "title");
+  await act(async () => current.save("new"));
+  const id = current.draft?.serverId ?? "";
+  // The route promotes the draft, then navigates; until it lands the page still selects "new".
+  await act(async () => current.promoteNew());
+  await render("new");
+  await edit("Typed during creation", "new");
+
+  expect(current.draft).toMatchObject({ title: "A new idea", body: "Typed during creation" });
+  await render(id);
+  expect(current.draft).toMatchObject({ title: "A new idea", body: "Typed during creation" });
+  expect(Object.keys(current.drafts)).not.toContain("new");
+});
+
 it("keeps each draft while switching between notes, the list, and new note", async () => {
   await render();
   await edit("First draft");
@@ -121,7 +137,8 @@ it("keeps edits made after a save as unsaved, against the saved revision", async
   await settle();
 
   // Only the changed field goes to the server: another user's title edit survives.
-  expect(server.pushed).toEqual([[{ noteUpdate: { id: "a", body: "Submitted" } }]]);
+  // The body it started from goes too, so the server can merge another device's edit.
+  expect(server.pushed).toEqual([[{ noteUpdate: { id: "a", body: "Submitted", baseBody: "" } }]]);
   expect(current.draft).toMatchObject({ body: "Newer draft", baseBody: "Submitted" });
   expect(current.draft && isNoteDirty(current.draft)).toBe(true);
 });

@@ -54,7 +54,11 @@ const snapshotOf = (
     }
     agents.push(agent);
   }
-  const hash = createHash("sha256").update(normalize({ flow, agents })).digest("hex");
+  // The avatar is cosmetic: changing it does not make a new harness version.
+  const cosmetic = agents.map((agent) => ({ ...agent, avatar: undefined }));
+  const hash = createHash("sha256")
+    .update(normalize({ flow, agents: cosmetic }))
+    .digest("hex");
   return { ok: true, snapshot: { flow, agents, hash, flowSource } };
 };
 

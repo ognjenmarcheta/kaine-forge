@@ -27,13 +27,20 @@ import type {
   SyncNote,
   SyncNotePatch,
   SyncPullPage,
+  SyncList,
   SyncRejection,
   SyncStatus,
   SyncTodo,
   SyncTodoPatch,
   SyncTransport
 } from "./sync.type";
-import { SyncAuthError, SyncRequestError, toSyncMutation, type SyncEntity } from "./sync.util";
+import {
+  SyncAuthError,
+  SyncNetworkError,
+  SyncRequestError,
+  toSyncMutation,
+  type SyncEntity
+} from "./sync.util";
 
 /** How often a client pulls without a poke: realtime events reach one API process only. */
 const PULL_INTERVAL_MS = 60_000;
@@ -41,6 +48,10 @@ const PULL_INTERVAL_MS = 60_000;
 const SYNC_SCHEMA_VERSION = 1;
 /** The collection metadata key that keeps the pull cursor beside the stored rows. */
 const CURSOR_KEY = "syncCursor";
+/** Where a collection's older rows continue on the server, stored beside its rows. */
+const OLDER_KEY = "syncOlder";
+/** Rows of each list a first pull loads; older ones load on demand (issue #800). */
+const SYNC_WINDOW = 500;
 let engineCount = 0;
 
 export interface SyncEngineOptions {
@@ -53,7 +64,7 @@ export interface SyncEngineOptions {
   onlineDetector?: OnlineDetector;
   leaderElection?: LeaderElection;
   pullIntervalMs?: number;
-  /** A Pending Change the server refused; it was already rolled back. */
+  /** A Pending Change the server refused; it rolls back right after this call. */
   onRejected?: (rejection: SyncRejection) => void;
   /**
    * Device storage for the synced rows, for the same User and Organization as
@@ -89,8 +100,15 @@ export interface SyncEngine {
   deleteNote: (id: string) => Promise<void>;
   /** Pulls the changes after the cursor; a call during a pull runs one more after it. */
   pull: () => Promise<void>;
+  /**
+   * Loads the next older rows of a list from the server, for a list the
+   * status names in `older`. It needs the network; it never runs beside a pull.
+   */
+  loadOlder: (list: SyncList) => Promise<void>;
   /** Drops this device's Pending Changes for the engine's scope, for a sign-out. */
   clearLocalData: () => Promise<void>;
+  /** Pulls and sends waiting changes now, without waiting for the next retry. */
+  retry: () => void;
   getStatus: () => SyncStatus;
   subscribeStatus: (listener: (status: SyncStatus) => void) => () => void;
   dispose: () => void;
@@ -126,9 +144,12 @@ function syncTarget<TRow extends { id: string }>(): SyncTarget<TRow> {
   return { handle: null, started, start };
 }
 
-/** The pull cursor stored beside a collection's rows, if any. */
-function storedCursor<TRow extends { id: string }>(target: SyncTarget<TRow>): string | null {
-  const value = target.handle?.metadata?.collection.get(CURSOR_KEY);
+/** A text value stored beside a collection's rows, such as its pull cursor. */
+function storedText<TRow extends { id: string }>(
+  target: SyncTarget<TRow>,
+  key: string
+): string | null {
+  const value = target.handle?.metadata?.collection.get(key);
   return typeof value === "string" ? value : null;
 }
 
@@ -144,19 +165,34 @@ function storedCursor<TRow extends { id: string }>(target: SyncTarget<TRow>): st
  */
 function applyRows<TRow extends { id: string }>(
   target: SyncTarget<TRow>,
-  page: { values: TRow[]; deletedIds: string[]; cursor: string | null },
+  page: {
+    values: TRow[];
+    deletedIds: string[];
+    cursor: string | null;
+    /** Where older rows continue; null when none are left, undefined to keep what is stored. */
+    older?: string | null;
+  },
   { reset, stored }: { reset: boolean; stored: boolean }
-): void {
+): SyncAppliedReceipt | undefined {
   const { handle } = target;
-  const { values, deletedIds, cursor } = page;
-  if (!handle || (!reset && !stored && values.length === 0 && deletedIds.length === 0)) return;
+  const { values, deletedIds, cursor, older } = page;
+  if (!handle || (!reset && !stored && values.length === 0 && deletedIds.length === 0)) {
+    return undefined;
+  }
 
   handle.begin();
   if (reset) handle.truncate();
   for (const value of values) handle.write({ type: "update", value });
   for (const id of deletedIds) handle.write({ type: "delete", key: id });
   if (stored && cursor !== null) handle.metadata?.collection.set(CURSOR_KEY, cursor);
-  void handle.commit();
+  if (stored && typeof older === "string") handle.metadata?.collection.set(OLDER_KEY, older);
+  if (stored && older === null) handle.metadata?.collection.delete(OLDER_KEY);
+  return handle.commit();
+}
+
+/** How a failed request shows in the status: no response, or any other failure. */
+function failureOf(error: unknown): "unreachable" | "error" {
+  return error instanceof SyncNetworkError ? "unreachable" : "error";
 }
 
 /**
@@ -172,13 +208,19 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const noteTarget = syncTarget<SyncNote>();
   let cursor: string | null = null;
   let pulling = false;
-  let pullFailed = false;
+  // Each kind of request clears only its own failure: a pull that works says
+  // nothing about a push that still fails.
+  let pullFailure: "unreachable" | "error" | null = null;
+  let pushFailure: "unreachable" | "error" | null = null;
   // A reset the server asked for, kept until its full pull applies: a failed
   // pull in between must not lose it.
   let resetPending = false;
   let signedOut = false;
   let disposed = false;
-  let status: SyncStatus = { state: "syncing", pending: 0 };
+  let status: SyncStatus = { state: "syncing", pending: 0, older: [] };
+  // Where each list's older rows continue on the server; a list without older rows has none.
+  const older = new Map<SyncList, string>();
+  let loadingOlder: Promise<void> | null = null;
   const listeners = new Set<(status: SyncStatus) => void>();
   const id = `sync-engine:${String(++engineCount)}`;
 
@@ -239,18 +281,37 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     notes.subscribeChanges(() => undefined)
   ];
 
-  function apply(page: SyncPullPage, reset: boolean): void {
+  /** A first pull names every list's older rows; a later page leaves them as they are. */
+  function apply(page: SyncPullPage, reset: boolean, first: boolean): void {
     const deletedIds = (entity: SyncEntity) =>
       page.deleted.filter((deletion) => deletion.entity === entity).map((deletion) => deletion.id);
+    const olderOf = (list: SyncList) => {
+      if (!first) return {};
+      const after = page.older.find((entry) => entry.list === list)?.after ?? null;
+      if (after === null) older.delete(list);
+      else older.set(list, after);
+      return { older: after };
+    };
     const mode = { reset, stored };
-    applyRows(
+    // Never awaited: during a push, sync commits wait for the push.
+    void applyRows(
       todoTarget,
-      { values: page.todos, deletedIds: deletedIds("TODO"), cursor: page.cursor },
+      {
+        values: page.todos,
+        deletedIds: deletedIds("TODO"),
+        cursor: page.cursor,
+        ...olderOf("todos")
+      },
       mode
     );
-    applyRows(
+    void applyRows(
       noteTarget,
-      { values: page.notes, deletedIds: deletedIds("NOTE"), cursor: page.cursor },
+      {
+        values: page.notes,
+        deletedIds: deletedIds("NOTE"),
+        cursor: page.cursor,
+        ...olderOf("notes")
+      },
       mode
     );
   }
@@ -263,9 +324,14 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   async function restore(): Promise<void> {
     if (!stored) return;
     await Promise.all([todoTarget.started, noteTarget.started]);
-    const todoCursor = storedCursor(todoTarget);
-    if (todoCursor !== null && todoCursor === storedCursor(noteTarget)) {
+    const todoCursor = storedText(todoTarget, CURSOR_KEY);
+    if (todoCursor !== null && todoCursor === storedText(noteTarget, CURSOR_KEY)) {
       cursor = todoCursor;
+      const restoreOlder = (list: SyncList, after: string | null) => {
+        if (after !== null) older.set(list, after);
+      };
+      restoreOlder("todos", storedText(todoTarget, OLDER_KEY));
+      restoreOlder("notes", storedText(noteTarget, OLDER_KEY));
       // The stored rows are the state at that cursor: show them before the pull.
       todoTarget.handle?.markReady();
       noteTarget.handle?.markReady();
@@ -278,8 +344,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     pulling = true;
     publish();
     try {
+      // An older page that loads now must land before any later change.
+      await loadingOlder?.catch(() => undefined);
       for (;;) {
-        const page = await transport.pull(cursor);
+        const first = cursor === null;
+        const page = await transport.pull(cursor, first ? SYNC_WINDOW : undefined);
         if (disposed) return;
         if (page.resetRequired) {
           // The server cannot replay from here: rebuild from a full pull.
@@ -287,15 +356,15 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
           resetPending = true;
           continue;
         }
-        apply(page, resetPending);
+        apply(page, resetPending, first);
         resetPending = false;
         cursor = page.cursor;
         if (!page.hasMore) break;
       }
-      pullFailed = false;
+      pullFailure = null;
       signedOut = false;
     } catch (error) {
-      pullFailed = true;
+      pullFailure = failureOf(error);
       if (error instanceof SyncAuthError) signedOut = true;
       throw error;
     } finally {
@@ -330,11 +399,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       type: mutation.type,
       key: String(mutation.key),
       modified: mutation.modified,
-      changes: mutation.changes
+      changes: mutation.changes,
+      original: mutation.original
     }));
+    const mutations = changes.map(toSyncMutation);
     let outcomes;
     try {
-      outcomes = await transport.push(idempotencyKey, changes.map(toSyncMutation));
+      outcomes = await transport.push(idempotencyKey, mutations);
     } catch (error) {
       if (error instanceof SyncAuthError) {
         signedOut = true;
@@ -342,15 +413,26 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       }
       // Resending a refused request cannot succeed; anything else retries.
       if (error instanceof SyncRequestError) {
-        for (const change of changes) {
-          options.onRejected?.({ entity: change.entity, id: change.key, code: "INVALID" });
-        }
+        changes.forEach((change, index) => {
+          const sent = mutations[index];
+          if (sent) {
+            options.onRejected?.({
+              entity: change.entity,
+              id: change.key,
+              code: "INVALID",
+              change: sent
+            });
+          }
+        });
         throw new NonRetriableError(error.message);
       }
+      // This change retries, so sync is failing; a refused request threw above.
+      pushFailure = failureOf(error);
       throw error;
     } finally {
       queueMicrotask(publish);
     }
+    pushFailure = null;
     signedOut = false;
     // Hold the optimistic rows until the server's rows are in the collection,
     // so nothing flickers. A failed pull retries the push: its key replays it.
@@ -358,8 +440,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
     const rejections = outcomes.flatMap((outcome, index) => {
       const change = changes[index];
-      return outcome.status === "REJECTED" && outcome.code && change
-        ? [{ entity: change.entity, id: change.key, code: outcome.code }]
+      const sent = mutations[index];
+      return outcome.status === "REJECTED" && outcome.code && change && sent
+        ? [{ entity: change.entity, id: change.key, code: outcome.code, change: sent }]
         : [];
     });
     if (rejections.length > 0) {
@@ -415,22 +498,32 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   function computeStatus(): SyncStatus {
     const pending = executor.getPendingCount();
+    // A failed request wins over Syncing: waiting changes must not hide it. A
+    // push failure counts while its change waits; no response outranks an error.
+    const failures = [pullFailure, pending > 0 ? pushFailure : null];
+    const failure = failures.includes("unreachable")
+      ? "unreachable"
+      : failures.includes("error")
+        ? "error"
+        : null;
     const state = signedOut
       ? "signedOut"
       : !executor.isOnline()
         ? "offline"
-        : pulling || pending > 0
-          ? "syncing"
-          : pullFailed
-            ? "error"
-            : "online";
-    return { state, pending };
+        : (failure ?? (pulling || pending > 0 ? "syncing" : "online"));
+    return { state, pending, older: [...older.keys()].sort() };
   }
 
   function publish(): void {
     if (disposed) return;
     const next = computeStatus();
-    if (next.state === status.state && next.pending === status.pending) return;
+    if (
+      next.state === status.state &&
+      next.pending === status.pending &&
+      next.older.join() === status.older.join()
+    ) {
+      return;
+    }
     status = next;
     for (const listener of listeners) listener(status);
   }
@@ -446,9 +539,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       publish();
     });
 
+  // A pull publishes as it starts, so a reconnect shows Syncing, not a moment of Online.
   const unsubscribeOnline = executor.getOnlineDetector().subscribe(() => {
-    publish();
     if (executor.isOnline()) void pull().catch(() => undefined);
+    else publish();
   });
   const interval = setInterval(() => {
     void pull().catch(() => undefined);
@@ -554,10 +648,44 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     updateNote: (id, patch) => act(() => updateNoteAction({ id, patch })),
     deleteNote: (id) => act(() => deleteNoteAction(id)),
     pull,
+    async loadOlder(list) {
+      // Never beside a pull: a row deleted while the page loads must not come back.
+      while (running || loadingOlder) await (running ?? loadingOlder)?.catch(() => undefined);
+      const after = older.get(list);
+      if (!after || disposed) return;
+      let applied: SyncAppliedReceipt | undefined;
+      loadingOlder = (async () => {
+        const page = await transport.pullOlder(after);
+        if (disposed) return;
+        const next = page.older.find((entry) => entry.list === list)?.after ?? null;
+        const rows = { deletedIds: [], cursor: null, older: next };
+        const mode = { reset: false, stored };
+        applied =
+          list === "todos"
+            ? applyRows(todoTarget, { ...rows, values: page.todos }, mode)
+            : applyRows(noteTarget, { ...rows, values: page.notes }, mode);
+        if (next === null) older.delete(list);
+        else older.set(list, next);
+        publish();
+      })().finally(() => {
+        loadingOlder = null;
+      });
+      await loadingOlder;
+      // Outside the load: a commit during a push waits for it, and that push may wait for a pull.
+      await applied;
+      // Deletions made while the page loaded follow from the cursor.
+      void pull().catch(() => undefined);
+    },
     async clearLocalData() {
       await initialized;
       await executor.clearOutbox();
       publish();
+    },
+    retry() {
+      pullFailure = null;
+      pushFailure = null;
+      // The Outbox drops its backoff and sends at once, and the online listener pulls.
+      executor.getOnlineDetector().notifyOnline();
     },
     getStatus: () => status,
     subscribeStatus(listener) {

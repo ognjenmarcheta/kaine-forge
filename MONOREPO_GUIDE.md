@@ -31,6 +31,7 @@ kaine-forge/
     e2e/       Playwright end-to-end tests
   packages/
     auth/          better-auth instance (organization, bearer, and Expo plugins), custom scrypt password hooks, and the session/read facade
+    billing/       provider-neutral billing (Stripe and Paddle, ADR 0019)
     config/        ESLint, TypeScript, Prettier, and Tailwind configuration
     db/            Drizzle schema, validators, migrations, seed, migrate export
     email/         provider-agnostic email sending (console adapter, EMAIL_PROVIDER factory)
@@ -41,16 +42,21 @@ kaine-forge/
     persistence/   Zustand storage adapters (sync/async)
     query/         shared React Query keys and cache helpers
     storage/       S3-compatible storage helpers
+    sync/          offline sync engine for Todos and Notes (TanStack DB, ADR 0020)
+    theme/         design-system themes and tokens (DESIGN_SYSTEM.md)
     todos/         shared Todo workflow and attachment helpers
     translation/   i18next config and locale files
     ui/            React DOM design-system primitives and composed UI
+    ui-3d/         accessible, on-demand 3D views for web and desktop
   tooling/
-    ci-runners/      optional ARC self-hosted runner setup (docs/self-hosted-ci.md)
     desk/            local agent desk engine, CLI, and server (`@repo/desk`)
     desk-ui/         React UI for the agent desk (`@repo/desk-ui`)
+    doc-export/      Markdown to .docx or .pptx export (`pnpm doc:export`)
     graphql-codegen/ GraphQL Code Generator config
     dev-mobile-lan.ts  `pnpm dev:mobile:lan` launcher
 ```
+
+`tooling/ci-runners/` holds optional self-hosted runner scripts (`docs/self-hosted-ci.md`). It has no `package.json`, so it is not a workspace.
 
 All internal packages use the `@repo/*` scope. Import through package exports only, never through internal source paths. ESLint forbids `@repo/*/src/**` deep imports, `@repo/ui` inside mobile, and `@repo/mobile-ui` inside web/desktop.
 
@@ -123,6 +129,8 @@ Feature files follow `{feature}.{purpose}.ts(x)`.
 Component files use kebab-case: `todo-list.tsx`, `login-form.tsx`, `organization-switcher.tsx`.
 
 Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-specific components live in `features/{feature}/components/`. Shared app hooks live in `src/hooks/`. Shared package hooks live in the appropriate package.
+
+Each `apps/api/src/features/{feature}/` folder belongs to one bounded context of the `CONTEXT.md` Context map. The map's source is `packages/config/eslint/api-contexts.js`. The lint rule `api/context-boundaries` lets a feature import another context only along a listed edge, and only through that feature's `.module.ts` or `.type.ts` (ADR 0025). A new API feature fails `pnpm check` until you add it to a context.
 
 ## 5. Strings, Types, and Package Boundaries
 
@@ -285,6 +293,7 @@ The template includes production Dockerfiles for API and web:
 - `apps/web/nginx.conf` handles SPA fallback, static asset caching, `/api` proxying, `/graphql` proxying, and websocket upgrade headers. Runtime proxy target: `API_BACKEND_URL`.
 - Both images define `HEALTHCHECK` directives: API probes `GET /health` (liveness; `GET /ready` checks database for readiness); web probes nginx.
 - Each top-level `Dockerfile.<app>` defines a deployable app branch contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI remains for dry-runs and repairs.
+- With the repository variable `DEPLOY_SOURCE=image`, the Release workflow also builds each moved app's image on GitHub, pushes `ghcr.io/<owner>/<repo>-<app>:release`, and calls its `DEPLOY_WEBHOOK_<APP>` secret, so the platform only pulls. The default builds on the platform from `release/<app>`. See `docs/deploy.md`, "Deploy source".
 - Docker images must stay template-safe. Do not add product-specific services, assets, or secrets.
 
 Build examples:
@@ -334,6 +343,7 @@ Mobile shell:
 
 - Zustand is for client UI state such as sidebar, theme, and local app preferences.
 - React Query is for server state. Do not duplicate server data in Zustand.
+- Todos and Notes are the exception: they live in the sync engine's collections, not in React Query (see Offline sync below).
 - Web/desktop persistence uses localStorage.
 - Mobile persistence uses the mobile storage adapter chosen by the app.
 
@@ -350,6 +360,21 @@ Provider order:
   </ThemeProvider>
 </TranslationProvider>
 ```
+
+### Offline sync (ADR 0020)
+
+Todos and Notes work offline on web and desktop, and Todos on mobile (mobile has no Notes). Every other screen needs the network. Use the terms **Sync Version**, **Tombstone**, **Pending Change**, and **Outbox** from `CONTEXT.md`.
+
+- **Server.** `apps/api/src/features/sync` serves `syncPull` and `syncPush`. A trigger stamps every insert and update with the **Organization**'s next **Sync Version**, and an `AFTER DELETE` trigger writes a **Tombstone**. `drizzle-kit push` skips a migration's custom SQL, so `packages/db/src/sync.triggers.ts` installs the same triggers after `db:push`. `syncPush` replays each change through the feature's own module functions, so validation, permissions, and Organization scoping stay in one place. A new synced entity is one entry in `SYNCED_TABLES` and one in `MUTATIONS` in `sync.module.ts`; `pnpm create:feature <name> --sync` adds the server side, and the client wiring stays manual.
+- **Client.** `createSyncEngine` from `@repo/sync` runs one engine per (User, Active Organization); the app's sync provider creates it. Screens read `engine.todos` and `engine.notes` through `useLiveQuery`, keyed on `engine.id`, and write only through the engine methods. Writes show at once and resolve once the **Outbox** stores them. They never wait for the server.
+- **Conflicts.** The server applies **Pending Changes** in arrival order, and an update patches only the fields it changed. A delete wins: an update of a deleted row is refused with `NOT_FOUND`. A refused change rolls back on the client and shows a `sync.rejected.*` toast. Send state, never a flip: an offline update sets `completed`, it never calls `toggleTodo`. Use no device clocks for order.
+- **Device storage.** The **Outbox** is IndexedDB on web and desktop, and AsyncStorage on mobile. Synced rows are SQLite, one database per User and Organization, named `ks-<user hash>-<organization hash>.db`: OPFS through wa-sqlite on web (shared by tabs), the shell's own commands on desktop (`apps/desktop/src-tauri/src/device_db.rs`, one connection per file, because `tauri-plugin-sql` splits a transaction across its pool), and `expo-sqlite` on mobile. Signing out deletes that User's databases, and starting sync deletes other Users' databases. Deletion is best effort: a file that stays is deleted at the next try. Where a device cannot store rows, they stay in memory and sync still works.
+- **Status.** `engine.getStatus().state` is, in order of precedence: `signedOut`, `offline` (the device has no network), `unreachable` (no response or a gateway error, which the transport reports as `SyncNetworkError`), `error` (any other failed request), `syncing`, `online`. A failure wins over `syncing`, so waiting changes never hide it. `engine.retry()` pulls and sends waiting changes at once; the badge offers it as Retry now for `unreachable` and `error`. Web and desktop pass `createBrowserOnlineDetector(window)`: TanStack's default detector counts any visible tab as online.
+- **App shell.** The web production build registers a service worker (`vite-plugin-pwa`), so the app starts with no network. The dev server and the desktop shell never register it.
+- **Tests.** Engine behavior has unit tests in `@repo/sync` and `apps/web/src/lib/sync.testing.ts`, with a fake server. Playwright blocks service workers by default, so `web-offline-start.e2e.ts` and `web-offline-sync.e2e.ts` allow them and run only against the production build (`E2E_SERVE_BUILD=true`, as CI runs them).
+- **Large Organizations.** A first pull loads the newest 500 Todos and Notes. "Load more" past the local rows loads older ones with `engine.loadOlder`, online only. Search sees only the rows on the device.
+- **Note bodies.** A body edit sends `baseBody`, and the server merges edits of different lines. Edits of the same lines are refused with `CONFLICT`, and the web app lets the second writer keep theirs or the current body.
+- **Realtime events.** The pubsub (`apps/api/src/pubsub.ts`) sends every event to the other API replicas through Postgres LISTEN/NOTIFY on the `api_pubsub` channel (`pubsub.replicas.ts`). LISTEN needs a session connection, so `DATABASE_URL` must not point at a transaction-mode pooler. While the listener reconnects, clients catch up on their pull interval.
 
 ## 14. Desktop Rules
 
@@ -397,6 +422,7 @@ Root commands:
 | `pnpm desk:ui`        | desk UI Vite dev server                                                                                               |
 | `pnpm graph`          | build the Graphify knowledge graph (optional CLI)                                                                     |
 | `pnpm graph:update`   | refresh the knowledge graph incrementally                                                                             |
+| `pnpm worktree:env`   | give a linked worktree its own web and API ports (`--web N --api N`); worktrunk runs it (ADR 0024)                    |
 
 Use scoped commands from the repo root:
 

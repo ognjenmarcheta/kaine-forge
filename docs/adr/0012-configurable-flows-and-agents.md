@@ -83,3 +83,19 @@ Agents and flows are data, and one interpreter runs them.
 
 See [agent-desk.md](../agents/agent-desk.md) ("Agents and flows") and
 [agent-desk-api.md](../agents/agent-desk-api.md) ("Agents and flows").
+
+## Addendum 2026-11-06: report steps anywhere
+
+A `report` agent decides nothing, so a step role looks past it. A gate whose nearest earlier
+step that is not a report is the plan agent is the plan gate, also with report steps between the
+two. One helper (`previousDecisionStep` in `src/contracts/flow-definition.contract.ts`) gives
+that step to `stepRoleOf`, to the validator rule "A gate cannot both approve a plan and confirm
+a ship", and to the re-plan edge of the flow graph. The validator, the interpreter, and the UI
+therefore keep the same answer.
+
+A report also reaches the steps after it. Each agent step gets the reports of the report steps
+before it in the flow. When feedback sends the work back to a step, the rerun also gets the
+reports of the report steps after it that ran, because they judged its earlier output. The
+prompt fences each report as untrusted data and calls it advice: the approved plan stays
+authoritative. The plan gate shows the reports of the report steps between the plan and the
+gate. The built-in `kaine-default` flow does not change.

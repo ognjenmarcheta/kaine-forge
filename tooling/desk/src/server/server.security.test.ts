@@ -486,6 +486,31 @@ describe("request targets and traversal", () => {
   });
 });
 
+describe("framing", () => {
+  it("lets only the desk frame the lab frame page, and nothing frame any other page", async () => {
+    const base = path.join(harness.root, "ui-frame");
+    await mkdir(base, { recursive: true });
+    await writeFile(path.join(base, "index.html"), "<!doctype html><title>desk</title>");
+    await writeFile(path.join(base, "lab-frame.html"), "<!doctype html><title>frame</title>");
+    const served = await createHarness({ uiDir: base });
+    try {
+      const frame = await raw(served.desk, { path: "/lab-frame.html" });
+      expect(frame.status).toBe(200);
+      expect(frame.headers["content-security-policy"]).toContain("frame-ancestors 'self'");
+      expect(frame.headers["x-frame-options"]).toBe("SAMEORIGIN");
+      for (const target of ["/", "/index.html", "/lab-frame.html/x", "/api/issues"]) {
+        const reply = await raw(served.desk, { path: target });
+        expect(reply.headers["content-security-policy"], target).toContain(
+          "frame-ancestors 'none'"
+        );
+        expect(reply.headers["x-frame-options"], target).toBe("DENY");
+      }
+    } finally {
+      await served.cleanup();
+    }
+  });
+});
+
 describe("static files stay inside the UI directory", () => {
   it("serves no file outside uiDir by path tricks or links", async () => {
     const base = path.join(harness.root, "ui");

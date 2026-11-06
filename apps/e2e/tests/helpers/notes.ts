@@ -226,7 +226,8 @@ export async function mockNotes(page: Page) {
                   ...pullData(),
                   cursor: String(++pulls),
                   hasMore: false,
-                  resetRequired: false
+                  resetRequired: false,
+                  older: []
                 }
               }
             }

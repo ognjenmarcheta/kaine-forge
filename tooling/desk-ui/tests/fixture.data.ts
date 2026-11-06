@@ -11,6 +11,8 @@ import {
   type IssueState,
   type LessonReport,
   type RunRecord,
+  type ScorecardRun,
+  type ScorecardView,
   type StageId
 } from "@repo/desk/contracts";
 
@@ -697,4 +699,91 @@ export const resolvedOf = (agent: AgentDefinition): CapabilityProfile => ({
   mcp: agent.capabilities.mcp,
   skills: agent.capabilities.skills,
   removed: []
+});
+
+const scorecardDimensions = (score: number): ScorecardRun["dimensions"] =>
+  Object.fromEntries(
+    Array.from({ length: 10 }, (_, index) => [
+      String(index + 1),
+      {
+        score: index === 3 ? score - 1 : score,
+        evidence: `Gate ${index + 1} exits 0 on every PR. Not 9: list ${index + 1} is kept by hand; the guide omits rule ${index + 1}`
+      }
+    ])
+  );
+
+/** Two runs of the scorecard ledger: the second drops dimension 4 and fixes one finding. */
+export const scenarioScorecard = (): ScorecardView => ({
+  state: "ready",
+  ledgerPath: "docs/agents/monorepo-scorecard.md",
+  updatedAt: "2026-11-02T12:00:00.000Z",
+  repository: "owner/repo",
+  runs: [
+    {
+      date: "2026-10-20",
+      commit: "9cf8364f919d60c402691d317959ae5ddec85a8b",
+      mode: "fan-out",
+      agent: "claude",
+      overall: 8,
+      dimensions: scorecardDimensions(8),
+      findings: [
+        {
+          slug: "release-push-non-atomic",
+          title: "release: release branches are pushed one at a time",
+          dimension: 6,
+          ladderRank: 3,
+          disposition: "observed"
+        }
+      ]
+    },
+    {
+      date: "2026-11-02",
+      commit: "34ca7e4cc4a5b1c2d3e4f5a6b7c8d9e0f1a2b3c4",
+      mode: "fan-out",
+      agent: "claude",
+      overall: 7.7,
+      dimensions: scorecardDimensions(8),
+      findings: [
+        {
+          slug: "release-push-non-atomic",
+          title: "release: release branches are pushed one at a time",
+          dimension: 6,
+          ladderRank: 3,
+          disposition: "fixed",
+          issue: 840
+        },
+        {
+          slug: "e2e-pr-release-server-mode-divergence",
+          title: "ci: pr e2e serves built apps while release e2e runs dev servers",
+          dimension: 4,
+          ladderRank: 2,
+          disposition: "observed",
+          reason: "Proposed for filing on 2026-11-02; awaiting owner go-ahead"
+        }
+      ]
+    }
+  ],
+  calibration: { "34ca7e4": ["Dim 4 → 7 with cause: main went red three times."] },
+  flows: [
+    {
+      id: "release",
+      title: "Release pipeline",
+      caption: "Backs dimension 6.",
+      width: 488,
+      height: 92,
+      nodes: [
+        { id: "main", label: "main", group: "git", x: 24, y: 24, width: 168, height: 44 },
+        {
+          id: "release",
+          label: "release/<app>",
+          group: "deploy",
+          x: 270,
+          y: 24,
+          width: 168,
+          height: 44
+        }
+      ],
+      edges: [{ from: "main", to: "release" }]
+    }
+  ]
 });

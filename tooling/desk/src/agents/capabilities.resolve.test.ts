@@ -16,6 +16,7 @@ import {
 import type { AgentPermissions } from "./agent.runner";
 import { loadCapabilities } from "./capabilities.load";
 import { resolveCapabilities, toAgentPermissions } from "./capabilities.resolve";
+import { KAINE_SKILLS } from "./permissions";
 import { parseAgentFile } from "../registry/registry.parse";
 import { readInstalledCapabilities } from "../registry/registry.snapshot";
 
@@ -99,6 +100,7 @@ const resolve = (
     readonly provider?: Provider;
     readonly isolation?: Isolation;
     readonly workspaces?: readonly string[];
+    readonly approvedCommands?: readonly string[];
   } = {}
 ) =>
   resolveCapabilities({
@@ -108,7 +110,8 @@ const resolve = (
     policy: { denies: ["Bash(pnpm db:push)"] },
     installed: INSTALLED,
     isolation: options.isolation ?? "host",
-    workspaces: options.workspaces
+    workspaces: options.workspaces,
+    approvedCommands: options.approvedCommands
   });
 
 describe("resolveCapabilities", () => {
@@ -167,6 +170,34 @@ describe("resolveCapabilities", () => {
       expect(host.sandbox, preset).toBe("host");
       expect(host.mcp, preset).toEqual(["serena"]);
     }
+  });
+
+  it("turns an approved command into one exact allow rule and keeps the denies", () => {
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const profile = resolve(
+      { preset: "edit-code", mcp: [], skills: [] },
+      { workspaces: ["@repo/config"], approvedCommands: [command, "pnpm exec evil"] }
+    );
+
+    // Exact: no `:*` suffix, so it never matches a longer command.
+    expect(profile.tools.allow).toContain(`Bash(${command})`);
+    expect(profile.tools.allow).not.toContain(`Bash(${command}:*)`);
+    // A command that the desk denies stays denied, whatever the owner approved.
+    expect(profile.tools.deny).toContain("Bash(pnpm exec:*)");
+  });
+
+  it("gives an approved command to an agent that can run commands, never to a read-only one", () => {
+    const command = "pnpm turbo run lint --filter=@repo/web --dry=json";
+    const rule = `Bash(${command})`;
+    for (const preset of ["edit-code", "run-checks"] as const) {
+      const profile = resolve({ preset, mcp: [], skills: [] }, { approvedCommands: [command] });
+      expect(profile.tools.allow, preset).toContain(rule);
+    }
+    const readOnly = resolve(
+      { preset: "read-only", mcp: [], skills: [] },
+      { approvedCommands: [command] }
+    );
+    expect(readOnly.tools.allow).not.toContain(rule);
   });
 
   it("gives run-checks the exact check commands of its workspaces and no way to edit", () => {
@@ -258,6 +289,28 @@ describe("resolveCapabilities", () => {
       resolve({ preset: "edit-code", mcp: [], skills: [] }, { provider: "codex" }).sandbox
     ).toBe("codex-workspace-write");
   });
+
+  it("gives OpenCode the Claude rule lists on the host, but no MCP server", () => {
+    const options = { provider: "opencode" as const };
+    const reviewer = resolve(
+      { preset: "read-only", mcp: ["serena"], skills: ["kaine-review"] },
+      options
+    );
+    const claude = resolve({ preset: "read-only", mcp: ["serena"], skills: ["kaine-review"] });
+    expect(reviewer).toMatchObject({
+      sandbox: "host",
+      mcp: [],
+      tools: claude.tools,
+      notes: expect.arrayContaining([
+        "OpenCode: the desk's permission rules, no MCP, no OS sandbox"
+      ])
+    });
+    expect(reviewer.removed.map((entry) => [entry.kind, entry.name])).toEqual([["mcp", "serena"]]);
+    expect(toAgentPermissions(reviewer)).toEqual({
+      allow: claude.tools.allow,
+      disallow: claude.tools.deny
+    });
+  });
 });
 
 describe("the built-in agents", () => {
@@ -268,23 +321,50 @@ describe("the built-in agents", () => {
       )
     );
     const checkout = await parityCheckout();
+    // KAINE_SKILLS has grown since the capture. A skill the fixture never names is checked on
+    // its own below, so parity compares every other rule exactly.
+    const SKILL_DENY = /^Skill\(skill:(.+)\)$/;
+    const captured = new Set(
+      Object.values(parity).flatMap((entry) =>
+        entry.disallow.flatMap((rule) => SKILL_DENY.exec(rule)?.[1] ?? [])
+      )
+    );
+    const newer = KAINE_SKILLS.filter((skill) => !captured.has(skill));
     const permissions = async (
       agent: Pick<AgentDefinition, "capabilities">,
       provider: Provider,
       isolation: Isolation,
       workspaces?: readonly string[]
-    ): Promise<AgentPermissions> =>
-      toAgentPermissions(
+    ): Promise<AgentPermissions> => {
+      const resolved = toAgentPermissions(
         await loadCapabilities({ agent, provider, model: null, checkout, isolation, workspaces })
       );
+      if (provider !== "claude") return resolved;
+      for (const skill of newer.filter((name) => !agent.capabilities.skills.includes(name))) {
+        expect(resolved.disallow).toContain(`Skill(skill:${skill})`);
+      }
+      const isNewer = (rule: string): boolean => newer.includes(SKILL_DENY.exec(rule)?.[1] ?? "");
+      return { ...resolved, disallow: resolved.disallow.filter((rule) => !isNewer(rule)) };
+    };
 
-    const agents = await builtinAgents();
-    expect(agents.map((agent) => agent.id).sort()).toEqual([
+    const all = await builtinAgents();
+    expect(all.map((agent) => agent.id).sort()).toEqual([
+      "architect",
       "builder",
+      "designer",
+      "dx-advocate",
       "intake",
+      "motion-designer",
       "planner",
-      "reviewer"
+      "product-strategist",
+      "reviewer",
+      "security-officer",
+      "simplifier",
+      "tech-writer"
     ]);
+    // Parity covers the four agents that predate agent files; the specialists are newer.
+    const ROLE_IDS = new Set(["builder", "intake", "planner", "reviewer"]);
+    const agents = all.filter((agent) => ROLE_IDS.has(agent.id));
     for (const isolation of ["host", "docker"] as const) {
       for (const provider of ["claude", "codex"] as const) {
         for (const agent of agents) {

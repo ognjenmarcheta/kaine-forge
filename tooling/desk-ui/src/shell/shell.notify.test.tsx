@@ -92,7 +92,7 @@ describe("turn notifications and the tab title", () => {
     await waitFor(() => expect(source.listeners.has("issue-updated")).toBe(true));
     act(() => source.update(issue(44, "needs-you", "2026-03-01T11:00:00.000Z")));
     await waitFor(() => expect(document.title).toBe("(2) Agent Desk"));
-    expect(shown).toEqual([{ title: "#44 Issue 44", body: "Needs you" }]);
+    expect(shown).toEqual([{ title: "#44 Issue 44", body: "Stopped" }]);
 
     // A change that keeps the issue in the same place does not notify again.
     act(() => source.update(issue(44, "needs-you", "2026-03-01T12:00:00.000Z")));

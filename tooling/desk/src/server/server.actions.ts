@@ -8,15 +8,19 @@ export interface ServerRunner {
   readonly approvePlan: PipelineRunner["approvePlan"];
   readonly feedback: PipelineRunner["feedback"];
   readonly continueFrom: PipelineRunner["continueFrom"];
+  readonly resolveDenial: PipelineRunner["resolveDenial"];
   readonly cancel: PipelineRunner["cancel"];
   readonly remove: PipelineRunner["remove"];
   readonly ship: PipelineRunner["ship"];
   readonly refreshPr: PipelineRunner["refreshPr"];
+  readonly checkPr: PipelineRunner["checkPr"];
   readonly feedbackFromPr: PipelineRunner["feedbackFromPr"];
   readonly draft: PipelineRunner["draft"];
   readonly applyDraft: PipelineRunner["applyDraft"];
   readonly pause: PipelineRunner["pause"];
   readonly resume: PipelineRunner["resume"];
+  readonly steer: PipelineRunner["steer"];
+  readonly takeOver: PipelineRunner["takeOver"];
 }
 
 /** How a runner call ended, in the terms of the wire contract. */
@@ -88,11 +92,17 @@ const settle = (result: RunnerResult): Settled => {
 };
 
 /**
- * `cancel` and `remove` exist to stop a running action, and `pause` to hold the issue after it,
- * so they never wait behind one.
+ * `cancel` and `remove` exist to stop a running action, `pause` to hold the issue after it, and
+ * `steer` and `take-over` to reach its agent, so they never wait behind one.
  */
-const isStopAction = (request: ActionRequest): boolean =>
-  request.action === "cancel" || request.action === "remove" || request.action === "pause";
+const STOP_ACTIONS: ReadonlySet<ActionName> = new Set([
+  "cancel",
+  "remove",
+  "pause",
+  "steer",
+  "take-over"
+]);
+const isStopAction = (request: ActionRequest): boolean => STOP_ACTIONS.has(request.action);
 
 const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : "unknown error";
@@ -132,6 +142,8 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
         return runner.ship(issueNumber, { dryRun: request.dryRun });
       case "refresh-pr":
         return runner.refreshPr(issueNumber);
+      case "check-pr":
+        return runner.checkPr(issueNumber);
       case "pr-feedback":
         return runner.feedbackFromPr(
           issueNumber,
@@ -145,6 +157,12 @@ export const createActionDispatcher = (options: ActionDispatcherOptions): Action
         return runner.pause(issueNumber);
       case "resume":
         return runner.resume(issueNumber);
+      case "steer":
+        return runner.steer(issueNumber, request.note);
+      case "take-over":
+        return runner.takeOver(issueNumber);
+      case "resolve-denial":
+        return runner.resolveDenial(issueNumber, request.command, request.resolution);
     }
   };
 

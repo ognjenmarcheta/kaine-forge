@@ -21,6 +21,7 @@ import type {
   AgentRunRequest,
   AgentRunner
 } from "../agents/agent.runner";
+import type { ProviderPort } from "../agents/provider.probe";
 import {
   REVIEW_SECTIONS,
   deskConfigSchema,
@@ -146,10 +147,11 @@ export const createScriptedRunner = (steps: readonly ScriptedStep[]): ScriptedRu
           ]);
         }
         if (request.signal?.aborted === true) {
+          // A real runner knows its session once the process has started.
           return {
             ok: false,
             failure: { kind: "aborted" },
-            partial: { trace: [], sessionId: null, denials: [] }
+            partial: { trace: [], sessionId: step.sessionId ?? null, denials: [] }
           };
         }
         const output = step.outputFor === undefined ? step.output : step.outputFor(recorded);
@@ -245,6 +247,8 @@ export interface FakePnpm {
   readonly checkReplies: PnpmReply[];
   /** Set to make a setup script fail (`install`, `env:ensure`, `ai:install`). */
   readonly scriptReplies: Map<string, PnpmReply>;
+  /** Runs before a script replies, as the real script would change files (`ai:install`). */
+  readonly scriptEffects: Map<string, (request: ExecRequest) => Promise<void>>;
 }
 
 /**
@@ -255,6 +259,7 @@ export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
   const calls: ExecRequest[] = [];
   const checkReplies: PnpmReply[] = [];
   const scriptReplies = new Map<string, PnpmReply>();
+  const scriptEffects = new Map<string, (request: ExecRequest) => Promise<void>>();
   const exec: Exec = async (request) => {
     calls.push(request);
     if (request.argv[0] === "git") {
@@ -264,6 +269,7 @@ export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
       return gitExec(request);
     }
     const script = request.argv[1] ?? "";
+    await scriptEffects.get(script)?.(request);
     const reply: PnpmReply =
       script === "check:affected"
         ? (checkReplies.shift() ?? {})
@@ -277,7 +283,7 @@ export const createFakePnpm = (gitExec?: Exec): FakePnpm => {
     };
     return result;
   };
-  return { exec, calls, checkReplies, scriptReplies };
+  return { exec, calls, checkReplies, scriptReplies, scriptEffects };
 };
 
 // --- the environment -------------------------------------------------------
@@ -318,6 +324,8 @@ export interface EnvOptions {
   readonly extraFiles?: Readonly<Record<string, string>>;
   /** The Docker isolation of the pipeline. Absent: host only. */
   readonly docker?: IsolationPort;
+  /** The provider CLIs found. Absent: every provider counts as installed. */
+  readonly providers?: ProviderPort;
 }
 
 export const REPO_FILES: Readonly<Record<string, string>> = {
@@ -369,6 +377,7 @@ export const createPipelineEnv = async (options: EnvOptions = {}): Promise<Pipel
     git: fake === null ? createGitPort(pnpm.exec) : fake.port,
     github,
     runnerFor: () => agentRunner,
+    providers: options.providers,
     docker: options.docker,
     store,
     clock: { now: () => new Date("2026-10-07T09:00:00Z") },

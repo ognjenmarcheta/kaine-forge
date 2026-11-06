@@ -7,11 +7,15 @@ export const DATA_EXPORT_CONFIG = {
   defaultArchiveTtlMs: 7 * 24 * 60 * 60 * 1000,
   archiveContentType: "application/zip",
   /**
-   * Cap on an archive's JSON before compression. The job builds the whole
-   * archive in memory, so a larger export fails with reason too_large instead
-   * of exhausting the process (streaming is the upgrade: issue #753).
+   * Cap on an archive's JSON before compression. The job streams the archive,
+   * so memory does not grow with it; the cap bounds the job's run time, which
+   * pg-boss ends after 15 minutes. A larger export fails with reason too_large.
    */
-  maxArchiveBytes: 256 * 1024 * 1024,
+  maxArchiveBytes: 4 * 1024 ** 3,
+  /** Cap on the compressed archive: GraphQL reports its size as a 32-bit Int. */
+  maxZipBytes: 2 ** 31 - 1,
+  /** Rows the job reads per query, for each list in an archive. */
+  pageSize: 1000,
   /**
    * Private-bucket prefix of user export archives. An Organization export
    * lives under the Organization's own `<organizationId>/` prefix instead, so

@@ -103,7 +103,7 @@ export const AGENT_REGISTRY: Readonly<Record<Agent, AgentFacts>> = {
     agentDefinitions: { dir: ".opencode/agents", render: renderOpencodeAgentDefinition },
     generatedFiles: [
       {
-        path: ".opencode/plugins/kaine-guardrail.ts",
+        path: ".opencode/plugins/kaine-guardrail/index.ts",
         render: renderOpencodeGuardrailPlugin,
         hook: true
       }

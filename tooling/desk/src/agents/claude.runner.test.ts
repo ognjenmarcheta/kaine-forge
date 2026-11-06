@@ -46,6 +46,13 @@ describe("buildClaudeArgs", () => {
     expect(valueAfter(args, "--session-id")).toBe(SESSION);
     expect(args).not.toContain("--resume");
     expect(args).not.toContain("--agents");
+    // Only a desk job sets a budget.
+    expect(args).not.toContain("--max-budget-usd");
+  });
+
+  it("passes a job's budget for Claude to enforce, subagents included", () => {
+    const args = buildClaudeArgs(baseRequest({ maxBudgetUsd: 12.5 }), { newSessionId: SESSION });
+    expect(valueAfter(args, "--max-budget-usd")).toBe("12.5");
   });
 
   it("never emits flags that skip policy or settings", () => {

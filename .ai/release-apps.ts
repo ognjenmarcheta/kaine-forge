@@ -1,9 +1,15 @@
 #!/usr/bin/env tsx
 
 import chalk from "chalk";
+import { appendFileSync } from "node:fs";
 
 import { REPO_ROOT } from "./ai.util";
-import { type AppPlan, type ReleaseAppsOptions, runReleaseApps } from "./release-apps.util";
+import {
+  type AppPlan,
+  releaseOutputLine,
+  type ReleaseAppsOptions,
+  runReleaseApps
+} from "./release-apps.util";
 
 const usage = `Usage:
   pnpm release:apps [--apps <app[,app]|all>] [--base <ref>] [--dry-run]
@@ -95,6 +101,9 @@ const main = (): void => {
     stdio: "inherit",
     onPlans: (plans) => printPlans(plans, options.dryRun)
   });
+  // In the Release workflow, the image deploy job reads which apps moved.
+  const output = process.env["GITHUB_OUTPUT"];
+  if (output) appendFileSync(output, `${releaseOutputLine(outcome)}\n`);
 
   if (outcome.status === "behind") {
     console.log(

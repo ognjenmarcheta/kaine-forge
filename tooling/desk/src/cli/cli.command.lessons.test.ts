@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { lessonReportSchema, type LessonRecord } from "../contracts";
@@ -39,5 +41,33 @@ describe("lessons", () => {
     const json = await env.run("lessons", "--json", "--source", "review");
     expect(lessonReportSchema.parse(JSON.parse(json.stdout))).toMatchObject({ candidates: [] });
     expect((await env.run("lessons", "--min-issues", "0")).code).toBe(2);
+  });
+
+  it("says when a promoted lesson came back after its promotion", async () => {
+    env = await createCliEnv();
+    await appendLessonRecords(env.stateRoot, [
+      lesson(12),
+      lesson(20, { at: "2026-10-20T09:00:00.000Z" }),
+      lesson(21, { key: "stuck/pnpm lint", at: "2026-10-12T09:00:00.000Z" })
+    ]);
+    const promoted = (key: string) => ({
+      key,
+      at: "2026-10-14T00:00:00.000Z",
+      note: null,
+      issue: null
+    });
+    await writeFile(
+      path.join(env.stateRoot, "lessons-promoted.json"),
+      JSON.stringify({
+        version: 1,
+        promoted: [promoted("stuck/pnpm test"), promoted("stuck/pnpm lint")]
+      })
+    );
+
+    const result = await env.run("lessons");
+    expect(result.stdout).toContain(
+      "stuck/pnpm test  came back 1 time(s) in 1 issue(s) (#20) since 2026-10-14, last 2026-10-20"
+    );
+    expect(result.stdout).toContain("stuck/pnpm lint  not seen since 2026-10-14");
   });
 });

@@ -1,8 +1,10 @@
 import {
   agentOf,
   arrivalNode,
+  avatarOf,
   nodeOfStage,
   stepOf,
+  type AgentAvatarSpec,
   type AgentStageRole,
   type FlowModel,
   type FlowNodeId,
@@ -39,7 +41,11 @@ export interface TraceStep {
   /** The agent role whose runs belong here, or `null`. */
   readonly role: AgentStageRole | null;
   /** The flow agent of the step, or `null` for a step without one. */
-  readonly agent: { readonly id: string; readonly name: string } | null;
+  readonly agent: {
+    readonly id: string;
+    readonly name: string;
+    readonly avatar: AgentAvatarSpec;
+  } | null;
   /** 1 for the first run of the key, 2 for the second, and so on. */
   readonly round: number;
   readonly at: string;
@@ -150,7 +156,8 @@ export function buildTrace(
     const role = own === "ticket" ? "intake" : (ownNode?.role ?? null);
     const step = stepOf(snapshot, own);
     const found = step?.kind === "agent" ? agentOf(snapshot, step.agent) : undefined;
-    const agent = found === undefined ? null : { id: found.id, name: found.name };
+    const agent =
+      found === undefined ? null : { id: found.id, name: found.name, avatar: avatarOf(found) };
     const ofStep = (run: RunRecord): boolean =>
       agent !== null && run.agentId !== undefined ? run.agentId === agent.id : run.role === role;
     const matched =

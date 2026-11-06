@@ -1,8 +1,15 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(path.resolve(import.meta.dirname, "desk.styles.css"), "utf8");
+const styles = path.resolve(import.meta.dirname, "styles");
+// The desk's own stylesheet and the redesign's layers in styles/.
+const css = [
+  readFileSync(path.resolve(import.meta.dirname, "desk.styles.css"), "utf8"),
+  ...readdirSync(styles)
+    .filter((name) => name.endsWith(".css"))
+    .map((name) => readFileSync(path.join(styles, name), "utf8"))
+].join("\n");
 const tokensCss = readFileSync(
   path.resolve(import.meta.dirname, "../../../packages/ui/src/styles/tokens.generated.css"),
   "utf8"
@@ -11,7 +18,7 @@ const tokensCss = readFileSync(
 const stripComments = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, "");
 const body = stripComments(css);
 
-describe("desk.styles.css is token-only", () => {
+describe("the desk stylesheets are token-only", () => {
   it("has no hex, rgb, hsl, or named color", () => {
     expect(body.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).toEqual([]);
     expect(body.match(/\b(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklch)\(/g) ?? []).toEqual([]);

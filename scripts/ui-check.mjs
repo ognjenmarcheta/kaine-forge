@@ -36,12 +36,7 @@ if (theme.status !== 0) {
 // 2. Stylesheets: no raw colors, only defined tokens, named transitions, token type sizes.
 const tokensCss = readFileSync(join(root, "packages/ui/src/styles/tokens.generated.css"), "utf8");
 const defined = new Set(Array.from(tokensCss.matchAll(/(--ds-[a-zA-Z0-9-]+)\s*:/g), (m) => m[1]));
-const stylesheetRoots = [
-  "packages/ui/src/styles",
-  "apps/web/src",
-  "tooling/desk-ui/src",
-  "tooling/ui-lab/src"
-];
+const stylesheetRoots = ["packages/ui/src/styles", "apps/web/src", "tooling/desk-ui/src"];
 const stylesheets = stylesheetRoots.flatMap((dir) =>
   readdirSync(join(root, dir), { recursive: true, encoding: "utf8" })
     .filter((file) => file.endsWith(".css") && !file.endsWith(".generated.css"))
@@ -91,7 +86,6 @@ const lintWorkspaces = [
   "apps/web",
   "apps/desktop",
   "tooling/desk-ui",
-  "tooling/ui-lab",
   "packages/mobile-ui",
   "apps/mobile"
 ];

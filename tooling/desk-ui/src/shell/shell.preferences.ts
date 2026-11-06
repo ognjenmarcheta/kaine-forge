@@ -1,9 +1,11 @@
+import { resolveThemeName, type ThemeName } from "@repo/theme";
 import { useEffect, useState } from "react";
 
 export const THEMES = ["light", "dark", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
 const STORAGE_KEY = "kaine-desk-theme";
+const THEME_NAME_KEY = "kaine-desk-theme-name";
 const NOTIFY_KEY = "kaine-desk-notify";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -55,6 +57,36 @@ export function useTheme(): readonly [Theme, (theme: Theme) => void] {
   return [theme, choose] as const;
 }
 
+const readStoredThemeName = (): ThemeName => {
+  try {
+    return resolveThemeName(window.localStorage.getItem(THEME_NAME_KEY));
+  } catch {
+    return resolveThemeName(null);
+  }
+};
+
+/**
+ * Which registered theme the desk wears (Byte Forge, Moss). A stored name that is no longer
+ * registered falls back to the default theme. Set on the root beside the color mode.
+ */
+export function useThemeName(): readonly [ThemeName, (name: ThemeName) => void] {
+  const [name, setName] = useState<ThemeName>(readStoredThemeName);
+
+  useEffect(() => {
+    document.documentElement.dataset["theme"] = name;
+  }, [name]);
+
+  const choose = (next: ThemeName): void => {
+    setName(next);
+    try {
+      window.localStorage.setItem(THEME_NAME_KEY, next);
+    } catch {
+      // The choice still applies to this page.
+    }
+  };
+  return [name, choose] as const;
+}
+
 /**
  * Browser notifications when an issue reaches a gate or stops. Off until the person turns them
  * on; the choice is kept like the theme. Permission is the browser's, asked on the toggle.
@@ -78,31 +110,60 @@ export function useNotifyPreference(): readonly [boolean, (on: boolean) => void]
   return [on, choose] as const;
 }
 
-export const BOARD_LAYOUTS = ["turn", "columns"] as const;
-export type BoardLayout = (typeof BOARD_LAYOUTS)[number];
-
-const LAYOUT_KEY = "kaine-desk-board-layout";
-
-const isBoardLayout = (value: string | null): value is BoardLayout =>
-  BOARD_LAYOUTS.some((layout) => layout === value);
-
-/** The board as a "Your turn" inbox or as columns. Kept like the theme; Your turn by default. */
-export function useBoardLayout(): readonly [BoardLayout, (layout: BoardLayout) => void] {
-  const [layout, setLayout] = useState<BoardLayout>(() => {
+/** A stored choice of a few: kept in localStorage, the first option when none is stored. */
+function useStoredChoice<T extends string>(
+  key: string,
+  options: readonly T[],
+  fallback: T
+): readonly [T, (next: T) => void] {
+  const [value, setValue] = useState<T>(() => {
     try {
-      const stored = window.localStorage.getItem(LAYOUT_KEY);
-      return isBoardLayout(stored) ? stored : "turn";
+      const stored = window.localStorage.getItem(key);
+      return options.find((option) => option === stored) ?? fallback;
     } catch {
-      return "turn";
+      return fallback;
     }
   });
-  const choose = (next: BoardLayout): void => {
-    setLayout(next);
+  const choose = (next: T): void => {
+    setValue(next);
     try {
-      window.localStorage.setItem(LAYOUT_KEY, next);
+      window.localStorage.setItem(key, next);
     } catch {
       // The choice still applies to this page.
     }
   };
-  return [layout, choose] as const;
+  return [value, choose] as const;
+}
+
+export const WORK_VIEWS = ["list", "columns"] as const;
+export type WorkView = (typeof WORK_VIEWS)[number];
+
+/** All work as one list or in columns. Kept like the theme; the list by default. */
+export const useWorkView = (): readonly [WorkView, (view: WorkView) => void] =>
+  useStoredChoice("kaine-desk-work-view", WORK_VIEWS, "list");
+
+export const DENSITIES = ["comfortable", "compact"] as const;
+export type Density = (typeof DENSITIES)[number];
+
+/**
+ * Comfortable or Compact, for the whole app. Set on the root beside the theme, where the
+ * density tokens switch. Compact shows each item on two lines.
+ */
+export function useDensity(): readonly [Density, (density: Density) => void] {
+  const [density, choose] = useStoredChoice("kaine-desk-density", DENSITIES, "comfortable");
+  useEffect(() => {
+    document.documentElement.dataset["density"] = density;
+  }, [density]);
+  return [density, choose] as const;
+}
+
+const HOLD_TOASTS = ["off", "on"] as const;
+
+/**
+ * Keep a message with Undo on screen while the pointer or focus is on it (WCAG 2.2.1). Off
+ * by default: the message then leaves after its time.
+ */
+export function useHoldToasts(): readonly [boolean, (on: boolean) => void] {
+  const [value, choose] = useStoredChoice("kaine-desk-hold-toasts", HOLD_TOASTS, "off");
+  return [value === "on", (on: boolean) => choose(on ? "on" : "off")] as const;
 }

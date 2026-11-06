@@ -81,7 +81,7 @@ function FlowRow({
       </div>
       <p className="desk-agent__desc">{definition.description}</p>
       <div className="desk-flows__steps">
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {t("desk.flows.stepCount", { count: definition.steps.length })}
         </span>
         <ol className="desk-flows__kinds" aria-label={t("desk.flows.kindsLabel")}>
@@ -93,7 +93,7 @@ function FlowRow({
         </ol>
       </div>
       <div className="desk-agent__foot">
-        <span className="desk-muted">
+        <span className="dk-t-sub">
           {running > 0 ? t("desk.flows.usedBy", { count: running }) : null}
         </span>
         <span className="desk-agent__actions">
@@ -136,23 +136,23 @@ export function FlowsView() {
 
   return (
     <>
-      <div className="desk-heading">
-        <div>
-          <h1>{t("desk.flows.title")}</h1>
-          <p className="desk-muted">{t("desk.flows.intro")}</p>
+      <header className="dk-ph">
+        <div className="dk-grow">
+          <h1 className="dk-h-page">{t("desk.flows.title")}</h1>
+          <p className="dk-lead">{t("desk.flows.intro")}</p>
         </div>
         <Button type="button" disabled={flows.length === 0} onClick={() => setCreating(true)}>
-          <Plus aria-hidden="true" className="desk-icon" />
+          <Plus aria-hidden="true" className="dk-ic" />
           {t("desk.flows.new")}
         </Button>
-      </div>
+      </header>
       {state.status === "loading" && <LoadingLines label={t("desk.flows.loading")} lines={4} />}
       {state.status === "error" && <FailureText code={state.code} detail={state.detail} />}
       {state.status === "ok" && (
         <>
           <DefinitionProblems problems={state.flows.problems} kind="flow" />
           {flows.length === 0 ? (
-            <Card className="desk-panel">
+            <Card className="dk-card">
               <Muted>{t("desk.flows.empty")}</Muted>
             </Card>
           ) : (

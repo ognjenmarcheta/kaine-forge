@@ -1,6 +1,7 @@
 import type { AgentProcess } from "../agents/agent.process";
 import type { AgentRunner } from "../agents/agent.runner";
-import type { Provider } from "../contracts";
+import type { ProviderPort } from "../agents/provider.probe";
+import type { DeskConfig, Provider } from "../contracts";
 import type { PipelineDeps } from "../engine/pipeline.types";
 import type { GitPort } from "../git";
 import type { Clock, Exec, GitHubPort } from "../ports";
@@ -45,6 +46,11 @@ export interface CliDeps {
   readonly createGitHub: (cwd: string) => GitHubPort;
   readonly git: GitPort;
   readonly runnerFor: (provider: Provider) => AgentRunner;
+  /**
+   * The provider CLIs of the checkout, so a role moves off a CLI that does not run. Absent (most
+   * tests): every provider counts as installed.
+   */
+  readonly providers?: ((cwd: string, config: DeskConfig) => ProviderPort) | undefined;
   /** Docker support. Absent when Docker is not wired in (most tests). */
   readonly docker?: DockerCliDeps | undefined;
   /**

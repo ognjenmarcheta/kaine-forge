@@ -1,0 +1,9 @@
+# Gitignored files that `wt step copy-ignored` (.config/wt.toml) and Claude Code desktop
+# copy from the primary checkout into a new worktree. Do not add node_modules or
+# .tauri-target: on ext4 every copy is a full copy, and `pnpm install --prefer-offline`
+# hardlinks from the pnpm store instead.
+.env
+.ai.local/mcp.env
+.ai.local/mcp.json
+.ai.local/installations/
+.turbo/

@@ -1,9 +1,14 @@
+import { join } from "node:path";
+
 import js from "@eslint/js";
 import importPlugin from "eslint-plugin-import";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
 import antiSlopConfig from "./anti-slop.js";
+import apiBoundariesConfig from "./api-boundaries.js";
+
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
 // Package entries that pull Node-only dependencies (AWS SDK, Postgres, mail,
 // node:crypto) and must never reach a browser or React Native bundle. Kept as
@@ -33,6 +38,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...antiSlopConfig,
+  ...apiBoundariesConfig,
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
@@ -44,6 +50,24 @@ export default [
     plugins: {
       import: importPlugin
     },
+    settings: {
+      // The plugin's TypeScript preset makes .ts/.tsx files part of the import
+      // graph (the default `import/extensions` is .js only, so import/no-cycle
+      // never followed a .ts dependency).
+      ...importPlugin.configs.typescript.settings,
+      // Every workspace runs `eslint .` from its own directory, so the tsconfig
+      // globs are absolute from the repo root. The resolver picks the tsconfig
+      // that includes the linted file and follows its paths and package exports.
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          noWarnOnMultipleProjects: true,
+          project: ["apps", "packages", "tooling"].map((group) =>
+            join(REPO_ROOT, group, "*", "tsconfig.json")
+          )
+        }
+      }
+    },
     rules: {
       "import/order": [
         "error",
@@ -54,8 +78,11 @@ export default [
         }
       ],
       // Circular imports break tree-shaking and cause hard-to-debug init-order
-      // bugs; bounded depth keeps the check fast on a large graph.
-      "import/no-cycle": ["error", { maxDepth: 10, ignoreExternal: true }],
+      // bugs; bounded depth keeps the check fast on a large graph. The SCC
+      // pre-pass walks the whole reachable graph (every workspace's source)
+      // with no depth bound and made apps/api lint 25s instead of 6s; turning
+      // it off changes no findings, because it only skips acyclic edges.
+      "import/no-cycle": ["error", { maxDepth: 10, ignoreExternal: true, disableScc: true }],
       "@typescript-eslint/no-explicit-any": "error",
       // Package public API is the exports map; never deep-import package source trees.
       "no-restricted-imports": [

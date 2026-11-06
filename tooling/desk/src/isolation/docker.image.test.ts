@@ -69,7 +69,10 @@ describe("readImageContext", () => {
       NODE_IMAGE: PINNED.nodeImage,
       PNPM_VERSION: expect.stringMatching(/^\d+\.\d+\.\d+$/),
       CLAUDE_VERSION: PINNED.claude,
-      CODEX_VERSION: PINNED.codex
+      CODEX_VERSION: PINNED.codex,
+      OPENCODE_VERSION: PINNED.opencode,
+      OPENCODE_SHA256_AMD64: PINNED.opencodeSha256.amd64,
+      OPENCODE_SHA256_ARM64: PINNED.opencodeSha256.arm64
     });
     expect(context.tag).toBe(imageTagFor(context.hash));
     const rootPackage = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
@@ -80,6 +83,9 @@ describe("readImageContext", () => {
     expect(PINNED.nodeImage).toMatch(/^node:24-slim@sha256:[0-9a-f]{64}$/);
     expect(PINNED.claude).toMatch(/^\d+\.\d+\.\d+$/);
     expect(PINNED.codex).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(PINNED.opencode).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(PINNED.opencodeSha256.amd64).toMatch(/^[0-9a-f]{64}$/);
+    expect(PINNED.opencodeSha256.arm64).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("refuses a repository without a pnpm packageManager", async () => {

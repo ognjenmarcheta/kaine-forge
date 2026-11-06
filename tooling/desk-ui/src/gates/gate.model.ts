@@ -139,3 +139,18 @@ export function shipsWithoutReview(flow: IssueFlow, gate: string): boolean {
     !after.slice(0, ship).some((step) => step.kind === "gate")
   );
 }
+
+/** Agents that go on in their session on the next run, so the owner can take theirs over. */
+export const RESUMING_OUTPUTS: ReadonlySet<string> = new Set(["plan", "change"]);
+
+/**
+ * The owner's words of the latest send-back, from its history note ("to plan: <words>"). `null`
+ * when the latest feedback kept no words: notes written before the desk kept them.
+ */
+export function lastAsked(history: readonly HistoryEvent[]): string | null {
+  const latest = history.filter((event) => event.event === "feedback").at(-1);
+  const note = latest?.note;
+  if (note === undefined) return null;
+  const words = /^to [^:]+: ([\s\S]+)$/.exec(note)?.[1];
+  return words === undefined ? null : words;
+}

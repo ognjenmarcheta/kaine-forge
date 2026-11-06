@@ -194,6 +194,38 @@ describe("per-issue isolation", () => {
   });
 });
 
+const deferred = () => {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+describe("take over with Docker", () => {
+  it("refuses, because the agent session stays in the container", async () => {
+    const hold = deferred();
+    const { e } = await open({
+      steps: [
+        planStep(),
+        { ...buildStep(), sessionId: "build-session", hold: hold.promise },
+        reviewStep()
+      ]
+    });
+    await e.pipeline.start(ISSUE, { override: false, isolation: "docker" });
+    const approving = e.pipeline.approvePlan(ISSUE);
+    await vi.waitFor(() => expect(e.runner.active()).toBe(1), { timeout: 20_000, interval: 10 });
+
+    expect(await e.pipeline.takeOver(ISSUE)).toMatchObject({
+      outcome: "refused",
+      refusal: "invalid-transition",
+      reason: `#${ISSUE} runs in Docker: the agent session stays in the container. Steer it instead.`
+    });
+    hold.resolve();
+    expect(await approving).toMatchObject({ stop: "gate" });
+  });
+});
+
 describe("remove and recovery with Docker", () => {
   it("removes the Docker resources before the state, and verifies", async () => {
     const { e, docker } = await open();

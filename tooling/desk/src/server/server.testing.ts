@@ -56,15 +56,19 @@ export interface FakeRunner extends ServerRunner {
   readonly approvePlan: ReturnType<typeof vi.fn<ServerRunner["approvePlan"]>>;
   readonly feedback: ReturnType<typeof vi.fn<ServerRunner["feedback"]>>;
   readonly continueFrom: ReturnType<typeof vi.fn<ServerRunner["continueFrom"]>>;
+  readonly resolveDenial: ReturnType<typeof vi.fn<ServerRunner["resolveDenial"]>>;
   readonly cancel: ReturnType<typeof vi.fn<ServerRunner["cancel"]>>;
   readonly remove: ReturnType<typeof vi.fn<ServerRunner["remove"]>>;
   readonly ship: ReturnType<typeof vi.fn<ServerRunner["ship"]>>;
   readonly refreshPr: ReturnType<typeof vi.fn<ServerRunner["refreshPr"]>>;
+  readonly checkPr: ReturnType<typeof vi.fn<ServerRunner["checkPr"]>>;
   readonly feedbackFromPr: ReturnType<typeof vi.fn<ServerRunner["feedbackFromPr"]>>;
   readonly draft: ReturnType<typeof vi.fn<ServerRunner["draft"]>>;
   readonly applyDraft: ReturnType<typeof vi.fn<ServerRunner["applyDraft"]>>;
   readonly pause: ReturnType<typeof vi.fn<ServerRunner["pause"]>>;
   readonly resume: ReturnType<typeof vi.fn<ServerRunner["resume"]>>;
+  readonly steer: ReturnType<typeof vi.fn<ServerRunner["steer"]>>;
+  readonly takeOver: ReturnType<typeof vi.fn<ServerRunner["takeOver"]>>;
 }
 
 export const makeFakeRunner = (): FakeRunner => {
@@ -75,17 +79,21 @@ export const makeFakeRunner = (): FakeRunner => {
     approvePlan: vi.fn<ServerRunner["approvePlan"]>((issue) => done(issue)),
     feedback: vi.fn<ServerRunner["feedback"]>((issue) => done(issue)),
     continueFrom: vi.fn<ServerRunner["continueFrom"]>((issue) => done(issue)),
+    resolveDenial: vi.fn<ServerRunner["resolveDenial"]>((issue) => done(issue)),
     cancel: vi.fn<ServerRunner["cancel"]>((issue) => done(issue)),
     remove: vi.fn<ServerRunner["remove"]>(() =>
       Promise.resolve({ outcome: "removed", worktreeRemoved: true, branch: null })
     ),
     ship: vi.fn<ServerRunner["ship"]>((issue) => done(issue)),
     refreshPr: vi.fn<ServerRunner["refreshPr"]>((issue) => done(issue)),
+    checkPr: vi.fn<ServerRunner["checkPr"]>((issue) => done(issue)),
     feedbackFromPr: vi.fn<ServerRunner["feedbackFromPr"]>((issue) => done(issue)),
     draft: vi.fn<ServerRunner["draft"]>((issue) => done(issue)),
     applyDraft: vi.fn<ServerRunner["applyDraft"]>((issue) => done(issue)),
     pause: vi.fn<ServerRunner["pause"]>((issue) => done(issue)),
-    resume: vi.fn<ServerRunner["resume"]>((issue) => done(issue))
+    resume: vi.fn<ServerRunner["resume"]>((issue) => done(issue)),
+    steer: vi.fn<ServerRunner["steer"]>((issue) => done(issue)),
+    takeOver: vi.fn<ServerRunner["takeOver"]>((issue) => done(issue))
   };
 };
 

@@ -42,6 +42,7 @@ RUN pnpm turbo run build --filter=@repo/api... \
     packages/jobs/dist \
     packages/logger/dist \
     packages/storage/dist \
+    packages/theme/dist \
     packages/translation/dist \
   && test -f apps/api/dist/index.js \
   && test -f apps/api/dist/worker.js
@@ -65,7 +66,13 @@ COPY --from=builder /app/packages/feature-flags/dist/ ./packages/feature-flags/d
 COPY --from=builder /app/packages/jobs/dist/ ./packages/jobs/dist/
 COPY --from=builder /app/packages/logger/dist/ ./packages/logger/dist/
 COPY --from=builder /app/packages/storage/dist/ ./packages/storage/dist/
+COPY --from=builder /app/packages/theme/dist/ ./packages/theme/dist/
 COPY --from=builder /app/packages/translation/dist/ ./packages/translation/dist/
+
+# A workspace package the API imports but this image lacks would crash every
+# container at start, while the old container keeps serving. Fail the build instead.
+COPY --from=pruner /app/scripts/check-image-packages.mjs ./scripts/check-image-packages.mjs
+RUN node scripts/check-image-packages.mjs apps/api
 
 # Runtime only needs `node` + app files. Drop install toolchains that ship
 # nested vulnerable packages (base npm tar, corepack-cached pnpm's tar) so

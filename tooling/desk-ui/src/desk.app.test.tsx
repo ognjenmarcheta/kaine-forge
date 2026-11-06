@@ -29,6 +29,23 @@ describe("DeskApp session states", () => {
     expect(await screen.findByRole("button", { name: "Try again" })).toBeTruthy();
   });
 
+  it("opens the lab without a desk server, because the lab calls no desk API", async () => {
+    window.history.replaceState(null, "", "?view=lab#/charts");
+    try {
+      renderDesk(
+        <DeskApp />,
+        fakeApi({ issues: () => Promise.reject(new DeskApiError("network", 0, null)) })
+      );
+      const lab = await screen.findByRole("navigation", { name: "Lab" });
+      expect(lab.querySelector('[aria-current="page"]')?.textContent).toBe("Components");
+      const pages = screen.getByRole("navigation", { name: "Components" });
+      expect(pages.querySelector('[aria-current="page"]')?.textContent).toBe("Charts");
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("shows the board once the issues load", async () => {
     renderDesk(
       <DeskApp />,
@@ -37,8 +54,8 @@ describe("DeskApp session states", () => {
           Promise.resolve([makeSummary(makeState({ issueNumber: 42, stage: "plan-gate" }))])
       })
     );
-    expect(await screen.findByRole("heading", { name: "Your turn · 1", level: 1 })).toBeTruthy();
-    expect(await screen.findByRole("heading", { name: /^Your decisions/, level: 2 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Your turn 1", level: 1 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Your decision", level: 2 })).toBeTruthy();
     expect(screen.getByRole("link", { name: /#42/ })).toBeTruthy();
   });
 });

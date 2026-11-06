@@ -23,7 +23,7 @@ import { configPath, resolveRepoLocation } from "../store/store.root";
 const USAGE = [
   "Usage: pnpm desk docker <command>",
   "  build [--no-cache]                    Build the worker image",
-  "  login --provider claude|codex         Log in to a provider inside a container (needs a terminal)",
+  "  login --provider claude|codex|opencode Log in to a provider inside a container (needs a terminal)",
   "  doctor [--json]                       Check Docker, the image, the logins, and run the isolation probes",
   "  status [--json]                       List the desk containers, volumes, and images",
   "  prune --issue <n>                     Remove the containers and volumes of one issue",

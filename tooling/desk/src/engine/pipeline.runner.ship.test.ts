@@ -11,6 +11,7 @@ import { createLogSink } from "../log/log.writer";
 import { REFS_BASELINE_FILE, SHIP_PLAN_FILE, SHIP_RECORD_FILE } from "../ship/ship.contract";
 import { SHIP_REPO_FILES } from "../ship/ship.testing";
 import { DEFAULT_SNAPSHOT, writeFiles } from "../testing/flow.testing";
+import { snapshotOf } from "../testing/github.fake";
 import {
   ISSUE,
   FEATURE_FILE,
@@ -97,6 +98,8 @@ const open = async (docker?: IsolationPort): Promise<ShipHarness> => {
       { role: "builder", output: builderOutput(), effect: (run) => writeFeature(run) },
       { role: "reviewer", output: reviewOutput() }
     ],
+    // The issue came from the scorecard, so its PR carries that origin too.
+    github: { snapshot: snapshotOf({ labels: ["ready-for-agent", "source:scorecard"] }) },
     ...(docker === undefined ? {} : { docker })
   });
   env = created;
@@ -331,6 +334,8 @@ describe("ship, end to end with real git", () => {
     expect(log).toContain("ship push done");
     expect(log).toContain("ship pull-request done");
 
+    expect(h.env.github.pullRequestLabels).toContainEqual({ pr: 101, label: "source:scorecard" });
+
     // A refresh while the PR is open changes nothing.
     const waiting = await readFile(stateFile, "utf8");
     expect(await h.pipeline.refreshPr(ISSUE)).toMatchObject({
@@ -346,7 +351,11 @@ describe("ship, end to end with real git", () => {
       outcome: "stopped",
       stop: "shipped"
     });
-    expect(await h.state()).toMatchObject({ stage: "shipped", status: "done" });
+    expect(await h.state()).toMatchObject({
+      stage: "shipped",
+      status: "done",
+      mergedAt: "2026-10-20T12:00:00Z"
+    });
     expect(h.env.github.labelEdits.at(-1)?.change).toEqual({ add: [], remove: ["agent:pr-open"] });
     expect(h.env.notifications.at(-1)).toMatchObject({
       kind: "done",

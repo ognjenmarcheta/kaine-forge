@@ -2,7 +2,15 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { z } from "zod";
 
-import { plannerOutputSchema, type PlannerOutput } from "../contracts";
+import type { EarlierReport } from "../agents/roles";
+import {
+  plannerOutputSchema,
+  reportArtifactId,
+  reportOutputSchema,
+  stepRoleOf,
+  type FlowSnapshot,
+  type PlannerOutput
+} from "../contracts";
 import { writeJsonAtomic } from "../store/store.atomic";
 
 /** Files the stages write under `<state>/issues/<n>/artifacts/`. */
@@ -72,6 +80,47 @@ export const readArtifactJson = async <T>(
 
 export const readPlan = (dir: string): Promise<ArtifactJson<PlannerOutput>> =>
   readArtifactJson(dir, ARTIFACTS.plan, plannerOutputSchema);
+
+/** A report's JSON in a prompt is cut here, like the previous plan in a re-plan. */
+const REPORT_PROMPT_LIMIT = 20_000;
+
+/**
+ * The reports that step `stepId` reads, in flow order: those of the report steps before it.
+ * On a rerun (feedback sent the work back to the step), also those of the report steps after
+ * it that wrote one, because they judged the step's earlier output. A report agent writes one
+ * file however many steps use it, so it counts once, and a step never reads its own agent's
+ * report. A missing or invalid file is left out.
+ */
+export const readEarlierReports = async (
+  dir: string,
+  snapshot: FlowSnapshot,
+  stepId: string,
+  rerun: boolean
+): Promise<EarlierReport[]> => {
+  const { steps } = snapshot.flow;
+  const index = steps.findIndex((step) => step.id === stepId);
+  const own = steps[index];
+  const agents = new Set<string>();
+  steps.forEach((step, at) => {
+    if (at === index || (!rerun && at > index) || step.kind !== "agent") return;
+    if (own?.kind === "agent" && own.agent === step.agent) return;
+    if (stepRoleOf(snapshot, step.id) === "report") agents.add(step.agent);
+  });
+  const reports: EarlierReport[] = [];
+  for (const agent of agents) {
+    const report = await readArtifactJson(
+      dir,
+      `${reportArtifactId(agent)}.json`,
+      reportOutputSchema
+    );
+    if (report.status !== "ok") continue;
+    reports.push({
+      agent,
+      json: JSON.stringify(report.value, null, 2).slice(0, REPORT_PROMPT_LIMIT)
+    });
+  }
+  return reports;
+};
 
 /** Markdown for the plan gate. Lists only: the repository does not generate Markdown tables. */
 export const renderPlanMarkdown = (plan: PlannerOutput): string => {

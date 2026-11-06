@@ -5,7 +5,7 @@ import { UnknownPriceError, type PriceCatalog } from "./billing.prices";
 import type { BillingProvider, NormalizedSubscription } from "./billing.type";
 
 /** The API version stripe@23 pins; the dashboard webhook endpoint must use it too. */
-export const STRIPE_API_VERSION = "2026-09-30.endive";
+export const STRIPE_API_VERSION = "2026-10-28.endive";
 
 const STRIPE_STATUSES: Readonly<Record<string, SubscriptionStatus>> = {
   active: "active",

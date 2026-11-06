@@ -19,7 +19,7 @@ export function PlanView({ plan }: { readonly plan: PlannerOutput }) {
           render={(entry) => (
             <>
               <strong>{entry.criterion}</strong>
-              <span className="desk-muted">{entry.change}</span>
+              <span className="dk-t-sub">{entry.change}</span>
             </>
           )}
         />
@@ -31,7 +31,7 @@ export function PlanView({ plan }: { readonly plan: PlannerOutput }) {
           render={(file) => (
             <>
               <Tag>{t(`desk.plan.action.${file.action}`)}</Tag> <code>{file.path}</code>
-              <span className="desk-muted">{file.purpose}</span>
+              <span className="dk-t-sub">{file.purpose}</span>
             </>
           )}
         />
@@ -43,7 +43,7 @@ export function PlanView({ plan }: { readonly plan: PlannerOutput }) {
           render={(test) => (
             <>
               <Tag>{t(`desk.plan.action.${test.action}`)}</Tag> <code>{test.path}</code>
-              <span className="desk-muted">{test.reason}</span>
+              <span className="dk-t-sub">{test.reason}</span>
             </>
           )}
         />
@@ -105,9 +105,9 @@ export function PlanGateBody({
   const id = useId();
   return (
     <>
-      <p className="desk-plain">{plan.summary}</p>
+      <p className="dk-lede">{plan.summary}</p>
       {plan.openQuestions.length > 0 && (
-        <section className="desk-sec">
+        <section className="dk-sec">
           <h3>{t("desk.plan.questionsCount", { count: plan.openQuestions.length })}</h3>
           <div className="desk-question">
             {plan.openQuestions.map((question, index) => (
@@ -125,44 +125,44 @@ export function PlanGateBody({
           </div>
         </section>
       )}
-      <section className="desk-sec">
+      <section className="dk-sec">
         <h3>{t("desk.plan.criteriaCount", { count: plan.acceptanceCriteria.length })}</h3>
         <ul className="desk-criteria">
           {plan.acceptanceCriteria.map((entry, index) => (
             <li key={index}>
               <strong>{entry.criterion}</strong>
-              <span className="desk-muted">{entry.change}</span>
+              <span className="dk-t-sub">{entry.change}</span>
             </li>
           ))}
         </ul>
       </section>
       <details className="desk-fold">
         <summary>{t("desk.plan.more", { count: plan.files.length + plan.tests.length })}</summary>
-        <section className="desk-sec">
+        <section className="dk-sec">
           <h3>{t("desk.plan.filesCount", { count: plan.files.length + plan.tests.length })}</h3>
           <ul className="desk-files">
             {plan.files.map((file) => (
               <li key={file.path} className="desk-files__row">
                 <Tag>{t(`desk.plan.action.${file.action}`)}</Tag>
                 <FilePath path={file.path} />
-                <span className="desk-muted">{file.purpose}</span>
+                <span className="dk-t-sub">{file.purpose}</span>
               </li>
             ))}
             {plan.tests.map((test) => (
               <li key={test.path} className="desk-files__row">
                 <Tag>{t(`desk.plan.action.${test.action}`)}</Tag>
                 <FilePath path={test.path} />
-                <span className="desk-muted">{test.reason}</span>
+                <span className="dk-t-sub">{test.reason}</span>
               </li>
             ))}
           </ul>
         </section>
-        <section className="desk-sec">
+        <section className="dk-sec">
           <h3>{t("desk.plan.risks")}</h3>
           <List empty={t("desk.common.none")} items={plan.risks} />
         </section>
-        <section className="desk-sec">
-          <dl className="desk-kv">
+        <section className="dk-sec">
+          <dl className="dk-kv">
             <dt>{t("desk.plan.changeset")}</dt>
             <dd>
               {plan.changeset.required ? (
