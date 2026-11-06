@@ -34,7 +34,7 @@
     "@tanstack/browser-db-sqlite-persistence": "catalog:",
     "@tanstack/react-db": "catalog:",
     "@tanstack/react-query": "catalog:",
-    "@tanstack/react-query-devtools": "^5.105.0",
+    "@tanstack/react-query-devtools": "^5.105.3",
     "@tanstack/tauri-db-sqlite-persistence": "catalog:",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-sql": "catalog:",
