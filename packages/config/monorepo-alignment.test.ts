@@ -1101,7 +1101,10 @@ describe("monorepo alignment", () => {
     // eslint-plugin-import shipped with only the node resolver and the default
     // .js-only `import/extensions`: every TS import was unresolved and
     // import/no-cycle never followed a .ts dependency, so the gate passed
-    // silently. Lint two real API files with injected imports.
+    // silently. Lint two real files with injected imports. They are small
+    // tooling files outside the type-aware block, so the probe builds no
+    // TypeScript program and no-cycle walks a two-file graph: the API files
+    // used first took 53s under the parallel coverage run.
     const { ESLint } = await import("eslint");
     const eslint = new ESLint({
       cwd: repoRoot,
@@ -1116,23 +1119,25 @@ describe("monorepo alignment", () => {
       );
     };
 
-    // The real imports (a relative module, a workspace subpath export, an npm
-    // package) resolve; only the injected missing module is reported.
+    // The real imports (a relative TS module, an npm package) and an injected
+    // workspace subpath export resolve; only the injected missing module is
+    // reported. no-cycle skips side-effect imports, so the injections add no
+    // graph walk.
     const unresolved = await lintWithImport(
-      "apps/api/src/features/storage/attachment.sweep.ts",
-      'import "./attachment.missing-module";'
+      "tooling/doc-export/src/docx/docx.render.ts",
+      'import "@repo/desk/contracts";\nimport "./docx.missing-module";'
     );
     expect(unresolved.map((message) => [message.ruleId, message.message])).toEqual([
-      ["import/no-unresolved", "Unable to resolve path to module './attachment.missing-module'."]
+      ["import/no-unresolved", "Unable to resolve path to module './docx.missing-module'."]
     ]);
 
-    // attachment.sweep.ts imports attachment.store.ts, so importing it back
-    // closes a cycle. no-cycle skips side-effect imports, so import a binding.
-    // The cycle exists only in the linted text, which base.js's `disableScc`
-    // lets the rule see: the SCC pre-pass reads the files on disk.
+    // docx.render.ts imports markdown.parse.ts, so importing it back closes a
+    // cycle; no-cycle needs a binding import. The cycle exists only in the
+    // linted text, which base.js's `disableScc` lets the rule see: the SCC
+    // pre-pass reads the files on disk.
     const cycle = await lintWithImport(
-      "apps/api/src/features/storage/attachment.store.ts",
-      'import { sweepAttachmentObjects } from "./attachment.sweep";\nvoid sweepAttachmentObjects;'
+      "tooling/doc-export/src/markdown/markdown.parse.ts",
+      'import { renderDocx } from "../docx/docx.render";\nvoid renderDocx;'
     );
     expect(cycle.map((message) => message.ruleId)).toEqual(["import/no-cycle"]);
   }, 30_000);
