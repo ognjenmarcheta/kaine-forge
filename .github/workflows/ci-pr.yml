@@ -212,13 +212,17 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.base_ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           printf '%s\n' "$PR_TITLE" | pnpm exec commitlint
           printf '%s (#%s)\n' "$PR_TITLE" "$PR_NUMBER" | pnpm exec commitlint
-          pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA"
+          # Lint the PR's own commits only. The event's base.sha lags the base
+          # branch, so after "Update branch" the range from it held commits that
+          # main already has, and a long squash subject on main failed the PR.
+          git fetch -q origin "$BASE_REF"
+          pnpm exec commitlint --from "$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")" --to "$HEAD_SHA"
 
       - name: Quality gates (affected packages)
         env:
