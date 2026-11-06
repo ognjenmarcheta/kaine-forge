@@ -10,7 +10,13 @@ import { Segmented } from "../shell/shell.ui";
 /** What New work opens on: a GitHub issue, optionally on a flow, or a desk job of a kind. */
 export type NewWorkRequest =
   | { readonly tab: "issue"; readonly flowId?: string }
-  | { readonly tab: "job"; readonly kind?: JobKind; readonly screen?: string };
+  | {
+      readonly tab: "job";
+      readonly kind?: JobKind;
+      readonly screen?: string;
+      /** A role job's agent, when New work opened from the agent library. */
+      readonly agentId?: string;
+    };
 
 const TABS = ["issue", "job"] as const;
 
@@ -92,6 +98,9 @@ export function NewWorkDialog({
               kind={kind}
               {...(request?.tab === "job" && request.screen !== undefined
                 ? { screen: request.screen }
+                : {})}
+              {...(request?.tab === "job" && request.agentId !== undefined
+                ? { agentId: request.agentId }
                 : {})}
               onCancel={onClose}
               onStarted={onClose}

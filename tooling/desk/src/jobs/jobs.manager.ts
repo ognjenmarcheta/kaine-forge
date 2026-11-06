@@ -17,6 +17,8 @@ import {
   componentJobResultSchema,
   componentPlanSchema,
   jobStateSchema,
+  reportOutputSchema,
+  roleAgentProblem,
   scorecardJobResultSchema,
   screenJobResultSchema,
   type JobActionRequest,
@@ -24,15 +26,19 @@ import {
   type JobStage,
   type JobStartRequest,
   type JobState,
-  type JobStopReason
+  type JobStopReason,
+  type AgentDefinition,
+  type Provider
 } from "../contracts";
 import { commitStaged, pushBranch, stageFiles, tryGit, type GitPort } from "../git";
+import { fenceUntrusted } from "../github/github.authorization";
 import {
   SOURCE_LABEL_DEFINITIONS,
   labelEnsureArgv,
   type SourceLabelDefinition
 } from "../github/github.labels";
 import type { Clock, Exec, GitHubPort } from "../ports";
+import { loadRegistry } from "../registry/registry.load";
 import { SCORECARD_LEDGER_PATH } from "../scorecard";
 import { createWorktree, removeWorktree } from "../worktree";
 import { auditPrompt } from "./jobs.audit";
@@ -46,13 +52,14 @@ import {
 } from "./jobs.component";
 import { createLabServers, type LabServer, type LabServers } from "./jobs.devserver";
 import {
-  JOB_MCP,
-  JOB_SKILLS,
   componentFileName,
   componentFiles,
+  jobMcp,
   jobPermissions,
+  jobSkills,
   screenFolder
 } from "./jobs.permissions";
+import { rolePrompt } from "./jobs.role";
 import {
   appendScorecardRun,
   setFindingIssues,
@@ -84,7 +91,10 @@ export interface JobManagerDeps {
   readonly store: JobStore;
   readonly exec: Exec;
   readonly git: GitPort;
-  readonly github: Pick<GitHubPort, "createIssue" | "createPullRequest" | "addPullRequestLabel">;
+  readonly github: Pick<
+    GitHubPort,
+    "createIssue" | "createPullRequest" | "addPullRequestLabel" | "fetchIssue"
+  >;
   /** Runs a request on the CLI its `provider` names. */
   readonly runner: AgentRunner;
   /** The provider CLIs found. Without it a job runs on Claude, as before providers were chosen. */
@@ -101,6 +111,8 @@ export interface JobManagerDeps {
   readonly prepareWorktree?: typeof createWorktree;
   /** The lab dev servers of screen jobs. Default: Vite in each job worktree. */
   readonly labServers?: LabServers;
+  /** The agents a role job may run. Default: the registry of the main checkout. */
+  readonly agents?: () => Promise<readonly AgentDefinition[]>;
 }
 
 export type JobEvent =
@@ -170,16 +182,18 @@ const AGAIN: Readonly<Record<JobState["kind"], JobStage>> = {
   scorecard: "score",
   screen: "build",
   component: "build",
-  audit: "audit"
+  audit: "audit",
+  role: "report"
 };
 const againOf = (kind: JobState["kind"]): JobStage => AGAIN[kind];
 
 /** The branch name's slug: `KAINE-<type>-<slug>`. An audit's branch is never pushed. */
 const branchSlugOf = (state: JobState): string => {
-  const { screen, component, audit } = state.input;
+  const { screen, component, audit, role } = state.input;
   if (screen !== undefined) return `lab-${screen.id}-job-${state.id}`;
   if (component !== undefined) return `ui-${componentFileName(component.name)}-job-${state.id}`;
   if (audit !== undefined) return `audit-${audit.screenId}-job-${state.id}`;
+  if (role !== undefined) return `role-${role.agentId}-job-${state.id}`;
   return `scorecard-${state.createdAt.slice(0, 10)}-job-${state.id}`;
 };
 
@@ -272,6 +286,9 @@ const SOURCE_LABELS: Readonly<Partial<Record<JobState["kind"], SourceLabelDefini
   audit: SOURCE_LABEL_DEFINITIONS.audit
 };
 
+/** The kinds whose gate the owner reviews in the job's lab server. */
+const LAB_KINDS: ReadonlySet<JobState["kind"]> = new Set(["screen", "component", "audit"]);
+
 /** The job with its lab server's port, on the kind's own record. */
 const withPort = (job: JobState, port: number | null): JobState => ({
   ...job,
@@ -358,8 +375,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           base: deps.base,
           worktreeDir,
           agents,
-          skills: [...JOB_SKILLS[state.kind]],
-          mcp: [...JOB_MCP[state.kind]]
+          skills: [...jobSkills(state)],
+          mcp: [...jobMcp(state)]
         }
       }
     );
@@ -435,7 +452,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     state: JobState,
     stage: JobStage,
     run: {
-      readonly prompt: string;
+      /** The prompt, or a function of the provider for a prompt in that CLI's words. */
+      readonly prompt: string | ((provider: Provider, skills: readonly string[]) => string);
       readonly schema: z.ZodType<T>;
       readonly env?: Readonly<Record<string, string>>;
       /** The paths this step may write, relative to the worktree. */
@@ -469,9 +487,10 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     const profile = await loadCapabilities({
       agent: {
         capabilities: {
+          // The floor: every job agent reads, whatever its own preset says.
           preset: "read-only",
-          mcp: [...JOB_MCP[state.kind]],
-          skills: [...JOB_SKILLS[state.kind]],
+          mcp: [...jobMcp(state)],
+          skills: [...jobSkills(state)],
           tools: []
         }
       },
@@ -488,7 +507,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       provider,
       model,
       allowCodexBuilder: provider === "codex" && writes,
-      prompt: run.prompt,
+      prompt: typeof run.prompt === "string" ? run.prompt : run.prompt(provider, profile.skills),
       systemAppend: JOB_RULES,
       outputSchema: z.toJSONSchema(run.schema, { target: "draft-7", io: "output" }),
       parse: run.schema,
@@ -796,6 +815,60 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
   };
 
+  /** The title and body of a role job's issue target, fenced as untrusted, or `null`. */
+  const issueTextOf = async (state: JobState): Promise<string | null> => {
+    const target = state.input.role?.target;
+    if (target?.kind !== "issue") return null;
+    let snapshot: Awaited<ReturnType<typeof deps.github.fetchIssue>>;
+    try {
+      snapshot = await deps.github.fetchIssue(target.value);
+    } catch (error) {
+      throw new JobStop("failed", `Cannot read issue #${target.value}: ${message(error)}`);
+    }
+    return fenceUntrusted(
+      [
+        `Title: ${snapshot.title}`,
+        `Source: ${snapshot.url}`,
+        "",
+        "Body:",
+        snapshot.body.trim() === "" ? "(empty)" : snapshot.body
+      ].join("\n")
+    );
+  };
+
+  /** Run the role job's agent against its target. It writes nothing; the owner reads the report. */
+  const report = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
+    const spec = state.input.role;
+    const agent = state.role?.agent;
+    if (spec === undefined || agent === undefined) {
+      throw new JobStop("failed", "The job has no agent to run.");
+    }
+    const issueText = await issueTextOf(state);
+    const outcome = await runAgent(state, "report", {
+      prompt: (provider, skills) =>
+        rolePrompt({
+          agent,
+          target: spec.target,
+          issueText,
+          provider,
+          skills,
+          note: state.input.note,
+          feedback: state.feedback
+        }),
+      schema: reportOutputSchema,
+      signal
+    });
+    return record(
+      {
+        ...state,
+        spentUsd: state.spentUsd + outcome.costUsd,
+        role: { agent, result: outcome.structured }
+      },
+      "review",
+      `${agent.name} reported ${outcome.structured.findings.length} findings.`
+    );
+  };
+
   /** Create the label, or update it when it exists (`--force`). `false` when `gh` failed. */
   const ensureLabel = async (label: SourceLabelDefinition): Promise<boolean> =>
     (await deps.exec({ argv: labelEnsureArgv(label), cwd: deps.repoRoot, timeoutMs: 60_000 }))
@@ -1028,6 +1101,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           else if (stage === "ship") await step(await shipAudit(state));
           return;
         }
+        if (state.kind === "role") {
+          // Approve closes the job at the gate: a role job has no ship step.
+          if (stage === "setup" || stage === "report") await gate(await report(state, signal));
+          return;
+        }
         if (stage === "setup" || stage === "sweep") state = await step(await sweep(state));
         if (stage === "setup" || stage === "sweep" || stage === "score") {
           await gate(await score(state, signal));
@@ -1062,14 +1140,44 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     list: () => deps.store.list(),
     get: (id) => deps.store.read(id),
     start: async (request) => {
+      // One job of a kind at a time; for role jobs, one per agent.
       const open = (await deps.store.list()).find(
-        (job) => job.kind === request.kind && !FINAL.has(job.status)
+        (job) =>
+          job.kind === request.kind &&
+          job.input.role?.agentId === request.role?.agentId &&
+          !FINAL.has(job.status)
       );
       if (open !== undefined) {
         throw new JobRefusal(
           "busy",
           `Job ${open.id} of this kind is not finished. Finish, cancel, or remove it first.`
         );
+      }
+      let roleAgent: NonNullable<JobState["role"]>["agent"] | undefined;
+      if (request.role !== undefined) {
+        const { agentId, target } = request.role;
+        const agents =
+          deps.agents === undefined
+            ? (await loadRegistry({ repoRoot: deps.repoRoot })).agents.map(
+                (entry) => entry.definition
+              )
+            : await deps.agents();
+        const agent = agents.find((entry) => entry.id === agentId);
+        if (agent === undefined) {
+          throw new JobRefusal("bad-request", `There is no agent ${agentId} in the registry.`);
+        }
+        const problem = roleAgentProblem(agent);
+        if (problem !== null) throw new JobRefusal("bad-request", problem);
+        if (target.kind === "path" && !existsSync(path.join(deps.repoRoot, target.value))) {
+          throw new JobRefusal("bad-request", `There is no ${target.value} in the checkout.`);
+        }
+        roleAgent = {
+          id: agent.id,
+          name: agent.name,
+          prompt: agent.prompt,
+          skills: [...agent.capabilities.skills],
+          mcp: [...agent.capabilities.mcp]
+        };
       }
       const limits = JOB_LIMITS[request.kind];
       const now = deps.clock.now().toISOString();
@@ -1119,7 +1227,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           minutes: request.minutes ?? limits.minutes,
           ...(screen === undefined ? {} : { screen }),
           ...(request.component === undefined ? {} : { component: request.component }),
-          ...(request.audit === undefined ? {} : { audit: request.audit })
+          ...(request.audit === undefined ? {} : { audit: request.audit }),
+          ...(request.role === undefined ? {} : { role: request.role })
         },
         status: "running",
         stage: "setup",
@@ -1136,6 +1245,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
             ? { plan: null, planApproved: false, result: null, port: null }
             : null,
         audit: request.kind === "audit" ? { result: null, port: null } : null,
+        role: roleAgent === undefined ? null : { agent: roleAgent, result: null },
         approvedIssues: [],
         filedIssues: [],
         pr: null
@@ -1176,6 +1286,12 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
             throw new JobRefusal(
               "invalid-transition",
               `Not proposed by this run: ${unknown.join(", ")}.`
+            );
+          }
+          if (state.kind === "role") {
+            // The owner read the report: the job closes. It pushes and files nothing.
+            return save(
+              record({ ...state, status: "done", stop: null }, "done", "Report read; closed.")
             );
           }
           await save(
@@ -1252,7 +1368,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     recover: async () => {
       for (const job of await deps.store.list()) {
         if (
-          job.kind !== "scorecard" &&
+          LAB_KINDS.has(job.kind) &&
           job.status === "waiting" &&
           job.stage === "review" &&
           job.worktree !== null

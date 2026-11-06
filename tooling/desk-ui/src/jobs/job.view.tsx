@@ -18,7 +18,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { JOB_STEPS, previewUrlOf, stepStates } from "./job.model";
 import { toApiError } from "../api/api.client";
 import { failureMessageKey } from "../api/api.errors";
-import { ReportText } from "../artifacts/artifact.report";
+import { ReportResult, ReportText } from "../artifacts/artifact.report";
 import { useLanguage, useT } from "../i18n/i18n.t";
 import { useMarkSeen } from "../inbox/inbox.unread";
 import { Crumb } from "../issue/issue.header";
@@ -578,6 +578,25 @@ function AuditReview({ job }: { readonly job: JobState }) {
   );
 }
 
+/** The role gate: the agent's report. Approve closes the job; it pushes and files nothing. */
+function RoleReview({ job }: { readonly job: JobState }) {
+  const t = useT();
+  const role = job.role;
+  if (role === null || role.result === null) return null;
+  return (
+    <Card className="dk-card desk-job-gate">
+      <h2>{t("desk.job.roleReview.title", { name: role.agent.name })}</h2>
+      <ReportResult report={role.result} />
+      <GateActions
+        job={job}
+        approveLabel={t("desk.job.roleReview.approve")}
+        confirm={null}
+        sendBackLabel={t("desk.job.roleReview.sendBackNote")}
+      />
+    </Card>
+  );
+}
+
 /** The gate the job waits at. */
 function Gate({ job }: { readonly job: JobState }) {
   if (job.kind === "screen") return <ScreenReview job={job} />;
@@ -585,6 +604,7 @@ function Gate({ job }: { readonly job: JobState }) {
     return job.stage === "plan" ? <PlanReview job={job} /> : <ComponentReview job={job} />;
   }
   if (job.kind === "audit") return <AuditReview job={job} />;
+  if (job.kind === "role") return <RoleReview job={job} />;
   return <Review job={job} />;
 }
 
@@ -610,6 +630,15 @@ function Stopped({ job }: { readonly job: JobState }) {
 
 function Done({ job }: { readonly job: JobState }) {
   const t = useT();
+  if (job.role !== null && job.role.result !== null) {
+    // A role job files nothing: its report is what it leaves.
+    return (
+      <Card className="dk-card">
+        <h2>{t("desk.job.roleReview.done", { name: job.role.agent.name })}</h2>
+        <ReportResult report={job.role.result} />
+      </Card>
+    );
+  }
   return (
     <Card className="dk-card">
       <h2>{t("desk.job.done.title")}</h2>

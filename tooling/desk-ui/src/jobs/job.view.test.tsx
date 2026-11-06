@@ -46,6 +46,7 @@ const job = (over: Partial<JobState> = {}): JobState => ({
   screen: null,
   component: null,
   audit: null,
+  role: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null,
@@ -425,5 +426,49 @@ describe("Component and audit jobs", () => {
       issues: ["missing-focus-ring"],
       confirm: true
     });
+  });
+});
+
+describe("Role jobs", () => {
+  it("shows the agent's report at the gate and closes the job in one step", async () => {
+    window.history.replaceState(null, "", "?job=2");
+    const roleJob = job({
+      kind: "role",
+      result: null,
+      input: {
+        note: "",
+        model: "opus",
+        budgetUsd: 5,
+        minutes: 30,
+        role: {
+          agentId: "product-reviewer",
+          target: { kind: "path", value: "apps/web/src/features/todos" }
+        }
+      },
+      role: {
+        agent: {
+          id: "product-reviewer",
+          name: "Product reviewer",
+          prompt: "Review it.",
+          skills: [],
+          mcp: []
+        },
+        result: {
+          summary: "One problem.",
+          findings: ["The list shows a false empty state."],
+          plainLanguage: "The list flickers."
+        }
+      }
+    });
+    const jobAction = vi.fn(() => Promise.resolve(roleJob));
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([roleJob]), jobAction }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Report from Product reviewer" })
+    ).toBeTruthy();
+    expect(screen.getByText("The list shows a false empty state.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Close the job" }));
+
+    expect(jobAction).toHaveBeenCalledWith(2, { action: "approve", issues: [], confirm: true });
   });
 });

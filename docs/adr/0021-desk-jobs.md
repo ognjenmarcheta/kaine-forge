@@ -57,6 +57,15 @@ Added with the fourth job kind. Flow: setup → audit → gate → file.
 - **Audit.** The engine copies the owner's local reference image of that screen, when there is one, into the worktree and starts the lab server. One Claude run follows `kaine-audit-ui` (in reference mode when the image is there) and `kaine-write-issue`, with the Playwright browser. It writes nothing and runs only `lab:diff`, `lab:shots`, and `ui:check`. It returns each finding with its rule ID and severity, as the issue to file.
 - **Gate.** The owner opens the screen (its compare view in reference mode), ticks the findings to file, and approves (with a confirmation) or sends back. Approve files exactly the ticked findings through the desk's GitHub port and stops the lab server. An audit pushes nothing: its local branch goes when the owner removes the job.
 
+### The role job
+
+Added with the fifth job kind. Flow: setup → report → gate. One generic kind runs any registered report agent, so a new role agent needs a file in the agent library and no new job kind.
+
+- **Start.** **Run a role** in New work, or **Run** on an agent in the Agents library, takes an agent id and a target: a repository path, a GitHub issue number, or the owner's brief. The agent must resolve in the registry (built-in, repository, or local) with `output: report` and the `read-only` or `run-checks` preset; the desk refuses any other agent at start. It snapshots the agent's name, prompt, skills, and MCP servers into the job, so a send-back runs the same agent. The job runs on the job's provider and model, as every job does; the agent file's provider and model do not apply. One role job runs per agent at a time.
+- **Report.** No lab server. The engine builds the prompt from the agent's own body, its skill instruction, and a fenced Target section: the path to read, the issue's title and body (read by the engine through the GitHub port and fenced as untrusted), or the brief. One run returns the `report` output (summary, findings, plain language). It writes nothing.
+- **Permissions.** The read-only floor with the agent's skills and MCP servers in place of a kind's list. A `run-checks` agent gets no command: a role job has no workspace to check.
+- **Gate.** The owner reads the report. Approve closes the job: nothing is pushed, nothing is filed, and no confirmation is asked, because nothing leaves the machine. Send back runs the agent again with the owner's note. The local branch goes when the owner removes the job.
+
 ### Trust boundary
 
 - **The agent never holds a GitHub token.** The engine runs every `gh` read and every GitHub write. The scorer's deny list keeps the whole desk policy floor (`gh`, installs, servers, WebFetch, protected paths, skills outside its list).
@@ -66,7 +75,7 @@ Added with the fourth job kind. Flow: setup → audit → gate → file.
 
 ### Limits
 
-Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen and component: $10 and 60 minutes; audit: $5 and 30 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
+Each job has a cost cap and a time cap, with defaults per kind (scorecard: $15 and 60 minutes; screen and component: $10 and 60 minutes; audit and role: $5 and 30 minutes) that the owner may change at start. The cost cap is Claude's own `--max-budget-usd`, which counts subagents and ends the run with `error_max_budget_usd`; the job then stops as `needs-you` with the reason `budget`. The time cap is the run's timeout.
 
 ### Tracking
 
@@ -85,6 +94,7 @@ Added so the owner can score, report, fix, and track scorecard work in the desk.
 - Job worktrees sit beside issue worktrees as `KAINE-job-<n>` and stay until the owner removes the job.
 - The Board's "Your turn" count and the tab title count issues only; jobs show in their own card on the Board.
 - The lab jobs (screen, component, audit) share the lab server and the browser; each kind has its own flow, skills, command allowlist, write paths, and limits.
+- The role job is the one kind whose agent is data: its prompt, skills, and MCP servers come from an agent file, and the engine adds only the target and the read-only floor.
 
 ## Alternatives considered
 

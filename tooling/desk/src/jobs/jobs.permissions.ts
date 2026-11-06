@@ -6,7 +6,8 @@ import {
   UI_COMPONENT_NAME,
   type CapabilityProfile,
   type ComponentSpec,
-  type JobKind
+  type JobKind,
+  type JobState
 } from "../contracts";
 
 /**
@@ -22,7 +23,9 @@ export const JOB_SKILLS: Readonly<Record<JobKind, readonly string[]>> = {
   scorecard: ["kaine-scorecard", "kaine-review", "kaine-write-issue"],
   screen: ["kaine-build-ui", "kaine-audit-ui"],
   component: ["kaine-build-ui", "kaine-test", "kaine-audit-ui"],
-  audit: ["kaine-audit-ui", "kaine-write-issue"]
+  audit: ["kaine-audit-ui", "kaine-write-issue"],
+  // A role job takes its agent's own skills (`jobSkills`).
+  role: []
 };
 
 /** The MCP servers each job kind gets, when the checkout installed them. */
@@ -32,7 +35,9 @@ export const JOB_MCP: Readonly<Record<JobKind, readonly string[]>> = {
   screen: ["serena", "playwright"],
   // The browser: the builder looks at its specimen, the auditor at the screen, in the lab server.
   component: ["serena", "playwright"],
-  audit: ["serena", "playwright"]
+  audit: ["serena", "playwright"],
+  // A role job takes its agent's own servers (`jobMcp`).
+  role: []
 };
 
 /**
@@ -57,8 +62,18 @@ export const JOB_COMMANDS: Readonly<Record<JobKind, readonly string[]>> = {
     "pnpm ui:check",
     "pnpm theme:check"
   ],
-  audit: ["pnpm lab:diff", "pnpm lab:shots", "pnpm ui:check"]
+  audit: ["pnpm lab:diff", "pnpm lab:shots", "pnpm ui:check"],
+  // A role job reads: its agent runs under the read-only floor, whatever its preset.
+  role: []
 };
+
+/** The skills a job preloads: its kind's list, or a role job's agent's own skills. */
+export const jobSkills = (job: Pick<JobState, "kind" | "role">): readonly string[] =>
+  job.kind === "role" ? (job.role?.agent.skills ?? []) : JOB_SKILLS[job.kind];
+
+/** The MCP servers a job asks for: its kind's list, or a role job's agent's own servers. */
+export const jobMcp = (job: Pick<JobState, "kind" | "role">): readonly string[] =>
+  job.kind === "role" ? (job.role?.agent.mcp ?? []) : JOB_MCP[job.kind];
 
 /** The folder a screen job writes, relative to the worktree. */
 export const screenFolder = (screenId: string): string => {

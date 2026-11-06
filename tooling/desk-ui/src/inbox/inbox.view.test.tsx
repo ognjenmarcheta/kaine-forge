@@ -45,6 +45,7 @@ const waitingJob = (): JobState => ({
   screen: null,
   component: null,
   audit: null,
+  role: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null

@@ -33,7 +33,7 @@ export function ReportText({ text }: { readonly text: string }) {
 }
 
 /** What a report agent wrote: its summary, its findings, and the plain-language version. */
-function ReportResult({ report }: { readonly report: ReportView }) {
+export function ReportResult({ report }: { readonly report: ReportView }) {
   const t = useT();
   return (
     <div className="desk-artifact">

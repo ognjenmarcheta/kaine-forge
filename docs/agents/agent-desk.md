@@ -1420,9 +1420,9 @@ because the CSP blocks those.
 ### Jobs
 
 A job is work the owner starts from the desk that is not a GitHub issue (ADR 0021). There are
-four kinds: the **scorecard job**, and the lab's **screen job**, **component job**, and **audit
-job**. A job's page is `?job=<n>`; the Inbox and All work list jobs with the issues. One job of each kind
-runs at a time.
+five kinds: the **scorecard job**, the lab's **screen job**, **component job**, and **audit
+job**, and the **role job**. A job's page is `?job=<n>`; the Inbox and All work list jobs with the
+issues. One job of each kind runs at a time, and one role job per agent.
 
 - **Start.** **Run scorecard** on the Scorecard view asks for a note to the scorer, the model
   (Opus by default), a budget in dollars, and a time limit (defaults $15 and 60 minutes). One
@@ -1493,6 +1493,24 @@ The **audit job** checks one lab screen and files the findings you tick:
 - **Your review.** The job page links to the screen (its compare view in reference mode) and lists
   the findings with their rule IDs and severity. Tick the ones to file. **Approve…** asks once more,
   then files exactly those as issues. Nothing is pushed.
+
+The **role job** runs one report agent from the agent library on its own, without an issue:
+
+- **Start.** **Run a role** in New work, or **Run** on a report agent in Agents, asks for the agent
+  and a target, then the note, model, and limits (defaults $5 and 30 minutes). The target is a
+  path in the repository (`apps/web/src/features/todos`), a GitHub issue number, or your brief.
+  The picker lists only agents with `output: report` and the `read-only` or `run-checks` preset;
+  the desk refuses any other agent, an unknown agent, and a path the checkout does not have.
+- **Steps.** Setup makes the worktree on `KAINE-chore-role-<agent>-job-<n>`, with the agent's own
+  skills and MCP servers. There is no lab server. Report: one run on the job's model, like every
+  job (the agent file's provider and model do not apply), with the agent's prompt and a Target
+  section: the path to read, the issue's title and body (the engine reads it and fences it as
+  untrusted), or your brief.
+- **What the agent may do.** The scorecard job's rights, with the agent's skills and MCP servers
+  in place of the job's. A `run-checks` agent runs read-only here: a role job runs no command.
+- **Your review.** The job page shows the report: the summary, the findings, and the plain-language
+  version. **Close the job** ends it; it pushes nothing and files nothing. **Send back** runs the
+  agent again with your note. **Remove job** deletes the worktree and its local branch.
 
 ### Dev flow
 
