@@ -302,6 +302,20 @@ The desk reads definitions from three sources. A later source overrides an earli
 
 - The built-in agents are `intake`, `planner`, `builder`, and `reviewer`. Their prompts are in
   `tooling/desk/defaults/agents/`. The desk rules stay in `tooling/desk/agents/rules.md`.
+- The desk also ships eight built-in **specialists**. Each is a read-only `report` agent that
+  runs one skill. No built-in flow uses them: add them to your own flow in the flow editor.
+
+  | Agent                | Skill                       | Judges                                                  |
+  | -------------------- | --------------------------- | ------------------------------------------------------- |
+  | `product-strategist` | `kaine-product-review`      | Whether the work is worth doing, and its narrowest size |
+  | `designer`           | `kaine-design-review`       | The design intent of a screen, against the UI rules     |
+  | `motion-designer`    | `kaine-motion-review`       | Each animation, against the motion contract and tokens  |
+  | `dx-advocate`        | `kaine-dx-review`           | The developer's journey and the error messages          |
+  | `architect`          | `kaine-architecture-review` | The module design of an approved plan                   |
+  | `security-officer`   | `kaine-security-audit`      | The trust boundaries that the work touches              |
+  | `tech-writer`        | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
+  | `simplifier`         | `kaine-simplify`            | Over-engineering in a plan or diff                      |
+
 - The built-in flow is `kaine-default`: plan, approve the plan, build, check, review, approve
   the change, ship a draft PR, and follow the PR. Its step ids are the stage names in "Stages".
 - The file name is the id. An id matches `^[a-z0-9][a-z0-9-]{0,63}$`.
@@ -325,6 +339,9 @@ capabilities:
   mcp: [serena]
   skills: [kaine-explain]
 timeoutMinutes: 20
+avatar:
+  glyph: file-text
+  tone: chart-3
 ---
 
 Read the plan and the diff. Write the release notes.
@@ -343,6 +360,17 @@ Read the plan and the diff. Write the release notes.
   `kaine-` name in `.ai/skills/`.
 - `capabilities.tools` is optional (default `[]`). It names extra tools from the fixed catalog
   `AGENT_TOOLS`. See "Extra tools".
+- `avatar` is optional. It marks the agent in the desk UI: on the agent list, the flow graph, the
+  stage rail, and the run tables. `glyph` is one icon of `AGENT_AVATAR_GLYPHS` (`bot`,
+  `notebook-pen`, `hammer`, `shield-check`, `file-text`, `lightbulb`, `palette`, `wand`,
+  `terminal`, `blocks`, `lock`, `book-open`, `scissors`, `search`, `compass`, `gauge`). `tone` is
+  one theme tone of `AGENT_AVATAR_TONES` (`brand`, `discovery`, `information`, `chart-1` to
+  `chart-6`). The desk refuses any other value. There are no images.
+- Without `avatar`, the desk shows a default avatar. A fixed hash of the id picks the glyph and
+  the tone, so an agent keeps its default on every machine. The agent editor picks an avatar, and
+  its "Use default" removes the field from the file.
+- The avatar is cosmetic. It is not part of the definition hash or the flow snapshot hash, so a
+  new avatar does not make a new harness version.
 
 ### Output kinds
 

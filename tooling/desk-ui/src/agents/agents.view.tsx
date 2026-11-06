@@ -1,6 +1,7 @@
 import {
   AGENT_OUTPUT_KINDS,
   DEFINITION_SOURCES,
+  avatarOf,
   type AgentView,
   type DefinitionKind,
   type DefinitionProblem
@@ -8,6 +9,7 @@ import {
 import { Badge, Button, Card, Input, Plus, Search, X, buttonVariants } from "@repo/ui";
 import { useRef, useState } from "react";
 
+import { AgentAvatar } from "./agent.avatar";
 import { CloneDialog } from "./agents.clone-dialog";
 import {
   filterAgents,
@@ -145,6 +147,7 @@ function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClon
   return (
     <li className="desk-agent">
       <div className="desk-agent__head">
+        <AgentAvatar avatar={avatarOf(definition)} size="md" />
         <h2 className="desk-agent__name">{definition.name}</h2>
         <code className="desk-agent__id">{definition.id}</code>
         <DefinitionBadges view={view} />

@@ -8,6 +8,7 @@ import type {
 import { Button } from "@repo/ui";
 import { useId, useState } from "react";
 
+import { AgentAvatar } from "../agents/agent.avatar";
 import { useStageNames } from "../flow/flow.names";
 import { agentName, flowStepOf, issueFlowOfView } from "../flow/flow.steps";
 import { nodeMetricText, nodeStatusText } from "../flow/flow.text";
@@ -142,6 +143,10 @@ export function StepsRail({
             const glyph = GLYPH[node.status];
             const expanded = open === node.id;
             const metric = nodeMetricText(t, node, language);
+            const agent =
+              node.kind === "human"
+                ? null
+                : (flowStepOf(issueFlowOfView(detail.flowDefinition), node.id)?.agent ?? null);
             return (
               <li key={node.id}>
                 <Button
@@ -158,10 +163,13 @@ export function StepsRail({
                   <span className="dk-nm">{names.node(node.id)}</span>
                   <span className="dk-du">{metric ?? ""}</span>
                   <span className="dk-wh">
-                    {t("desk.rail.who", {
-                      who: whoOf(t, detail, node),
-                      status: nodeStatusText(t, node)
-                    })}
+                    <span className="desk-who">
+                      {agent !== null && <AgentAvatar avatar={agent.avatar} />}
+                      {t("desk.rail.who", {
+                        who: whoOf(t, detail, node),
+                        status: nodeStatusText(t, node)
+                      })}
+                    </span>
                   </span>
                 </Button>
                 {expanded && (

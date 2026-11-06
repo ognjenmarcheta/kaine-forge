@@ -53,3 +53,7 @@ For a PR list, get each merge commit with `gh pr view <n> --json mergeCommit --j
 ## Report
 
 Give a table with one row per finding: item, change (commit or PR), doc and line, status (stale, missing, mentioned only, weak changeset), and the correct fact. Then list wording questions and the items you checked and found documented. State the range and the commands you ran.
+
+## Headless runs (Agent Desk)
+
+When the prompt supplies a result schema, fill the schema. Do not ask the user a question. Do not run `gh`; the Agent Desk denies it. When the run supplies a diff file, take the scope from that diff. Record each unknown as a finding, and state the default you chose. Put the plain-language ending in the schema's plain-language field. Do not print a banner or add any text outside the schema.

@@ -1,4 +1,10 @@
-import { STEP_KINDS, type StepKind } from "@repo/desk/contracts";
+import {
+  STEP_KINDS,
+  avatarOf,
+  type AgentAvatarSpec,
+  type AgentView,
+  type StepKind
+} from "@repo/desk/contracts";
 import { Button, TriangleAlert } from "@repo/ui";
 import {
   BaseEdge,
@@ -38,6 +44,7 @@ import {
   type FlowDraft,
   type StepDraft
 } from "./flows.model";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { shouldRefit, type Size } from "../flow/flow.fit";
 import { arcPath } from "../flow/flow.mapping";
 import { useT } from "../i18n/i18n.t";
@@ -54,6 +61,8 @@ type StepNodeData = {
   readonly kindName: string;
   readonly invalid: boolean;
   readonly editable: boolean;
+  /** The avatar of an agent step's agent, or `null`: the card shows its kind. */
+  readonly avatar: AgentAvatarSpec | null;
 } & Record<string, unknown>;
 type StepNode = Node<StepNodeData, "flows-step">;
 
@@ -68,7 +77,7 @@ type BackFlowEdge = Edge<BackEdgeData, "flows-back">;
 /** A step card with its handles: forward in and out on the sides, back edges on top. */
 function StepCard({ data, selected }: NodeProps<StepNode>) {
   const t = useT();
-  const { step, title, kindName, invalid, editable } = data;
+  const { step, title, kindName, invalid, editable, avatar } = data;
   return (
     <div
       className="desk-flows-node"
@@ -102,9 +111,13 @@ function StepCard({ data, selected }: NodeProps<StepNode>) {
         </>
       )}
       <div className="desk-flows-node__head">
-        <span className="desk-flows-node__icon">
-          <KindIcon kind={step?.kind ?? "setup"} />
-        </span>
+        {avatar === null ? (
+          <span className="desk-flows-node__icon">
+            <KindIcon kind={step?.kind ?? "setup"} />
+          </span>
+        ) : (
+          <AgentAvatar avatar={avatar} />
+        )}
         <span className="desk-flows-node__title">{title}</span>
       </div>
       <div className="desk-flows-node__kind">{kindName}</div>
@@ -202,6 +215,8 @@ interface Choice {
 
 export interface FlowCanvasProps {
   readonly draft: FlowDraft;
+  /** The agents the steps can name, for their avatars. */
+  readonly agents: readonly AgentView[];
   readonly editable: boolean;
   /** Steps with a problem: their node carries a marker. */
   readonly invalid: ReadonlySet<string>;
@@ -214,6 +229,7 @@ export interface FlowCanvasProps {
 
 function Canvas({
   draft,
+  agents,
   editable,
   invalid,
   selected,
@@ -238,7 +254,8 @@ function Canvas({
         title: t("desk.stage.setup"),
         kindName: t("desk.flows.kind.setup"),
         invalid: false,
-        editable
+        editable,
+        avatar: null
       },
       width: CANVAS_NODE.width,
       height: CANVAS_NODE.height,
@@ -254,11 +271,20 @@ function Canvas({
         const title = stepTitle(step);
         const kindName = t(`desk.flows.kind.${step.kind}`);
         const bad = invalid.has(step.key);
+        const agentId = step.kind === "agent" ? step.agent.trim() : "";
+        const avatar =
+          agentId === ""
+            ? null
+            : avatarOf(
+                agents.find(({ definition }) => definition.id === agentId)?.definition ?? {
+                  id: agentId
+                }
+              );
         return {
           id: step.key,
           type: "flows-step",
           position: { x: drag?.id === step.key ? drag.x : columnX(index + 1), y: 0 },
-          data: { step, title, kindName, invalid: bad, editable },
+          data: { step, title, kindName, invalid: bad, editable, avatar },
           width: CANVAS_NODE.width,
           height: CANVAS_NODE.height,
           ariaLabel: t(bad ? "desk.flows.canvas.nodeLabelInvalid" : "desk.flows.canvas.nodeLabel", {
@@ -272,7 +298,7 @@ function Canvas({
         };
       })
     ];
-  }, [draft, drag, editable, invalid, selected, t]);
+  }, [agents, draft, drag, editable, invalid, selected, t]);
 
   const backEdges = useMemo(() => backEdgesOf(draft), [draft]);
   const edges = useMemo((): Edge[] => {

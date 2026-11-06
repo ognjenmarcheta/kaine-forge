@@ -13,6 +13,7 @@ import {
   type TraceLine,
   type TraceStep
 } from "./issue.trace";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { useStageNames, type StageNames } from "../flow/flow.names";
 import { agentName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
@@ -338,7 +339,12 @@ export function Handoffs({ steps }: { readonly steps: readonly TraceStep[] }) {
             data-problem={isProblem(step) ? "true" : undefined}
             data-live={step.ongoing ? "true" : undefined}
           >
-            <b>{whoOf(t, names, step)}</b>
+            <b className="desk-who">
+              {step.agent !== null && step.kind !== "human" && step.kind !== "stop" && (
+                <AgentAvatar avatar={step.agent.avatar} />
+              )}
+              {whoOf(t, names, step)}
+            </b>
             <span>
               {t("desk.handoff.step", {
                 stage: stepName(t, names, step),

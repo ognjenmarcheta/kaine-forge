@@ -1,4 +1,4 @@
-import { STEP_KINDS, type AgentView, type StepKind } from "@repo/desk/contracts";
+import { STEP_KINDS, avatarOf, type AgentView, type StepKind } from "@repo/desk/contracts";
 import {
   Badge,
   Button,
@@ -35,6 +35,7 @@ import {
   type RuleProblem,
   type StepDraft
 } from "./flows.model";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { useT, type Translate } from "../i18n/i18n.t";
 
 /** The element id of a step field: `<base>-<step key>-<field>`. */
@@ -267,11 +268,14 @@ function KindFields({
             <SelectContent>
               {choices.map(({ definition }) => (
                 <SelectItem key={definition.id} value={definition.id}>
-                  {t("desk.flows.agentOption", {
-                    name: definition.name,
-                    output: t(`desk.agents.output.${definition.output}`),
-                    provider: t(`desk.agents.provider.${definition.provider}`)
-                  })}
+                  <span className="desk-who">
+                    <AgentAvatar avatar={avatarOf(definition)} />
+                    {t("desk.flows.agentOption", {
+                      name: definition.name,
+                      output: t(`desk.agents.output.${definition.output}`),
+                      provider: t(`desk.agents.provider.${definition.provider}`)
+                    })}
+                  </span>
                 </SelectItem>
               ))}
               {!known && step.agent !== "" && (
