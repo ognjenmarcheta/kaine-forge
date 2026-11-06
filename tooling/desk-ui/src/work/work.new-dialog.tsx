@@ -14,7 +14,7 @@ export type NewWorkRequest =
       readonly tab: "job";
       readonly kind?: JobKind;
       readonly screen?: string;
-      /** A role job's agent, when New work opened from the agent library. */
+      /** A specialist job's agent, when New work opened from the agent library. */
       readonly agentId?: string;
     };
 

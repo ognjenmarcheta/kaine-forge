@@ -46,7 +46,7 @@ const job = (over: Partial<JobState> = {}): JobState => ({
   screen: null,
   component: null,
   audit: null,
-  role: null,
+  specialist: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null,
@@ -429,26 +429,26 @@ describe("Component and audit jobs", () => {
   });
 });
 
-describe("Role jobs", () => {
+describe("Specialist jobs", () => {
   it("shows the agent's report at the gate and closes the job in one step", async () => {
     window.history.replaceState(null, "", "?job=2");
-    const roleJob = job({
-      kind: "role",
+    const specialistJob = job({
+      kind: "specialist",
       result: null,
       input: {
         note: "",
         model: "opus",
         budgetUsd: 5,
         minutes: 30,
-        role: {
-          agentId: "product-reviewer",
+        specialist: {
+          agentId: "product-strategist",
           target: { kind: "path", value: "apps/web/src/features/todos" }
         }
       },
-      role: {
+      specialist: {
         agent: {
-          id: "product-reviewer",
-          name: "Product reviewer",
+          id: "product-strategist",
+          name: "Product strategist",
           prompt: "Review it.",
           skills: [],
           mcp: []
@@ -460,11 +460,11 @@ describe("Role jobs", () => {
         }
       }
     });
-    const jobAction = vi.fn(() => Promise.resolve(roleJob));
-    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([roleJob]), jobAction }));
+    const jobAction = vi.fn(() => Promise.resolve(specialistJob));
+    renderDesk(<DeskApp />, fakeApi({ jobs: () => Promise.resolve([specialistJob]), jobAction }));
 
     expect(
-      await screen.findByRole("heading", { name: "Report from Product reviewer" })
+      await screen.findByRole("heading", { name: "Report from Product strategist" })
     ).toBeTruthy();
     expect(screen.getByText("The list shows a false empty state.")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Close the job" }));

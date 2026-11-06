@@ -1,8 +1,8 @@
 import { skillInstruction } from "../agents/roles/role.prompt";
-import type { Provider, RoleAgentSnapshot, RoleTarget } from "../contracts";
+import type { Provider, SpecialistSnapshot, SpecialistTarget } from "../contracts";
 
 /**
- * The role job: run one registered report agent against one target, a repository path, a
+ * The specialist job: run one registered report agent against one target, a repository path, a
  * GitHub issue, or the owner's brief. The agent reads and reports; it changes no file, and the
  * job pushes and files nothing. The owner reads the report at the gate.
  */
@@ -15,7 +15,7 @@ const fenced = (text: string): string => {
 };
 
 /** The Target section: what the agent reports on. `issueText` is fenced by the caller. */
-const targetSection = (target: RoleTarget, issueText: string | null): string => {
+const targetSection = (target: SpecialistTarget, issueText: string | null): string => {
   switch (target.kind) {
     case "path":
       return [
@@ -38,9 +38,9 @@ const targetSection = (target: RoleTarget, issueText: string | null): string => 
   }
 };
 
-export const rolePrompt = (input: {
-  readonly agent: RoleAgentSnapshot;
-  readonly target: RoleTarget;
+export const specialistPrompt = (input: {
+  readonly agent: SpecialistSnapshot;
+  readonly target: SpecialistTarget;
   /** An issue target's title and body, already wrapped by `fenceUntrusted`. */
   readonly issueText: string | null;
   readonly provider: Provider;
@@ -56,7 +56,7 @@ export const rolePrompt = (input: {
     [
       "## How this run works",
       "",
-      `You run as the agent desk's role job with the agent ${input.agent.id}. Change no file. Report only what you can show from the target, with file paths and lines.`,
+      `You run as the agent desk's specialist job with the agent ${input.agent.id}. Change no file. Report only what you can show from the target, with file paths and lines.`,
       "Put each finding in findings, one per entry. Put your overall view in summary, and say it again for a non-technical reader in plainLanguage."
     ].join("\n")
   );

@@ -24,8 +24,8 @@ export const JOB_SKILLS: Readonly<Record<JobKind, readonly string[]>> = {
   screen: ["kaine-build-ui", "kaine-audit-ui"],
   component: ["kaine-build-ui", "kaine-test", "kaine-audit-ui"],
   audit: ["kaine-audit-ui", "kaine-write-issue"],
-  // A role job takes its agent's own skills (`jobSkills`).
-  role: []
+  // A specialist job takes its agent's own skills (`jobSkills`).
+  specialist: []
 };
 
 /** The MCP servers each job kind gets, when the checkout installed them. */
@@ -36,8 +36,8 @@ export const JOB_MCP: Readonly<Record<JobKind, readonly string[]>> = {
   // The browser: the builder looks at its specimen, the auditor at the screen, in the lab server.
   component: ["serena", "playwright"],
   audit: ["serena", "playwright"],
-  // A role job takes its agent's own servers (`jobMcp`).
-  role: []
+  // A specialist job takes its agent's own servers (`jobMcp`).
+  specialist: []
 };
 
 /**
@@ -63,17 +63,17 @@ export const JOB_COMMANDS: Readonly<Record<JobKind, readonly string[]>> = {
     "pnpm theme:check"
   ],
   audit: ["pnpm lab:diff", "pnpm lab:shots", "pnpm ui:check"],
-  // A role job reads: its agent runs under the read-only floor, whatever its preset.
-  role: []
+  // A specialist job reads: its agent runs under the read-only floor, whatever its preset.
+  specialist: []
 };
 
-/** The skills a job preloads: its kind's list, or a role job's agent's own skills. */
-export const jobSkills = (job: Pick<JobState, "kind" | "role">): readonly string[] =>
-  job.kind === "role" ? (job.role?.agent.skills ?? []) : JOB_SKILLS[job.kind];
+/** The skills a job preloads: its kind's list, or a specialist job's agent's own skills. */
+export const jobSkills = (job: Pick<JobState, "kind" | "specialist">): readonly string[] =>
+  job.kind === "specialist" ? (job.specialist?.agent.skills ?? []) : JOB_SKILLS[job.kind];
 
-/** The MCP servers a job asks for: its kind's list, or a role job's agent's own servers. */
-export const jobMcp = (job: Pick<JobState, "kind" | "role">): readonly string[] =>
-  job.kind === "role" ? (job.role?.agent.mcp ?? []) : JOB_MCP[job.kind];
+/** The MCP servers a job asks for: its kind's list, or a specialist job's agent's own servers. */
+export const jobMcp = (job: Pick<JobState, "kind" | "specialist">): readonly string[] =>
+  job.kind === "specialist" ? (job.specialist?.agent.mcp ?? []) : JOB_MCP[job.kind];
 
 /** The folder a screen job writes, relative to the worktree. */
 export const screenFolder = (screenId: string): string => {

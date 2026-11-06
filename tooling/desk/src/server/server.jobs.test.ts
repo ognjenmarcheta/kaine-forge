@@ -29,7 +29,7 @@ const job: JobState = {
   screen: null,
   component: null,
   audit: null,
-  role: null,
+  specialist: null,
   approvedIssues: [],
   filedIssues: [],
   pr: null

@@ -10,7 +10,7 @@ import { scorecardRunSchema } from "./scorecard.contract";
  * for the owner before anything leaves the machine. See ADR 0021.
  */
 
-export const JOB_KINDS = ["scorecard", "screen", "component", "audit", "role"] as const;
+export const JOB_KINDS = ["scorecard", "screen", "component", "audit", "specialist"] as const;
 export const jobKindSchema = z.enum(JOB_KINDS);
 export type JobKind = z.infer<typeof jobKindSchema>;
 
@@ -50,7 +50,7 @@ export const JOB_LIMITS: Readonly<Record<JobKind, { costUsd: number; minutes: nu
   screen: { costUsd: 10, minutes: 60 },
   component: { costUsd: 10, minutes: 60 },
   audit: { costUsd: 5, minutes: 30 },
-  role: { costUsd: 5, minutes: 30 }
+  specialist: { costUsd: 5, minutes: 30 }
 };
 
 /** A lab screen id: the reference number and a short name, as `tooling/desk-ui/src/lab/screens` asks. */
@@ -102,51 +102,51 @@ export const auditSpecSchema = z
   .strict();
 export type AuditSpec = z.infer<typeof auditSpecSchema>;
 
-/** What a role job reads: a repository path, a GitHub issue, or the owner's brief. */
-export const ROLE_TARGET_KINDS = ["path", "issue", "brief"] as const;
-export type RoleTargetKind = (typeof ROLE_TARGET_KINDS)[number];
+/** What a specialist job reads: a repository path, a GitHub issue, or the owner's brief. */
+export const SPECIALIST_TARGET_KINDS = ["path", "issue", "brief"] as const;
+export type SpecialistTargetKind = (typeof SPECIALIST_TARGET_KINDS)[number];
 
 /** A path in the checkout: relative, with forward slashes, and without a `..` segment. */
 export const REPO_PATH = /^(?!.*(?:^|\/)\.\.(?:\/|$))[\w.@-]+(?:\/[\w.@-]+)*\/?$/;
 
-export const roleTargetSchema = z.discriminatedUnion("kind", [
+export const specialistTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("path"), value: z.string().regex(REPO_PATH).max(300) }).strict(),
   z.object({ kind: z.literal("issue"), value: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal("brief"), value: z.string().trim().min(1).max(4000) }).strict()
 ]);
-export type RoleTarget = z.infer<typeof roleTargetSchema>;
+export type SpecialistTarget = z.infer<typeof specialistTargetSchema>;
 
-/** What a role job runs: one registered report agent against one target. */
-export const roleSpecSchema = z
-  .object({ agentId: definitionIdSchema, target: roleTargetSchema })
+/** What a specialist job runs: one registered report agent against one target. */
+export const specialistSpecSchema = z
+  .object({ agentId: definitionIdSchema, target: specialistTargetSchema })
   .strict();
-export type RoleSpec = z.infer<typeof roleSpecSchema>;
+export type SpecialistSpec = z.infer<typeof specialistSpecSchema>;
 
-/** The presets a role job runs. It never edits: an `edit-code` agent is refused. */
-export const ROLE_JOB_PRESETS = ["read-only", "run-checks"] as const;
+/** The presets a specialist job runs. It never edits: an `edit-code` agent is refused. */
+export const SPECIALIST_PRESETS = ["read-only", "run-checks"] as const;
 
 /**
- * Why an agent cannot run as a role job, or `null` when it can: it must return a report and
+ * Why an agent cannot run as a specialist job, or `null` when it can: it must return a report and
  * must not edit code.
  */
-export const roleAgentProblem = (
+export const specialistProblem = (
   agent: Pick<AgentDefinition, "id" | "output" | "capabilities">
 ): string | null => {
   if (agent.output !== "report") {
-    return `The agent ${agent.id} returns a ${agent.output}, not a report. A role job runs report agents only.`;
+    return `The agent ${agent.id} returns a ${agent.output}, not a report. A specialist job runs report agents only.`;
   }
   const preset = agent.capabilities.preset;
-  if (!ROLE_JOB_PRESETS.some((allowed) => allowed === preset)) {
-    return `The agent ${agent.id} has the ${preset} preset. A role job runs read-only and run-checks agents only.`;
+  if (!SPECIALIST_PRESETS.some((allowed) => allowed === preset)) {
+    return `The agent ${agent.id} has the ${preset} preset. A specialist job runs read-only and run-checks agents only.`;
   }
   return null;
 };
 
 /**
- * A role job's agent as it was at start, so a send-back runs the same agent. The job runs on
+ * A specialist job's agent as it was at start, so a send-back runs the same agent. The job runs on
  * the job's provider and model, as every job does, not on the agent file's.
  */
-export const roleAgentSnapshotSchema = z
+export const specialistSnapshotSchema = z
   .object({
     id: definitionIdSchema,
     name: z.string().min(1),
@@ -156,7 +156,7 @@ export const roleAgentSnapshotSchema = z
     mcp: z.array(z.string().min(1))
   })
   .strict();
-export type RoleAgentSnapshot = z.infer<typeof roleAgentSnapshotSchema>;
+export type SpecialistSnapshot = z.infer<typeof specialistSnapshotSchema>;
 
 /** The Claude model a job uses unless the owner picks another one. */
 export const JOB_DEFAULT_MODEL = "opus";
@@ -176,8 +176,8 @@ export const jobInputSchema = z
     component: componentSpecSchema.optional(),
     /** Set for an audit job. */
     audit: auditSpecSchema.optional(),
-    /** Set for a role job. */
-    role: roleSpecSchema.optional()
+    /** Set for a specialist job. */
+    specialist: specialistSpecSchema.optional()
   })
   .strict();
 export type JobInput = z.infer<typeof jobInputSchema>;
@@ -343,9 +343,9 @@ export const jobStateSchema = z
       .strict()
       .nullable()
       .default(null),
-    /** A role job's agent, as it was at start, and its report. */
-    role: z
-      .object({ agent: roleAgentSnapshotSchema, result: reportOutputSchema.nullable() })
+    /** A specialist job's agent, as it was at start, and its report. */
+    specialist: z
+      .object({ agent: specialistSnapshotSchema, result: reportOutputSchema.nullable() })
       .strict()
       .nullable()
       .default(null),
@@ -387,8 +387,8 @@ export const jobStartRequestSchema = z
       .optional(),
     component: componentSpecSchema.optional(),
     audit: auditSpecSchema.optional(),
-    /** A role job's agent id and target. The agent must be a registered report agent. */
-    role: roleSpecSchema.optional()
+    /** A specialist job's agent id and target. The agent must be a registered report agent. */
+    specialist: specialistSpecSchema.optional()
   })
   .strict()
   .refine((request) => (request.kind === "screen") === (request.screen !== undefined), {
@@ -403,9 +403,9 @@ export const jobStartRequestSchema = z
     message: "An audit job needs a screen to audit, and only an audit job takes one",
     path: ["audit"]
   })
-  .refine((request) => (request.kind === "role") === (request.role !== undefined), {
-    message: "A role job needs an agent and a target, and only a role job takes them",
-    path: ["role"]
+  .refine((request) => (request.kind === "specialist") === (request.specialist !== undefined), {
+    message: "A specialist job needs an agent and a target, and only a specialist job takes them",
+    path: ["specialist"]
   });
 export type JobStartRequest = z.infer<typeof jobStartRequestSchema>;
 
@@ -413,7 +413,7 @@ export type JobStartRequest = z.infer<typeof jobStartRequestSchema>;
 export const jobActionRequestSchema = z.discriminatedUnion("action", [
   /**
    * At a plan gate: build. At the last gate: file the ticked issues (by slug), then commit,
-   * push, and open the draft PR (an audit job only files; a role job only closes).
+   * push, and open the draft PR (an audit job only files; a specialist job only closes).
    */
   z
     .object({

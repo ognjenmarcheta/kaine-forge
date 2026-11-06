@@ -1,7 +1,7 @@
 import {
   AGENT_OUTPUT_KINDS,
   DEFINITION_SOURCES,
-  roleAgentProblem,
+  specialistProblem,
   type AgentView,
   type DefinitionKind,
   type DefinitionProblem
@@ -144,8 +144,8 @@ function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClon
   const newWork = useNewWork();
   const { definition, resolved } = view;
   const { capabilities } = definition;
-  // A report agent that edits nothing runs on its own as a role job.
-  const runnable = view.problems.length === 0 && roleAgentProblem(definition) === null;
+  // A report agent that edits nothing runs on its own as a specialist job.
+  const runnable = view.problems.length === 0 && specialistProblem(definition) === null;
   const isolated = resolved.sandbox === "docker";
   return (
     <li className="desk-agent">
@@ -194,7 +194,9 @@ function AgentRow({ view, onClone }: { readonly view: AgentView; readonly onClon
               appearance="subtle"
               spacing="compact"
               aria-label={t("desk.agents.runNamed", { name: definition.name })}
-              onClick={() => newWork.open({ tab: "job", kind: "role", agentId: definition.id })}
+              onClick={() =>
+                newWork.open({ tab: "job", kind: "specialist", agentId: definition.id })
+              }
             >
               {t("desk.agents.run")}
             </Button>

@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AgentRunOutcome, AgentRunRequest, AgentRunner } from "../agents/agent.runner";
-import type { AgentDefinition, ReportOutput, RoleTarget } from "../contracts";
+import type { AgentDefinition, ReportOutput, SpecialistTarget } from "../contracts";
 import { fakeExec, ok } from "../testing/exec.fake";
 import { createFakeGit } from "../testing/git.fake";
 import { fakeGitHub, type FakeGitHub } from "../testing/github.fake";
@@ -24,17 +24,17 @@ const agentOf = (
   over: Partial<Pick<AgentDefinition, "output" | "capabilities">> = {}
 ): AgentDefinition => ({
   id,
-  name: "Product reviewer",
+  name: "Product strategist",
   description: "Reads a feature as a product owner.",
   provider: "claude",
   output: "report",
   capabilities: { preset: "read-only", mcp: ["serena"], skills: ["kaine-review"], tools: [] },
-  prompt: "You are the product reviewer. Judge the feature as its user would.",
+  prompt: "You are the product strategist. Judge the feature as its user would.",
   ...over
 });
 
 const AGENTS: readonly AgentDefinition[] = [
-  agentOf("product-reviewer"),
+  agentOf("product-strategist"),
   agentOf("fixer", {
     capabilities: { preset: "edit-code", mcp: [], skills: [], tools: [] }
   })
@@ -50,7 +50,7 @@ interface Harness {
 
 let root: string;
 beforeEach(async () => {
-  root = await mkdtemp(path.join(tmpdir(), "desk-role-jobs-"));
+  root = await mkdtemp(path.join(tmpdir(), "desk-specialist-jobs-"));
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
@@ -89,7 +89,7 @@ const harness = async (): Promise<Harness> => {
           resultText: ""
         }
       };
-      // SAFETY: a role job's schema is the report schema, and REPORT is a report.
+      // SAFETY: a specialist job's schema is the report schema, and REPORT is a report.
       return Promise.resolve(outcome as AgentRunOutcome<T>);
     }
   };
@@ -97,7 +97,7 @@ const harness = async (): Promise<Harness> => {
   const labServers: LabServers = {
     ensure: (jobId) => {
       labStarts.push(jobId);
-      return Promise.reject(new Error("a role job has no lab server"));
+      return Promise.reject(new Error("a specialist job has no lab server"));
     },
     get: () => null,
     stop: () => Promise.resolve(),
@@ -144,13 +144,13 @@ const harness = async (): Promise<Harness> => {
   };
 };
 
-const start = (h: Harness, agentId: string, target: RoleTarget) =>
-  h.jobs.start({ kind: "role", role: { agentId, target } });
+const start = (h: Harness, agentId: string, target: SpecialistTarget) =>
+  h.jobs.start({ kind: "specialist", specialist: { agentId, target } });
 
-describe("the role job", () => {
+describe("the specialist job", () => {
   it("runs a report agent read-only to the gate, and approve closes it with nothing pushed or filed", async () => {
     const h = await harness();
-    const job = await start(h, "product-reviewer", {
+    const job = await start(h, "product-strategist", {
       kind: "path",
       value: "apps/web/src/features/todos"
     });
@@ -161,14 +161,14 @@ describe("the role job", () => {
     expect(
       request?.permissions.allow.filter((rule) => /^(Edit|Write)/.test(rule)) ?? ["missing"]
     ).toEqual([]);
-    expect(request?.prompt).toContain("You are the product reviewer.");
+    expect(request?.prompt).toContain("You are the product strategist.");
     expect(request?.prompt).toContain("## Target");
     expect(request?.prompt).toContain("apps/web/src/features/todos");
     expect(await h.jobs.get(job.id)).toMatchObject({
       status: "waiting",
       stage: "review",
-      branch: "KAINE-role-product-reviewer-job-1",
-      role: { agent: { id: "product-reviewer" }, result: REPORT }
+      branch: "KAINE-specialist-product-strategist-job-1",
+      specialist: { agent: { id: "product-strategist" }, result: REPORT }
     });
 
     await h.jobs.act(job.id, { action: "approve", issues: [], confirm: true });
@@ -183,7 +183,7 @@ describe("the role job", () => {
 
   it("gives the agent the issue's text, fenced as untrusted", async () => {
     const h = await harness();
-    const job = await start(h, "product-reviewer", { kind: "issue", value: 7 });
+    const job = await start(h, "product-strategist", { kind: "issue", value: 7 });
     await h.jobs.settled(job.id);
 
     expect(h.requests[0]?.prompt).toContain("Title: Export reports");

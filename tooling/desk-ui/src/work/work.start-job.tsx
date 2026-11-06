@@ -7,11 +7,11 @@ import {
   MAX_REFERENCE_BYTES,
   REFERENCE_TYPES,
   REPO_PATH,
-  ROLE_TARGET_KINDS,
-  roleAgentProblem,
+  SPECIALIST_TARGET_KINDS,
+  specialistProblem,
   type JobKind,
   type JobStartRequest,
-  type RoleTargetKind
+  type SpecialistTargetKind
 } from "@repo/desk/contracts";
 import {
   Button,
@@ -57,10 +57,10 @@ const issueNumberOf = (value: string): number | null => {
 };
 
 /**
- * A role job's agent and target. Only the report agents that edit nothing are listed: the
+ * A specialist job's agent and target. Only the report agents that edit nothing are listed: the
  * desk refuses any other agent.
  */
-function RoleFields({
+function SpecialistFields({
   agentId,
   onAgent,
   targetKind,
@@ -70,8 +70,8 @@ function RoleFields({
 }: {
   readonly agentId: string;
   readonly onAgent: (id: string) => void;
-  readonly targetKind: RoleTargetKind;
-  readonly onTargetKind: (kind: RoleTargetKind) => void;
+  readonly targetKind: SpecialistTargetKind;
+  readonly onTargetKind: (kind: SpecialistTargetKind) => void;
   readonly target: string;
   readonly onTarget: (value: string) => void;
 }) {
@@ -81,21 +81,21 @@ function RoleFields({
   const agents =
     state.status === "ok"
       ? state.list.agents.filter(
-          (view) => view.problems.length === 0 && roleAgentProblem(view.definition) === null
+          (view) => view.problems.length === 0 && specialistProblem(view.definition) === null
         )
       : [];
   return (
     <>
       <div className="dk-field">
-        <Label htmlFor={`${id}-agent`}>{t("desk.job.start.role.agent")}</Label>
+        <Label htmlFor={`${id}-agent`}>{t("desk.job.start.specialist.agent")}</Label>
         {state.status === "error" ? (
           <FailureText code={state.code} detail={state.detail} />
         ) : state.status === "ok" && agents.length === 0 ? (
-          <p className="dk-hint">{t("desk.job.start.role.noAgents")}</p>
+          <p className="dk-hint">{t("desk.job.start.specialist.noAgents")}</p>
         ) : (
           <Select value={agentId} onValueChange={onAgent}>
             <SelectTrigger id={`${id}-agent`} aria-describedby={`${id}-agent-help`}>
-              <SelectValue placeholder={t("desk.job.start.role.agentPick")} />
+              <SelectValue placeholder={t("desk.job.start.specialist.agentPick")} />
             </SelectTrigger>
             <SelectContent>
               {agents.map(({ definition }) => (
@@ -107,21 +107,23 @@ function RoleFields({
           </Select>
         )}
         <p id={`${id}-agent-help`} className="dk-hint">
-          {t("desk.job.start.role.agentHelp")}
+          {t("desk.job.start.specialist.agentHelp")}
         </p>
       </div>
       <div className="dk-field">
-        <span className="dk-hint">{t("desk.job.start.role.target")}</span>
+        <span className="dk-hint">{t("desk.job.start.specialist.target")}</span>
         <Segmented
-          label={t("desk.job.start.role.target")}
+          label={t("desk.job.start.specialist.target")}
           value={targetKind}
-          options={ROLE_TARGET_KINDS}
-          name={(entry) => t(`desk.job.start.role.targetKind.${entry}`)}
+          options={SPECIALIST_TARGET_KINDS}
+          name={(entry) => t(`desk.job.start.specialist.targetKind.${entry}`)}
           onChange={onTargetKind}
         />
       </div>
       <div className="dk-field">
-        <Label htmlFor={`${id}-target`}>{t(`desk.job.start.role.targetValue.${targetKind}`)}</Label>
+        <Label htmlFor={`${id}-target`}>
+          {t(`desk.job.start.specialist.targetValue.${targetKind}`)}
+        </Label>
         {targetKind === "brief" ? (
           <Textarea
             id={`${id}-target`}
@@ -140,7 +142,7 @@ function RoleFields({
           />
         )}
         <p id={`${id}-target-help`} className="dk-hint">
-          {t(`desk.job.start.role.targetHelp.${targetKind}`)}
+          {t(`desk.job.start.specialist.targetHelp.${targetKind}`)}
         </p>
       </div>
     </>
@@ -161,7 +163,7 @@ export function JobStartForm({
   readonly kind: JobKind;
   /** The lab screen an audit starts on, when New work opened from that screen. */
   readonly screen?: string;
-  /** The agent a role job starts with, when New work opened from that agent. */
+  /** The agent a specialist job starts with, when New work opened from that agent. */
   readonly agentId?: string;
   readonly onCancel: () => void;
   readonly onStarted: () => void;
@@ -187,13 +189,13 @@ export function JobStartForm({
   const [layer, setLayer] = useState<(typeof COMPONENT_LAYERS)[number]>("composed");
   const [auditScreen, setAuditScreen] = useState(screen);
   const [agentId, setAgentId] = useState(initialAgent);
-  const [targetKind, setTargetKind] = useState<RoleTargetKind>("path");
+  const [targetKind, setTargetKind] = useState<SpecialistTargetKind>("path");
   const [target, setTarget] = useState("");
   const isScreen = kind === "screen";
   const isComponent = kind === "component";
   const isAudit = kind === "audit";
-  const isRole = kind === "role";
-  const roleTarget = (): NonNullable<JobStartRequest["role"]>["target"] | null => {
+  const isSpecialist = kind === "specialist";
+  const specialistTarget = (): NonNullable<JobStartRequest["specialist"]>["target"] | null => {
     if (targetKind === "issue") {
       const number = issueNumberOf(target);
       return number === null ? null : { kind: "issue", value: number };
@@ -233,7 +235,7 @@ export function JobStartForm({
     // The planner works from the note: for a component it says what the component is for.
     (!isComponent || (UI_COMPONENT_NAME.test(componentName) && note.trim() !== "")) &&
     (!isAudit || LAB_SCREEN_ID.test(auditScreen)) &&
-    (!isRole || (agentId !== "" && roleTarget() !== null));
+    (!isSpecialist || (agentId !== "" && specialistTarget() !== null));
   const valid =
     Number.isFinite(budgetValue) &&
     budgetValue > 0 &&
@@ -257,8 +259,9 @@ export function JobStartForm({
       };
       if (isComponent) request.component = { name: componentName, layer };
       if (isAudit) request.audit = { screenId: auditScreen };
-      const chosenTarget = roleTarget();
-      if (isRole && chosenTarget !== null) request.role = { agentId, target: chosenTarget };
+      const chosenTarget = specialistTarget();
+      if (isSpecialist && chosenTarget !== null)
+        request.specialist = { agentId, target: chosenTarget };
       if (isScreen && file !== null && isReferenceType(file.type)) {
         request.screen = {
           id: screenId,
@@ -396,8 +399,8 @@ export function JobStartForm({
           </p>
         </div>
       )}
-      {isRole && (
-        <RoleFields
+      {isSpecialist && (
+        <SpecialistFields
           agentId={agentId}
           onAgent={setAgentId}
           targetKind={targetKind}

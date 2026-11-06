@@ -53,7 +53,10 @@ describe("AgentsView", () => {
 
   it("runs a report agent from its row, and the start form lists only report agents that change no file", async () => {
     const agents = [
-      agentView(agentDefinition({ id: "product-reviewer", name: "Product reviewer" }), "builtin"),
+      agentView(
+        agentDefinition({ id: "product-strategist", name: "Product strategist" }),
+        "builtin"
+      ),
       agentView(
         agentDefinition({
           id: "dx-checker",
@@ -94,17 +97,17 @@ describe("AgentsView", () => {
     const dialog = await screen.findByRole("dialog", { name: "New work" });
     expect(
       within(dialog)
-        .getByRole("radio", { name: /^Run a role/ })
+        .getByRole("radio", { name: /^Run a specialist/ })
         .getAttribute("aria-checked")
     ).toBe("true");
     const picker = await within(dialog).findByRole("combobox", { name: "Agent" });
     expect(picker.textContent).toBe("DX checker");
     await userEvent.click(picker);
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Product reviewer",
+      "Product strategist",
       "DX checker"
     ]);
-    await userEvent.click(screen.getByRole("option", { name: "Product reviewer" }));
+    await userEvent.click(screen.getByRole("option", { name: "Product strategist" }));
     await userEvent.type(
       within(dialog).getByRole("textbox", { name: "Path in the repository" }),
       "apps/web/src/features/todos"
@@ -113,9 +116,9 @@ describe("AgentsView", () => {
 
     expect(startJob).toHaveBeenCalledWith(
       expect.objectContaining({
-        kind: "role",
-        role: {
-          agentId: "product-reviewer",
+        kind: "specialist",
+        specialist: {
+          agentId: "product-strategist",
           target: { kind: "path", value: "apps/web/src/features/todos" }
         }
       })

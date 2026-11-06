@@ -18,7 +18,7 @@ import {
   componentPlanSchema,
   jobStateSchema,
   reportOutputSchema,
-  roleAgentProblem,
+  specialistProblem,
   scorecardJobResultSchema,
   screenJobResultSchema,
   type JobActionRequest,
@@ -59,7 +59,6 @@ import {
   jobSkills,
   screenFolder
 } from "./jobs.permissions";
-import { rolePrompt } from "./jobs.role";
 import {
   appendScorecardRun,
   setFindingIssues,
@@ -76,6 +75,7 @@ import {
   screenPullRequest,
   writeReference
 } from "./jobs.screen";
+import { specialistPrompt } from "./jobs.specialist";
 import type { JobStore } from "./jobs.store";
 import { runSweep, type SweepStep } from "./jobs.sweep";
 
@@ -111,7 +111,7 @@ export interface JobManagerDeps {
   readonly prepareWorktree?: typeof createWorktree;
   /** The lab dev servers of screen jobs. Default: Vite in each job worktree. */
   readonly labServers?: LabServers;
-  /** The agents a role job may run. Default: the registry of the main checkout. */
+  /** The agents a specialist job may run. Default: the registry of the main checkout. */
   readonly agents?: () => Promise<readonly AgentDefinition[]>;
 }
 
@@ -183,17 +183,17 @@ const AGAIN: Readonly<Record<JobState["kind"], JobStage>> = {
   screen: "build",
   component: "build",
   audit: "audit",
-  role: "report"
+  specialist: "report"
 };
 const againOf = (kind: JobState["kind"]): JobStage => AGAIN[kind];
 
 /** The branch name's slug: `KAINE-<type>-<slug>`. An audit's branch is never pushed. */
 const branchSlugOf = (state: JobState): string => {
-  const { screen, component, audit, role } = state.input;
+  const { screen, component, audit, specialist } = state.input;
   if (screen !== undefined) return `lab-${screen.id}-job-${state.id}`;
   if (component !== undefined) return `ui-${componentFileName(component.name)}-job-${state.id}`;
   if (audit !== undefined) return `audit-${audit.screenId}-job-${state.id}`;
-  if (role !== undefined) return `role-${role.agentId}-job-${state.id}`;
+  if (specialist !== undefined) return `specialist-${specialist.agentId}-job-${state.id}`;
   return `scorecard-${state.createdAt.slice(0, 10)}-job-${state.id}`;
 };
 
@@ -815,9 +815,9 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
   };
 
-  /** The title and body of a role job's issue target, fenced as untrusted, or `null`. */
+  /** The title and body of a specialist job's issue target, fenced as untrusted, or `null`. */
   const issueTextOf = async (state: JobState): Promise<string | null> => {
-    const target = state.input.role?.target;
+    const target = state.input.specialist?.target;
     if (target?.kind !== "issue") return null;
     let snapshot: Awaited<ReturnType<typeof deps.github.fetchIssue>>;
     try {
@@ -836,17 +836,17 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     );
   };
 
-  /** Run the role job's agent against its target. It writes nothing; the owner reads the report. */
+  /** Run the specialist job's agent against its target. It writes nothing; the owner reads the report. */
   const report = async (state: JobState, signal: AbortSignal): Promise<JobState> => {
-    const spec = state.input.role;
-    const agent = state.role?.agent;
+    const spec = state.input.specialist;
+    const agent = state.specialist?.agent;
     if (spec === undefined || agent === undefined) {
       throw new JobStop("failed", "The job has no agent to run.");
     }
     const issueText = await issueTextOf(state);
     const outcome = await runAgent(state, "report", {
       prompt: (provider, skills) =>
-        rolePrompt({
+        specialistPrompt({
           agent,
           target: spec.target,
           issueText,
@@ -862,7 +862,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
       {
         ...state,
         spentUsd: state.spentUsd + outcome.costUsd,
-        role: { agent, result: outcome.structured }
+        specialist: { agent, result: outcome.structured }
       },
       "review",
       `${agent.name} reported ${outcome.structured.findings.length} findings.`
@@ -1101,8 +1101,8 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           else if (stage === "ship") await step(await shipAudit(state));
           return;
         }
-        if (state.kind === "role") {
-          // Approve closes the job at the gate: a role job has no ship step.
+        if (state.kind === "specialist") {
+          // Approve closes the job at the gate: a specialist job has no ship step.
           if (stage === "setup" || stage === "report") await gate(await report(state, signal));
           return;
         }
@@ -1140,11 +1140,11 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
     list: () => deps.store.list(),
     get: (id) => deps.store.read(id),
     start: async (request) => {
-      // One job of a kind at a time; for role jobs, one per agent.
+      // One job of a kind at a time; for specialist jobs, one per agent.
       const open = (await deps.store.list()).find(
         (job) =>
           job.kind === request.kind &&
-          job.input.role?.agentId === request.role?.agentId &&
+          job.input.specialist?.agentId === request.specialist?.agentId &&
           !FINAL.has(job.status)
       );
       if (open !== undefined) {
@@ -1153,9 +1153,9 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           `Job ${open.id} of this kind is not finished. Finish, cancel, or remove it first.`
         );
       }
-      let roleAgent: NonNullable<JobState["role"]>["agent"] | undefined;
-      if (request.role !== undefined) {
-        const { agentId, target } = request.role;
+      let specialistAgent: NonNullable<JobState["specialist"]>["agent"] | undefined;
+      if (request.specialist !== undefined) {
+        const { agentId, target } = request.specialist;
         const agents =
           deps.agents === undefined
             ? (await loadRegistry({ repoRoot: deps.repoRoot })).agents.map(
@@ -1166,12 +1166,12 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
         if (agent === undefined) {
           throw new JobRefusal("bad-request", `There is no agent ${agentId} in the registry.`);
         }
-        const problem = roleAgentProblem(agent);
+        const problem = specialistProblem(agent);
         if (problem !== null) throw new JobRefusal("bad-request", problem);
         if (target.kind === "path" && !existsSync(path.join(deps.repoRoot, target.value))) {
           throw new JobRefusal("bad-request", `There is no ${target.value} in the checkout.`);
         }
-        roleAgent = {
+        specialistAgent = {
           id: agent.id,
           name: agent.name,
           prompt: agent.prompt,
@@ -1228,7 +1228,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
           ...(screen === undefined ? {} : { screen }),
           ...(request.component === undefined ? {} : { component: request.component }),
           ...(request.audit === undefined ? {} : { audit: request.audit }),
-          ...(request.role === undefined ? {} : { role: request.role })
+          ...(request.specialist === undefined ? {} : { specialist: request.specialist })
         },
         status: "running",
         stage: "setup",
@@ -1245,7 +1245,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
             ? { plan: null, planApproved: false, result: null, port: null }
             : null,
         audit: request.kind === "audit" ? { result: null, port: null } : null,
-        role: roleAgent === undefined ? null : { agent: roleAgent, result: null },
+        specialist: specialistAgent === undefined ? null : { agent: specialistAgent, result: null },
         approvedIssues: [],
         filedIssues: [],
         pr: null
@@ -1288,7 +1288,7 @@ export const createJobManager = (deps: JobManagerDeps): JobManager => {
               `Not proposed by this run: ${unknown.join(", ")}.`
             );
           }
-          if (state.kind === "role") {
+          if (state.kind === "specialist") {
             // The owner read the report: the job closes. It pushes and files nothing.
             return save(
               record({ ...state, status: "done", stop: null }, "done", "Report read; closed.")

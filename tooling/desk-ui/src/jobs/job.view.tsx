@@ -578,20 +578,20 @@ function AuditReview({ job }: { readonly job: JobState }) {
   );
 }
 
-/** The role gate: the agent's report. Approve closes the job; it pushes and files nothing. */
-function RoleReview({ job }: { readonly job: JobState }) {
+/** The specialist gate: the agent's report. Approve closes the job; it pushes and files nothing. */
+function SpecialistReview({ job }: { readonly job: JobState }) {
   const t = useT();
-  const role = job.role;
-  if (role === null || role.result === null) return null;
+  const specialist = job.specialist;
+  if (specialist === null || specialist.result === null) return null;
   return (
     <Card className="dk-card desk-job-gate">
-      <h2>{t("desk.job.roleReview.title", { name: role.agent.name })}</h2>
-      <ReportResult report={role.result} />
+      <h2>{t("desk.job.specialistReview.title", { name: specialist.agent.name })}</h2>
+      <ReportResult report={specialist.result} />
       <GateActions
         job={job}
-        approveLabel={t("desk.job.roleReview.approve")}
+        approveLabel={t("desk.job.specialistReview.approve")}
         confirm={null}
-        sendBackLabel={t("desk.job.roleReview.sendBackNote")}
+        sendBackLabel={t("desk.job.specialistReview.sendBackNote")}
       />
     </Card>
   );
@@ -604,7 +604,7 @@ function Gate({ job }: { readonly job: JobState }) {
     return job.stage === "plan" ? <PlanReview job={job} /> : <ComponentReview job={job} />;
   }
   if (job.kind === "audit") return <AuditReview job={job} />;
-  if (job.kind === "role") return <RoleReview job={job} />;
+  if (job.kind === "specialist") return <SpecialistReview job={job} />;
   return <Review job={job} />;
 }
 
@@ -630,12 +630,12 @@ function Stopped({ job }: { readonly job: JobState }) {
 
 function Done({ job }: { readonly job: JobState }) {
   const t = useT();
-  if (job.role !== null && job.role.result !== null) {
-    // A role job files nothing: its report is what it leaves.
+  if (job.specialist !== null && job.specialist.result !== null) {
+    // A specialist job files nothing: its report is what it leaves.
     return (
       <Card className="dk-card">
-        <h2>{t("desk.job.roleReview.done", { name: job.role.agent.name })}</h2>
-        <ReportResult report={job.role.result} />
+        <h2>{t("desk.job.specialistReview.done", { name: job.specialist.agent.name })}</h2>
+        <ReportResult report={job.specialist.result} />
       </Card>
     );
   }
