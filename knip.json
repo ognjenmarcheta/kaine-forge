@@ -79,7 +79,8 @@
         "vitest.config.ts",
         "**/*.test.ts"
       ],
-      "project": ["**/*.{js,cjs,ts}"]
+      "project": ["**/*.{js,cjs,ts}"],
+      "ignoreDependencies": ["eslint-import-resolver-typescript"]
     },
     "packages/mobile-ui": {
       "entry": ["src/index.ts", "**/*.test.{ts,tsx}", "vitest.config.ts"],

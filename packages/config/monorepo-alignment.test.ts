@@ -1097,6 +1097,46 @@ describe("monorepo alignment", () => {
     // (run 39399822538), past vitest's 5s default.
   }, 30_000);
 
+  it("resolves TypeScript imports, so the import rules check .ts files", async () => {
+    // eslint-plugin-import shipped with only the node resolver and the default
+    // .js-only `import/extensions`: every TS import was unresolved and
+    // import/no-cycle never followed a .ts dependency, so the gate passed
+    // silently. Lint two real API files with injected imports.
+    const { ESLint } = await import("eslint");
+    const eslint = new ESLint({
+      cwd: repoRoot,
+      overrideConfig: { rules: { "import/no-unresolved": "error" } }
+    });
+    const lintWithImport = async (file: string, injected: string) => {
+      const source = `${readText(file)}\n${injected}\n`;
+      const [result] = await eslint.lintText(source, { filePath: resolve(repoRoot, file) });
+      return (result?.messages ?? []).filter(
+        (message) =>
+          message.ruleId === "import/no-unresolved" || message.ruleId === "import/no-cycle"
+      );
+    };
+
+    // The real imports (a relative module, a workspace subpath export, an npm
+    // package) resolve; only the injected missing module is reported.
+    const unresolved = await lintWithImport(
+      "apps/api/src/features/storage/attachment.sweep.ts",
+      'import "./attachment.missing-module";'
+    );
+    expect(unresolved.map((message) => [message.ruleId, message.message])).toEqual([
+      ["import/no-unresolved", "Unable to resolve path to module './attachment.missing-module'."]
+    ]);
+
+    // attachment.sweep.ts imports attachment.store.ts, so importing it back
+    // closes a cycle. no-cycle skips side-effect imports, so import a binding.
+    // The cycle exists only in the linted text, which base.js's `disableScc`
+    // lets the rule see: the SCC pre-pass reads the files on disk.
+    const cycle = await lintWithImport(
+      "apps/api/src/features/storage/attachment.store.ts",
+      'import { sweepAttachmentObjects } from "./attachment.sweep";\nvoid sweepAttachmentObjects;'
+    );
+    expect(cycle.map((message) => message.ruleId)).toEqual(["import/no-cycle"]);
+  }, 30_000);
+
   it("requires each source workspace to ship at least one vitest test", () => {
     // Every workspace uses `vitest run --passWithNoTests`, so a package with no
     // tests still passes green. This gate keeps that flag safe by asserting the
