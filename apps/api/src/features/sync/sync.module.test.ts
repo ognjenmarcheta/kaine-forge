@@ -215,6 +215,77 @@ describe("sync pull", () => {
   });
 });
 
+describe("sync pull with a window", () => {
+  /** Creates each Todo in its own push, so each gets its own creation time. */
+  async function createTodos(sync: Sync, titles: string[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const title of titles) {
+      const todoId = id();
+      await sync.push({
+        idempotencyKey: `create-${todoId}`,
+        mutations: [{ todoCreate: { id: todoId, title } }]
+      });
+      ids.push(todoId);
+    }
+    return ids;
+  }
+
+  it("returns the newest rows first, loads the rest newest first, and still follows every change", async () => {
+    const sync = syncWith();
+    const [oldest, , middle] = await createTodos(sync, ["T1", "T2", "T3", "T4", "T5"]);
+    await sync.push({
+      idempotencyKey: "note",
+      mutations: [{ noteCreate: { id: id(), title: "N1" } }]
+    });
+
+    const first = await sync.pull({ window: 2 });
+    expect(first.todos.map((todo) => todo.title)).toEqual(["T5", "T4"]);
+    expect(first.notes.map((note) => note.title)).toEqual(["N1"]);
+    expect(first.older.map((older) => older.list)).toEqual(["todos"]);
+
+    const titles: string[] = [];
+    let older = first.older[0];
+    while (older) {
+      const page = await sync.pullOlder({ after: older.after, first: 2 });
+      titles.push(...page.todos.map((todo) => todo.title));
+      older = page.older[0];
+    }
+    expect(titles).toEqual(["T3", "T2", "T1"]);
+
+    // A row outside the window still reaches the client when it changes.
+    await sync.push({
+      idempotencyKey: "later",
+      mutations: [
+        { todoUpdate: { id: oldest ?? "", title: "T1 edited" } },
+        { todoDelete: { id: middle ?? "" } }
+      ]
+    });
+    const later = await pullAll(sync, first.cursor);
+    expect(later).toMatchObject({
+      todos: ["T1 edited"],
+      deleted: [{ entity: "TODO", id: middle }]
+    });
+  });
+
+  it("refuses an older cursor of another Organization or of another list", async () => {
+    const sync = syncWith();
+    await createTodos(sync, ["T1", "T2"]);
+    const [older] = (await sync.pull({ window: 1 })).older;
+    const after = older?.after ?? "";
+
+    const relabeled = Buffer.from(
+      JSON.stringify([
+        "sync-older",
+        "notes",
+        JSON.parse(Buffer.from(after, "base64url").toString())[2]
+      ])
+    ).toString("base64url");
+    await expect(sync.pullOlder({ after: relabeled })).rejects.toThrow("invalid cursor");
+    current = other;
+    await expect(sync.pullOlder({ after })).rejects.toThrow("invalid cursor");
+  });
+});
+
 describe("sync push", () => {
   it("applies an Outbox batch in order and publishes only after it commits", async () => {
     const sync = syncWith();
@@ -385,5 +456,81 @@ describe("sync push", () => {
     await expect(sync.push(push)).resolves.toEqual({
       results: Array(2).fill({ status: "APPLIED", code: null })
     });
+  });
+});
+
+describe("sync push of a Note body", () => {
+  const BASE = "one\ntwo\nthree\nfour";
+
+  async function noteWithBody(sync: Sync): Promise<string> {
+    const noteId = id();
+    await sync.push({
+      idempotencyKey: `seed-${noteId}`,
+      mutations: [{ noteCreate: { id: noteId, title: "Plan", body: BASE } }]
+    });
+    return noteId;
+  }
+
+  async function stored(noteId: string) {
+    const [row] = await database.db
+      .select({ title: notesTable.title, body: notesTable.body })
+      .from(notesTable)
+      .where(eq(notesTable.id, noteId));
+    return row;
+  }
+
+  function edit(noteId: string, key: string, fields: { title?: string; body?: string }) {
+    return {
+      idempotencyKey: key,
+      mutations: [
+        { noteUpdate: { id: noteId, ...fields, ...("body" in fields ? { baseBody: BASE } : {}) } }
+      ]
+    };
+  }
+
+  it("keeps two offline edits of different lines", async () => {
+    const sync = syncWith();
+    const noteId = await noteWithBody(sync);
+
+    await sync.push(edit(noteId, "first", { body: "ONE\ntwo\nthree\nfour" }));
+    const second = await sync.push(edit(noteId, "second", { body: "one\ntwo\nthree\nFOUR" }));
+
+    expect(second.results).toEqual([{ status: "APPLIED", code: null }]);
+    expect(await stored(noteId)).toEqual({ title: "Plan", body: "ONE\ntwo\nthree\nFOUR" });
+  });
+
+  it("refuses a second edit of the same line with CONFLICT and keeps the first", async () => {
+    const sync = syncWith();
+    const noteId = await noteWithBody(sync);
+
+    await sync.push(edit(noteId, "first", { body: "one\nTWO\nthree\nfour" }));
+    const second = await sync.push(edit(noteId, "second", { body: "one\n2\nthree\nfour" }));
+
+    expect(second.results).toEqual([{ status: "REJECTED", code: "CONFLICT" }]);
+    expect(await stored(noteId)).toEqual({ title: "Plan", body: "one\nTWO\nthree\nfour" });
+  });
+
+  it("applies a title edit and a body edit of the same Note from two devices", async () => {
+    const sync = syncWith();
+    const noteId = await noteWithBody(sync);
+
+    await sync.push(edit(noteId, "title", { title: "Renamed" }));
+    await sync.push(edit(noteId, "body", { body: "one\ntwo\nthree\nfour\nfive" }));
+
+    expect(await stored(noteId)).toEqual({
+      title: "Renamed",
+      body: "one\ntwo\nthree\nfour\nfive"
+    });
+  });
+
+  it("merges a replayed push once", async () => {
+    const sync = syncWith();
+    const noteId = await noteWithBody(sync);
+    const push = edit(noteId, "retry", { body: "zero\none\ntwo\nthree\nfour" });
+
+    await sync.push(push);
+    await sync.push(push);
+
+    expect(await stored(noteId)).toEqual({ title: "Plan", body: "zero\none\ntwo\nthree\nfour" });
   });
 });

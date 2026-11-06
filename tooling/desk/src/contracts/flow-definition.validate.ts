@@ -4,7 +4,11 @@ import {
   isAgentTool,
   type AgentDefinition
 } from "./agent-definition.contract";
-import type { FlowDefinition, FlowStep } from "./flow-definition.contract";
+import {
+  previousDecisionStep,
+  type FlowDefinition,
+  type FlowStep
+} from "./flow-definition.contract";
 import { ENGINE_STATES } from "./pipeline.contract";
 
 /**
@@ -84,7 +88,10 @@ export const validateFlow = (
     }
     if (step.kind === "gate") {
       // The plan approval and the ship confirmation are two decisions: one gate cannot hold both.
-      const previous = flow.steps[index - 1];
+      // Report steps before the gate do not count, as in `stepRoleOf`.
+      const previous = previousDecisionStep(flow.steps, index, (entry) =>
+        entry.kind === "agent" ? outputOf.get(entry.agent) : null
+      );
       const next = flow.steps[index + 1];
       const afterPlan = previous?.kind === "agent" && outputOf.get(previous.agent) === "plan";
       if (afterPlan && next?.kind === "ship" && !next.auto) {

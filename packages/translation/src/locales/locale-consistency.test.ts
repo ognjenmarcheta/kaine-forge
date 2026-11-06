@@ -20,6 +20,24 @@ const namespaceFiles = readdirSync(join(localesDir, "en"))
 // is scoped to a locale and a key, so it cannot exempt newly scaffolded copy.
 const identicalValues: Readonly<Record<string, readonly string[]>> = {
   de: [
+    // Agent desk redesign: formats ("{{a}} · {{b}}", "PR #{{n}}") and terms used as they are.
+    "desk.json:desk.details.label",
+    "desk.json:desk.details.tokens",
+    "desk.json:desk.inbox.pr",
+    "desk.json:desk.inbox.setup.body",
+    "desk.json:desk.lines.item",
+    "desk.json:desk.nav.scorecard",
+    "desk.json:desk.scorecard.title",
+    "desk.json:desk.rail.agent",
+    "desk.json:desk.rail.engine",
+    "desk.json:desk.rail.fact.status",
+    "desk.json:desk.rail.fact.tokens",
+    "desk.json:desk.rail.who",
+    "desk.json:desk.work.col.status",
+    "desk.json:desk.work.filter.jobs",
+    "desk.json:desk.work.jobRef",
+    "desk.json:desk.work.jobTag",
+    "desk.json:desk.work.stepsShort",
     // Billing: Plan names are product names, shown as they are in every language.
     "billing.json:billing.plan.free",
     "billing.json:billing.plan.pro",
@@ -38,13 +56,11 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.prefs.language.en",
     "desk.json:desk.prefs.language.de",
     "desk.json:desk.prefs.language.sr",
-    "desk.json:desk.board.title",
     "desk.json:desk.issue.number",
     "desk.json:desk.issue.branch",
     "desk.json:desk.plan.tests",
     "desk.json:desk.plan.changeset",
     "desk.json:desk.flow.nodeLabel",
-    "desk.json:desk.flow.node.ticket",
     "desk.json:desk.flow.node.plan",
     "desk.json:desk.stage.plan",
     "desk.json:desk.ship.branch",
@@ -53,7 +69,6 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.title.count",
     "desk.json:desk.issue.numbered",
     "desk.json:desk.board.filter.label",
-    "desk.json:desk.board.side.now",
     "desk.json:desk.keys.esc",
     "desk.json:desk.keys.up",
     "desk.json:desk.keys.down",
@@ -81,8 +96,13 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.agents.output.review",
     "desk.json:desk.agents.provider.claude",
     "desk.json:desk.agents.provider.codex",
+    "desk.json:desk.agents.provider.opencode",
     "desk.json:desk.agents.field.name",
     "desk.json:desk.agents.field.prompt",
+    "desk.json:desk.agents.field.avatar",
+    "desk.json:desk.agents.avatar.glyph.hammer",
+    "desk.json:desk.agents.avatar.glyph.terminal",
+    "desk.json:desk.agents.avatar.tone.information",
     "desk.json:desk.flows.kind.agent",
     "desk.json:desk.flows.kind.setup",
     "desk.json:desk.flows.field.agent",
@@ -104,9 +124,23 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "organizations.json:organizations.permission.group.webhook",
     "navigation.json:navigation.commandMenu.shortcutMac",
     "storage.json:storage.status",
-    "todos.json:todos.ai.promptLabel"
+    "todos.json:todos.ai.promptLabel",
+    // Agent desk: a lab job's link holds only placeholders.
+    "desk.json:desk.job.openLabJob"
   ],
   sr: [
+    // Agent desk redesign: formats ("{{a}} · {{b}}", "PR #{{n}}") and terms used as they are.
+    "desk.json:desk.details.col.agent",
+    "desk.json:desk.details.tokens",
+    "desk.json:desk.inbox.pr",
+    "desk.json:desk.inbox.setup.body",
+    "desk.json:desk.lines.item",
+    "desk.json:desk.rail.agent",
+    "desk.json:desk.rail.fact.model",
+    "desk.json:desk.rail.fact.status",
+    "desk.json:desk.rail.who",
+    "desk.json:desk.work.col.status",
+    "desk.json:desk.work.stepsShort",
     // Billing: Plan names are product names, shown as they are in every language.
     "billing.json:billing.plan.free",
     "billing.json:billing.plan.pro",
@@ -132,7 +166,6 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.title.count",
     "desk.json:desk.issue.numbered",
     "desk.json:desk.board.filter.label",
-    "desk.json:desk.board.side.now",
     "desk.json:desk.keys.esc",
     "desk.json:desk.keys.up",
     "desk.json:desk.keys.down",
@@ -156,9 +189,13 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "desk.json:desk.agents.output.plan",
     "desk.json:desk.agents.provider.claude",
     "desk.json:desk.agents.provider.codex",
+    "desk.json:desk.agents.provider.opencode",
     "desk.json:desk.agents.field.id",
     "desk.json:desk.agents.field.model",
     "desk.json:desk.agents.field.prompt",
+    "desk.json:desk.agents.field.avatar",
+    "desk.json:desk.agents.avatar.glyph.bot",
+    "desk.json:desk.agents.avatar.glyph.terminal",
     "desk.json:desk.flows.kind.agent",
     "desk.json:desk.flows.field.agent",
     "desk.json:desk.flows.stepOption",
@@ -174,7 +211,10 @@ const identicalValues: Readonly<Record<string, readonly string[]>> = {
     "navigation.json:navigation.commandMenu.shortcutMac",
     "navigation.json:navigation.commandMenu.shortcutOther",
     "storage.json:storage.status",
-    "todos.json:todos.ai.promptLabel"
+    "todos.json:todos.ai.promptLabel",
+    // Agent desk: a lab job's link holds only placeholders; "Plan" is the Serbian word.
+    "desk.json:desk.job.openLabJob",
+    "desk.json:desk.job.stage.plan"
   ]
 };
 

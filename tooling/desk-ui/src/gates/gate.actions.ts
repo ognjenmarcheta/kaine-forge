@@ -11,6 +11,7 @@ export const UNDOABLE_ACTIONS = [
   "approve",
   "feedback",
   "continue",
+  "resolve-denial",
   "cancel",
   "remove"
 ] as const satisfies readonly ActionName[];

@@ -703,45 +703,44 @@ describe("renderOpencodeConfig", () => {
     });
     const parsed = JSON.parse(json) as {
       $schema: string;
-      mcp: Record<
-        string,
-        {
-          command: string[];
-          enabled: boolean;
-          environment?: Record<string, string>;
-          type: string;
-        }
-      >;
+      mcp: { servers: Record<string, unknown> };
     };
     expect(parsed.$schema).toBe("https://opencode.ai/config.json");
-    expect(parsed.mcp.foo).toEqual({
+    expect(parsed.mcp.servers.foo).toEqual({
       type: "local",
       command: ["foo-bin", "--flag"],
-      enabled: true,
-      timeout: 30000
+      disabled: false,
+      timeout: { catalog: 30000 }
     });
-    expect(parsed.mcp.bar).toEqual({
+    expect(parsed.mcp.servers.bar).toEqual({
       type: "local",
       command: ["bar-bin"],
-      enabled: true,
-      timeout: 30000,
+      disabled: false,
+      timeout: { catalog: 30000 },
       environment: { KEY: "value" }
     });
   });
 
-  it("enforces the guarded-command policy through native bash permissions", () => {
+  it("enforces the guarded-command policy through native shell permissions", () => {
     const parsed = JSON.parse(renderOpencodeConfig({ mcpServers: {} })) as {
-      permission: { bash: Record<string, string> };
+      permissions: Array<{ action: string; resource: string; effect: string }>;
     };
-    const bash = parsed.permission.bash;
+    const { permissions } = parsed;
 
-    expect(bash["pnpm db:push"]).toBe("deny");
-    expect(bash["pnpm db:push *"]).toBe("deny");
-    expect(bash["git reset --hard *"]).toBe("ask");
+    expect(permissions).toContainEqual({
+      action: "shell",
+      resource: "pnpm db:push *",
+      effect: "deny"
+    });
+    expect(permissions).toContainEqual({
+      action: "shell",
+      resource: "git reset --hard *",
+      effect: "ask"
+    });
     // OpenCode is last-match-wins; a generated catch-all would override personal rules.
-    expect(bash).not.toHaveProperty("*");
+    expect(permissions.map((rule) => rule.resource)).not.toContain("*");
     // Flag rules stay with the plugin: a glob cannot constrain a flag by name.
-    expect(Object.keys(bash).some((pattern) => pattern.startsWith("git push"))).toBe(false);
+    expect(permissions.some((rule) => rule.resource.startsWith("git push"))).toBe(false);
   });
 });
 
@@ -871,12 +870,22 @@ describe("renderOpencodeAgentDefinition", () => {
         "---",
         'description: "Reads."',
         "mode: subagent",
-        "permission:",
-        "  edit: deny",
-        "  bash: deny",
-        "  webfetch: deny",
-        "  websearch: deny",
-        "  task: deny",
+        "permissions:",
+        "  - action: edit",
+        '    resource: "*"',
+        "    effect: deny",
+        "  - action: shell",
+        '    resource: "*"',
+        "    effect: deny",
+        "  - action: webfetch",
+        '    resource: "*"',
+        "    effect: deny",
+        "  - action: websearch",
+        '    resource: "*"',
+        "    effect: deny",
+        "  - action: subagent",
+        '    resource: "*"',
+        "    effect: deny",
         "---",
         "Explore.",
         ""
@@ -1153,19 +1162,17 @@ describe("claudePermissionEntries", () => {
 });
 
 describe("opencodePermissionEntries", () => {
-  it("maps command-only rules to exact and trailing-argument globs and omits flag rules", () => {
+  it("maps command-only rules to ordered shell rules and omits flag rules", () => {
     expect(
       opencodePermissionEntries([
         { id: "a", decision: "deny", command: "pnpm db:push", reason: "r" },
         { id: "b", decision: "ask", command: "pnpm db:seed", reason: "r" },
         { id: "c", decision: "deny", command: "git", flag: "--no-verify", reason: "r" }
       ])
-    ).toEqual({
-      "pnpm db:push": "deny",
-      "pnpm db:push *": "deny",
-      "pnpm db:seed": "ask",
-      "pnpm db:seed *": "ask"
-    });
+    ).toEqual([
+      { action: "shell", resource: "pnpm db:push *", effect: "deny" },
+      { action: "shell", resource: "pnpm db:seed *", effect: "ask" }
+    ]);
   });
 });
 

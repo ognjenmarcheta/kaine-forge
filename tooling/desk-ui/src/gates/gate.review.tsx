@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { FeedbackForm } from "./gate.feedback";
 import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
+import { LineNotesProvider, PendingStrip, lineNotesText, useLineNotes } from "./gate.lines";
 import { orderReviewFiles, sendBackTargets } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { useViewedFiles } from "./gate.viewed";
@@ -32,14 +33,14 @@ function Readiness({ ship }: { readonly ship: ShipReadiness }) {
   if (ship.ready) {
     return (
       <p className="desk-ready">
-        <Check aria-hidden="true" className="desk-icon" /> {t("desk.gate.ready.yes")}{" "}
-        <span className="desk-muted">{t("desk.gate.ready.why")}</span>
+        <Check aria-hidden="true" className="dk-ic" /> {t("desk.gate.ready.yes")}{" "}
+        <span className="dk-t-sub">{t("desk.gate.ready.why")}</span>
       </p>
     );
   }
   const open = READINESS.filter(([field]) => ship[field] !== true);
   return (
-    <div className="desk-warning">
+    <div className="dk-banner dk-banner-warning">
       <strong>{t("desk.gate.ready.no")}</strong>
       <ul className="desk-ready__open">
         {open.map(([field, key]) => (
@@ -76,6 +77,10 @@ export function ReviewGate({
   const [current, setCurrent] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<number | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const lines = useLineNotes();
+  const linesText = lineNotesText(t, lines.notes);
+  const targets = sendBackTargets(issueFlowOf(summary), summary.stage);
   const unviewed = files.filter((entry) => !viewed.has(entry.file.path));
   const seen = files.length - unviewed.length;
   const allViewed = unviewed.length === 0;
@@ -91,8 +96,14 @@ export function ReviewGate({
     const next = after.find((entry) => !viewed.has(entry.file.path));
     if (next !== undefined) select(next.file.path);
   };
+  /** What the owner wrote and has not sent: the comments, and text typed in the open form. */
+  const unsent = lines.notes.length + (feedbackOpen && feedbackText.trim() !== "" ? 1 : 0);
   const openShip = (): void => {
-    if (!actions.busy) onShip(unviewed.map((entry) => entry.file.path));
+    if (actions.busy) return;
+    onShip(
+      unviewed.map((entry) => entry.file.path),
+      unsent === 0 ? null : { count: unsent, onSendBack: () => setFeedbackOpen(true) }
+    );
   };
   const markViewed = (path: string, on: boolean): void => {
     setViewed(path, on);
@@ -118,25 +129,25 @@ export function ReviewGate({
   ]);
 
   return (
-    <>
+    <LineNotesProvider value={lines}>
       {review !== null && <ReviewVerdictLine review={review} />}
       <Readiness ship={detail.ship} />
       {detail.buildRevision !== null && (
         <RevisionNote title={t("desk.gate.pr.changed")} text={detail.buildRevision} />
       )}
       <RiskRecord risk={summary.planRisk} />
-      <section className="desk-sec">
+      <section className="dk-sec">
         <h3>{t("desk.review.findings")}</h3>
         <FindingLinks findings={findings} onGo={(finding) => select(finding.file, finding.line)} />
       </section>
-      <section className="desk-sec">
+      <section className="dk-sec">
         <h3>{t("desk.diff.title")}</h3>
         {diff.status === "loading" && <Loading />}
         {diff.status === "missing" && <Muted>{t("desk.artifact.missing")}</Muted>}
         {diff.status === "error" && <FailureText code={diff.code} detail={diff.detail} />}
         {diff.status === "ok" && (
           <>
-            <p className="desk-muted">{t("desk.diff.order")}</p>
+            <p className="dk-t-sub">{t("desk.diff.order")}</p>
             <DiffReview
               files={files}
               viewed={viewed}
@@ -150,14 +161,39 @@ export function ReviewGate({
       </section>
       {feedbackOpen && (
         <FeedbackForm
-          targets={sendBackTargets(issueFlowOf(summary), summary.stage)}
+          targets={targets}
           busy={actions.busy}
-          onCancel={() => setFeedbackOpen(false)}
+          text={feedbackText}
+          onText={setFeedbackText}
+          comments={lines.notes.map((note) => ({
+            where: `${note.path}:${String(note.line)}`,
+            text: note.text,
+            onRemove: () => lines.remove(note)
+          }))}
+          onCancel={() => {
+            setFeedbackOpen(false);
+            setFeedbackText("");
+          }}
           onSend={async (to, text) => {
-            const sent = await send({ action: "feedback", to, text });
-            if (sent) setFeedbackOpen(false);
+            // The line comments go with the note, so nothing written on the diff is lost.
+            const full = [text.trim(), linesText].filter((part) => part !== "").join("\n\n");
+            // Only these notes went out; one added while the send ran stays for the next one.
+            const sentNotes = lines.notes;
+            const sent = await send({ action: "feedback", to, text: full });
+            if (sent) {
+              setFeedbackOpen(false);
+              setFeedbackText("");
+              lines.clear(sentNotes);
+            }
             return sent;
           }}
+        />
+      )}
+      {lines.notes.length > 0 && !feedbackOpen && (
+        <PendingStrip
+          count={lines.notes.length}
+          disabled={targets.length === 0}
+          onReview={() => setFeedbackOpen(true)}
         />
       )}
       <DecideBar
@@ -181,6 +217,7 @@ export function ReviewGate({
         }
       >
         <Button
+          type="button"
           appearance={allViewed ? "default" : "secondary"}
           disabled={actions.busy}
           aria-keyshortcuts="S"
@@ -190,20 +227,21 @@ export function ReviewGate({
           <Kbd shortcut="s" />
         </Button>
         {!allViewed && (
-          <Button aria-keyshortcuts="N" onClick={nextUnviewed}>
+          <Button type="button" aria-keyshortcuts="N" onClick={nextUnviewed}>
             {t("desk.diff.nextUnviewed")}
             <Kbd shortcut="n" />
           </Button>
         )}
         <Button
-          appearance="secondary"
-          disabled={actions.busy}
+          type="button"
+          appearance="outline"
+          disabled={actions.busy || targets.length === 0}
           aria-expanded={feedbackOpen}
           onClick={() => setFeedbackOpen((open) => !open)}
         >
           {t("desk.gate.requestChanges")}
         </Button>
       </DecideBar>
-    </>
+    </LineNotesProvider>
   );
 }

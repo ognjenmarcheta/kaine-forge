@@ -169,15 +169,34 @@ const AGENT_DESKTOP_VALUED = [
   "--wait-timeout"
 ];
 
+/** worktrunk global options that take a value; `wt -C dir -y merge` still merges. */
+const WT_GLOBAL_VALUED = ["-C", "--config", "--config-set"];
+
+/** worktrunk options that take a value, so the value is data, not a guarded flag. */
+const WT_VALUED = [
+  ...WT_GLOBAL_VALUED,
+  "-b",
+  "--branch",
+  "--base",
+  "-x",
+  "--execute",
+  "--format",
+  "--from",
+  "--to",
+  "--min-age",
+  "--stage"
+];
+
 /** @param {string[]} tokens @returns {string[]} */
 function normalizeCommand(tokens) {
   const [executable, ...args] = tokens;
-  if (executable === "agent-desktop") {
+  if (executable === "agent-desktop" || executable === "wt") {
     // Move leading global options after the subcommand, so a command rule still matches its
     // prefix and a flag rule such as --headed still sees the option.
+    const valued = executable === "wt" ? WT_GLOBAL_VALUED : AGENT_DESKTOP_VALUED;
     let index = 0;
     while (args[index]?.startsWith("-")) {
-      index += AGENT_DESKTOP_VALUED.includes(args[index]) && args[index + 1] !== undefined ? 2 : 1;
+      index += valued.includes(args[index]) && args[index + 1] !== undefined ? 2 : 1;
     }
     return [executable, ...args.slice(index), ...args.slice(0, index)];
   }
@@ -232,7 +251,9 @@ function hasFlag(tokens, flag) {
           ? ["-m", "--message", "-F", "--file"]
           : tokens[0] === "agent-desktop"
             ? AGENT_DESKTOP_VALUED
-            : [];
+            : tokens[0] === "wt"
+              ? WT_VALUED
+              : [];
   for (let index = 1; index < tokens.length; index++) {
     if (tokens[index] === "--") break;
     if (valued.includes(tokens[index])) index++;

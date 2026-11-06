@@ -48,7 +48,16 @@ describe("action request", () => {
       expected: { action: "approve", note: "CSV only, no XLSX" }
     },
     { input: { action: "pause" }, expected: { action: "pause" } },
-    { input: { action: "resume" }, expected: { action: "resume" } }
+    { input: { action: "resume" }, expected: { action: "resume" } },
+    {
+      input: { action: "steer", note: "  reuse the CSV helper  " },
+      expected: { action: "steer", note: "reuse the CSV helper" }
+    },
+    { input: { action: "take-over" }, expected: { action: "take-over" } },
+    {
+      input: { action: "resolve-denial", command: "  pnpm lint  ", resolution: "allow" },
+      expected: { action: "resolve-denial", command: "pnpm lint", resolution: "allow" }
+    }
   ])("accepts $input", ({ input, expected }) => {
     expect(actionRequestSchema.parse(input)).toEqual(expected);
   });
@@ -77,7 +86,21 @@ describe("action request", () => {
       name: "an approval note over the limit",
       input: { action: "approve", note: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
     },
-    { name: "a pause that names a stage", input: { action: "pause", stage: "build" } }
+    { name: "a pause that names a stage", input: { action: "pause", stage: "build" } },
+    { name: "a steer without a note", input: { action: "steer" } },
+    {
+      name: "a denial answer without a resolution",
+      input: { action: "resolve-denial", command: "pnpm lint" }
+    },
+    {
+      name: "a denial answer with another resolution",
+      input: { action: "resolve-denial", command: "pnpm lint", resolution: "always" }
+    },
+    { name: "a blank steer note", input: { action: "steer", note: "   " } },
+    {
+      name: "a steer note over the limit",
+      input: { action: "steer", note: "x".repeat(MAX_FEEDBACK_CHARS + 1) }
+    }
   ])("rejects $name", ({ input }) => {
     expect(actionRequestSchema.safeParse(input).success).toBe(false);
   });
@@ -183,10 +206,13 @@ describe("issue summary", () => {
     prRound: 0,
     prRoundLimit: 3,
     needsYouReason: null,
+    needsYouCode: null,
     resumeStage: null,
     prUrl: null,
+    mergedAt: null,
     contract: { found: 6, total: 6 },
     stageEnteredAt: "2026-03-01T10:00:00.000Z",
+    activeMs: 0,
     progress: ["passed", "passed", "passed", "running", "idle", "idle", "idle", "idle", "idle"],
     currentNode: "build",
     busy: false,
@@ -204,6 +230,25 @@ describe("issue summary", () => {
 
   it("carries the board facts: contract, stage time, and one status for each flow node", () => {
     expect(issueSummarySchema.parse(summary)).toEqual(summary);
+  });
+
+  it("names each agent step with its agent's avatar, or the default of an agent without one", () => {
+    const snapshot = {
+      ...DEFAULT_SNAPSHOT,
+      agents: DEFAULT_SNAPSHOT.agents.map((agent) =>
+        agent.id === "builder" ? { ...agent, avatar: undefined } : agent
+      )
+    };
+    const avatars = Object.fromEntries(
+      flowStepViewsOf(snapshot).flatMap((step) =>
+        step.agent === null ? [] : [[step.agent.id, step.agent.avatar]]
+      )
+    );
+    expect(avatars).toEqual({
+      planner: { glyph: "notebook-pen", tone: "brand" },
+      builder: { glyph: "bot", tone: "chart-3" },
+      reviewer: { glyph: "shield-check", tone: "discovery" }
+    });
   });
 
   // A flow sets its own node count, so the list needs the ticket and at least one step.

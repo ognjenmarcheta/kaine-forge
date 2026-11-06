@@ -5,6 +5,11 @@ export class SyncAuthError extends Error {
   override name = "SyncAuthError";
 }
 
+/** The request got no response: the device has no route to the server, or the server is down. */
+export class SyncNetworkError extends Error {
+  override name = "SyncNetworkError";
+}
+
 /** The server refused the request as a whole; resending it cannot succeed. */
 export class SyncRequestError extends Error {
   override name = "SyncRequestError";
@@ -19,6 +24,8 @@ export interface SyncChange {
   key: string;
   modified: Record<string, unknown>;
   changes: Record<string, unknown>;
+  /** The row before this change, with every earlier local change applied. */
+  original: Record<string, unknown>;
 }
 
 function text(row: Record<string, unknown>, field: string): string {
@@ -44,11 +51,21 @@ function todoPatch(changes: Record<string, unknown>): SyncTodoPatch {
   };
 }
 
-function notePatch(changes: Record<string, unknown>): SyncNotePatch {
+/**
+ * A body edit also sends the body it started from, so the server can merge it
+ * into a body another device changed since. The server applies a device's
+ * changes in order, so the body before this change is what it started from.
+ */
+function notePatch(
+  changes: Record<string, unknown>,
+  original: Record<string, unknown>
+): SyncNotePatch & { baseBody?: string | null } {
   const { title, body } = changes;
   return {
     ...(typeof title === "string" ? { title } : {}),
-    ...("body" in changes ? { body: typeof body === "string" ? body : null } : {})
+    ...("body" in changes
+      ? { body: typeof body === "string" ? body : null, baseBody: optionalText(original, "body") }
+      : {})
   };
 }
 
@@ -56,7 +73,14 @@ function notePatch(changes: Record<string, unknown>): SyncNotePatch {
  * The `syncPush` mutation for one local change. An update sends only the
  * fields the user changed, so the server patches those fields alone.
  */
-export function toSyncMutation({ entity, type, key, modified, changes }: SyncChange): SyncMutation {
+export function toSyncMutation({
+  entity,
+  type,
+  key,
+  modified,
+  changes,
+  original
+}: SyncChange): SyncMutation {
   if (entity === "TODO") {
     if (type === "delete") return { todoDelete: { id: key } };
     if (type === "update") return { todoUpdate: { id: key, ...todoPatch(changes) } };
@@ -71,7 +95,7 @@ export function toSyncMutation({ entity, type, key, modified, changes }: SyncCha
   }
 
   if (type === "delete") return { noteDelete: { id: key } };
-  if (type === "update") return { noteUpdate: { id: key, ...notePatch(changes) } };
+  if (type === "update") return { noteUpdate: { id: key, ...notePatch(changes, original) } };
   return {
     noteCreate: { id: key, title: text(modified, "title"), body: optionalText(modified, "body") }
   };

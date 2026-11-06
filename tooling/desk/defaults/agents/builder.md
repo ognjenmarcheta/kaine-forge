@@ -9,6 +9,9 @@ capabilities:
   mcp: [serena, context7]
   skills: [kaine-test]
 timeoutMinutes: 60
+avatar:
+  glyph: hammer
+  tone: chart-2
 ---
 
 # Agent Desk builder

@@ -1,34 +1,48 @@
-query SyncPull($cursor: String, $first: Int) {
-  syncPull(cursor: $cursor, first: $first) {
-    todos {
+fragment SyncPullPage on SyncPullPayload {
+  todos {
+    id
+    title
+    description
+    completed
+    noteId
+    attachments {
       id
-      title
-      description
-      completed
-      noteId
-      attachments {
-        id
-        originalName
-        mimeType
-        sizeBytes
-      }
-      createdAt
-      updatedAt
+      originalName
+      mimeType
+      sizeBytes
     }
-    notes {
-      id
-      title
-      body
-      createdAt
-      updatedAt
-    }
-    deleted {
-      entity
-      id
-    }
-    cursor
-    hasMore
-    resetRequired
+    createdAt
+    updatedAt
+  }
+  notes {
+    id
+    title
+    body
+    createdAt
+    updatedAt
+  }
+  deleted {
+    entity
+    id
+  }
+  cursor
+  hasMore
+  resetRequired
+  older {
+    list
+    after
+  }
+}
+
+query SyncPull($cursor: String, $first: Int, $window: Int) {
+  syncPull(cursor: $cursor, first: $first, window: $window) {
+    ...SyncPullPage
+  }
+}
+
+query SyncPullOlder($after: String!, $first: Int) {
+  syncPullOlder(after: $after, first: $first) {
+    ...SyncPullPage
   }
 }
 

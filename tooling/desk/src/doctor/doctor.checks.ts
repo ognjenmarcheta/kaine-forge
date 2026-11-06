@@ -2,9 +2,24 @@ import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
+import { OPENCODE_MIN_VERSION } from "../agents/opencode.runner";
+import { chooseProvider, type ProviderChoice } from "../agents/provider.choose";
+import {
+  HELP_ARGV,
+  REQUIRED_FLAGS,
+  probeProvider,
+  type ProviderProbe
+} from "../agents/provider.probe";
 import type { DeskConfigLoadResult } from "../config/config.load";
-import type { DeskConfig, HealthFix, Provider } from "../contracts";
+import {
+  PROVIDERS,
+  deskConfigSchema,
+  type DeskConfig,
+  type HealthFix,
+  type Provider
+} from "../contracts";
 import { worktreeDirFor } from "../engine/pipeline.stage.setup";
+import { DESK_ROLES, type DeskRole } from "../engine/worktree.bootstrap";
 import { tryGit } from "../git";
 import { checkControllerIdentity } from "../github/github.identity";
 import { AGENT_LABELS } from "../github/github.labels";
@@ -56,40 +71,11 @@ export interface DoctorDeps {
 const MIN_NODE_MAJOR = 22;
 const MIN_GIT: readonly [number, number] = [2, 5];
 
-/** Flags each provider CLI must offer. A name with `|` accepts either spelling. */
-export const REQUIRED_FLAGS: Readonly<Record<Provider, readonly string[]>> = {
-  claude: [
-    "--output-format",
-    "--json-schema",
-    "--permission-mode",
-    "--permission-prompts",
-    "--agents",
-    "--setting-sources",
-    "--settings",
-    "--session-id",
-    "--resume",
-    "--strict-mcp-config"
-  ],
-  codex: ["--json", "--output-schema", "--sandbox|-s", "--cd|-C", "--ignore-user-config", "resume"]
-};
-
-/** The help command that lists a provider's flags. */
-const HELP_ARGV: Readonly<Record<Provider, readonly string[]>> = {
-  claude: ["claude", "--help"],
-  codex: ["codex", "exec", "--help"]
-};
-
-const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** Is `flag` (or a short alias) listed as an option, not as a prefix of a longer one? */
-export const helpMentions = (help: string, flag: string): boolean =>
-  flag.split("|").some((name) => {
-    if (name === "resume") return /^\s+resume\b/m.test(help);
-    return new RegExp(`(?:^|[\\s,|\\[<])${escape(name)}(?![\\w-])`, "m").test(help);
-  });
-
-export const missingFlags = (help: string, provider: Provider): string[] =>
-  REQUIRED_FLAGS[provider].filter((flag) => !helpMentions(help, flag));
+/** Roles that run OpenCode without a model. OpenCode has no default model in a desk run. */
+export const opencodeRolesWithoutModel = (config: DeskConfig): DeskRole[] =>
+  DESK_ROLES.filter(
+    (role) => config.providers[role] === "opencode" && config.models[role] === undefined
+  );
 
 const versionOf = (text: string): number[] | null => {
   // A match starts where a digit run starts, so a long run is not rescanned from inside.
@@ -417,7 +403,7 @@ const checkConfig = async (
     return {
       check: check("config", "Config", "error", `${loaded.reason}: ${loaded.detail}`),
       // Without a valid config every provider counts as required.
-      providers: new Set<Provider>(["claude", "codex"]),
+      providers: new Set<Provider>(PROVIDERS),
       owner: undefined,
       docker: false,
       config: null
@@ -438,47 +424,118 @@ const checkConfig = async (
   };
 };
 
-const checkProvider = async (
-  { exec, cwd }: DoctorDeps,
-  provider: Provider,
-  required: boolean
-): Promise<DoctorCheck[]> => {
-  const missing: CheckStatus = required ? "error" : "warn";
-  const role = required ? "required by the config" : "optional";
-  const version = await exec({ argv: [provider, "--version"], cwd, timeoutMs: 15_000 });
-  if (version.code !== 0) {
-    return [check(provider, provider, missing, `${provider} is not installed (${role})`)];
-  }
-  const checks = [check(provider, provider, "ok", version.stdout.trim().split("\n")[0] ?? "")];
-  const help = await exec({ argv: HELP_ARGV[provider], cwd, timeoutMs: 15_000 });
-  if (help.code !== 0) {
-    checks.push(
-      check(
-        `${provider}-flags`,
-        `${provider} flags`,
-        missing,
-        `${HELP_ARGV[provider].join(" ")} failed`
-      )
-    );
-    return checks;
-  }
-  const lacking = missingFlags(`${help.stdout}\n${help.stderr}`, provider);
-  checks.push(
-    lacking.length === 0
-      ? check(
-          `${provider}-flags`,
+/** A provider CLI as the probe found it. A CLI that cannot run is a warning: another one takes its roles. */
+const providerChecks = (provider: Provider, probe: ProviderProbe, moved: string): DoctorCheck[] => {
+  const flags = `${provider}-flags`;
+  switch (probe.status) {
+    case "missing":
+      return [check(provider, provider, "warn", `${provider} is not installed.${moved}`)];
+    case "too-old":
+      return [
+        check(
+          provider,
+          provider,
+          "warn",
+          `${probe.version}: the desk needs OpenCode ${OPENCODE_MIN_VERSION}+. Run \`opencode upgrade\`.${moved}`
+        )
+      ];
+    case "help-failed":
+      return [
+        check(provider, provider, "ok", probe.version),
+        check(
+          flags,
+          `${provider} flags`,
+          "warn",
+          `${HELP_ARGV[provider].join(" ")} failed.${moved}`
+        )
+      ];
+    case "flags":
+      return [
+        check(provider, provider, "ok", probe.version),
+        check(
+          flags,
+          `${provider} flags`,
+          "warn",
+          `missing: ${probe.lacking.join(", ")}. Update ${provider}.${moved}`
+        )
+      ];
+    case "ok":
+      return [
+        check(provider, provider, "ok", probe.version),
+        check(
+          flags,
           `${provider} flags`,
           "ok",
           `${REQUIRED_FLAGS[provider].length} required flags present`
         )
-      : check(
-          `${provider}-flags`,
-          `${provider} flags`,
-          missing,
-          `missing: ${lacking.join(", ")} (${role}). Update ${provider}.`
-        )
+      ];
+  }
+};
+
+/** The provider each role runs on with the CLIs found, as the engine chooses it before a run. */
+const roleChoices = (
+  config: DeskConfig,
+  usable: ReadonlySet<Provider>
+): ReadonlyMap<DeskRole, ProviderChoice> => {
+  const choose = (role: DeskRole, builderProvider?: Provider): ProviderChoice =>
+    chooseProvider({
+      role,
+      name: role,
+      preferred: config.providers[role],
+      model: config.models[role],
+      usable,
+      writes: role === "builder",
+      allowCodexBuilder: config.allowCodexBuilder,
+      builderProvider
+    });
+  const builder = choose("builder");
+  return new Map(
+    DESK_ROLES.map((role) => [
+      role,
+      role === "builder" ? builder : choose(role, builder.ok ? builder.provider : undefined)
+    ])
   );
-  return checks;
+};
+
+/** The config line the "allow-codex-builder" repair writes. */
+const CODEX_BUILDER_COMMAND = 'set "allowCodexBuilder": true in .ai.local/desk/config.json';
+
+/** One row: the provider of every role, or the roles no provider can run. */
+const checkRoles = (
+  config: DeskConfig,
+  usable: ReadonlySet<Provider>,
+  choices: ReadonlyMap<DeskRole, ProviderChoice>
+): DoctorCheck => {
+  const stops = [...choices.values()].flatMap((choice) => (choice.ok ? [] : [choice.reason]));
+  if (stops.length === 0) {
+    return check(
+      "agent-roles",
+      "Agent roles",
+      "ok",
+      [...choices]
+        .map(([role, choice]) => `${role} ${choice.ok ? choice.provider : "?"}`)
+        .join(", ")
+    );
+  }
+  const failed = check("agent-roles", "Agent roles", "error", stops.join("\n"));
+  return usable.has("codex") && !config.allowCodexBuilder && choices.get("builder")?.ok === false
+    ? withRemedy(failed, { command: CODEX_BUILDER_COMMAND, fix: "allow-codex-builder" })
+    : failed;
+};
+
+const checkOpencodeModels = (config: DeskConfig): DoctorCheck[] => {
+  const roles = opencodeRolesWithoutModel(config);
+  return roles.length === 0
+    ? []
+    : [
+        check(
+          "opencode-model",
+          "OpenCode model",
+          // An agent file can still name the model, so this cannot be an error.
+          "warn",
+          `OpenCode has no model in the config for: ${roles.join(", ")}. Set models.<role> to provider/model, for example anthropic/claude-haiku-4-5, unless the agent file names one.`
+        )
+      ];
 };
 
 /** Read-only environment checks. Nothing here writes to GitHub or to the repository. */
@@ -486,8 +543,34 @@ export const runDoctor = async (deps: DoctorDeps): Promise<DoctorReport> => {
   const config = await checkConfig(deps);
   const windows = (deps.platform ?? process.platform) === "win32";
   const gh = await checkGh(deps, config.owner);
-  const codex = await checkProvider(deps, "codex", config.providers.has("codex"));
-  const codexRuns = codex.every((entry) => entry.status === "ok");
+  // An invalid config still gets the roles of the defaults, so the provider rows stay useful.
+  const settings = config.config ?? deskConfigSchema.parse({});
+  // OpenCode runs only where a role names it with a model, so it is probed only then.
+  const probed: readonly Provider[] = config.providers.has("opencode")
+    ? PROVIDERS
+    : ["claude", "codex"];
+  const probes = new Map(
+    await Promise.all(
+      probed.map(
+        async (provider) => [provider, await probeProvider(deps.exec, deps.cwd, provider)] as const
+      )
+    )
+  );
+  const usable = new Set(probed.filter((provider) => probes.get(provider)?.status === "ok"));
+  const choices = roleChoices(settings, usable);
+  /** " The reviewer runs on claude.": where the roles that asked for `provider` went. */
+  const moved = (provider: Provider): string =>
+    [...choices]
+      .filter(([role, choice]) => settings.providers[role] === provider && choice.ok)
+      .map(([role, choice]) => (choice.ok ? ` The ${role} runs on ${choice.provider}.` : ""))
+      .join("");
+  const rows = (provider: Provider): DoctorCheck[] => {
+    const probe = probes.get(provider);
+    return probe === undefined ? [] : providerChecks(provider, probe, moved(provider));
+  };
+  const codexUsed = [...choices.values()].some(
+    (choice) => choice.ok && choice.provider === "codex"
+  );
   const worktreePath =
     windows && deps.location !== undefined && config.config !== null
       ? await checkWorktreePath(deps.cwd, deps.location, config.config)
@@ -499,9 +582,12 @@ export const runDoctor = async (deps: DoctorDeps): Promise<DoctorReport> => {
     ...gh,
     ...(gh.every((entry) => entry.status === "ok") ? [await checkAgentLabels(deps)] : []),
     config.check,
-    ...(await checkProvider(deps, "claude", config.providers.has("claude"))),
-    ...codex,
-    ...(windows && codexRuns ? [await checkCodexSandbox(deps, config.providers.has("codex"))] : []),
+    ...rows("claude"),
+    ...rows("codex"),
+    ...(windows && usable.has("codex") ? [await checkCodexSandbox(deps, codexUsed)] : []),
+    ...rows("opencode"),
+    checkRoles(settings, usable, choices),
+    ...(config.config === null ? [] : checkOpencodeModels(config.config)),
     ...(worktreePath === null ? [] : [worktreePath]),
     await checkWorkspaceBuilds(deps),
     ...((await deps.dockerChecks?.(config.docker)) ?? [])

@@ -149,6 +149,54 @@
       "reason": "Short form of --skip-force-push-protection."
     },
     {
+      "id": "wt-merge",
+      "decision": "deny",
+      "command": "wt merge",
+      "reason": "Squashes, rebases, and fast-forwards the local target branch, usually main, and rewrites its worktree, without a pull request. Only the repository owner merges into main.",
+      "instead": "but pr new <branch> --draft"
+    },
+    {
+      "id": "wt-step-push",
+      "decision": "deny",
+      "command": "wt step push",
+      "reason": "Fast-forwards the local target branch, usually main, to this branch without a pull request. Only the repository owner merges into main.",
+      "instead": "but pr new <branch> --draft"
+    },
+    {
+      "id": "wt-step-prune",
+      "decision": "ask",
+      "command": "wt step prune",
+      "reason": "Removes every worktree whose branch looks merged, including worktrees that an agent desk run or another session drives."
+    },
+    {
+      "id": "wt-remove-force",
+      "decision": "ask",
+      "command": "wt remove",
+      "flag": "--force",
+      "reason": "Removes a worktree with uncommitted changes, which deletes that work."
+    },
+    {
+      "id": "wt-remove-force-short",
+      "decision": "ask",
+      "command": "wt remove",
+      "flag": "-f",
+      "reason": "Short form of --force."
+    },
+    {
+      "id": "wt-remove-force-delete",
+      "decision": "ask",
+      "command": "wt remove",
+      "flag": "--force-delete",
+      "reason": "Deletes a branch that is not merged, which loses its commits unless they are pushed."
+    },
+    {
+      "id": "wt-remove-force-delete-short",
+      "decision": "ask",
+      "command": "wt remove",
+      "flag": "-D",
+      "reason": "Short form of --force-delete."
+    },
+    {
       "id": "agent-desktop-headed",
       "decision": "ask",
       "command": "agent-desktop",

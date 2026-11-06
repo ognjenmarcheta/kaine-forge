@@ -16,6 +16,7 @@ import {
   probeDesktopCli
 } from "../.ai/hooks/desktop-cli.mjs";
 import { formatStatusLine, graphStatus, probeCliVersion } from "../.ai/hooks/graph-status.mjs";
+import { formatWorktrunkStatusLine, probeWorktrunkVersion } from "../.ai/hooks/worktrunk-cli.mjs";
 import { pnpmInvocation } from "./pnpm.util.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -79,6 +80,15 @@ export const REQUIRED_ENV_KEYS = [
  * @param {string[]} keys
  */
 export function missingEnvKeys(envContents, keys = REQUIRED_ENV_KEYS) {
+  const map = parseEnv(envContents);
+  return keys.filter((key) => !map[key]);
+}
+
+/**
+ * @param {string} envContents
+ * @returns {Record<string, string>}
+ */
+function parseEnv(envContents) {
   /** @type {Record<string, string>} */
   const map = {};
   for (const line of envContents.split("\n")) {
@@ -90,17 +100,28 @@ export function missingEnvKeys(envContents, keys = REQUIRED_ENV_KEYS) {
     const value = trimmed.slice(eq + 1).trim();
     map[key] = value;
   }
-  return keys.filter((key) => !map[key]);
+  return map;
 }
 
-/** Default host ports used by compose + local web/api. */
-export const CHECK_PORTS = [
-  { port: 5432, label: "Postgres", section: "Native Postgres on port 5432 shadows Compose" },
-  { port: 9000, label: "Storage API", section: "Storage ports 9000/9001 already in use" },
-  { port: 9001, label: "Storage console", section: "Storage ports 9000/9001 already in use" },
-  { port: 3000, label: "Web (Vite)", section: "Ports reference (defaults)" },
-  { port: 4000, label: "API", section: "Ports reference (defaults)" }
-];
+/**
+ * Host ports used by compose + local web/api. Web and API follow WEB_PORT and
+ * API_PORT, which a linked worktree moves with `pnpm worktree:env`.
+ * @param {string} envContents
+ */
+export function checkPortsFor(envContents) {
+  const env = parseEnv(envContents);
+  return [
+    { port: 5432, label: "Postgres", section: "Native Postgres on port 5432 shadows Compose" },
+    { port: 9000, label: "Storage API", section: "Storage ports 9000/9001 already in use" },
+    { port: 9001, label: "Storage console", section: "Storage ports 9000/9001 already in use" },
+    {
+      port: Number(env.WEB_PORT) || 3000,
+      label: "Web (Vite)",
+      section: "Ports reference (defaults)"
+    },
+    { port: Number(env.API_PORT) || 4000, label: "API", section: "Ports reference (defaults)" }
+  ];
+}
 
 /**
  * Parse top-level quoted label keys from `.github/labeler.yml` content.
@@ -318,7 +339,9 @@ function checkRust(withDesktop) {
 async function checkPorts() {
   /** @type {string[]} */
   const notes = [];
-  for (const { port, label, section } of CHECK_PORTS) {
+  const envPath = join(repoRoot, ".env");
+  const envContents = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
+  for (const { port, label, section } of checkPortsFor(envContents)) {
     const open = await isPortOpen(port);
     if (!open) {
       notes.push(`${port} (${label}): free`);
@@ -514,6 +537,16 @@ function checkDesktopAutomation() {
   };
 }
 
+/**
+ * The optional worktrunk CLI creates ready worktrees for parallel agent sessions.
+ * Informational only, like desktop automation above.
+ * @returns {CheckResult}
+ */
+function checkWorktrunk() {
+  const line = formatWorktrunkStatusLine(probeWorktrunkVersion(repoRoot));
+  return { ok: true, name: "Worktrunk", detail: line.replace("- Worktrunk: ", "") };
+}
+
 function printResult(result) {
   const icon = result.ok ? (result.warn ? "warn" : "ok") : "FAIL";
   console.log(`[doctor] ${icon.padEnd(4)} ${result.name}: ${result.detail}`);
@@ -540,6 +573,7 @@ async function main() {
   results.push(checkCoverageFreshness());
   results.push(checkGraphifyFreshness());
   results.push(checkDesktopAutomation());
+  results.push(checkWorktrunk());
   if (withDb) {
     results.push(await checkPostgres());
   }

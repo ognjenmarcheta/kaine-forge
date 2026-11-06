@@ -2,6 +2,7 @@ import {
   CAPABILITY_PRESETS,
   agentDefinitionSchema,
   validateAgent,
+  type AgentAvatarSpec,
   type AgentDefinition,
   type AgentOutputKind,
   type AgentView,
@@ -31,6 +32,8 @@ export interface AgentDraft {
   /** Empty: the desk's default timeout. */
   readonly timeout: string;
   readonly prompt: string;
+  /** `null`: the default from `avatarOf`, and no `avatar` in the file. */
+  readonly avatar: AgentAvatarSpec | null;
 }
 
 export const EMPTY_DRAFT: AgentDraft = {
@@ -45,7 +48,8 @@ export const EMPTY_DRAFT: AgentDraft = {
   skills: [],
   tools: [],
   timeout: "",
-  prompt: ""
+  prompt: "",
+  avatar: null
 };
 
 export const draftOf = (definition: AgentDefinition): AgentDraft => ({
@@ -60,7 +64,8 @@ export const draftOf = (definition: AgentDefinition): AgentDraft => ({
   skills: definition.capabilities.skills,
   tools: definition.capabilities.tools,
   timeout: definition.timeoutMinutes === undefined ? "" : String(definition.timeoutMinutes),
-  prompt: definition.prompt
+  prompt: definition.prompt,
+  avatar: definition.avatar ?? null
 });
 
 const WHOLE_NUMBER = /^\d+$/;
@@ -85,6 +90,7 @@ export const definitionOf = (draft: AgentDraft): AgentDefinition => {
     ...(timeout === ""
       ? {}
       : { timeoutMinutes: WHOLE_NUMBER.test(timeout) ? Number(timeout) : -1 }),
+    ...(draft.avatar === null ? {} : { avatar: draft.avatar }),
     prompt: draft.prompt.trim()
   };
 };
@@ -102,6 +108,7 @@ export const AGENT_FIELDS = [
   "skills",
   "tools",
   "timeoutMinutes",
+  "avatar",
   "prompt"
 ] as const;
 export type AgentField = (typeof AGENT_FIELDS)[number];
@@ -119,6 +126,9 @@ const FIELD_OF_PATH: Readonly<Record<string, AgentField>> = {
   "capabilities.skills": "skills",
   "capabilities.tools": "tools",
   timeoutMinutes: "timeoutMinutes",
+  avatar: "avatar",
+  "avatar.glyph": "avatar",
+  "avatar.tone": "avatar",
   prompt: "prompt"
 };
 

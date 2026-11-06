@@ -49,7 +49,7 @@ The template ships working, organization-scoped feature slices. Use them as refe
 
 ### Packages and tooling
 
-- `packages/*`: thirteen shared packages: auth, config, db, email, feature-flags, logger, mobile-ui, persistence, query, storage, todos, translation, and ui.
+- `packages/*`: eighteen shared packages: auth, billing, config, db, email, feature-flags, jobs, logger, mobile-ui, persistence, query, storage, sync, theme, todos, translation, ui, and ui-3d.
 - `tooling/desk` and `tooling/desk-ui`: the local agent desk, the repository's software factory (see [Agent-ready](#agent-ready)).
 - `tooling/graphql-codegen`: GraphQL Code Generator configuration.
 - `tooling/doc-export`: exports Markdown to `.docx` or `.pptx` (`pnpm doc:export`).
@@ -83,7 +83,7 @@ We did not apply. The XERJ team found Kaine Forge on their own, trusted the work
 
 Kaine Forge assumes you are shipping one product across several surfaces from a single repository, with organization-scoped tenancy from the first commit and coding agents working in the repo alongside people.
 
-It ships a GraphQL API, a React SPA, an Expo mobile app, a Tauri desktop shell, Playwright end-to-end tests, thirteen shared packages, a Docker build path per deployable app, and a generated agent scaffold.
+It ships a GraphQL API, a React SPA, an Expo mobile app, a Tauri desktop shell, Playwright end-to-end tests, eighteen shared packages, a Docker build path per deployable app, and a generated agent scaffold.
 
 Other templates fit other shapes better:
 

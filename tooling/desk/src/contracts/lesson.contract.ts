@@ -92,13 +92,32 @@ export const promotedLessonSchema = z
   .strict();
 export type PromotedLesson = z.infer<typeof promotedLessonSchema>;
 
+/**
+ * A promoted lesson in the report, with the observations of its key made after the promotion.
+ * A key that comes back shows that its encoding did not cover the problem: revise it or remove it.
+ */
+export const promotedLessonStatusSchema = z
+  .object({
+    ...promotedLessonSchema.shape,
+    recurrence: z
+      .object({
+        occurrences: z.number().int().nonnegative(),
+        /** Distinct issues, ascending. */
+        issues: z.array(z.number().int().positive()),
+        lastSeen: z.iso.datetime({ offset: true }).nullable()
+      })
+      .strict()
+  })
+  .strict();
+export type PromotedLessonStatus = z.infer<typeof promotedLessonStatusSchema>;
+
 /** `desk lessons --json` and `GET /api/lessons`. */
 export const lessonReportSchema = z
   .object({
     /** Keys seen in enough issues, without the promoted ones. */
     candidates: z.array(lessonCandidateSchema),
     /** Promoted lessons, newest first. */
-    promoted: z.array(promotedLessonSchema),
+    promoted: z.array(promotedLessonStatusSchema),
     /** Keys seen, but in fewer issues than the threshold. */
     belowThreshold: z.number().int().nonnegative(),
     minIssues: count,

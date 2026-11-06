@@ -145,6 +145,44 @@ describe("a flow of the repository's own", () => {
     ]);
   });
 
+  it("keeps the plan gate after a report on the plan, and sends the report to the re-plan and the builder", async () => {
+    const designStep: FlowStep = {
+      id: "design",
+      kind: "agent",
+      label: "Design",
+      agent: "designer"
+    };
+    const designRun: ScriptedStep = {
+      role: "planner",
+      output: {
+        summary: "The plan misses the empty state.",
+        findings: ["DESIGN-FINDING: show an empty state"],
+        plainLanguage: "Add an empty state."
+      }
+    };
+    const e = await open([planStep, designRun, planStep, designRun, buildStep, approveStep]);
+    await writeFlow(e, flowWith("plan", designStep), {
+      designer: agentFile("designer", "report", "# Designer")
+    });
+
+    // The gate looks past the report to the plan: it stops as the plan approval.
+    const first = await e.pipeline.start(ISSUE, { override: false });
+    expect(first.outcome === "stopped" && first.message).toContain("Plan ready:");
+    expect((await stateOf(e)).stage).toBe("plan-gate");
+    // The first plan runs before the report exists, and a later step's report is not its input.
+    expect(e.runner.requests[0]?.prompt).not.toContain("DESIGN-FINDING");
+
+    await e.pipeline.feedback(ISSUE, "plan", "Answer the design review.");
+    const replan = e.runner.requests[2]?.prompt;
+    expect(replan).toContain("## Reports from earlier steps");
+    expect(replan).toContain("DESIGN-FINDING: show an empty state");
+
+    expect(await e.pipeline.approvePlan(ISSUE)).toMatchObject({ outcome: "stopped", stop: "gate" });
+    expect((await stateOf(e)).stage).toBe("pr-review");
+    expect(e.runner.requests[4]?.role).toBe("builder");
+    expect(e.runner.requests[4]?.prompt).toContain("DESIGN-FINDING: show an empty state");
+  });
+
   it("stops a second review agent at its own loop limit and sends its findings to build", async () => {
     const security: FlowStep = {
       id: "security",

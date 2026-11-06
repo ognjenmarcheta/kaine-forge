@@ -228,12 +228,12 @@ function EditorBody({
 
   return (
     <>
-      <div className="desk-heading desk-editor__heading">
+      <div className="dk-row dk-between desk-editor__heading">
         <div>
-          <RouteLink to={{ view: "agents" }} className="desk-editor__back">
+          <RouteLink to={{ view: "agents" }} className="dk-backlink">
             {t("desk.agents.back")}
           </RouteLink>
-          <h1>{title}</h1>
+          <h1 className="dk-h-page">{title}</h1>
           {view !== null && (
             <p className="desk-editor__facts">
               <code className="desk-agent__id">{view.definition.id}</code>
@@ -262,16 +262,16 @@ function EditorBody({
         )}
       </div>
       {view !== null && <DefinitionProblems problems={view.problems} />}
-      {view?.source === "builtin" && <p className="desk-note">{t("desk.agents.builtinNote")}</p>}
+      {view?.source === "builtin" && <p className="dk-hint">{t("desk.agents.builtinNote")}</p>}
       {view?.source === "repo" && !editing && (
-        <p className="desk-note">{t("desk.agents.repoNote")}</p>
+        <p className="dk-hint">{t("desk.agents.repoNote")}</p>
       )}
       {view?.source === "repo" && editing && (
-        <p className="desk-warning">{t("desk.agents.overrideNote")}</p>
+        <p className="dk-banner dk-banner-warning">{t("desk.agents.overrideNote")}</p>
       )}
       {failure !== null && <FailureText code={failure.code} detail={failure.detail} />}
       {formLevel.length > 0 && (
-        <div className="desk-failure" role="alert">
+        <div className="dk-banner dk-banner-danger dk-stack" role="alert">
           <p>{t("desk.error.invalid-definition")}</p>
           <ul>
             {formLevel.map((problem) => (
@@ -281,7 +281,7 @@ function EditorBody({
         </div>
       )}
       {refusal !== null && (
-        <div className="desk-failure" role="alert">
+        <div className="dk-banner dk-banner-danger dk-stack" role="alert">
           <p>{t("desk.agents.delete.usedBy")}</p>
           {refusal.flows.length > 0 && (
             <ul>
@@ -294,7 +294,7 @@ function EditorBody({
         </div>
       )}
       <div className="desk-editor">
-        <Card className="desk-panel">
+        <Card className="dk-card">
           <AgentForm
             base={base}
             draft={draft}
@@ -346,7 +346,7 @@ function EditorBody({
                   </>
                 )}
                 {view?.source === "local" && dirty && (
-                  <p id={`${base}-save-first`} className="desk-muted">
+                  <p id={`${base}-save-first`} className="dk-t-sub">
                     {t("desk.agents.promote.saveFirst")}
                   </p>
                 )}
@@ -464,18 +464,18 @@ export function AgentEditor({ agentId }: { readonly agentId: string | null }) {
   if (view === undefined) {
     return (
       <>
-        <RouteLink to={{ view: "agents" }} className="desk-editor__back">
+        <RouteLink to={{ view: "agents" }} className="dk-backlink">
           {t("desk.agents.back")}
         </RouteLink>
-        <h1>{t("desk.agents.missingTitle")}</h1>
-        <p className="desk-muted">{t("desk.agents.missing", { id: agentId ?? "" })}</p>
+        <h1 className="dk-h-page">{t("desk.agents.missingTitle")}</h1>
+        <p className="dk-t-sub">{t("desk.agents.missing", { id: agentId ?? "" })}</p>
       </>
     );
   }
   return (
     <>
       {promoted !== null && (
-        <p className="desk-note" role="status">
+        <p className="dk-hint" role="status">
           {t("desk.agents.uncommitted", { path: promoted })}
         </p>
       )}

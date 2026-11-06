@@ -13,11 +13,12 @@ import {
   type TraceLine,
   type TraceStep
 } from "./issue.trace";
+import { AgentAvatar } from "../agents/agent.avatar";
 import { useStageNames, type StageNames } from "../flow/flow.names";
 import { agentName } from "../flow/flow.steps";
 import { useLanguage, useT, type Translate } from "../i18n/i18n.t";
 import { formatClock, formatElapsed, formatUsd } from "../shell/shell.format";
-import { Segmented } from "../shell/shell.layout";
+import { Segmented } from "../shell/shell.ui";
 import { useDesk } from "../state/desk.provider";
 import { StatusChip } from "../status/status.chip";
 import { NODE_TONE, nodeStatusKey } from "../status/status.model";
@@ -88,7 +89,7 @@ function Bar({ step, trace }: { readonly step: TraceStep; readonly trace: Trace 
 function Lines({ lines, label }: { readonly lines: readonly TraceLine[]; readonly label: string }) {
   const t = useT();
   const { language } = useLanguage();
-  if (lines.length === 0) return <p className="desk-muted">{t("desk.trace.noLines")}</p>;
+  if (lines.length === 0) return <p className="dk-t-sub">{t("desk.trace.noLines")}</p>;
   return (
     <ol className="desk-trace__log" aria-label={label}>
       {lines.map(({ entry, byTime }) => (
@@ -142,6 +143,7 @@ function StepRow({
     >
       <div className="desk-trace__row">
         <Button
+          type="button"
           ref={buttonRef}
           appearance="ghost"
           className="desk-trace__name"
@@ -149,7 +151,7 @@ function StepRow({
           aria-controls={open ? linesId : undefined}
           onClick={onToggle}
         >
-          <ChevronRight aria-hidden="true" className="desk-icon desk-trace__caret" />
+          <ChevronRight aria-hidden="true" className="dk-ic desk-trace__caret" />
           <span className="desk-trace__kind" data-kind={step.kind}>
             {t(`desk.trace.kind.${step.kind === "stop" ? "human" : step.kind}`)}
           </span>
@@ -174,11 +176,16 @@ function StepRow({
         <div id={linesId} className="desk-trace__lines">
           <Lines lines={lines} label={t("desk.trace.lines", { step: name })} />
           <div className="desk-trace__foot">
-            <span className="desk-muted">
+            <span className="dk-t-sub">
               {t("desk.trace.started", { time: formatClock(step.at, language) })}
             </span>
             {node !== null && (
-              <Button appearance="link" spacing="compact" onClick={() => onInspect(node)}>
+              <Button
+                type="button"
+                appearance="link"
+                spacing="compact"
+                onClick={() => onInspect(node)}
+              >
                 {t("desk.trace.inspect")}
               </Button>
             )}
@@ -249,13 +256,13 @@ export function TraceView({
           onChange={onFilter}
         />
         {trace.problems > 0 && (
-          <Button appearance="ghost" spacing="compact" onClick={onJump}>
+          <Button type="button" appearance="ghost" spacing="compact" onClick={onJump}>
             {t(needsYou ? "desk.trace.jump.failure" : "desk.trace.jump.first")}
           </Button>
         )}
       </div>
       {shown.length === 0 ? (
-        <p className="desk-empty">
+        <p className="dk-empty">
           {t(
             filter === "problems"
               ? "desk.trace.empty.problems"
@@ -299,9 +306,9 @@ export function TraceView({
           </ol>
         </>
       )}
-      <p className="desk-muted desk-trace__note">{t("desk.trace.note")}</p>
+      <p className="dk-t-sub desk-trace__note">{t("desk.trace.note")}</p>
       {unassigned > 0 && (
-        <p className="desk-muted desk-trace__note">
+        <p className="dk-t-sub desk-trace__note">
           {t("desk.trace.unassigned", { count: unassigned })}
         </p>
       )}
@@ -332,7 +339,12 @@ export function Handoffs({ steps }: { readonly steps: readonly TraceStep[] }) {
             data-problem={isProblem(step) ? "true" : undefined}
             data-live={step.ongoing ? "true" : undefined}
           >
-            <b>{whoOf(t, names, step)}</b>
+            <b className="desk-who">
+              {step.agent !== null && step.kind !== "human" && step.kind !== "stop" && (
+                <AgentAvatar avatar={step.agent.avatar} />
+              )}
+              {whoOf(t, names, step)}
+            </b>
             <span>
               {t("desk.handoff.step", {
                 stage: stepName(t, names, step),
@@ -342,7 +354,7 @@ export function Handoffs({ steps }: { readonly steps: readonly TraceStep[] }) {
           </li>
         ))}
       </ol>
-      <p className="desk-muted">{t("desk.handoff.note")}</p>
+      <p className="dk-t-sub">{t("desk.handoff.note")}</p>
     </section>
   );
 }

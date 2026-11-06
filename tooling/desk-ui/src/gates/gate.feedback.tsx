@@ -15,6 +15,13 @@ export const targetLabel = (t: Translate, flow: IssueFlow | null, id: string): s
     ? t(`desk.feedback.target.${id}`)
     : t("desk.feedback.targetStep", { stage: stageName(t, flow, id) });
 
+/** A comment that goes with the feedback: where it is, what it says, and how to drop it. */
+export interface FormComment {
+  readonly where: string;
+  readonly text: string;
+  readonly onRemove: () => void;
+}
+
 export interface FeedbackFormProps {
   readonly id?: string;
   /** Step ids of the issue's flow, the default first. */
@@ -25,6 +32,11 @@ export interface FeedbackFormProps {
   readonly onCancel: () => void;
   /** PR feedback: the text is optional, and the form says what the desk adds to it. */
   readonly fromPr?: boolean;
+  /** Comments that are sent with the text. With some, the text is optional. */
+  readonly comments?: readonly FormComment[];
+  /** Keep the text in the parent, so it can warn about text that was not sent. */
+  readonly text?: string;
+  readonly onText?: (text: string) => void;
 }
 
 /**
@@ -32,20 +44,30 @@ export interface FeedbackFormProps {
  * works, so a refusal loses nothing. The box takes focus when the form opens. With `fromPr`
  * the desk collects the feedback on the PR, and the engineer's words are optional.
  */
+const NO_COMMENTS: readonly FormComment[] = [];
+
 export function FeedbackForm({
   id: formId,
   targets,
   busy,
   onSend,
   onCancel,
-  fromPr = false
+  fromPr = false,
+  comments = NO_COMMENTS,
+  text: controlledText,
+  onText
 }: FeedbackFormProps) {
   const t = useT();
   const { flow } = useStageNames();
   const id = useId();
   const [target, setTarget] = useState<string>(targets[0] ?? "");
-  const [text, setText] = useState("");
-  const empty = text.trim() === "" && !fromPr;
+  const [ownText, setOwnText] = useState("");
+  const text = controlledText ?? ownText;
+  const setText = onText ?? setOwnText;
+  // A gate with no send-back step has no target; the server would refuse an empty one. A PR
+  // feedback round needs none.
+  const empty =
+    (text.trim() === "" && !fromPr && comments.length === 0) || (!fromPr && target === "");
   useEffect(() => {
     document.getElementById(`${id}-text`)?.focus();
   }, [id]);
@@ -62,7 +84,7 @@ export function FeedbackForm({
       }}
     >
       {targets.length > 1 && (
-        <fieldset className="desk-fieldset">
+        <fieldset className="dk-fieldset">
           <legend>{t("desk.feedback.to")}</legend>
           <RadioGroup
             value={target}
@@ -90,7 +112,30 @@ export function FeedbackForm({
           </RadioGroup>
         </fieldset>
       )}
-      {fromPr && <p className="desk-muted">{t("desk.prFeedback.intro")}</p>}
+      {comments.length > 0 && (
+        <section aria-label={t("desk.feedback.comments")}>
+          <p className="dk-t-sub">{t("desk.feedback.commentsIntro")}</p>
+          <ul className="dk-stack">
+            {comments.map((comment) => (
+              <li key={`${comment.where}|${comment.text}`} className="dk-row">
+                <span>
+                  <code>{comment.where}</code> {comment.text}
+                </span>
+                <Button
+                  type="button"
+                  appearance="link"
+                  spacing="compact"
+                  className="dk-bare dk-linkbtn dk-t-small"
+                  onClick={comment.onRemove}
+                >
+                  {t("desk.lines.delete")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {fromPr && <p className="dk-t-sub">{t("desk.prFeedback.intro")}</p>}
       <Label htmlFor={`${id}-text`}>
         {t(fromPr ? "desk.prFeedback.label" : "desk.feedback.label")}
       </Label>
@@ -102,7 +147,7 @@ export function FeedbackForm({
         onChange={(event) => setText(event.target.value)}
         aria-describedby={`${id}-help`}
       />
-      <p id={`${id}-help`} className="desk-muted desk-feedback__help">
+      <p id={`${id}-help`} className="dk-t-sub desk-feedback__help">
         {t("desk.feedback.help", { count: text.length, max: MAX_FEEDBACK_CHARS })}
       </p>
       <div className="desk-feedback__actions">
@@ -110,7 +155,9 @@ export function FeedbackForm({
           {t("desk.common.cancel")}
         </Button>
         <Button type="submit" appearance="secondary" disabled={busy || empty}>
-          {t(fromPr ? "desk.prFeedback.send" : "desk.feedback.send")}
+          {comments.length > 0
+            ? t("desk.feedback.sendWithComments", { count: comments.length })
+            : t(fromPr ? "desk.prFeedback.send" : "desk.feedback.send")}
         </Button>
       </div>
     </form>

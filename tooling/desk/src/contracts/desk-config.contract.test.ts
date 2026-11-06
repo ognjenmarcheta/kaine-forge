@@ -15,6 +15,7 @@ describe("desk config contract", () => {
       maxConcurrentAgents: 2,
       providers: { intake: "claude", planner: "claude", builder: "claude", reviewer: "codex" },
       models: {},
+      allowCodexBuilder: false,
       isolation: "host",
       docker: {
         agent: { memory: "6g", cpus: 4, pidsLimit: 1024 },
@@ -24,7 +25,8 @@ describe("desk config contract", () => {
       },
       defaultFlow: "kaine-default",
       flowLabels: {},
-      reviewBots: []
+      // The usual review bots are trusted by default, so their PR comments reach a fix round.
+      reviewBots: ["coderabbitai[bot]", "github-actions[bot]", "copilot-pull-request-reviewer[bot]"]
     });
   });
 

@@ -1,4 +1,4 @@
-import type { IssueSummary, NodeStatus, StageId } from "@repo/desk/contracts";
+import type { IssueSummary, NeedsYouCode, NodeStatus, StageId } from "@repo/desk/contracts";
 
 import { flowStepOf, issueFlowOf, type IssueFlow } from "../flow/flow.steps";
 
@@ -13,9 +13,22 @@ import { flowStepOf, issueFlowOf, type IssueFlow } from "../flow/flow.steps";
 /**
  * The design-system role of a status. The stylesheet maps each tone to `--ds-*` tokens
  * (`.desk-tone--<tone>`), so a theme change needs no code. `warning-subtle` is a warning in a
- * quiet tint: the work went back and ran again.
+ * quiet tint: the work went back and ran again. `attention` is "your turn": it has its own
+ * role, so a theme can tell it apart from a real warning.
  */
-export type Tone = "information" | "warning" | "success" | "warning-subtle" | "danger" | "neutral";
+export type Tone =
+  "information" | "warning" | "success" | "warning-subtle" | "danger" | "neutral" | "attention";
+
+/** The glyph beside a status's words, so color is never the only signal. */
+export const TONE_GLYPH: Readonly<Record<Tone, string>> = {
+  success: "✓",
+  attention: "◷",
+  warning: "▲",
+  "warning-subtle": "↺",
+  danger: "!",
+  information: "↻",
+  neutral: "–"
+};
 
 export const toneClass = (tone: Tone): string => `desk-tone--${tone}`;
 
@@ -28,7 +41,8 @@ const APPEARANCE_OF_TONE: Readonly<Record<Tone, Appearance>> = {
   "warning-subtle": "warning",
   success: "success",
   danger: "danger",
-  neutral: "default"
+  neutral: "default",
+  attention: "warning"
 };
 
 export const appearanceOf = (tone: Tone): Appearance => APPEARANCE_OF_TONE[tone];
@@ -140,18 +154,23 @@ export function reasonExcerpt(text: string): string {
 
 // --- issue status -----------------------------------------------------------
 
-export const BOARD_GROUPS = ["needs-you", "waiting", "running", "done"] as const;
-export type BoardGroup = (typeof BOARD_GROUPS)[number];
+/**
+ * Where work sits. The Inbox shows the first three, in this order: what stopped, the decisions
+ * at a gate, and the PRs to merge on GitHub. Running and Finished are side panels.
+ */
+export const INBOX_GROUPS = ["stopped", "decide", "github", "running", "finished"] as const;
+export type InboxGroup = (typeof INBOX_GROUPS)[number];
 
-/** The owner's turn: an issue that stopped and needs them, or one that waits at a gate. */
-export const isYourTurn = (group: BoardGroup): boolean =>
-  group === "needs-you" || group === "waiting";
+/** The owner's turn: work that stopped, waits at a gate, or waits for a merge on GitHub. */
+export const isYourTurn = (group: InboxGroup): boolean =>
+  group === "stopped" || group === "decide" || group === "github";
 
 /** The state half of a chip such as "Build · running". */
 export const CHIP_STATES = [
-  "waiting-for-you",
+  "your-turn",
   "working",
   "running",
+  "paused",
   "queued",
   "idle",
   "waiting",
@@ -166,6 +185,12 @@ export type ChipState = (typeof CHIP_STATES)[number];
  */
 export type StatusLabel =
   | { readonly kind: "key"; readonly key: string }
+  /** "Stopped · same failure twice", "Stopped · issue format 0/6": the reason from its code. */
+  | {
+      readonly kind: "stopped";
+      readonly code: NeedsYouCode | null;
+      readonly contract: { readonly found: number; readonly total: number } | null;
+    }
   | {
       readonly kind: "stage";
       readonly stage: StageId;
@@ -178,7 +203,7 @@ export type PrimaryAction =
   "continue" | "restart" | "review-plan" | "review-ship" | "open-pr" | "working" | "open";
 
 export interface IssueStatus {
-  readonly group: BoardGroup;
+  readonly group: InboxGroup;
   readonly tone: Tone;
   readonly label: StatusLabel;
   /** `null` for an unreadable issue: it has no stage to act on. */
@@ -202,7 +227,7 @@ const byKey = (key: string): StatusLabel => ({ kind: "key", key });
 export function issueStatusOf(summary: IssueSummary): IssueStatus {
   if (!summary.readable) {
     return {
-      group: "needs-you",
+      group: "stopped",
       tone: "danger",
       label: byKey("desk.chip.unreadable"),
       gateMode: null,
@@ -211,7 +236,7 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
   }
   const gateMode = gateModeOf(summary);
   const status = (
-    group: BoardGroup,
+    group: InboxGroup,
     tone: Tone,
     label: StatusLabel,
     primaryAction: PrimaryAction
@@ -220,37 +245,43 @@ export function issueStatusOf(summary: IssueSummary): IssueStatus {
   if (gateMode === "needs-you") {
     // Intake cannot continue: it reads the issue again, so it needs a new start and its options.
     const action = summary.resumeStage === "intake" ? "restart" : "continue";
-    return status("needs-you", "danger", byKey("desk.stage.needs-you"), action);
+    const code = summary.needsYouCode ?? (summary.resumeStage === "intake" ? "intake" : null);
+    return status(
+      "stopped",
+      "danger",
+      { kind: "stopped", code, contract: code === "intake" ? summary.contract : null },
+      action
+    );
   }
   if (gateMode === "shipped") {
     const action = summary.prUrl === null ? "open" : "open-pr";
-    return status("done", "success", byKey("desk.stage.shipped"), action);
+    return status("finished", "success", byKey("desk.stage.shipped"), action);
   }
   if (gateMode === "cancelled") {
-    return status("done", "neutral", byKey("desk.stage.cancelled"), "open");
+    return status("finished", "neutral", byKey("desk.stage.cancelled"), "open");
   }
   if (gateMode === "finished") {
-    return status("done", "success", byKey("desk.stage.finished"), "open");
+    return status("finished", "success", byKey("desk.stage.finished"), "open");
   }
   if (summary.status === "failed") {
-    return status("needs-you", "danger", inStage(summary, "failed"), "open");
+    return status("stopped", "danger", inStage(summary, "failed"), "open");
   }
   if (gateMode === "working") {
-    const state = summary.busy ? "working" : summary.status;
+    const state = summary.busy ? "running" : summary.paused ? "paused" : summary.status;
     return status("running", "information", inStage(summary, state), "working");
   }
   if (gateMode === "plan-gate") {
-    return status("waiting", "warning", inStage(summary, "waiting-for-you"), "review-plan");
+    return status("decide", "attention", inStage(summary, "your-turn"), "review-plan");
   }
   if (gateMode === "pr-review") {
-    return status("waiting", "warning", inStage(summary, "waiting-for-you"), "review-ship");
+    return status("decide", "attention", inStage(summary, "your-turn"), "review-ship");
   }
   if (gateMode === "gate") {
-    return status("waiting", "warning", inStage(summary, "waiting-for-you"), "open");
+    return status("decide", "attention", inStage(summary, "your-turn"), "open");
   }
   if (gateMode === "pr-open") {
     const action = summary.prUrl === null ? "open" : "open-pr";
-    return status("waiting", "warning", inStage(summary, "waiting-for-you"), action);
+    return status("github", "attention", inStage(summary, "your-turn"), action);
   }
   return status("running", "neutral", inStage(summary, summary.status), "open");
 }

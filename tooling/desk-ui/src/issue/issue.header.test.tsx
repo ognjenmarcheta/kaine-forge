@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -27,9 +27,6 @@ const show = (
     <IssueHeader
       summary={summary}
       detail={detail}
-      flow={detail.flow}
-      selected={detail.flow.current}
-      onSelect={vi.fn()}
       graphOpen={false}
       onToggleGraph={vi.fn()}
       actions={actions}
@@ -47,7 +44,7 @@ describe("IssueHeader menu", () => {
   it("asks before it cancels, keeps focus in the dialog, and returns focus to the menu button", async () => {
     const actions = actionsOf();
     show({ stage: "plan-gate" }, actions);
-    await openMenuItem("Cancel run");
+    await openMenuItem("Cancel…");
 
     const dialog = await screen.findByRole("dialog", { name: "Cancel this run?" });
     expect(dialog.contains(document.activeElement)).toBe(true);
@@ -56,7 +53,7 @@ describe("IssueHeader menu", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "More actions" }));
     expect(actions.run).not.toHaveBeenCalled();
 
-    await openMenuItem("Cancel run");
+    await openMenuItem("Cancel…");
     await userEvent.click(await screen.findByRole("button", { name: "Cancel the run" }));
     expect(actions.run).toHaveBeenCalledWith({ action: "cancel" });
   });
@@ -64,7 +61,7 @@ describe("IssueHeader menu", () => {
   it("has no run to cancel once the issue is shipped", async () => {
     show({ stage: "shipped", status: "done" }, actionsOf());
     await userEvent.click(screen.getByRole("button", { name: "More actions" }));
-    const cancel = await screen.findByRole("menuitem", { name: "Cancel run" });
+    const cancel = await screen.findByRole("menuitem", { name: "Cancel…" });
     expect(cancel.getAttribute("aria-disabled")).toBe("true");
   });
 
@@ -73,12 +70,12 @@ describe("IssueHeader menu", () => {
     const onRemoved = vi.fn();
     show({ stage: "cancelled", status: "done" }, actions, onRemoved);
 
-    await openMenuItem("Remove");
+    await openMenuItem("Remove from the desk…");
     await userEvent.click(await screen.findByRole("button", { name: "Remove the issue" }));
     expect(actions.run).toHaveBeenLastCalledWith({ action: "remove", force: false });
     await waitFor(() => expect(onRemoved).toHaveBeenCalledTimes(1));
 
-    await openMenuItem("Remove");
+    await openMenuItem("Remove from the desk…");
     await userEvent.click(
       await screen.findByRole("checkbox", { name: "Remove even with changes" })
     );
@@ -91,9 +88,47 @@ describe("IssueHeader menu", () => {
     actions.run.mockResolvedValueOnce({ kind: "error", code: "worktree-dirty", detail: null });
     const onRemoved = vi.fn();
     show({ stage: "cancelled", status: "done" }, actions, onRemoved);
-    await openMenuItem("Remove");
+    await openMenuItem("Remove from the desk…");
     await userEvent.click(await screen.findByRole("button", { name: "Remove the issue" }));
     await waitFor(() => expect(actions.run).toHaveBeenCalled());
     expect(onRemoved).not.toHaveBeenCalled();
+  });
+});
+
+describe("IssueHeader time", () => {
+  it("shows the active time beside the total once the issue ended", () => {
+    const { detail, summary } = makeDetail({ stage: "shipped", status: "done" });
+    renderDesk(
+      <IssueHeader
+        summary={{ ...summary, activeMs: 8 * 60_000 }}
+        detail={detail}
+        graphOpen={false}
+        onToggleGraph={vi.fn()}
+        actions={actionsOf()}
+        onRemoved={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/took .* · 8m active/)).toBeTruthy();
+  });
+});
+
+describe("IssueHeader terminal hand-off", () => {
+  it("offers to open the agent session in a terminal while a builder runs, and asks first", async () => {
+    const actions = actionsOf();
+    show({ stage: "build", status: "running" }, actions);
+    await openMenuItem("Open the agent session in a terminal…");
+    const dialog = await screen.findByRole("dialog", {
+      name: "Open the agent session in a terminal?"
+    });
+    expect(actions.run).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open in a terminal" }));
+    expect(actions.run).toHaveBeenCalledWith({ action: "take-over" });
+  });
+
+  it("offers no terminal for the reviewer, whose next run starts a new session", async () => {
+    show({ stage: "review", status: "running" }, actionsOf());
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await screen.findByRole("menuitem", { name: "Copy the branch name" });
+    expect(screen.queryByRole("menuitem", { name: /terminal/ })).toBeNull();
   });
 });

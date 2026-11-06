@@ -64,6 +64,11 @@ export interface ResolveCapabilitiesInput {
   readonly isolation: Isolation;
   /** Exact workspace package names for the check commands. Without them there are none. */
   readonly workspaces?: readonly string[] | undefined;
+  /**
+   * Commands the owner allowed after the desk refused them. Each becomes one exact rule, never a
+   * prefix rule. The deny rules still win, and a command they deny does not run.
+   */
+  readonly approvedCommands?: readonly string[] | undefined;
 }
 
 /** Skills whose procedure needs a command the floor denies. No desk agent gets them. */
@@ -79,6 +84,21 @@ const NOT_INSTALLED = "not installed";
 const NO_MCP_IN_CONTAINER = "no MCP inside the container";
 const NO_MCP_FOR_CODEX = "Codex runs hold to the sandbox; the desk gives them no MCP server";
 const CODEX_NOTE = "Codex: sandbox only, no MCP";
+const NO_MCP_FOR_OPENCODE =
+  "OpenCode runs load only the desk's rules; the desk gives them no MCP server";
+const OPENCODE_NOTE = "OpenCode: the desk's permission rules, no MCP, no OS sandbox";
+
+/** Why a provider loads none of the granted MCP servers, or `null` when it loads them. */
+const unloadedMcpReason = (provider: Provider): string | null => {
+  switch (provider) {
+    case "claude":
+      return null;
+    case "codex":
+      return NO_MCP_FOR_CODEX;
+    case "opencode":
+      return NO_MCP_FOR_OPENCODE;
+  }
+};
 
 const unique = (values: readonly string[]): string[] => [...new Set(values)];
 
@@ -152,12 +172,7 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
     return false;
   });
   const sandbox = sandboxOf(input);
-  const unloaded =
-    sandbox === "docker"
-      ? NO_MCP_IN_CONTAINER
-      : input.provider === "codex"
-        ? NO_MCP_FOR_CODEX
-        : null;
+  const unloaded = sandbox === "docker" ? NO_MCP_IN_CONTAINER : unloadedMcpReason(input.provider);
   const mcp = unloaded === null ? granted : [];
   if (unloaded !== null) {
     removed.push(
@@ -179,6 +194,7 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
   });
 
   if (input.provider === "codex") notes.push(CODEX_NOTE);
+  if (input.provider === "opencode") notes.push(OPENCODE_NOTE);
   if (input.provider === "codex" && extraTools.length > 0) {
     notes.push("Codex: extra tools run as ordinary commands in the workspace-write sandbox");
   }
@@ -221,6 +237,10 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
     allow.push(bash("pnpm create:feature"));
   }
   for (const tool of extraTools) allow.push(bash(AGENT_TOOL_COMMANDS[tool]));
+  // A read-only agent gets no command the owner allowed for another stage.
+  if (preset !== "read-only") {
+    for (const command of input.approvedCommands ?? []) allow.push(`Bash(${command})`);
+  }
 
   const inScope = new Set(skills);
   const outOfScope = unique([...KAINE_SKILLS, ...input.installed.skills])
@@ -240,8 +260,9 @@ export const resolveCapabilities = (input: ResolveCapabilitiesInput): Capability
 };
 
 /**
- * The runner's form of a profile. Claude gets the rule lists. Codex gets a sandbox: only an
- * edit-code agent may write, and a Docker run lowers it only inside the container.
+ * The runner's form of a profile. Claude and OpenCode get the rule lists (the OpenCode runner
+ * turns them into its own rules). Codex gets a sandbox: only an edit-code agent may write, and a
+ * Docker run lowers it only inside the container.
  */
 export const toAgentPermissions = (profile: CapabilityProfile): AgentPermissions =>
   profile.provider === "codex"

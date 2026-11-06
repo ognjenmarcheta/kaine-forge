@@ -85,6 +85,14 @@ export const contrastPairs: readonly ContrastPair[] = [
   pair("text-success", "background-success", TEXT_CONTRAST),
   pair("text-danger", "background-danger", TEXT_CONTRAST),
   pair("text-warning", "background-warning", TEXT_CONTRAST),
+  // "Waiting on you" reads like a status: its text on its tint and on the page, its border and fill as marks.
+  pair("text-attention", "background-attention", TEXT_CONTRAST),
+  pair("text-attention", "surface", TEXT_CONTRAST),
+  pair("text-warning-inverse", "background-attention-bold", TEXT_CONTRAST),
+  pair("border-attention", "surface", GRAPHIC_CONTRAST),
+  // A status fill on the page is a mark of its own (SC 1.4.11).
+  pair("background-warning-bold", "surface", GRAPHIC_CONTRAST),
+  pair("border-state", "surface", GRAPHIC_CONTRAST),
   pair("text-information", "background-information", TEXT_CONTRAST),
   pair("text-discovery", "background-discovery", TEXT_CONTRAST),
   pair("border-focused", "surface", GRAPHIC_CONTRAST),

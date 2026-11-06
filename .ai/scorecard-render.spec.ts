@@ -1,19 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { REPO_ROOT } from "./ai.util";
 import {
   DATA_MARKER,
-  deriveCiFlow,
-  deriveWorkspaceFlow,
   GENERATED_MARKER,
-  layoutFlow,
   LEDGER_PATH,
   parseLedger,
-  readWorkflowJobs,
-  renderDashboardHtml,
   renderLedgerMarkdown,
   type LedgerData,
   type ScorecardRun
@@ -89,129 +81,6 @@ describe("parseLedger", () => {
   });
 });
 
-describe("deriveWorkspaceFlow", () => {
-  it("builds edges from dependency to dependent and drops external deps", () => {
-    const flow = deriveWorkspaceFlow([
-      { name: "@repo/ui", dir: "packages/ui", internalDependencies: [] },
-      { name: "@repo/web", dir: "apps/web", internalDependencies: ["@repo/ui", "react"] }
-    ]);
-
-    expect(flow.nodes.map((node) => node.label)).toEqual(["ui", "web"]);
-    expect(flow.nodes.map((node) => node.group)).toEqual(["packages", "apps"]);
-    expect(flow.edges).toEqual([{ from: "@repo/ui", to: "@repo/web" }]);
-  });
-});
-
-describe("readWorkflowJobs and deriveCiFlow", () => {
-  it("derives a job DAG from workflow needs", () => {
-    const dir = mkdtempSync(join(tmpdir(), "scorecard-workflows-"));
-    try {
-      writeFileSync(
-        join(dir, "ci.yml"),
-        [
-          "name: CI PR",
-          "on: pull_request",
-          "jobs:",
-          "  detect:",
-          "    name: Detect Changed Paths",
-          "  check:",
-          "    name: Check Fast",
-          "    needs: [detect]",
-          "  e2e:",
-          "    needs: check"
-        ].join("\n")
-      );
-
-      const jobs = readWorkflowJobs(dir);
-      const flow = deriveCiFlow(jobs);
-
-      expect(jobs).toHaveLength(3);
-      expect(flow.nodes.map((node) => node.label)).toEqual([
-        "Detect Changed Paths",
-        "Check Fast",
-        "e2e"
-      ]);
-      expect(flow.nodes.every((node) => node.group === "CI PR")).toBe(true);
-      expect(flow.edges).toEqual([
-        { from: "ci.yml:detect", to: "ci.yml:check" },
-        { from: "ci.yml:check", to: "ci.yml:e2e" }
-      ]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("returns no jobs for a missing directory", () => {
-    expect(readWorkflowJobs(join(tmpdir(), "scorecard-does-not-exist"))).toEqual([]);
-  });
-
-  it("ignores a workflow file with no jobs block", () => {
-    const dir = mkdtempSync(join(tmpdir(), "scorecard-workflows-"));
-    try {
-      writeFileSync(join(dir, "empty.yml"), "name: Nothing\non: push\n");
-      expect(readWorkflowJobs(dir)).toEqual([]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-});
-
-describe("layoutFlow", () => {
-  it("places each node one layer right of its dependency", () => {
-    const layout = layoutFlow({
-      id: "t",
-      title: "t",
-      caption: "t",
-      nodes: [
-        { id: "a", label: "a" },
-        { id: "b", label: "b" },
-        { id: "c", label: "c" }
-      ],
-      edges: [
-        { from: "a", to: "b" },
-        { from: "b", to: "c" }
-      ]
-    });
-
-    const xOf = (id: string): number => layout.nodes.find((node) => node.id === id)?.x ?? -1;
-
-    expect(xOf("a")).toBeLessThan(xOf("b"));
-    expect(xOf("b")).toBeLessThan(xOf("c"));
-    expect(layout.width).toBeGreaterThan(0);
-    expect(layout.height).toBeGreaterThan(0);
-  });
-
-  it("terminates on a cyclic graph instead of spinning", () => {
-    const layout = layoutFlow({
-      id: "t",
-      title: "t",
-      caption: "t",
-      nodes: [
-        { id: "a", label: "a" },
-        { id: "b", label: "b" }
-      ],
-      edges: [
-        { from: "a", to: "b" },
-        { from: "b", to: "a" }
-      ]
-    });
-
-    expect(layout.nodes).toHaveLength(2);
-  });
-
-  it("splits a multi-line label into separate lines", () => {
-    const layout = layoutFlow({
-      id: "t",
-      title: "t",
-      caption: "t",
-      nodes: [{ id: "a", label: "first\nsecond" }],
-      edges: []
-    });
-
-    expect(layout.nodes[0]?.lines).toEqual(["first", "second"]);
-  });
-});
-
 describe("renderLedgerMarkdown", () => {
   it("renders an empty-state line when there are no runs", () => {
     expect(renderLedgerMarkdown(emptyData)).toContain("No runs recorded yet");
@@ -242,95 +111,5 @@ describe("renderLedgerMarkdown", () => {
 
     expect(markdown).toContain("▲+1");
     expect(markdown).toContain("2026-07-01");
-  });
-});
-
-describe("renderDashboardHtml", () => {
-  const flows = [
-    {
-      id: "sample",
-      title: "Sample flow",
-      caption: "caption",
-      nodes: [
-        { id: "a", label: "A", group: "one" },
-        { id: "b", label: "B", group: "two" }
-      ],
-      edges: [{ from: "a", to: "b", label: "edge" }]
-    }
-  ];
-
-  it("emits a self-contained document with no external requests", () => {
-    const html = renderDashboardHtml({ ...emptyData, runs: [run()] }, flows);
-
-    expect(html.startsWith("<!doctype html>")).toBe(true);
-    expect(html).not.toMatch(/https?:\/\//);
-    expect(html).not.toMatch(/<script/i);
-    expect(html).not.toMatch(/\ssrc=/);
-    expect(html).not.toMatch(/<link\b/i);
-  });
-
-  it("renders a card per dimension and the supplied flows", () => {
-    const html = renderDashboardHtml({ ...emptyData, runs: [run()] }, flows);
-
-    expect(html).toContain("Docs &amp; Agent Scaffolding");
-    expect(html).toContain("Sample flow");
-    expect(html).toContain("<svg");
-    expect(html).toContain("#143");
-  });
-
-  it("sizes each diagram explicitly so wide flows scroll instead of shrinking to unreadable text", () => {
-    const html = renderDashboardHtml(emptyData, flows);
-    const svg = /<svg class="flow" width="(\d+)" height="(\d+)" viewBox="0 0 (\d+) (\d+)"/.exec(
-      html
-    );
-
-    expect(svg).not.toBeNull();
-    expect(svg?.[1]).toBe(svg?.[3]);
-    expect(svg?.[2]).toBe(svg?.[4]);
-    expect(html).toContain(".flow{display:block;max-width:none}");
-  });
-
-  it("renders an empty state when no runs exist", () => {
-    const html = renderDashboardHtml(emptyData, flows);
-
-    expect(html).toContain("No runs recorded yet");
-    expect(html).toContain("Sample flow");
-  });
-
-  it("escapes untrusted text rather than injecting markup", () => {
-    const hostile = run();
-    const html = renderDashboardHtml(
-      {
-        ...emptyData,
-        runs: [
-          {
-            ...hostile,
-            findings: hostile.findings.map((finding) => ({ ...finding, title: "<img onerror=x>" }))
-          }
-        ]
-      },
-      flows
-    );
-
-    expect(html).toContain("&lt;img onerror=x&gt;");
-    expect(html).not.toContain("<img onerror=x>");
-  });
-
-  it("draws a trend line once there are at least two runs", () => {
-    const single = renderDashboardHtml({ ...emptyData, runs: [run()] }, flows);
-    const paired = renderDashboardHtml(
-      { ...emptyData, runs: [run({ date: "2026-07-01" }), run()] },
-      flows
-    );
-
-    expect(single).not.toContain("Overall trend");
-    expect(paired).toContain("Overall trend");
-  });
-});
-
-describe("scorecard output directory", () => {
-  it("is ignored by git and docker so it is never committed", () => {
-    expect(readFileSync(join(REPO_ROOT, ".gitignore"), "utf8")).toMatch(/^scorecard-out\/$/m);
-    expect(readFileSync(join(REPO_ROOT, ".dockerignore"), "utf8")).toMatch(/^scorecard-out\/$/m);
   });
 });

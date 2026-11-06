@@ -31,7 +31,14 @@ export class TransferError extends Error {
   override readonly name = "TransferError";
 }
 
-const AGENT_FILES = [".claude/skills", ".claude/agents", ".agents", ".codex/config.toml"] as const;
+const AGENT_FILES = [
+  ".claude/skills",
+  ".claude/agents",
+  ".agents",
+  ".codex/config.toml",
+  ".opencode/skills",
+  ".opencode/agents"
+] as const;
 
 const syncReplySchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("needs-bundle") }),

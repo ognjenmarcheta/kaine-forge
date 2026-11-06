@@ -37,7 +37,9 @@ Ten dimensions, scored 0-10. Each needs a machine feed **and** judgment. Band de
 2. **Sweep once, in shared context.** `turbo.json`, `pnpm-workspace.yaml`, every `package.json`, the workflows, `knip.json`, `vitest.coverage.config.ts`, `.changeset/`, `Dockerfile.*`. Run `pnpm ai:doctor`. Read the last main CI result via `gh run list`/`gh run view` rather than re-running `pnpm coverage` or `test:e2e` locally. Read `coverage/coverage-summary.json` if present. Run one `gh issue list --state all --limit 100 --json number,title,state`. For dimension 10 read `apps/api/src/features/assistant/assistant.eval.data.ts` against `createAssistantTools`, the `harness-eval:data` run array in `docs/agents/harness-evals.md`, and `apps/api/src/features/assistant/assistant.ai-runtime.test.ts`.
 3. **Fan out.** Dispatch one `kaine-explorer` per dimension, each handed the sweep digest, its band descriptors, and its previous score and evidence. Where subagents are unavailable, scan sequentially and record `mode: sequential` — never silently mix depths.
 4. **Score.** Apply the bands. A dimension moving more than 1 point must cite a concrete cause (merged PR, closed issue, new gate) **or** be recorded as an explicit recalibration with a reason, which becomes binding on later runs.
-5. **Render.** Update the ledger's `scorecard:data` JSON block, then `pnpm scorecard`. Report in chat with bar gauges and deltas; point at `scorecard-out/index.html` for the diagrams.
+   The agent desk runs this procedure as a **scorecard job** (ADR 0021): the engine runs step 2's commands and `gh` reads, the scorer fans out the explorers and returns the run, the engine writes and renders the ledger, and the owner ticks the issues to file at the job's gate. A desk run records `mode: fan-out`, `agent: desk-job`. The desk labels the issues it files `source:scorecard` and writes each issue number on its finding; the Scorecard view then follows each finding to its issue, its PR, and the merge.
+
+5. **Render.** Update the ledger's `scorecard:data` JSON block, then `pnpm scorecard`. Report in chat with bar gauges and deltas; point at the agent desk's **Scorecard** view (`pnpm desk:run`) for the trend, the findings, and the diagrams.
 
 ## Findings & Issues
 
@@ -60,7 +62,6 @@ See `docs/agents/issue-tracker.md` for `gh` usage and `docs/agents/triage-labels
 
 ## Safety Rules
 
-- `scorecard-out/` is local, regenerable, gitignored and dockerignored. Never commit it; never paste it into tracked docs or Serena memories.
 - The ledger's `scorecard:generated` region is written by `pnpm scorecard`. Hand-edit only the JSON block and the calibration notes.
 - Never invent a score for a dimension whose evidence you could not gather. Record it as `unscored` with the reason and exclude it from the overall.
 - This skill is human-invoked. Do not add it to CI, husky hooks, or `pnpm initialize`.

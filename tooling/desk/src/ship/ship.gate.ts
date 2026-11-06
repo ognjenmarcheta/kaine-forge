@@ -95,6 +95,11 @@ export interface ShipGateInput {
   readonly diffHash: string;
   /** Every path the diff touches, including the old path of a rename. */
   readonly changedPaths: readonly string[];
+  /**
+   * The changed paths that `pnpm ai:install` writes from an existing `.ai/` source. They are not
+   * protected here: the `pre-push` hook refuses one that differs from the generator's output.
+   */
+  readonly aiOutputs?: readonly string[] | undefined;
   readonly identity: ControllerIdentity;
   readonly branch: { readonly actual: string | null; readonly expected: string | null };
   readonly authorization: AuthorizationCheck;
@@ -238,7 +243,9 @@ export const evaluateShipGate = (input: ShipGateInput): ShipGateResult => {
     );
   }
 
+  const generated = new Set(input.aiOutputs ?? []);
   const protectedReasons = input.changedPaths.flatMap((file) => {
+    if (generated.has(file)) return [];
     const reason = protectedPathReason(file);
     return reason === null ? [] : [reason];
   });

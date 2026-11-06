@@ -145,13 +145,25 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
   check("opencode plugin", () => {
     const temporaryRoot = mkdtempSync(join(tmpdir(), "kaine-guard-check-"));
     try {
+      const pluginDirectory = join(temporaryRoot, ".opencode/plugins/kaine-guardrail");
+      // The OpenCode host supplies @opencode/plugin; upstream Plugin.define returns its input.
+      const host = join(temporaryRoot, "node_modules/@opencode/plugin");
       mkdirSync(join(temporaryRoot, ".ai/hooks"), { recursive: true });
-      mkdirSync(join(temporaryRoot, ".opencode/plugins"), { recursive: true });
+      mkdirSync(pluginDirectory, { recursive: true });
+      mkdirSync(host, { recursive: true });
       writeFileSync(join(temporaryRoot, "package.json"), '{"type":"module"}');
+      writeFileSync(
+        join(host, "package.json"),
+        '{"name":"@opencode/plugin","type":"module","exports":"./index.js"}'
+      );
+      writeFileSync(
+        join(host, "index.js"),
+        "export const Plugin = { define: (plugin) => plugin };"
+      );
       for (const file of ["permissions.json", "hooks/guarded-command.mjs"]) {
         writeFileSync(join(temporaryRoot, ".ai", file), readFileSync(join(repoRoot, ".ai", file)));
       }
-      const plugin = join(temporaryRoot, ".opencode/plugins/kaine-guardrail.ts");
+      const plugin = join(pluginDirectory, "index.ts");
       writeFileSync(plugin, renderOpencodeGuardrailPlugin());
       const result = spawnSync(
         process.execPath,
@@ -163,12 +175,14 @@ export function checkGuardContracts(repoRoot: string = REPO_ROOT): string[] {
           `
         import assert from "node:assert/strict";
         import { writeFileSync } from "node:fs";
-        const { KaineGuardrail } = await import(process.argv[1]);
-        const hooks = await KaineGuardrail();
-        const before = hooks["tool.execute.before"];
+        const { default: plugin } = await import(process.argv[1]);
+        const hooks = new Map();
+        await plugin.setup({ tool: { hook: async (name, callback) => { hooks.set(name, callback); } } });
+        const before = hooks.get("execute.before");
         assert.equal(typeof before, "function");
-        const invoke = (command, tool = "bash") => before({ tool }, { args: { command } });
+        const invoke = async (command, tool = "shell") => before({ tool, input: { command } });
         await assert.rejects(() => invoke("pnpm db:push"), /pnpm db:push:local/);
+        await assert.rejects(() => invoke("pnpm db:push", "bash"), /pnpm db:push:local/);
         for (const command of ["git push --force origin main", "pnpm test", "git push --force-with-lease origin main"]) {
           await invoke(command);
         }

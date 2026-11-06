@@ -2,7 +2,11 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 // The desktop shell's database commands: its database files, and each open it was asked for.
-const shell = vi.hoisted(() => ({ files: new Set<string>(), opened: [] as string[] }));
+const shell = vi.hoisted(() => ({
+  files: new Set<string>(),
+  opened: [] as string[],
+  locked: new Set<string>()
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: async (command: string, args?: { name?: string }) => {
@@ -11,7 +15,10 @@ vi.mock("@tauri-apps/api/core", () => ({
       shell.files.add(name);
       shell.opened.push(name);
     }
-    if (command === "device_db_delete") shell.files.delete(name);
+    if (command === "device_db_delete") {
+      if (shell.locked.has(name)) throw new Error("file is busy");
+      shell.files.delete(name);
+    }
     if (command === "device_db_list") return [...shell.files];
     return undefined;
   }
@@ -32,15 +39,24 @@ const signal = new AbortController().signal;
 beforeEach(() => {
   shell.files.clear();
   shell.opened = [];
+  shell.locked.clear();
 });
 
 it("deletes only the signed-out User's databases in the desktop shell", async () => {
   await openDeviceStorage({ userId: "u1", organizationId: "o1" }, signal);
   await openDeviceStorage({ userId: "u2", organizationId: "o1" }, signal);
 
-  await deleteDeviceStorage("u1");
+  await expect(deleteDeviceStorage("u1")).resolves.toBe(true);
 
   expect([...shell.files]).toEqual([U2_O1]);
+});
+
+it("reports a database it could not delete, so the sign-out can warn", async () => {
+  await openDeviceStorage({ userId: "u1", organizationId: "o1" }, signal);
+  shell.locked.add(U1_O1);
+
+  await expect(deleteDeviceStorage("u1")).resolves.toBe(false);
+  expect([...shell.files]).toEqual([U1_O1]);
 });
 
 it("opens a database again after a sign-out deleted it, instead of reusing the closed one", async () => {

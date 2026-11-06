@@ -3,7 +3,7 @@ import { Bot, FileText, Terminal, User } from "@repo/ui";
 
 /** Who works in a stage, as an icon: the issue, an agent, you, or the engine. Decorative: the kind is also written out. */
 export function StageIcon({ kind }: { readonly kind: NodeKind }) {
-  const props = { "aria-hidden": true, className: "desk-icon" } as const;
+  const props = { "aria-hidden": true, className: "dk-ic" } as const;
   switch (kind) {
     case "source":
       return <FileText {...props} />;

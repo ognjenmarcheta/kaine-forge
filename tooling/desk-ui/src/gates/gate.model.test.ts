@@ -1,7 +1,13 @@
 import type { FlowStepView } from "@repo/desk/contracts";
 import { describe, expect, it } from "vitest";
 
-import { incidentOf, orderReviewFiles, resumeCommandOf, shipsWithoutReview } from "./gate.model";
+import {
+  incidentOf,
+  lastAsked,
+  orderReviewFiles,
+  resumeCommandOf,
+  shipsWithoutReview
+} from "./gate.model";
 import { scenarioRuns } from "../../tests/fixture.data";
 import { parseDiffFiles } from "../artifacts/artifact.diffstat";
 import type { IssueFlow } from "../flow/flow.steps";
@@ -117,5 +123,26 @@ describe("shipsWithoutReview", () => {
     expect(shipsWithoutReview(autoNoGate, "plan-gate")).toBe(true);
     expect(shipsWithoutReview(autoAfterGate, "plan-gate")).toBe(false);
     expect(shipsWithoutReview(manual, "plan-gate")).toBe(false);
+  });
+});
+
+describe("lastAsked", () => {
+  const event = (note: string | undefined) => ({
+    at: "2026-03-01T10:00:00.000Z",
+    stage: "plan-gate",
+    event: "feedback",
+    ...(note === undefined ? {} : { note })
+  });
+  it.each([
+    [
+      "the words of the latest send-back",
+      [event("to plan: Keep JSON"), event("to plan: Use SQLite")],
+      "Use SQLite"
+    ],
+    ["words over several lines", [event("to plan: One\nTwo")], "One\nTwo"],
+    ["nothing for a note from before the desk kept words", [event("to plan")], null],
+    ["nothing without a send-back", [], null]
+  ])("finds %s", (_name, history, expected) => {
+    expect(lastAsked(history)).toBe(expected);
   });
 });

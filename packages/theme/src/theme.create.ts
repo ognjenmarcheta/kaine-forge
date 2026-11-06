@@ -1,4 +1,9 @@
-import { createCategoryColors, createColorModes, type PaletteInput } from "./theme.palette";
+import {
+  aliasRoles,
+  createCategoryColors,
+  createColorModes,
+  type PaletteInput
+} from "./theme.palette";
 import { typeStepNames } from "./theme.roles";
 import { defaultComponents, defaultScale, defaultType } from "./theme.scale";
 import type {
@@ -84,8 +89,8 @@ function buildType(
 }
 
 /**
- * A derived mode with the theme's own values on top. The chart tints and text colors follow the
- * final chart colors, so a theme that sets its own chart colors keeps them paired. A tint or a
+ * A derived mode with the theme's own values on top. The aliases follow the final warning and
+ * bold border unless the theme sets them. The chart tints and text colors follow the final chart colors, so a theme that sets its own chart colors keeps them paired. A tint or a
  * text color that the theme sets wins, and a text color is derived against a tint it sets.
  */
 function finishMode(
@@ -95,7 +100,12 @@ function finishMode(
 ): ThemeMode {
   const merged = { ...derived, ...overrides };
 
-  return { ...merged, ...createCategoryColors(mode, merged, overrides) };
+  return {
+    ...merged,
+    ...aliasRoles(merged),
+    ...overrides,
+    ...createCategoryColors(mode, merged, overrides)
+  };
 }
 
 /**

@@ -97,24 +97,28 @@ describe("createPullRequest", () => {
 });
 
 describe("addPullRequestLabel", () => {
-  it("edits the PR with --add-label only", async () => {
-    const { fake, port } = portWith([]);
+  // Not `gh pr edit`: it reads classic project cards, which GitHub turned off (gh 2.46 fails).
+  it("adds the label through the REST API, with the label in the body", async () => {
+    const { fake, port } = portWith([{ argv: ["gh", "api"], reply: ok("[]") }]);
     await port.addPullRequestLabel(12, "release:skip-changeset");
-    expect(lastGh(fake.calls)).toEqual([
+    const call = fake.calls.at(-1);
+    expect(call?.argv).toEqual([
       "gh",
-      "pr",
-      "edit",
-      "12",
-      "--add-label",
-      "release:skip-changeset"
+      "api",
+      "repos/{owner}/{repo}/issues/12/labels",
+      "--method",
+      "POST",
+      "--input",
+      "-"
     ]);
+    expect(JSON.parse(call?.input ?? "")).toEqual({ labels: ["release:skip-changeset"] });
   });
 
-  it("surfaces a missing label", async () => {
+  it("surfaces a refused label", async () => {
     const { port } = portWith([
-      { argv: ["gh", "pr", "edit"], reply: fail("could not add label: 'x' not found") }
+      { argv: ["gh", "api"], reply: fail("Validation Failed (HTTP 422)") }
     ]);
-    await expect(port.addPullRequestLabel(12, "x")).rejects.toThrow(/not found/);
+    await expect(port.addPullRequestLabel(12, "x")).rejects.toThrow(/422/);
   });
 });
 

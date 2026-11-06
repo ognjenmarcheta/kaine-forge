@@ -53,6 +53,75 @@ export const agentCapabilitiesSchema = z
   .strict();
 export type AgentCapabilities = z.infer<typeof agentCapabilitiesSchema>;
 
+/**
+ * What an agent avatar shows: a lucide icon name and a theme tone. The page draws the icon on
+ * the tone's tint. There are no images, so an avatar works offline.
+ */
+export const AGENT_AVATAR_GLYPHS = [
+  "bot",
+  "notebook-pen",
+  "hammer",
+  "shield-check",
+  "file-text",
+  "lightbulb",
+  "palette",
+  "wand",
+  "terminal",
+  "blocks",
+  "lock",
+  "book-open",
+  "scissors",
+  "search",
+  "compass",
+  "gauge"
+] as const;
+export type AgentAvatarGlyph = (typeof AGENT_AVATAR_GLYPHS)[number];
+
+/** The avatar tones: the identity role tints and the chart tints, which tell categories apart. */
+export const AGENT_AVATAR_TONES = [
+  "brand",
+  "discovery",
+  "information",
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+  "chart-6"
+] as const;
+export type AgentAvatarTone = (typeof AGENT_AVATAR_TONES)[number];
+
+export const agentAvatarSchema = z
+  .object({ glyph: z.enum(AGENT_AVATAR_GLYPHS), tone: z.enum(AGENT_AVATAR_TONES) })
+  .strict();
+export type AgentAvatarSpec = z.infer<typeof agentAvatarSchema>;
+
+/** FNV-1a over the UTF-16 code units: the same id gives the same number on every machine. */
+const idHash = (id: string): number => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = Math.imul(hash ^ id.charCodeAt(index), 0x01000193) >>> 0;
+  }
+  return hash;
+};
+
+/**
+ * The avatar of an agent: its own, or a default that depends only on its id. The glyph takes
+ * the low part of the id's hash and the tone the rest, so two ids rarely share both.
+ */
+export const avatarOf = (agent: {
+  readonly id: string;
+  readonly avatar?: AgentAvatarSpec | undefined;
+}): AgentAvatarSpec => {
+  if (agent.avatar !== undefined) return agent.avatar;
+  const hash = idHash(agent.id);
+  const glyphs = AGENT_AVATAR_GLYPHS.length;
+  return {
+    glyph: AGENT_AVATAR_GLYPHS[hash % glyphs] ?? "bot",
+    tone: AGENT_AVATAR_TONES[Math.floor(hash / glyphs) % AGENT_AVATAR_TONES.length] ?? "brand"
+  };
+};
+
 export const agentFrontmatterSchema = z
   .object({
     id: definitionIdSchema,
@@ -62,7 +131,9 @@ export const agentFrontmatterSchema = z
     model: z.string().min(1).optional(),
     output: agentOutputKindSchema,
     capabilities: agentCapabilitiesSchema,
-    timeoutMinutes: z.number().int().positive().optional()
+    timeoutMinutes: z.number().int().positive().optional(),
+    /** Cosmetic: no part of the definition's hash. Without it the page shows `avatarOf`. */
+    avatar: agentAvatarSchema.optional()
   })
   .strict();
 export type AgentFrontmatter = z.infer<typeof agentFrontmatterSchema>;

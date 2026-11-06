@@ -9,6 +9,7 @@ import process from "node:process";
 import { refreshAiSetup, refreshRoots } from "./ai-refresh.mjs";
 import { desktopStatus, formatDesktopStatusLine, probeDesktopCli } from "./desktop-cli.mjs";
 import { formatStatusLine, graphStatus, probeCliVersion } from "./graph-status.mjs";
+import { formatWorktrunkStatusLine, probeWorktrunkVersion } from "./worktrunk-cli.mjs";
 
 const args = process.argv.slice(2);
 const agentIndex = args.indexOf("--agent");
@@ -181,7 +182,8 @@ const main = async () => {
     ...refresh.failures.map((line) => `- Warning: ${line}`),
     "- Runtime verification: MCP and sandbox not verified at startup",
     formatStatusLine(graphStatus(repoRoot, probeCliVersion(repoRoot))),
-    formatDesktopStatusLine(desktopStatus(probeDesktopCli(repoRoot)))
+    formatDesktopStatusLine(desktopStatus(probeDesktopCli(repoRoot))),
+    formatWorktrunkStatusLine(probeWorktrunkVersion(repoRoot))
   ];
 
   if (

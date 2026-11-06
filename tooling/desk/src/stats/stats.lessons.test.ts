@@ -72,6 +72,40 @@ describe("aggregateLessons", () => {
     expect(report.candidates[0]?.samples.map((sample) => sample.issue)).toEqual([6, 5, 4]);
   });
 
+  it("keeps watching a promoted key: only the times after the promotion count as coming back", () => {
+    const promotedAt = "2026-10-14T00:00:00.000Z";
+    const report = aggregateLessons(
+      {
+        records: [
+          lesson({ issue: 12 }),
+          lesson({ issue: 12, at: "2026-10-15T09:00:00.000Z", count: 2 }),
+          lesson({ issue: 18, at: "2026-10-16T09:00:00.000Z" }),
+          lesson({ issue: 30, key: "check/pnpm lint", source: "check" })
+        ],
+        invalidLines: 0
+      },
+      {
+        promoted: [
+          { key: "review/Correctness/Consider", at: promotedAt, note: null, issue: null },
+          { key: "check/pnpm lint", at: promotedAt, note: null, issue: null }
+        ]
+      }
+    );
+
+    expect(report.candidates).toEqual([]);
+    expect(report.belowThreshold).toBe(0);
+    expect(report.promoted).toEqual([
+      expect.objectContaining({
+        key: "review/Correctness/Consider",
+        recurrence: { occurrences: 3, issues: [12, 18], lastSeen: "2026-10-16T09:00:00.000Z" }
+      }),
+      expect.objectContaining({
+        key: "check/pnpm lint",
+        recurrence: { occurrences: 0, issues: [], lastSeen: null }
+      })
+    ]);
+  });
+
   it("honours a higher threshold", () => {
     const records = [lesson({ issue: 1 }), lesson({ issue: 2 })];
     expect(aggregateLessons({ records, invalidLines: 0 }, { minIssues: 3 })).toMatchObject({

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { tokenizeCommandLine } from "./command-line.contract";
 import { DEFAULT_LOOP_LIMITS } from "./pipeline.contract";
 
-export const PROVIDERS = ["claude", "codex"] as const;
+export const PROVIDERS = ["claude", "codex", "opencode"] as const;
 export const providerSchema = z.enum(PROVIDERS);
 export type Provider = z.infer<typeof providerSchema>;
 
@@ -89,7 +89,9 @@ const checksSchema = z
 export const FORWARDABLE_ENV = [
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
-  "CLAUDE_CODE_OAUTH_TOKEN"
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "OPENROUTER_API_KEY",
+  "GOOGLE_GENERATIVE_AI_API_KEY"
 ] as const;
 
 const resourcesSchema = (defaults: { memory: string; cpus: number; pidsLimit: number }) =>
@@ -144,6 +146,13 @@ const flowIdSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "Use lowercase letters, digits and hyphens (at most 64)");
 
+/** The review bots a desk trusts unless its config lists others. */
+export const DEFAULT_REVIEW_BOTS = [
+  "coderabbitai[bot]",
+  "github-actions[bot]",
+  "copilot-pull-request-reviewer[bot]"
+] as const;
+
 export const deskConfigSchema = z
   .object({
     /** `null` places worktrees in a sibling directory of the main checkout, named after it. */
@@ -157,8 +166,17 @@ export const deskConfigSchema = z
     /** PR feedback rounds from `pr-open` back to `build` before the engine asks the owner. */
     maxPrRounds: z.number().int().min(1).default(DEFAULT_LOOP_LIMITS.prRounds),
     maxConcurrentAgents: z.number().int().positive().default(2),
+    /**
+     * What each role asks for. The engine keeps it when that CLI runs, and otherwise moves the
+     * role to the best provider that does (`agents/provider.choose.ts`).
+     */
     providers: providersSchema.prefault({}),
     models: modelsSchema.prefault({}),
+    /**
+     * Lets Codex change code: a Codex builder, or a screen or component job. Off by default,
+     * because the Codex sandbox is coarser than a Claude allowlist (ADR 0011).
+     */
+    allowCodexBuilder: z.boolean().default(false),
     /** Runs at a gate, a stop, and the end of a run. See "Notifications" in the manual. */
     notifyCommand: commandLineSchema.optional(),
     isolation: isolationSchema.default("host"),
@@ -169,14 +187,14 @@ export const deskConfigSchema = z
     flowLabels: z.record(z.string().min(1), flowIdSchema).default({}),
     /**
      * Review bots whose PR comments reach the builder in `feedback --from-pr`, although
-     * GitHub gives them no trusted association. Exact GitHub App logins, for example
-     * `coderabbitai[bot]`. Their text is still fenced as untrusted data.
+     * GitHub gives them no trusted association. Exact GitHub App logins. The default trusts the
+     * usual reviewers; an empty list trusts none. Their text is still fenced as untrusted data.
      */
     reviewBots: z
       .array(
         z.string().regex(/^[A-Za-z0-9][A-Za-z0-9-]*\[bot\]$/, "Use a bot login like name[bot]")
       )
-      .default([]),
+      .default([...DEFAULT_REVIEW_BOTS]),
     /** GitHub login that may authorize runs. Set it explicitly for organization repositories. */
     owner: z
       .string()

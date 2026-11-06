@@ -39,6 +39,20 @@ export const applySecurityHeaders = (response: ServerResponse): void => {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.setHeader(name, value);
 };
 
+/**
+ * The UI lab's frame page: one lab screen alone, which the lab's compare view shows in an
+ * iframe. It is the only page another page may frame, and only a page of the desk itself.
+ */
+export const LAB_FRAME_PATH = "/lab-frame.html";
+
+export const applyLabFrameHeaders = (response: ServerResponse): void => {
+  response.setHeader(
+    "Content-Security-Policy",
+    CONTENT_SECURITY_POLICY.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+  );
+  response.setHeader("X-Frame-Options", "SAMEORIGIN");
+};
+
 /** Compare secrets without leaking their length or the first differing byte. */
 export const constantTimeEqual = (left: string, right: string): boolean =>
   timingSafeEqual(

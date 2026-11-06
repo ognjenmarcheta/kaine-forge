@@ -32,6 +32,7 @@ const UNREADABLE: IssueSummary = {
 type Expected = Omit<IssueStatus, "gateMode" | "label"> & {
   readonly label: {
     readonly kind: string;
+    readonly code?: string | null;
     readonly key?: string;
     readonly stage?: string;
     readonly state?: string;
@@ -44,7 +45,7 @@ describe("issueStatusOf", () => {
       "an unreadable issue",
       UNREADABLE,
       {
-        group: "needs-you",
+        group: "stopped",
         tone: "danger",
         label: { kind: "key", key: "desk.chip.unreadable" },
         primaryAction: "open"
@@ -54,9 +55,9 @@ describe("issueStatusOf", () => {
       "a stop that needs the engineer",
       summaryOf({ stage: "needs-you", status: "waiting" }),
       {
-        group: "needs-you",
+        group: "stopped",
         tone: "danger",
-        label: { kind: "key", key: "desk.stage.needs-you" },
+        label: { kind: "stopped", code: null },
         primaryAction: "continue"
       }
     ],
@@ -64,17 +65,27 @@ describe("issueStatusOf", () => {
       "a stop at intake, which needs a new start",
       summaryOf({ stage: "needs-you", status: "waiting", resumeStage: "intake" }),
       {
-        group: "needs-you",
+        group: "stopped",
         tone: "danger",
-        label: { kind: "key", key: "desk.stage.needs-you" },
+        label: { kind: "stopped", code: "intake" },
         primaryAction: "restart"
+      }
+    ],
+    [
+      "a stop the engine names: the same failure twice",
+      { ...summaryOf({ stage: "needs-you", status: "waiting" }), needsYouCode: "same-failure" },
+      {
+        group: "stopped",
+        tone: "danger",
+        label: { kind: "stopped", code: "same-failure" },
+        primaryAction: "continue"
       }
     ],
     [
       "a failed stage",
       summaryOf({ stage: "build", status: "failed" }),
       {
-        group: "needs-you",
+        group: "stopped",
         tone: "danger",
         label: { kind: "stage", stage: "build", state: "failed" },
         primaryAction: "open"
@@ -84,9 +95,9 @@ describe("issueStatusOf", () => {
       "the plan gate",
       summaryOf({ stage: "plan-gate", status: "waiting" }),
       {
-        group: "waiting",
-        tone: "warning",
-        label: { kind: "stage", stage: "plan-gate", state: "waiting-for-you" },
+        group: "decide",
+        tone: "attention",
+        label: { kind: "stage", stage: "plan-gate", state: "your-turn" },
         primaryAction: "review-plan"
       }
     ],
@@ -94,9 +105,9 @@ describe("issueStatusOf", () => {
       "the PR review gate",
       summaryOf({ stage: "pr-review", status: "waiting" }),
       {
-        group: "waiting",
-        tone: "warning",
-        label: { kind: "stage", stage: "pr-review", state: "waiting-for-you" },
+        group: "decide",
+        tone: "attention",
+        label: { kind: "stage", stage: "pr-review", state: "your-turn" },
         primaryAction: "review-ship"
       }
     ],
@@ -104,9 +115,9 @@ describe("issueStatusOf", () => {
       "an open draft PR that waits for the merge",
       summaryOf({ stage: "pr-open", status: "waiting" }, false, "https://github.com/o/r/pull/1"),
       {
-        group: "waiting",
-        tone: "warning",
-        label: { kind: "stage", stage: "pr-open", state: "waiting-for-you" },
+        group: "github",
+        tone: "attention",
+        label: { kind: "stage", stage: "pr-open", state: "your-turn" },
         primaryAction: "open-pr"
       }
     ],
@@ -116,7 +127,7 @@ describe("issueStatusOf", () => {
       {
         group: "running",
         tone: "information",
-        label: { kind: "stage", stage: "plan-gate", state: "working" },
+        label: { kind: "stage", stage: "plan-gate", state: "running" },
         primaryAction: "working"
       }
     ],
@@ -154,7 +165,7 @@ describe("issueStatusOf", () => {
       "a shipped issue with its PR",
       summaryOf({ stage: "shipped", status: "done" }, false, "https://github.com/o/r/pull/1"),
       {
-        group: "done",
+        group: "finished",
         tone: "success",
         label: { kind: "key", key: "desk.stage.shipped" },
         primaryAction: "open-pr"
@@ -164,7 +175,7 @@ describe("issueStatusOf", () => {
       "a shipped issue without a PR link",
       summaryOf({ stage: "shipped", status: "done" }),
       {
-        group: "done",
+        group: "finished",
         tone: "success",
         label: { kind: "key", key: "desk.stage.shipped" },
         primaryAction: "open"
@@ -174,7 +185,7 @@ describe("issueStatusOf", () => {
       "a cancelled issue",
       summaryOf({ stage: "cancelled", status: "done" }),
       {
-        group: "done",
+        group: "finished",
         tone: "neutral",
         label: { kind: "key", key: "desk.stage.cancelled" },
         primaryAction: "open"
@@ -184,7 +195,7 @@ describe("issueStatusOf", () => {
       "a flow without a ship that ran every step",
       summaryOf({ stage: "finished", status: "done" }),
       {
-        group: "done",
+        group: "finished",
         tone: "success",
         label: { kind: "key", key: "desk.stage.finished" },
         primaryAction: "open"

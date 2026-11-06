@@ -19,7 +19,7 @@ import {
   scenarioRuns
 } from "../../tests/fixture.data";
 import { FlowGraph } from "../flow/flow.graph";
-import { FlowStepper } from "../flow/flow.stepper";
+import { StepsRail } from "../issue/issue.rail";
 import { fakeApi, makeDetail, renderDesk } from "../test/test.render";
 
 const ARTIFACTS: Readonly<Record<string, string>> = {
@@ -275,10 +275,12 @@ describe("StageSheet", () => {
     expect(previous).toHaveProperty("disabled", true);
     // The button that disabled itself gave focus to the sheet, so the arrows keep working.
     await userEvent.keyboard("{ArrowLeft}");
-    expect(screen.getByRole("dialog", { name: "Ticket" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Intake" })).toBeTruthy();
 
     for (let step = 0; step < 9; step += 1) await userEvent.keyboard("{ArrowRight}");
-    expect(screen.getByRole("dialog", { name: "Open PR" }).textContent).toContain("Stage 9 of 9");
+    expect(screen.getByRole("dialog", { name: "Merge on GitHub" }).textContent).toContain(
+      "Stage 9 of 9"
+    );
     expect(screen.getByRole("button", { name: "Next stage" })).toHaveProperty("disabled", true);
     expect(onClose).not.toHaveBeenCalled();
 
@@ -287,51 +289,69 @@ describe("StageSheet", () => {
   });
 });
 
-function Selectable({
-  issueNumber,
-  kind
-}: {
-  readonly issueNumber: number;
-  readonly kind: "graph" | "stepper";
-}) {
+function Selectable({ issueNumber }: { readonly issueNumber: number }) {
   const { detail, summary } = detailOf(issueNumber);
   const [selected, setSelected] = useState<FlowNodeId>("pr-review");
   return (
     <>
       <p data-testid="selected">{selected}</p>
-      {kind === "graph" ? (
-        <FlowGraph
-          model={detail.flow}
-          selected={selected}
-          onSelect={setSelected}
-          needsYouReason={summary.needsYouReason}
-        />
-      ) : (
-        <FlowStepper
-          model={detail.flow}
-          selected={selected}
-          onSelect={setSelected}
-          needsYouReason={summary.needsYouReason}
-        />
-      )}
+      <FlowGraph
+        model={detail.flow}
+        selected={selected}
+        onSelect={setSelected}
+        needsYouReason={summary.needsYouReason}
+      />
     </>
   );
 }
 
 describe("stage selection", () => {
-  it("selects a stage from the stepper and marks the current one", async () => {
-    renderDesk(<Selectable issueNumber={102} kind="stepper" />);
-    const list = screen.getByRole("list", { name: "Stages and their status" });
-    expect(within(list).getAllByRole("button")).toHaveLength(9);
-    const current = within(list).getByRole("button", { name: /PR review/ });
+  it("marks the current step in the rail, opens a step in place, and opens its details", async () => {
+    const { detail } = detailOf(102);
+    const onDetails = vi.fn();
+    renderDesk(
+      <StepsRail
+        model={detail.flow}
+        detail={detail}
+        graphOpen={false}
+        onToggleGraph={vi.fn()}
+        onDetails={onDetails}
+      />
+    );
+    const rail = screen.getByRole("complementary", { name: "Steps" });
+    expect(within(rail).getAllByRole("button", { name: /·/ })).toHaveLength(9);
+    const current = within(rail).getByRole("button", { name: /^Approve & ship/ });
     expect(current.getAttribute("aria-current")).toBe("step");
-    expect(current.getAttribute("aria-pressed")).toBe("true");
-    await userEvent.click(within(list).getByRole("button", { name: /^Plan Passed/ }));
-    expect(screen.getByTestId("selected").textContent).toBe("plan");
+    const plan = within(rail).getByRole("button", { name: /^Plan/ });
+    await userEvent.click(plan);
+    expect(plan.getAttribute("aria-expanded")).toBe("true");
+    expect(within(rail).getByText("Runs")).toBeTruthy();
+    await userEvent.click(within(rail).getByRole("button", { name: "Open details" }));
+    expect(onDetails).toHaveBeenCalledWith("plan");
+  });
+
+  it("names the provider that ran a step, which can differ from the one its agent asks for", async () => {
+    // The reviewer asks for Codex; on a machine without it, the review ran on Claude.
+    const runs = scenarioRuns()
+      .filter((run) => run.issue === 102)
+      .map((run) => (run.role === "reviewer" ? { ...run, provider: "claude" as const } : run));
+    const { detail } = detailOf(102, { runs });
+    renderDesk(
+      <StepsRail
+        model={detail.flow}
+        detail={detail}
+        graphOpen={false}
+        onToggleGraph={vi.fn()}
+        onDetails={vi.fn()}
+      />
+    );
+    const rail = screen.getByRole("complementary", { name: "Steps" });
+    await userEvent.click(within(rail).getByRole("button", { name: /^Review/ }));
+    expect(within(rail).getByText("claude · default model")).toBeTruthy();
   });
 
   it("selects a graph node with Enter or Space", () => {
-    renderDesk(<Selectable issueNumber={102} kind="graph" />);
+    renderDesk(<Selectable issueNumber={102} />);
     const node = document.querySelector('.react-flow__node[data-id="check"]');
     expect(node).not.toBeNull();
     if (node === null) return;

@@ -184,6 +184,12 @@ export type SyncNoteCreate = {
 };
 
 export type SyncNoteUpdate = {
+  /**
+   * The body this edit started from. With it, the server merges the edit
+   * line by line into a body another device changed since; edits to the
+   * same lines are refused with CONFLICT. Without it, body replaces the body.
+   */
+  baseBody?: string | null | undefined;
   body?: string | null | undefined;
   id: string | number;
   title?: string | null | undefined;
@@ -691,35 +697,48 @@ export type DeleteFileMutationVariables = Exact<{
 
 export type DeleteFileMutation = { deleteFile: boolean };
 
+export type SyncPullPageFragment = {
+  cursor: string | null;
+  hasMore: boolean;
+  resetRequired: boolean;
+  todos: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    completed: boolean;
+    noteId: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
+    attachments: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+  }>;
+  notes: Array<{
+    id: string;
+    title: string;
+    body: string | null;
+    createdAt: unknown;
+    updatedAt: unknown;
+  }>;
+  deleted: Array<{ entity: SyncEntity; id: string }>;
+  older: Array<{ list: string; after: string }>;
+} & { " $fragmentName"?: "SyncPullPageFragment" };
+
 export type SyncPullQueryVariables = Exact<{
   cursor?: string | null | undefined;
   first?: number | null | undefined;
+  window?: number | null | undefined;
 }>;
 
 export type SyncPullQuery = {
-  syncPull: {
-    cursor: string | null;
-    hasMore: boolean;
-    resetRequired: boolean;
-    todos: Array<{
-      id: string;
-      title: string;
-      description: string | null;
-      completed: boolean;
-      noteId: string | null;
-      createdAt: unknown;
-      updatedAt: unknown;
-      attachments: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
-    }>;
-    notes: Array<{
-      id: string;
-      title: string;
-      body: string | null;
-      createdAt: unknown;
-      updatedAt: unknown;
-    }>;
-    deleted: Array<{ entity: SyncEntity; id: string }>;
-  };
+  syncPull: { " $fragmentRefs"?: { SyncPullPageFragment: SyncPullPageFragment } };
+};
+
+export type SyncPullOlderQueryVariables = Exact<{
+  after: string;
+  first?: number | null | undefined;
+}>;
+
+export type SyncPullOlderQuery = {
+  syncPullOlder: { " $fragmentRefs"?: { SyncPullPageFragment: SyncPullPageFragment } };
 };
 
 export type SyncPushMutationVariables = Exact<{
@@ -1080,6 +1099,89 @@ export const NotificationFieldsFragmentDoc = {
     }
   ]
 } as unknown as DocumentNode<NotificationFieldsFragment, unknown>;
+export const SyncPullPageFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "SyncPullPage" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SyncPullPayload" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todos" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "noteId" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "attachments" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notes" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "body" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleted" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "entity" } },
+                { kind: "Field", name: { kind: "Name", value: "id" } }
+              ]
+            }
+          },
+          { kind: "Field", name: { kind: "Name", value: "cursor" } },
+          { kind: "Field", name: { kind: "Name", value: "hasMore" } },
+          { kind: "Field", name: { kind: "Name", value: "resetRequired" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "older" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "list" } },
+                { kind: "Field", name: { kind: "Name", value: "after" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<SyncPullPageFragment, unknown>;
 export const WebhookEndpointFieldsFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -3323,6 +3425,11 @@ export const SyncPullDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "window" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
         }
       ],
       selectionSet: {
@@ -3341,68 +3448,95 @@ export const SyncPullDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "first" },
                 value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "window" },
+                value: { kind: "Variable", name: { kind: "Name", value: "window" } }
               }
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "SyncPullPage" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "SyncPullPage" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SyncPullPayload" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todos" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "noteId" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "todos" },
+                  name: { kind: "Name", value: "attachments" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "title" } },
-                      { kind: "Field", name: { kind: "Name", value: "description" } },
-                      { kind: "Field", name: { kind: "Name", value: "completed" } },
-                      { kind: "Field", name: { kind: "Name", value: "noteId" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "attachments" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "originalName" } },
-                            { kind: "Field", name: { kind: "Name", value: "mimeType" } },
-                            { kind: "Field", name: { kind: "Name", value: "sizeBytes" } }
-                          ]
-                        }
-                      },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } }
                     ]
                   }
                 },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "notes" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "title" } },
-                      { kind: "Field", name: { kind: "Name", value: "body" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
-                    ]
-                  }
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "deleted" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "entity" } },
-                      { kind: "Field", name: { kind: "Name", value: "id" } }
-                    ]
-                  }
-                },
-                { kind: "Field", name: { kind: "Name", value: "cursor" } },
-                { kind: "Field", name: { kind: "Name", value: "hasMore" } },
-                { kind: "Field", name: { kind: "Name", value: "resetRequired" } }
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notes" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "body" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleted" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "entity" } },
+                { kind: "Field", name: { kind: "Name", value: "id" } }
+              ]
+            }
+          },
+          { kind: "Field", name: { kind: "Name", value: "cursor" } },
+          { kind: "Field", name: { kind: "Name", value: "hasMore" } },
+          { kind: "Field", name: { kind: "Name", value: "resetRequired" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "older" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "list" } },
+                { kind: "Field", name: { kind: "Name", value: "after" } }
               ]
             }
           }
@@ -3411,6 +3545,136 @@ export const SyncPullDocument = {
     }
   ]
 } as unknown as DocumentNode<SyncPullQuery, SyncPullQueryVariables>;
+export const SyncPullOlderDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "SyncPullOlder" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "String" } }
+          }
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } }
+        }
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "syncPullOlder" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } }
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } }
+              }
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "SyncPullPage" } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "SyncPullPage" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SyncPullPayload" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "todos" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "completed" } },
+                { kind: "Field", name: { kind: "Name", value: "noteId" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "attachments" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "originalName" } },
+                      { kind: "Field", name: { kind: "Name", value: "mimeType" } },
+                      { kind: "Field", name: { kind: "Name", value: "sizeBytes" } }
+                    ]
+                  }
+                },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notes" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "title" } },
+                { kind: "Field", name: { kind: "Name", value: "body" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } }
+              ]
+            }
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleted" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "entity" } },
+                { kind: "Field", name: { kind: "Name", value: "id" } }
+              ]
+            }
+          },
+          { kind: "Field", name: { kind: "Name", value: "cursor" } },
+          { kind: "Field", name: { kind: "Name", value: "hasMore" } },
+          { kind: "Field", name: { kind: "Name", value: "resetRequired" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "older" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "list" } },
+                { kind: "Field", name: { kind: "Name", value: "after" } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+} as unknown as DocumentNode<SyncPullOlderQuery, SyncPullOlderQueryVariables>;
 export const SyncPushDocument = {
   kind: "Document",
   definitions: [

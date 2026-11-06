@@ -21,7 +21,7 @@ import type {
   SyncTodo,
   SyncTransport
 } from "./sync.type";
-import { SyncAuthError, SyncRequestError } from "./sync.util";
+import { SyncAuthError, SyncNetworkError, SyncRequestError } from "./sync.util";
 
 /** A server with the protocol's rules: one version per change, Tombstones, replayed keys. */
 function createFakeServer() {
@@ -34,17 +34,25 @@ function createFakeServer() {
   const receipts = new Map<string, SyncMutationOutcome[]>();
   const pushes: Array<{ idempotencyKey: string; mutations: SyncMutation[] }> = [];
   const state = {
+    // False: no response, as the app's transport reports a failed fetch.
     online: true,
+    // True: the server answers every request with an error.
+    failing: false,
+    // True: the server answers pushes with an error and pulls as usual.
+    pushFailing: false,
     signedIn: true,
     reject: new Set<string>(),
     // Each pull with a cursor answers resetRequired while this is set.
     reset: false,
-    refuseRequest: false
+    refuseRequest: false,
+    // Rows of each list a first pull, or one older page, returns; null returns every row.
+    window: null as number | null
   };
   const stamp = "2026-10-31T00:00:00.000Z";
 
   function guard() {
-    if (!state.online) throw new TypeError("Failed to fetch");
+    if (!state.online) throw new SyncNetworkError("Failed to fetch");
+    if (state.failing) throw new Error("server error");
     if (!state.signedIn) throw new SyncAuthError("authentication required");
   }
 
@@ -87,7 +95,33 @@ function createFakeServer() {
       versions.set(`NOTE:${id}`, ++version);
       return applied;
     }
+    if ("noteUpdate" in mutation) {
+      const { id, title, body } = mutation.noteUpdate;
+      const note = notes.get(id);
+      if (!note) return { status: "REJECTED", code: "NOT_FOUND" };
+      notes.set(id, {
+        ...note,
+        ...(title === undefined ? {} : { title }),
+        ...(body === undefined ? {} : { body })
+      });
+      versions.set(`NOTE:${id}`, ++version);
+      return applied;
+    }
     return applied;
+  }
+
+  /** Each list's rows newest first from `offset`, `state.window` of them, and where the rest continue. */
+  function listPage(offset: number) {
+    const size = state.window ?? Number.POSITIVE_INFINITY;
+    const newest = <TRow>(rows: Map<string, TRow>) => [...rows.values()].reverse();
+    const slice = <TRow>(rows: TRow[]) => rows.slice(offset, offset + size);
+    const olderOf = (list: string, rows: unknown[]) =>
+      rows.length > offset + size ? [{ list, after: `${list}:${String(offset + size)}` }] : [];
+    return {
+      todos: slice(newest(todos)),
+      notes: slice(newest(notes)),
+      older: [...olderOf("todos", [...todos.values()]), ...olderOf("notes", [...notes.values()])]
+    };
   }
 
   const transport: SyncTransport = {
@@ -100,7 +134,17 @@ function createFakeServer() {
           deleted: [],
           cursor: null,
           hasMore: false,
-          resetRequired: true
+          resetRequired: true,
+          older: []
+        };
+      }
+      if (cursor === null && state.window !== null) {
+        return {
+          ...listPage(0),
+          deleted: [],
+          cursor: String(version),
+          hasMore: false,
+          resetRequired: false
         };
       }
       const after = cursor === null ? 0 : Number(cursor);
@@ -114,12 +158,28 @@ function createFakeServer() {
           .map(({ entity, id }) => ({ entity, id })),
         cursor: String(version),
         hasMore: false,
-        resetRequired: false
+        resetRequired: false,
+        older: []
       };
       return page;
     },
+    async pullOlder(after) {
+      guard();
+      const [list, offset] = after.split(":");
+      const page = listPage(Number(offset));
+      return {
+        todos: list === "todos" ? page.todos : [],
+        notes: list === "notes" ? page.notes : [],
+        deleted: [],
+        cursor: null,
+        hasMore: false,
+        resetRequired: false,
+        older: page.older.filter((entry) => entry.list === list)
+      };
+    },
     async push(idempotencyKey, mutations) {
       guard();
+      if (state.pushFailing) throw new Error("push unavailable");
       if (state.refuseRequest) throw new SyncRequestError("invalid idempotency key");
       pushes.push({ idempotencyKey, mutations });
       const stored = receipts.get(idempotencyKey);
@@ -287,7 +347,7 @@ describe("createSyncEngine", () => {
     await engine.pull();
 
     expect(titles(engine)).toEqual(["Renamed"]);
-    expect(engine.getStatus()).toEqual({ state: "online", pending: 0 });
+    expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] });
   });
 
   it("skips a deletion of an entity it does not sync, even one with a Todo's id", async () => {
@@ -305,7 +365,7 @@ describe("createSyncEngine", () => {
     await engine.pull();
 
     expect(titles(engine)).toEqual(["Kept"]);
-    expect(engine.getStatus()).toEqual({ state: "online", pending: 0 });
+    expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] });
   });
 
   it("shows a local create at once and keeps the server's row after the push", async () => {
@@ -317,7 +377,9 @@ describe("createSyncEngine", () => {
 
     expect(engine.todos.get(id)).toMatchObject({ title: "Local", description: "Draft" });
     await vi.waitFor(() => expect(server.todos.has(id)).toBe(true));
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
     expect(engine.todos.get(id)).toMatchObject({
       title: "Local",
       createdAt: "2026-10-31T00:00:00.000Z"
@@ -356,7 +418,9 @@ describe("createSyncEngine", () => {
     await engine.createTodo({ title: "Tickets", noteId });
 
     expect(titles(engine)).toEqual(["Tickets"]);
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "offline", pending: 2 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "offline", pending: 2, older: [] })
+    );
     expect(server.pushes).toEqual([]);
 
     server.state.online = true;
@@ -369,7 +433,9 @@ describe("createSyncEngine", () => {
       "noteCreate",
       "todoCreate"
     ]);
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
   });
 
   it("keeps a change once its call resolves, even if the page closes while a push runs", async () => {
@@ -420,6 +486,27 @@ describe("createSyncEngine", () => {
     );
   });
 
+  it("sends the body each Note body edit started from, and no base with a title edit", async () => {
+    const server = createFakeServer();
+    server.apply({ noteCreate: { id: "n1", title: "Plan", body: "one" } });
+    const { engine } = start(server);
+    await engine.ready;
+    const settled = () => vi.waitFor(() => expect(engine.getStatus().pending).toBe(0));
+
+    await engine.updateNote("n1", { body: "one\ntwo" });
+    await settled();
+    await engine.updateNote("n1", { body: null });
+    await settled();
+    await engine.updateNote("n1", { title: "Renamed" });
+    await settled();
+
+    expect(server.pushes.flatMap((push) => push.mutations)).toEqual([
+      { noteUpdate: { id: "n1", body: "one\ntwo", baseBody: "one" } },
+      { noteUpdate: { id: "n1", body: null, baseBody: "one\ntwo" } },
+      { noteUpdate: { id: "n1", title: "Renamed" } }
+    ]);
+  });
+
   it("rolls back a change the server refuses and reports it", async () => {
     const server = createFakeServer();
     server.state.reject.add("Refused");
@@ -429,7 +516,16 @@ describe("createSyncEngine", () => {
 
     const id = await engine.createTodo({ title: "Refused" });
 
-    await vi.waitFor(() => expect(rejections).toEqual([{ entity: "TODO", id, code: "INVALID" }]));
+    await vi.waitFor(() =>
+      expect(rejections).toEqual([
+        {
+          entity: "TODO",
+          id,
+          code: "INVALID",
+          change: { todoCreate: { id, title: "Refused", description: null, noteId: null } }
+        }
+      ])
+    );
     await vi.waitFor(() => expect(engine.todos.get(id)).toBeUndefined());
     expect(engine.getStatus().pending).toBe(0);
   });
@@ -471,7 +567,16 @@ describe("createSyncEngine", () => {
 
     const id = await engine.createTodo({ title: "Refused" });
 
-    await vi.waitFor(() => expect(rejections).toEqual([{ entity: "TODO", id, code: "INVALID" }]));
+    await vi.waitFor(() =>
+      expect(rejections).toEqual([
+        {
+          entity: "TODO",
+          id,
+          code: "INVALID",
+          change: { todoCreate: { id, title: "Refused", description: null, noteId: null } }
+        }
+      ])
+    );
     await vi.waitFor(() => expect(engine.todos.get(id)).toBeUndefined());
   });
 
@@ -490,7 +595,78 @@ describe("createSyncEngine", () => {
     online.notifyOnline();
 
     await vi.waitFor(() => expect(server.todos.has(id)).toBe(true), { timeout: 5_000 });
-    await vi.waitFor(() => expect(engine.getStatus()).toEqual({ state: "online", pending: 0 }));
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
+  });
+});
+
+describe("createSyncEngine status", () => {
+  it.each([
+    { device: false, server: { online: false, failing: false }, state: "offline" },
+    { device: true, server: { online: false, failing: false }, state: "unreachable" },
+    { device: true, server: { online: true, failing: true }, state: "error" }
+  ])(
+    "shows $state when the device online is $device and the server is $server",
+    async ({ device, server: serverState, state }) => {
+      const server = createFakeServer();
+      const { engine, online } = start(server);
+      await engine.ready;
+      Object.assign(server.state, serverState);
+      online.set(device);
+
+      await engine.pull().catch(() => undefined);
+
+      expect(engine.getStatus()).toEqual({ state, pending: 0, older: [] });
+    }
+  );
+
+  it("shows a failing push instead of Syncing while its change waits", async () => {
+    const server = createFakeServer();
+    const { engine } = start(server);
+    await engine.ready;
+    server.state.online = false;
+
+    await engine.createTodo({ title: "Waiting" });
+
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "unreachable", pending: 1, older: [] })
+    );
+  });
+
+  it("keeps showing a failing push after a pull succeeds", async () => {
+    const server = createFakeServer();
+    const { engine } = start(server);
+    await engine.ready;
+    server.state.pushFailing = true;
+    await engine.createTodo({ title: "Waiting" });
+    await vi.waitFor(() => expect(engine.getStatus().state).toBe("error"));
+
+    await engine.pull();
+
+    expect(engine.getStatus()).toEqual({ state: "error", pending: 1, older: [] });
+  });
+
+  it("retries at once on request, before the Outbox's backoff, and shows the failure again if it fails", async () => {
+    const server = createFakeServer();
+    const { engine } = start(server);
+    await engine.ready;
+    server.state.online = false;
+    const id = await engine.createTodo({ title: "Waiting" });
+    await vi.waitFor(() => expect(engine.getStatus().state).toBe("unreachable"));
+
+    engine.retry();
+    expect(engine.getStatus().state).toBe("syncing");
+    await vi.waitFor(() => expect(engine.getStatus().state).toBe("unreachable"));
+
+    server.state.online = true;
+    engine.retry();
+
+    // The first automatic retry waits at least 1 s.
+    await vi.waitFor(() => expect(server.todos.has(id)).toBe(true), { timeout: 500 });
+    await vi.waitFor(() =>
+      expect(engine.getStatus()).toEqual({ state: "online", pending: 0, older: [] })
+    );
   });
 });
 
@@ -526,6 +702,32 @@ describe("createSyncEngine with device storage", () => {
     expect(titles(second)).toEqual(["First", "Second"]);
     expect(cursors).toHaveLength(1);
     expect(cursors).not.toContain(null);
+  });
+
+  it("loads the newest rows first, then older rows on demand, and remembers the rest after a restart", async () => {
+    const { persistence, idle } = deviceStorage();
+    const server = createFakeServer();
+    server.state.window = 2;
+    for (const title of ["T1", "T2", "T3", "T4", "T5"]) {
+      server.apply({ todoCreate: { id: title, title, description: null, noteId: null } });
+    }
+    const first = start(server, undefined, persistence).engine;
+    await first.ready;
+
+    expect(titles(first)).toEqual(["T4", "T5"]);
+    expect(first.getStatus().older).toEqual(["todos"]);
+    await first.loadOlder("todos");
+    expect(titles(first)).toEqual(["T2", "T3", "T4", "T5"]);
+    await idle();
+    first.dispose();
+
+    const second = start(server, undefined, persistence).engine;
+    await second.ready;
+    expect(second.getStatus().older).toEqual(["todos"]);
+    await second.loadOlder("todos");
+
+    expect(titles(second)).toEqual(["T1", "T2", "T3", "T4", "T5"]);
+    expect(second.getStatus().older).toEqual([]);
   });
 
   it("applies a resumed pull's update and deletion to rows loaded from the device", async () => {

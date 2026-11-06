@@ -13,7 +13,7 @@ import {
   type HistoryEvent,
   type IssueState,
   type LessonReport,
-  type PromotedLesson
+  type PromotedLessonStatus
 } from "@repo/desk/contracts";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -29,6 +29,7 @@ import {
   scenarioBoard,
   scenarioLessons,
   scenarioRuns,
+  scenarioScorecard,
   issueUrl,
   intakeStoppedIssue,
   draftArtifact,
@@ -215,6 +216,10 @@ const buildRunner = (
       record(issue, "continue", { from: from ?? null });
       return reviewReady(issue);
     },
+    resolveDenial: async (issue, command, resolution) => {
+      record(issue, "resolve-denial", { command, resolution });
+      return reviewReady(issue);
+    },
     pause: async (issue) => {
       record(issue, "pause", {});
       const state = await change(store, issue, { pauseRequested: true, pausedAt: now() });
@@ -223,6 +228,20 @@ const buildRunner = (
     resume: async (issue) => {
       record(issue, "resume", {});
       return gate(await change(store, issue, { pauseRequested: false, pausedAt: null }));
+    },
+    steer: async (issue, note) => {
+      record(issue, "steer", { note });
+      const state = await readState(store, issue);
+      return { outcome: "stopped", stop: "steered", state, message: null };
+    },
+    takeOver: async (issue) => {
+      record(issue, "take-over", {});
+      return {
+        outcome: "stopped",
+        stop: "needs-you",
+        state: await readState(store, issue),
+        message: null
+      };
     },
     cancel: async (issue) => {
       record(issue, "cancel", {});
@@ -316,6 +335,11 @@ const buildRunner = (
       const state = await readState(store, issue);
       return gate(state, `PR #${String(state.prNumber ?? 0)} is still open.`);
     },
+    checkPr: async (issue) => {
+      record(issue, "check-pr", {});
+      const state = await readState(store, issue);
+      return gate(state, `PR #${String(state.prNumber ?? 0)}: 0 failing checks, 0 comments.`);
+    },
     feedbackFromPr: async (issue, feedbackOptions) => {
       record(issue, "pr-feedback", feedbackOptions ?? {});
       return reviewReady(issue);
@@ -332,7 +356,7 @@ const LESSON_ISSUE = 400;
  * what the page sent, so a test can prove that only a confirmed preview opens an issue.
  */
 const lessonDesk = (base: LessonReport) => {
-  let promoted: PromotedLesson[] = [];
+  let promoted: PromotedLessonStatus[] = [];
   const report = (): LessonReport => ({
     ...base,
     candidates: base.candidates.filter((c) => !promoted.some((p) => p.key === c.key)),
@@ -344,7 +368,11 @@ const lessonDesk = (base: LessonReport) => {
     detail: `No lesson has the key '${key}'.`
   });
   const mark = (key: string, note: string | null, issue: number | null): LessonReport => {
-    promoted = [{ key, at: now(), note, issue }, ...promoted.filter((p) => p.key !== key)];
+    const recurrence = { occurrences: 0, issues: [], lastSeen: null };
+    promoted = [
+      { key, at: now(), note, issue, recurrence },
+      ...promoted.filter((p) => p.key !== key)
+    ];
     return report();
   };
   const draftOf = (key: string) => {
@@ -448,6 +476,7 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
           }),
         lessons: lessons.report,
         lessonActions: lessons.actions,
+        scorecard: () => Promise.resolve(scenarioScorecard()),
         health: () =>
           Promise.resolve({
             ok: false,
@@ -534,8 +563,12 @@ const reset = async (options: ResetOptions): Promise<{ launchUrl: string; url: s
                 url: "https://github.com/owner/kaine-forge/pull/321",
                 isDraft: true,
                 headRefName: "KAINE-105-feat-open-pr",
+                headRefOid: "a".repeat(40),
                 author: { login: "owner" },
-                updatedAt: "2026-10-12T10:00:00Z"
+                updatedAt: "2026-10-12T10:00:00Z",
+                statusCheckRollup: [{ status: "COMPLETED", conclusion: "FAILURE" }],
+                reviewDecision: "",
+                labels: [{ name: "source:scorecard" }]
               }
             ]
           }),

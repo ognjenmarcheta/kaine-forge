@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  checkPortsFor,
   fileAgeDays,
   labelerLabelNames,
   missingEnvKeys,
@@ -47,6 +48,14 @@ API_PORT=4000
   it("passes when all required keys are non-empty", () => {
     const sample = REQUIRED_ENV_KEYS.map((k) => `${k}=value`).join("\n");
     assert.deepEqual(missingEnvKeys(sample), []);
+  });
+});
+
+describe("checkPortsFor", () => {
+  it("checks the web and API ports a worktree's .env sets, and the defaults without one", () => {
+    const ports = (env) => checkPortsFor(env).map(({ port }) => port);
+    assert.deepEqual(ports("WEB_PORT=13001\nAPI_PORT=14002\n"), [5432, 9000, 9001, 13001, 14002]);
+    assert.deepEqual(ports(""), [5432, 9000, 9001, 3000, 4000]);
   });
 });
 

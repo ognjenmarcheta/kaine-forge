@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runReleaseApps } from "./release-apps.util";
+import { releaseOutputLine, runReleaseApps } from "./release-apps.util";
 
 // The runner spawns git with the worker's environment, so the hermetic settings
 // live in process.env for the duration of this file: no developer config, a
@@ -100,6 +100,7 @@ describe("runReleaseApps against a real repository", () => {
     expect(created.plans.map((plan) => [plan.app.app, plan.action, plan.reason])).toEqual([
       ["api", "create", "affected"]
     ]);
+    expect(releaseOutputLine(created)).toBe('apps=["api"]');
     expect(refOnOrigin(origin, "refs/heads/release/api")).toBe(first);
 
     const second = pushApiChange(clone, "second");
@@ -131,6 +132,7 @@ describe("runReleaseApps against a real repository", () => {
     );
 
     expect(outcome.status).toBe("no-updates");
+    expect(releaseOutputLine(outcome)).toBe("apps=[]");
     expect(refOnOrigin(origin, "refs/heads/release/api")).toBe(releaseSha);
   });
 

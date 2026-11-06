@@ -15,6 +15,7 @@ import {
   useTodoCountsQuery
 } from "../../graphql/generated/react-query";
 import { useLiveTodos } from "../../hooks/use-live-list";
+import { useOlderRows } from "../../hooks/use-older-rows";
 import { useSyncEngine, useSyncStatus } from "../../hooks/use-sync";
 import { queryRuntime } from "../../lib/query-runtime";
 import { planErrorOf } from "../billing/billing.hook";
@@ -87,15 +88,21 @@ export function useTodos(
   }, [search, status]);
   // The list's loading and paging state, in the shape the route reads. With
   // no rows to show, a failed pull is a load error the user can retry.
+  // Past the local rows, the next page loads older rows from the server.
+  const older = useOlderRows("todos");
+  const moreHere = matching.length > visible;
   const list = {
     isPending: !live.isReady,
-    isError: live.isReady && all.length === 0 && syncStatus?.state === "error",
-    isFetchNextPageError: false,
-    hasNextPage: matching.length > visible,
-    isFetching: false,
-    isFetchingNextPage: false,
+    isError: (live.isReady && all.length === 0 && syncStatus?.state === "error") || older.failed,
+    isFetchNextPageError: older.failed,
+    hasNextPage: moreHere || (older.hasOlder && !older.needsConnection),
+    /** Older rows are left on the server, and loading them needs the network. */
+    olderNeedsConnection: !moreHere && older.hasOlder && older.needsConnection,
+    isFetching: older.loading,
+    isFetchingNextPage: older.loading,
     fetchNextPage: () => {
       setVisible((count) => count + TODOS_CONFIG.pageSize);
+      if (!moreHere) void older.load();
     },
     refetch: () => engine?.pull().catch(() => undefined)
   };
@@ -176,7 +183,8 @@ export function useTodos(
       locks.current.delete("create");
     }
     if (!written) return false;
-    setDraft(EMPTY_DRAFT);
+    // Text typed while the Outbox stored this Todo is the next one: keep it.
+    setDraft((current) => (current === input ? EMPTY_DRAFT : current));
     setNotice("todos.created");
     return true;
   }
