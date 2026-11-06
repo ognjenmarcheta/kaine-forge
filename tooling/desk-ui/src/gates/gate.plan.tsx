@@ -7,9 +7,12 @@ import { DecideBar, Kbd, RevisionNote, type GateBodyProps } from "./gate.frame";
 import { lastAsked, planRound, sendBackTargets, shipsWithoutReview } from "./gate.model";
 import { RiskRecord } from "./gate.record";
 import { PlanGateBody } from "../artifacts/artifact.plan";
+import { ReportArtifact } from "../artifacts/artifact.report";
 import { useJsonArtifact } from "../artifacts/artifact.use";
+import { useStageNames } from "../flow/flow.names";
 import { issueFlowOf } from "../flow/flow.steps";
 import { useT } from "../i18n/i18n.t";
+import { reportsBefore } from "../inspector/inspector.model";
 import { useShortcuts } from "../shell/shell.keys";
 import { usePaletteActions } from "../shell/shell.palette";
 import { FailureText, Loading, Muted } from "../shell/shell.ui";
@@ -48,12 +51,13 @@ function RiskLine({
 }
 
 /**
- * The plan gate: the risk, what changed since the last round, the plan, and an answer to the
- * planner's open questions that goes with the approval. A approves; the build starts after the
- * undo window.
+ * The plan gate: the risk, what changed since the last round, the plan, the reports of the report
+ * steps between the plan and the gate, and an answer to the planner's open questions that goes
+ * with the approval. A approves; the build starts after the undo window.
  */
 export function PlanGate({ detail, summary, revision, actions, send, titleId }: GateBodyProps) {
   const t = useT();
+  const names = useStageNames();
   const [answer, setAnswer] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const plan = useJsonArtifact(summary.issueNumber, "plan", plannerOutputSchema, revision);
@@ -96,6 +100,16 @@ export function PlanGate({ detail, summary, revision, actions, send, titleId }: 
       {plan.status === "ok" && (
         <PlanGateBody plan={plan.value} answer={answer} onAnswer={setAnswer} />
       )}
+      {reportsBefore(detail, summary.stage).map((report) => (
+        <section key={report.stepId} className="dk-sec">
+          <h3>{t("desk.gate.finished.report", { step: names.stage(report.stepId) })}</h3>
+          <ReportArtifact
+            issueNumber={summary.issueNumber}
+            agentId={report.agentId}
+            revision={revision}
+          />
+        </section>
+      ))}
       {feedbackOpen && (
         <FeedbackForm
           targets={sendBackTargets(issueFlowOf(summary), summary.stage)}

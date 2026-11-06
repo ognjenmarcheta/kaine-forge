@@ -56,10 +56,18 @@ describe("loadRegistry", () => {
         entry.shadows
       ])
     ).toEqual([
+      ["architect", "builtin", true, null],
       ["builder", "builtin", true, null],
+      ["designer", "builtin", true, null],
+      ["dx-advocate", "builtin", true, null],
       ["intake", "builtin", true, null],
+      ["motion-designer", "builtin", true, null],
       ["planner", "builtin", true, null],
-      ["reviewer", "builtin", true, null]
+      ["product-strategist", "builtin", true, null],
+      ["reviewer", "builtin", true, null],
+      ["security-officer", "builtin", true, null],
+      ["simplifier", "builtin", true, null],
+      ["tech-writer", "builtin", true, null]
     ]);
     expect(
       registry.flows.map((entry) => [entry.definition.id, entry.source, entry.readOnly])

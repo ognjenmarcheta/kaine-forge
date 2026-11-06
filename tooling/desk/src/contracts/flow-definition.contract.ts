@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { definitionIdSchema } from "./agent-definition.contract";
+import { definitionIdSchema, type AgentOutputKind } from "./agent-definition.contract";
 import { commandSchema } from "./desk-config.contract";
 
 /**
@@ -93,3 +93,20 @@ export const flowDefinitionSchema = z
   })
   .strict();
 export type FlowDefinition = z.infer<typeof flowDefinitionSchema>;
+
+/**
+ * The nearest step before `index` that is not a report agent step, or `undefined`. A report
+ * decides nothing, so a gate's role looks past it: a gate after plan, then a report, still
+ * approves the plan. `outputOf` gives an agent step's output kind (anything for other kinds).
+ */
+export const previousDecisionStep = (
+  steps: readonly FlowStep[],
+  index: number,
+  outputOf: (step: FlowStep) => AgentOutputKind | null | undefined
+): FlowStep | undefined => {
+  for (let at = index - 1; at >= 0; at -= 1) {
+    const step = steps[at];
+    if (step !== undefined && outputOf(step) !== "report") return step;
+  }
+  return undefined;
+};

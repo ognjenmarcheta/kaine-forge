@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { permissionsFor } from "./capabilities.load";
 import {
+  KAINE_SKILLS,
   PROTECTED_EDIT_RULES,
   PermissionsPolicyError,
   buildRunSettings,
@@ -328,6 +329,15 @@ describe("permissionsFor (claude)", () => {
     for (const skill of real.filter((name) => name !== "kaine-write-plan")) {
       expect(planner.disallow).toContain(`Skill(skill:${skill})`);
     }
+  });
+
+  it("lists every skill the repo ships in KAINE_SKILLS, so a worktree without installed skills still denies them", async () => {
+    const { readdirSync } = await import("node:fs");
+    const real = readdirSync(path.join(REPO_ROOT, ".ai", "skills"))
+      .filter((entry) => entry.startsWith("kaine-") && entry.endsWith(".md"))
+      .map((entry) => entry.slice(0, -3))
+      .sort();
+    expect([...KAINE_SKILLS].sort()).toEqual(real);
   });
 });
 
