@@ -114,6 +114,8 @@ Formatting and linting are enforced by Prettier and ESLint (flat config) and sha
 
 Commit messages are checked by `commitlint` (Conventional Commits) via a `commit-msg` hook; the allowed types match the `type:*` PR labels. AI self-attribution is rejected: no assistant `Co-Authored-By` trailers and no “Generated with …” / “Made with …” AI footers — commits stay under the human contributor’s identity only.
 
+The public text check (`pnpm public-text:check`) keeps private names and local paths out of the text a change publishes. It scans the commit messages and added lines in `origin/main..HEAD`, and in CI also the PR title and body. It fails on a listed name, an absolute home path such as `/home/<user>/` with a real username (generic names such as `runner` or `user` pass), and a path inside a Claude worktree folder. It prints where each finding is and what kind it is, never the matched text. The `pre-push` hook runs it over the pushed commits, and Check Fast runs it on every pull request. The names are listed only as salted SHA-256 digests in `.github/public-text-hashes.json`, so the repository never holds them in plain text. To add a name, run `pnpm public-text:hash "<name>"` and add the printed digest to `hashes`. A name is one word, two words (they match when they stand next to each other, also with a hyphen), a hyphenated word, or a hostname. A name found in a commit is already in history: rewrite that commit, because a later commit does not remove it.
+
 ## Common Commands
 
 ```bash
