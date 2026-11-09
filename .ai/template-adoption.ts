@@ -12,6 +12,7 @@ import {
   applyTemplateAdoption,
   deriveTemplateAdoptionConfig,
   excludedFromTemplateAdoption,
+  formatAdoptedFiles,
   isTextFile,
   parseTemplateAdoptionConfig,
   slugify,
@@ -233,7 +234,8 @@ const printConfig = (config: TemplateAdoptionConfig): void => {
 };
 
 const runCheck = (): void => {
-  const references = activeTemplateReferences(collectRepoTextFiles());
+  const adoption = readTemplateConfig(join(REPO_ROOT, TEMPLATE_CONFIG_PATH))?.adoption;
+  const references = activeTemplateReferences(collectRepoTextFiles(), adoption);
   if (references.length === 0) {
     console.log(chalk.green("No active Kaine Forge template identity references found."));
     return;
@@ -272,7 +274,10 @@ const main = async (): Promise<void> => {
   }
 
   if (options.write) {
-    writeChangedFiles(changedPaths, result.files);
+    writeChangedFiles(
+      changedPaths,
+      await formatAdoptedFiles(result.files, changedPaths, REPO_ROOT)
+    );
     writeTemplateConfig(config);
     console.log(`  ${TEMPLATE_CONFIG_PATH} ${chalk.gray("(adoption record for pnpm ai:sync)")}`);
     console.log();

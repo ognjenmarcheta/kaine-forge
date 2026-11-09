@@ -86,7 +86,7 @@ bearer token for GraphQL:
 ```bash
 TOKEN=$(curl -sS -D - -o /dev/null   -X POST http://localhost:4000/api/auth/sign-in/email   -H 'content-type: application/json'   -d '{"email":"test@test.test","password":"ChangeMe123!"}'   | tr -d '\r' | awk -F': ' '/^set-auth-token:/ {print $2}')
 
-curl -sS -X POST http://localhost:4000/graphql   -H 'content-type: application/json'   -H "authorization: Bearer $TOKEN"   -d '{"query":"{ notes { id title } }"}'
+curl -sS -X POST http://localhost:4000/graphql   -H 'content-type: application/json'   -H "authorization: Bearer $TOKEN"   -d '{"query":"{ notes { items { id title } } }"}'
 ```
 
 GraphiQL is served at `http://localhost:4000/graphql` in a browser. It carries

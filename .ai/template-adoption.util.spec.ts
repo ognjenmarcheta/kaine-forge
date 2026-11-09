@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { check, getFileInfo, resolveConfig } from "prettier";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +12,7 @@ import {
   applyTemplateAdoption,
   deriveTemplateAdoptionConfig,
   excludedFromTemplateAdoption,
+  formatAdoptedFiles,
   isTextFile,
   parseTemplateAdoptionConfig
 } from "./template-adoption.util";
@@ -403,12 +405,22 @@ describe("applyTemplateAdoption", () => {
     expect(result.files.get(".github/CODEOWNERS")).toBe("* @acme\n");
   });
 
-  it("reports owner leftovers in check mode", () => {
+  it.each([
+    ["no adoption record", undefined, [{ path: "README.md", line: 1, match: "ognjenmarcheta" }]],
+    [
+      "another owner",
+      { repoOwner: "acme" },
+      [{ path: "README.md", line: 1, match: "ognjenmarcheta" }]
+    ],
+    ["the template owner", { repoOwner: "ognjenmarcheta" }, []],
+    ["the template owner in another case", { repoOwner: "OgnjenMarcheta" }, []]
+  ])("reports owner leftovers in check mode for %s", (_name, adoption, expected) => {
     const references = activeTemplateReferences(
-      new Map<string, string>([["README.md", "https://github.com/ognjenmarcheta/acme-ops\n"]])
+      new Map<string, string>([["README.md", "https://github.com/ognjenmarcheta/acme-ops\n"]]),
+      adoption
     );
 
-    expect(references).toEqual([{ path: "README.md", line: 1, match: "ognjenmarcheta" }]);
+    expect(references).toEqual(expected);
   });
 
   it("reports active template references for check mode, but not the attribution NOTICE", () => {
@@ -517,6 +529,37 @@ describe("applyTemplateAdoption", () => {
       expect(problems).toEqual([]);
     }
   );
+});
+
+describe.runIf(!existsSync(TEMPLATE_CONFIG_SRC))("formatAdoptedFiles", () => {
+  it("leaves every adopted file Prettier-clean for a product name longer than the template's", async () => {
+    // Like the CLI, skip a target whose deletion is not staged yet.
+    const tree = new Map(
+      adoptionTargets
+        .filter((path) => existsSync(join(REPO_ROOT, path)))
+        .map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])
+    );
+    const config = deriveTemplateAdoptionConfig({
+      productName: "Acme Industrial Widgets Platform",
+      repoOwner: "acme-industrial-widgets",
+      desktopIdentifier: "com.acme.industrial.widgets.platform.desktop"
+    });
+    const adopted = applyTemplateAdoption(tree, config);
+    const paths = adopted.changedFiles.map((file) => file.path);
+
+    const formatted = await formatAdoptedFiles(adopted.files, paths, REPO_ROOT);
+
+    const unformatted: string[] = [];
+    for (const path of paths) {
+      const filepath = join(REPO_ROOT, path);
+      const { inferredParser } = await getFileInfo(filepath);
+      const options = await resolveConfig(filepath);
+      if (inferredParser && !(await check(formatted.get(path) ?? "", { ...options, filepath }))) {
+        unformatted.push(path);
+      }
+    }
+    expect(unformatted).toEqual([]);
+  });
 });
 
 // Syntax only: a broken literal is enough to fail, and type errors need the whole program.

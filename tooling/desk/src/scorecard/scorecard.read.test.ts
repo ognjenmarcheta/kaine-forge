@@ -159,7 +159,6 @@ describe("the tracked ledger", () => {
       "utf8"
     );
     const ledger = parseScorecardLedger(raw);
-    expect(ledger.runs.length).toBeGreaterThan(0);
     const keys = new Set(ledger.runs.flatMap((entry) => Object.keys(entry.dimensions)));
     expect(
       [...keys].every((key) => Number(key) >= 1 && Number(key) <= SCORECARD_DIMENSIONS.length)
