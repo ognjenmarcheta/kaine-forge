@@ -355,10 +355,25 @@ describe("image build and tags", () => {
       file: "Dockerfile.${{ inputs.app }}",
       tags: "${{ inputs.tags }}"
     });
-    expect(field(actionSteps[scan], "with", "scan")).toMatchObject({
-      severity: "CRITICAL",
-      "exit-code": "1"
+    // docs/deploy.md promises the release scan is the same gate as the PR image
+    // job, so the blocking settings are compared, not restated here.
+    const prJobs = field(parseYaml(readText(".github/workflows/ci-pr.yml")), "jobs", "ci-pr.yml");
+    const prGates = Object.values(isRecord(prJobs) ? prJobs : {})
+      .flatMap((prJob) => (isRecord(prJob) && Array.isArray(prJob["steps"]) ? prJob["steps"] : []))
+      .filter(
+        (step) =>
+          uses("aquasecurity/trivy-action@")(step) &&
+          isRecord(step["with"]) &&
+          step["with"]["exit-code"] === "1"
+      )
+      .map((step) => field(step, "with", "ci-pr trivy gate"));
+    expect(prGates).toHaveLength(1);
+    const gate = (settings: unknown) => ({
+      severity: field(settings, "severity", "trivy"),
+      "ignore-unfixed": field(settings, "ignore-unfixed", "trivy"),
+      "exit-code": field(settings, "exit-code", "trivy")
     });
+    expect(gate(field(actionSteps[scan], "with", "scan"))).toEqual(gate(prGates[0]));
     expect(field(actionSteps[push], "env", "push")).toMatchObject({ TAGS: "${{ inputs.tags }}" });
     expect(field(field(action, "outputs", "app-image"), "digest", "outputs")).toMatchObject({
       value: "${{ steps.push.outputs.digest }}"
