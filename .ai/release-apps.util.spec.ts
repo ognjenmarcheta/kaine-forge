@@ -123,12 +123,9 @@ describe("runReleaseApps against a real repository", () => {
     write(clone, "apps/web/src/index.ts", "export {};\n");
     // One commit touches both apps, so both release branches are due.
     const head = pushApiChange(clone, "paired");
-    const hook = path.join(origin, "hooks", "pre-receive");
-    writeFileSync(
-      hook,
-      '#!/bin/sh\nwhile read old new ref; do\n  [ "$ref" = refs/heads/release/web ] && exit 1\ndone\nexit 0\n',
-      { mode: 0o755 }
-    );
+    // The update hook refuses one ref at a time, so only --atomic keeps release/api back.
+    const hook = path.join(origin, "hooks", "update");
+    writeFileSync(hook, '#!/bin/sh\n[ "$1" != refs/heads/release/web ]\n', { mode: 0o755 });
 
     expect(() =>
       runReleaseApps({ apps: [], dryRun: false }, { repoRoot: clone, stdio: "ignore" })

@@ -245,7 +245,8 @@ export const runReleaseApps = (
 
   // One atomic push: the api and web images ship as a pair, so either every
   // release branch moves or none does, and a rerun still sees each one as due.
-  // Local branches move only after origin accepted the push for the same reason.
+  // No local branch is moved: the push updates origin/release/*, which is what
+  // planning reads, so nothing can fail after origin accepted the push.
   git.stream(
     [
       "push",
@@ -255,9 +256,6 @@ export const runReleaseApps = (
     ],
     stdio
   );
-  for (const plan of plans) {
-    git.stream(["update-ref", `refs/heads/${plan.app.releaseBranch}`, "HEAD"], "ignore");
-  }
 
   return { status: "updated", plans };
 };
