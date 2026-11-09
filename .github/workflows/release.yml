@@ -179,29 +179,6 @@ jobs:
             [ -n "$tag" ] && git push origin "refs/tags/$tag"
           done <<< "$TAGS"
 
-      - name: Create GitHub Releases for tags
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAGS="$(git tag --points-at HEAD)"
-          if [ -z "$TAGS" ]; then
-            echo "No release tags found for GitHub release creation."
-            exit 0
-          fi
-
-          while IFS= read -r tag; do
-            if [ -z "$tag" ]; then
-              continue
-            fi
-
-            if gh release view "$tag" >/dev/null 2>&1; then
-              echo "GitHub release already exists for $tag"
-            else
-              gh release create "$tag" --title "$tag" --generate-notes
-            fi
-          done <<< "$TAGS"
-
       # Each top-level Dockerfile.<app> is a deployable app whose version tag is
       # @repo/<app>@<version>. publish-images builds one image per such tag at HEAD;
       # `[]` (no app tag, or a version-PR run) skips that job.
@@ -220,6 +197,39 @@ jobs:
             });
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(images)}\n`);
           '
+
+      # Immutable releases (.github/repo-setup.json) refuse new assets once a
+      # release is published. An app tag whose image publish-images builds starts
+      # as a draft, and publish-images publishes it after it attaches the SBOM.
+      - name: Create GitHub Releases for tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGES: ${{ steps.images.outputs.matrix }}
+          PUBLISH_IMAGES: ${{ github.ref == 'refs/heads/main' && !github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          TAGS="$(git tag --points-at HEAD)"
+          if [ -z "$TAGS" ]; then
+            echo "No release tags found for GitHub release creation."
+            exit 0
+          fi
+
+          while IFS= read -r tag; do
+            if [ -z "$tag" ]; then
+              continue
+            fi
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "GitHub release already exists for $tag"
+            elif [ "$PUBLISH_IMAGES" = true ] && TAG="$tag" node -e '
+              const images = JSON.parse(process.env.IMAGES);
+              process.exit(images.some((image) => image.tag === process.env.TAG) ? 0 : 1);
+            '; then
+              gh release create "$tag" --title "$tag" --generate-notes --draft
+            else
+              gh release create "$tag" --title "$tag" --generate-notes
+            fi
+          done <<< "$TAGS"
 
   # Builds the tagged app image, gates it on the same Trivy scan as the PR
   # docker-images job (a fixable HIGH or CRITICAL finding fails it), then pushes
@@ -309,10 +319,19 @@ jobs:
           skip-setup-trivy: true
           cache: false
 
-      - name: Attach SBOM to the GitHub Release
+      # The release job created this release as a draft. A published release is
+      # immutable, so a re-run after publication leaves it as it is.
+      - name: Attach SBOM and publish the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" "sbom-$APP.spdx.json" --clobber
+        run: |
+          set -euo pipefail
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true ]; then
+            gh release upload "$TAG" "sbom-$APP.spdx.json" --clobber
+            gh release edit "$TAG" --draft=false
+          else
+            echo "::warning::Release $TAG is already published and immutable; its assets stay as they are."
+          fi
 
   # Image deploys (docs/deploy.md, "Deploy source"). Off unless the repository
   # variable DEPLOY_SOURCE is `image`; by default the platform builds each
