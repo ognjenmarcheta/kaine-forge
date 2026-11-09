@@ -96,14 +96,6 @@
     "knip": "knip --no-config-hints",
     "boundaries": "turbo boundaries"
   },
-  "lint-staged": {
-    "*.{js,mjs,cjs,ts,tsx,json,md,css,yml,yaml}": [
-      "prettier --write"
-    ],
-    "*.{js,mjs,cjs,ts,tsx}": [
-      "eslint --fix"
-    ]
-  },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
     "@changesets/cli": "^3.0.3",
