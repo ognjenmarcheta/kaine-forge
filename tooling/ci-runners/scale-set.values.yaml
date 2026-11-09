@@ -38,7 +38,7 @@ template:
           - name: pnpm-store
             mountPath: /pnpm-store
       - name: dind
-        image: docker:29.9.2-dind
+        image: docker:29.9.3-dind
         args:
           - dockerd
           - --host=unix:///var/run/docker.sock
