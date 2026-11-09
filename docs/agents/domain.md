@@ -24,7 +24,7 @@ Kaine Forge uses a single-context layout:
 └── apps/
 ```
 
-The single `CONTEXT.md` holds a **Context map** of the API's bounded contexts. The lint rule `api/context-boundaries` enforces it (ADR 0025). Before a change in `apps/api/src/features/`, find the feature's context in that map. Cross a context boundary only along a listed edge and through a public file.
+The single `CONTEXT.md` holds a **Context map** of the API's bounded contexts. The lint rule `api/context-boundaries` enforces it (ADR 0025). Before a change in `apps/api/src/features/`, find the feature's context in that map. Cross a context boundary only along a listed edge and through a public file. Import only your own context's tables, better-auth's tables, and the foreign tables the map names for your feature. The shared kernel (`apps/api/src/*.ts` outside the composition roots) imports no feature (ADR 0026).
 
 ## Use the glossary's vocabulary
 

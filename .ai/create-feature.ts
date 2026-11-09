@@ -110,8 +110,14 @@ const nextSteps = (names: FeatureNames, sync: boolean): string => `Next steps:
   4. pnpm db:push:local # requires ALLOW_LOCAL_DB_PUSH=true and local PostgreSQL
   5. Translate packages/translation/src/locales/{de,sr}/${names.pluralKebab}.json and the
      navigation.${names.pluralKebab} keys - English-identical values fail pnpm check.
-  6. Add ${names.pluralKebab} to a bounded context in packages/config/eslint/api-contexts.js and
-     the CONTEXT.md Context map - an unmapped feature fails pnpm check (ADR 0025).
+  6. Add ${names.pluralKebab} to the features and ${names.pluralCamel}Table to the tables of one bounded
+     context in packages/config/eslint/api-contexts.js, and the feature to the CONTEXT.md Context
+     map - an unmapped feature or table fails pnpm check (ADR 0025, ADR 0026).${
+       sync
+         ? `
+     The sync feature reads the table too: add ${names.pluralCamel}Table to API_FOREIGN_TABLES.sync.`
+         : ""
+     }
   7. pnpm check
   8. pnpm test:e2e
 `;

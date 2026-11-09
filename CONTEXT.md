@@ -145,10 +145,10 @@ The API (`apps/api/src/features/*`) has seven bounded contexts. Each feature fol
 
 - Inside a context, features import each other freely.
 - Across contexts, a feature imports only the other feature's public files: `<feature>.module` and `<feature>.type`, unless `API_PUBLIC_FILES` names others (`storage` publishes `attachment.module` and `attachment.store`).
-- The composition root and the shared kernel (`apps/api/src/*.ts`, such as `context.ts`, `context.data.ts`, and `pubsub.ts`) and the `@repo/*` packages are outside the map. Every feature may import them.
+- The composition roots (`context.ts`, `context.loaders.ts`, `server.ts`, `index.ts`, `worker.ts`, `api.jobs.ts`, and `schema/`) wire every context. The shared kernel (the other `apps/api/src/*.ts` files and `middleware/`, such as `context.data.ts` and `pubsub.ts`) and the `@repo/*` packages are outside the map. Every feature may import them. The kernel imports no feature (ADR 0026).
 - The **Authenticated Organization Scope** is part of the shared kernel, not of Tenancy & Access: every context uses it through `ScopedData`.
 - A new feature folder fails the check until it is added to a context. Add an edge to **Uses** only when the dependency is intended. Never add an edge that would make the map circular.
-- The map governs imports only. Features still read other contexts' tables through `@repo/db/schema`.
+- Each `@repo/db/schema` table belongs to one context, or to better-auth (`API_AUTH_TABLES`), which every feature may read. A feature imports another context's table only when `API_FOREIGN_TABLES` names it with a reason (ADR 0026).
 
 ## Example dialogue
 

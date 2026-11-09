@@ -1,10 +1,9 @@
 import { filter, pipe } from "graphql-yoga";
 
 import { isNotificationType } from "./notifications.definition";
-import type { NotificationPayloadView } from "./notifications.module";
 import type { ApiContext } from "../../context";
 import type { PageInput } from "../../context.data";
-import type { NotificationCreatedPayload } from "../../pubsub";
+import type { NotificationCreatedPayload, NotificationPayloadView } from "../../pubsub";
 
 interface NotificationPreferenceArgs {
   input: { email: boolean; inApp: boolean; type: string };
