@@ -23,6 +23,11 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: 1,
+  // Visual baselines (tests/web-visual-baseline.e2e.ts). The ratio absorbs
+  // anti-aliasing noise, not layout or color changes.
+  expect: {
+    toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled", caret: "hide" }
+  },
   reporter: isCI
     ? [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]]
     : [["list"]],

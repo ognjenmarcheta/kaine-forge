@@ -95,6 +95,11 @@
     { "name": "area:ui", "color": "c5def5", "description": "Shared UI components (packages/ui)" },
     { "name": "area:web", "color": "c5def5", "description": "React web app (apps/web)" },
     { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
+    {
+      "name": "ci:run-visual",
+      "color": "5319e7",
+      "description": "Run the visual regression baselines in PR CI"
+    },
     { "name": "dependencies", "color": "0366d6", "description": "Dependency or lockfile update" },
     {
       "name": "graphql:breaking-approved",
