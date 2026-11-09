@@ -1,5 +1,12 @@
 # @repo/config
 
+## 2.1.1
+
+### Patch Changes
+
+- ab80da9: The server-only import block for client workspaces now also covers `@repo/billing` and every
+  `@repo/jobs` entry, so a client import of the payment SDKs or the job queue fails lint.
+
 ## 2.1.0
 
 ### Minor Changes
