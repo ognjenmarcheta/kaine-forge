@@ -55,53 +55,55 @@ export default defineConfig({
         "packages/config/prettier/**",
         "packages/config/tailwind/**",
         // Local developer and agent tooling, not shipped app code: no coverage
-        // floor. Its tests still gate pull requests through Check Fast (#489).
+        // floor. Its tests still gate pull requests through Check Fast.
         "tooling/**",
         "apps/e2e/**",
         // App shell has almost no unit coverage (~3% lines measured). Tests still
-        // run via projects above (issue #143); re-include and floor once suite grows.
+        // run via projects above; re-include and floor once suite grows.
         "apps/mobile/**",
         "apps/desktop/src-tauri/**"
       ],
       provider: "v8",
       reporter: ["text", "lcov", "json-summary"],
-      // Floors sit a few points below measured main with headroom for
-      // agent-generated code. Raise gradually, not in big jumps.
-      //
-      // Re-baselined 2026-09-09 for vitest 4 (#329): v8 coverage now uses
-      // AST-aware remapping, which counts functions and branches more strictly,
-      // and `include` above keeps untested files at 0% as before. Measured at
-      // 4.1.11: lines 49.9 / statements 49.2 / functions 43.2 / branches 42.3
-      // (vitest 3.2.7 read 52.2 / 52.2 / 62.5 / 78.4 for the same tree).
-      // Raised 2026-10-19 (#526) after PR CI measured lines 62.15 / statements
-      // 61.1 / functions 49.3 / branches 47.3 on main (run 39166806480).
+      // Each floor is floor(measured) minus 5, so a change that drops coverage
+      // by more than about 5 points fails here. When measured coverage rises,
+      // raise the floors by the same rule; never lower one without a reason.
       thresholds: {
-        branches: 42,
-        functions: 45,
-        lines: 50,
-        statements: 50,
+        branches: 60,
+        functions: 61,
+        lines: 66,
+        statements: 65,
         // High-risk packages held to a stricter, per-package bar. Folds in the
         // former `coverage:core` run so tests are not executed a third time.
-        // Measured at 4.1.11: auth 83.4 / 83.1 / 88.6 / 79.4.
         "packages/auth/src/**": {
           branches: 75,
-          functions: 80,
-          lines: 80,
-          statements: 80
+          functions: 86,
+          lines: 82,
+          statements: 82
         },
-        // Measured at 4.1.11: api 62.0 / 61.1 / 51.7 / 56.9.
         "apps/api/src/**": {
-          branches: 50,
-          functions: 45,
-          lines: 55,
-          statements: 55
+          branches: 72,
+          functions: 77,
+          lines: 76,
+          statements: 75
         },
-        // Measured at 4.1.11: mobile-ui 57.5 / 57.5 / 44.8 / 38.7.
         "packages/mobile-ui/src/**": {
-          branches: 35,
-          functions: 40,
-          lines: 50,
-          statements: 50
+          branches: 68,
+          functions: 75,
+          lines: 85,
+          statements: 84
+        },
+        "packages/billing/src/**": {
+          branches: 66,
+          functions: 57,
+          lines: 63,
+          statements: 64
+        },
+        "packages/sync/src/**": {
+          branches: 81,
+          functions: 75,
+          lines: 88,
+          statements: 84
         }
       }
     }
