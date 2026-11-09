@@ -339,11 +339,15 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     }
     resetPending = true;
   }
+  const restored = restore();
 
   async function drain(): Promise<void> {
     pulling = true;
     publish();
     try {
+      // The Outbox replays changes while it loads, and each push pulls. A page
+      // applied before the stored cursor is read would be dropped or truncated.
+      await restored;
       // An older page that loads now must land before any later change.
       await loadingOlder?.catch(() => undefined);
       for (;;) {
@@ -528,7 +532,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     for (const listener of listeners) listener(status);
   }
 
-  const initialized = Promise.all([executor.waitForInit(), restore()]).then(() => undefined);
+  const initialized = Promise.all([executor.waitForInit(), restored]).then(() => undefined);
   const ready = initialized
     .then(() => pull())
     .catch(() => undefined)
