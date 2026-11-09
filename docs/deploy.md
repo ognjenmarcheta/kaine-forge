@@ -7,7 +7,7 @@ This document tells you how to deploy the API and web apps and how to check a de
 The Release workflow (`.github/workflows/release.yml`) runs on every push to `main`. When a merged version PR creates an app version tag, the workflow does these steps for each tagged app:
 
 1. It builds the image from `Dockerfile.<app>` at the tag `@repo/<app>@<version>`.
-2. It scans the image with the same Trivy gate as the PR `docker-images` job. A fixable CRITICAL vulnerability fails the job, and no image is pushed.
+2. It scans the image with the same Trivy gate as the PR `docker-images` job. A fixable HIGH or CRITICAL vulnerability fails the job, and no image is pushed.
 3. It pushes the scanned image to GitHub Container Registry (GHCR).
 4. It adds the image digest to the job summary and to the GitHub Release notes of that tag.
 5. It attaches an SPDX JSON SBOM of the pushed image to the GitHub Release as `sbom-<app>.spdx.json`.

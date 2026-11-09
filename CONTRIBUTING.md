@@ -368,7 +368,7 @@ Default security coverage does **not** require GitHub Advanced Security (GHAS):
 
 - **CodeQL** always analyzes TypeScript in CI; results upload to the Security tab only on public repos, or on private repos after you enable Code scanning and set the Actions variable `ENABLE_GITHUB_CODE_SCANNING=true`.
 - **Dependency Review** runs only under the same public / opt-in gate (needs the Dependency Graph product).
-- Without Code Scanning (private repo, no GHAS): **Gitleaks** (secrets), **Trivy** (container CRITICAL fail), and **`pnpm audit`** (scheduled + main) stay hard gates without GHAS.
+- Without Code Scanning (private repo, no GHAS): **Gitleaks** (secrets), **Trivy** (fails on a fixable HIGH or CRITICAL container vulnerability), and **`pnpm audit`** (scheduled + main) stay hard gates without GHAS.
 
 Private repos with GHAS: enable Code scanning under repository security settings, then set **Settings → Secrets and variables → Actions → Variables → `ENABLE_GITHUB_CODE_SCANNING=true`**.
 

@@ -17,19 +17,15 @@
 // Row-level isolation per feature is proven by the feature tenancy tests.
 import { createLogger } from "@repo/logger";
 import {
-  buildSchema,
   getNamedType,
-  isEnumType,
   isInputObjectType,
-  isLeafType,
-  isNonNullType,
   type GraphQLArgument,
-  type GraphQLField,
-  type GraphQLInputType,
-  type GraphQLObjectType
+  type GraphQLInputType
 } from "graphql";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { operationFor, rootFields, type OperationType } from "./schema/schema.operations.fixture";
 
 process.env.DATABASE_URL = "postgresql://tenancy-contract:unused@127.0.0.1:1/unused";
 process.env.API_CORS_ORIGINS = "http://localhost:3000";
@@ -69,11 +65,7 @@ vi.mock("@repo/auth/server", () => ({
 
 const { createApiServer } = await import("./server");
 const { apiTypeDefs } = await import("./schema/features");
-
-// The same typeDefs createSchema serves (schema/builder.ts), built with this
-// module's graphql copy: graphql-yoga's schema objects come from another
-// module realm, so graphql's type predicates reject them.
-const apiSchema = buildSchema(apiTypeDefs.join("\n"));
+const apiRootFields = rootFields(apiTypeDefs);
 
 // Fields that are public by design. Every other root field is organization-scoped.
 const PUBLIC_FIELDS = ["Query.health", "Mutation._empty", "Subscription._empty"];
@@ -99,88 +91,16 @@ const USER_LEVEL_FIELDS = [
 const ORGANIZATION_ID_NAME = /organi[sz]ation|^org(?:id)?$|tenant/i;
 const USER_ID_NAME = /^user(?:id)?$|recipient/i;
 
-type OperationType = "query" | "mutation" | "subscription";
-
-interface RootField {
-  coordinate: string;
-  field: GraphQLField<unknown, unknown>;
-  operation: OperationType;
-}
-
 interface GraphqlResponse {
   data?: Record<string, unknown> | null;
   errors?: Array<{ message: string }>;
 }
 
-function rootFields(): RootField[] {
-  const roots: Array<[OperationType, GraphQLObjectType | null | undefined]> = [
-    ["query", apiSchema.getQueryType()],
-    ["mutation", apiSchema.getMutationType()],
-    ["subscription", apiSchema.getSubscriptionType()]
-  ];
-
-  return roots.flatMap(([operation, type]) =>
-    type
-      ? Object.values(type.getFields()).map((field) => ({
-          coordinate: `${type.name}.${field.name}`,
-          field,
-          operation
-        }))
-      : []
-  );
-}
-
-const scopedFields = rootFields().filter((root) => !PUBLIC_FIELDS.includes(root.coordinate));
+const scopedFields = apiRootFields.filter((root) => !PUBLIC_FIELDS.includes(root.coordinate));
 const userLevelFields = scopedFields.filter((root) => USER_LEVEL_FIELDS.includes(root.coordinate));
 const organizationFields = scopedFields.filter(
   (root) => !USER_LEVEL_FIELDS.includes(root.coordinate)
 );
-
-// A literal for every required input, so the request passes validation and
-// reaches the resolver. Optional inputs are left out.
-function placeholderValue(type: GraphQLInputType): string {
-  const named = getNamedType(type);
-
-  if (isInputObjectType(named)) {
-    const all = Object.values(named.getFields());
-    // A @oneOf input takes exactly one of its fields, all of them optional.
-    const fields = (named.isOneOf ? all.slice(0, 1) : all.filter((f) => isNonNullType(f.type))).map(
-      (field) => `${field.name}: ${placeholderValue(field.type)}`
-    );
-    return `{ ${fields.join(", ")} }`;
-  }
-
-  if (isEnumType(named)) {
-    const first = named.getValues()[0];
-    if (!first) throw new Error(`enum ${named.name} has no values`);
-    return first.name;
-  }
-
-  switch (named.name) {
-    case "Boolean":
-      return "false";
-    case "Float":
-    case "Int":
-      return "1";
-    case "ID":
-      return JSON.stringify("00000000-0000-4000-8000-0000000000c1");
-    case "String":
-      return JSON.stringify("tenancy contract");
-    default:
-      throw new Error(`no placeholder for input type ${named.name}`);
-  }
-}
-
-function operationFor(root: RootField): string {
-  const args = [
-    ...root.field.args
-      .filter((arg) => isNonNullType(arg.type))
-      .map((arg) => `${arg.name}: ${placeholderValue(arg.type)}`)
-  ];
-  const argumentList = args.length > 0 ? `(${args.join(", ")})` : "";
-  const selection = isLeafType(getNamedType(root.field.type)) ? "" : " { __typename }";
-  return `${root.operation} { ${root.field.name}${argumentList}${selection} }`;
-}
 
 // Every input-object field reachable from an argument, with its path.
 function inputNames(args: readonly GraphQLArgument[]): string[] {
@@ -287,7 +207,7 @@ async function run(
 
 describe("organization-scoped GraphQL field contract", () => {
   it("keeps every public allowlist entry a real root field", () => {
-    const coordinates = rootFields().map((root) => root.coordinate);
+    const coordinates = apiRootFields.map((root) => root.coordinate);
 
     expect(coordinates).toEqual(expect.arrayContaining(PUBLIC_FIELDS));
     expect(coordinates).toEqual(expect.arrayContaining(USER_LEVEL_FIELDS));

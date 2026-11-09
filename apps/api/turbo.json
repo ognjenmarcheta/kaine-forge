@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "description": "env.config.test.ts reads the root .env.example to prove it documents every variable the API environment validation reads, so that file is an input too.",
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env.example"]
+    }
+  }
+}

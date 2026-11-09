@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { validateApiEnv } from "./env.config";
@@ -105,5 +106,40 @@ describe("validateApiEnv", () => {
     expect(() => validateApiEnv({ ...validEnv, AI_ASSISTANT_PROVIDER: "openal" })).toThrow(
       /AI_ASSISTANT_PROVIDER/
     );
+  });
+});
+
+describe(".env.example", () => {
+  it("documents every variable the API environment validation reads", () => {
+    // Recording the reads proves coverage at the real boundary: a key added to
+    // the schema, or a flag added to the registry, is read here without a
+    // second list to keep in sync.
+    const read = new Set<string>();
+    const env = new Proxy<Record<string, string | undefined>>(
+      { ...validEnv },
+      {
+        get(target, key) {
+          if (typeof key !== "string") return undefined;
+          if (/^[A-Z][A-Z0-9_]*$/.test(key)) read.add(key);
+          return target[key];
+        }
+      }
+    );
+    validateApiEnv(env);
+
+    const example = readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
+    // Active `KEY=` lines and commented-out `# KEY=` examples both document a key.
+    const documented = new Set(
+      [...example.matchAll(/^#?[ \t]*([A-Z][A-Z0-9_]*)=/gm)].map((match) => match[1])
+    );
+    // FEATURE_FLAG_<KEY> follows the flag registry, so one pattern line documents
+    // every flag variable instead of one line per flag.
+    const flagPatternDocumented = example.includes("FEATURE_FLAG_<KEY>");
+    const undocumented = [...read].filter((key) =>
+      key.startsWith("FEATURE_FLAG_") ? !flagPatternDocumented : !documented.has(key)
+    );
+
+    expect(read).toContain("DATABASE_URL");
+    expect(undocumented).toEqual([]);
   });
 });

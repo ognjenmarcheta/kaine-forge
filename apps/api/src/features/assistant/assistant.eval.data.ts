@@ -264,5 +264,11 @@ export const assistantToolSchemaCases = [
     accepts: [{ limit: 20 }, {}],
     rejects: [{ limit: 0 }, { limit: 51 }],
     why: "an unbounded list is a context-window hazard"
+  },
+  {
+    tool: "listNotes",
+    accepts: [{ limit: 20 }, {}],
+    rejects: [{ limit: 0 }, { limit: 51 }],
+    why: "notes are listed into the same context window as todos"
   }
 ] as const satisfies readonly AssistantToolSchemaCase[];

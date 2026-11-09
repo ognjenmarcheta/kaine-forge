@@ -298,7 +298,7 @@ jobs:
           # scripts/* tests are not under vitest.coverage.config.ts projects.
           # scripts/pr-quality-gate.test.mjs fails when this list differs from the
           # root "test" script or from the tracked scripts/*.test.mjs files.
-          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/check-public-text.test.mjs scripts/docs-for.test.mjs scripts/pre-review.test.mjs scripts/t3-worktree-setup.test.mjs
+          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/check-public-text.test.mjs scripts/docs-for.test.mjs scripts/pre-review.test.mjs scripts/t3-worktree-setup.test.mjs scripts/dependency-overrides.test.mjs
 
   coverage:
     name: Coverage Threshold
@@ -543,7 +543,7 @@ jobs:
           ignore-unfixed: true
 
       # SARIF upload needs GitHub Code Scanning (same gate as CodeQL upload).
-      # CRITICAL fail below still hard-gates repos without Code Scanning.
+      # The fail step below still hard-gates repos without Code Scanning.
       - name: Upload Trivy SARIF
         if: |
           always() &&
@@ -554,18 +554,19 @@ jobs:
           sarif_file: trivy-${{ matrix.app }}.sarif
           category: trivy-${{ matrix.app }}
 
-      # Base images are pinned by digest (Dockerfile.*); a CRITICAL finding here
-      # is actionable on this PR rather than ambient base-image churn (issue #155).
+      # Base images are pinned by digest (Dockerfile.*); a fixable HIGH or CRITICAL
+      # finding here is actionable on this PR rather than ambient base-image churn.
       # Second pass over the same image: reuse the binary, vulnerability DB and
       # image analysis the SARIF pass left in the shared cache-dir instead of
       # installing Trivy and restoring the DB cache again (about 25s on api).
-      # One pass cannot serve both: `severity` applies to the whole run.
-      - name: Fail on fixable CRITICAL vulnerabilities
+      # One pass cannot serve both: for SARIF output trivy-action drops `severity`
+      # (the report keeps every severity), so an exit code there would fail on any.
+      - name: Fail on fixable HIGH or CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           input: ${{ runner.temp }}/${{ matrix.app }}.tar
           format: table
-          severity: CRITICAL
+          severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
           skip-setup-trivy: true
@@ -601,11 +602,10 @@ jobs:
       # Sharded across jobs, not workers: the specs share one seeded user, so
       # intra-job parallelism races on active-organization state (see
       # apps/e2e/playwright.config.ts). Each shard gets its own Postgres service,
-      # so shards are isolated. Sized at 2 because there are only 5 spec files and
-      # each shard still re-pays install + browser install + db seed; build:core
-      # is shared via the core-dist artifact (issue #145). Raise shard count
-      # here and in --shard= together when the suite grows. Do not raise
-      # playwright workers.
+      # so shards are isolated. Sized at 2 because each shard re-pays install +
+      # browser install + db seed; build:core is shared via the core-dist
+      # artifact (issue #145). Raise shard count here and in --shard= together
+      # when the suite grows. Do not raise playwright workers.
       fail-fast: false
       matrix:
         shard: [1, 2]
@@ -623,6 +623,17 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # S3-compatible storage for the Todo attachment spec, the same RustFS
+      # server docker-compose.yml runs. Every shard starts it: Playwright assigns
+      # spec files to shards by position, so the shard that runs the spec moves
+      # when a spec file is added.
+      storage:
+        image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
+        env:
+          RUSTFS_ACCESS_KEY: minioadmin
+          RUSTFS_SECRET_KEY: minioadmin
+        ports:
+          - 9000:9000
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -673,7 +684,35 @@ jobs:
           VITE_GRAPHQL_URL=http://localhost:4000/graphql
           EXPO_PUBLIC_API_URL=http://localhost:4000
           EXPO_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
+          S3_ENDPOINT=http://127.0.0.1:9000
+          S3_REGION=us-east-1
+          S3_ACCESS_KEY=minioadmin
+          S3_SECRET_KEY=minioadmin
+          S3_BUCKET=e2e-attachments
+          S3_FORCE_PATH_STYLE=true
           EOF
+
+      # The private Attachment bucket, with CORS for the browser's direct PUT,
+      # as storage-init in docker-compose.yml creates it. The Public Asset bucket
+      # stays unset, so Public Asset uploads stay off as before.
+      - name: Create the Attachment bucket
+        run: |
+          set -euo pipefail
+          aws() {
+            docker run --rm --network host \
+              -e AWS_ACCESS_KEY_ID=minioadmin -e AWS_SECRET_ACCESS_KEY=minioadmin \
+              -e AWS_DEFAULT_REGION=us-east-1 -e AWS_ENDPOINT_URL=http://127.0.0.1:9000 \
+              amazon/aws-cli:2.39.5@sha256:0cea63506f28774b70b1a3dd1934f49bc202d9784dee23370acc81438e8d0292 \
+              "$@"
+          }
+          for attempt in $(seq 1 30); do
+            aws s3api list-buckets > /dev/null 2>&1 && break
+            [ "$attempt" -eq 30 ] && { echo "storage did not start"; exit 1; }
+            sleep 2
+          done
+          aws s3api create-bucket --bucket e2e-attachments
+          aws s3api put-bucket-cors --bucket e2e-attachments --cors-configuration \
+            '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT"],"AllowedHeaders":["*"],"MaxAgeSeconds":3000}]}'
 
       - name: Prepare database schema and seed
         run: |
@@ -739,6 +778,8 @@ jobs:
         env:
           # Serve the downloaded core-dist builds (apps/e2e/playwright.config.ts).
           E2E_SERVE_BUILD: "true"
+          # Runs the Todo attachment spec against the storage service above.
+          E2E_STORAGE_ENABLED: "1"
         run: |
           pnpm --filter @repo/e2e exec playwright test \
             --shard=${{ matrix.shard }}/2 \

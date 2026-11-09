@@ -33,12 +33,49 @@ jobs:
         with:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
-      - name: Run audit (high and critical)
-        # Fails the job on high/critical advisories (pnpm audit exit non-zero).
-        # To suppress a known false positive, use pnpm's audit config
-        # (e.g. package.json "pnpm"."auditConfig"."ignoreCves") and document the
-        # reason in the PR that adds the ignore entry.
-        run: pnpm audit --audit-level high
+      - name: Run audit (moderate and above)
+        # Fails the job on moderate, high, or critical advisories (pnpm audit exit non-zero).
+        # To accept a known advisory, add it to auditConfig.ignoreGhsas in
+        # pnpm-workspace.yaml and document it in the PR, as SECURITY.md requires.
+        run: pnpm audit --audit-level moderate
+
+  cargo-audit:
+    name: Cargo Audit
+    # The Tauri shell's Rust graph (apps/desktop/src-tauri/Cargo.lock) gets
+    # Dependabot updates but had no advisory gate. cargo audit fails on RustSec
+    # vulnerability advisories; unmaintained and unsound notices print as warnings.
+    runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 20
+    env:
+      CARGO_AUDIT_VERSION: "0.22.2"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Compiling cargo-audit takes minutes; cache the binary per version.
+      - name: Cache cargo-audit
+        id: cargo-audit-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}-${{ env.CARGO_AUDIT_VERSION }}
+
+      - name: Install cargo-audit
+        # The cache holds only the binary, not cargo's install records, so on a hit
+        # cargo install refuses the untracked file ("already exists in
+        # destination"). The key pins the version, so a hit needs no install.
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        run: |
+          cargo --version
+          cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
+
+      - name: Run cargo audit
+        working-directory: apps/desktop/src-tauri
+        # RUSTSEC-2024-0429 (GHSA-wrw7-89jp-8q8g, glib 0.18.5) is an accepted risk:
+        # the fix is glib 0.20, which the Tauri 2 gtk-rs 0.18 stack does not allow,
+        # and nothing in the graph calls the unsound VariantStrIter. SECURITY.md
+        # records the reason and the removal trigger.
+        run: cargo audit --ignore RUSTSEC-2024-0429
 
   secret-scan:
     name: Secret Scan
@@ -58,7 +95,7 @@ jobs:
   # ci-pr.yml scans images only for pull requests, so main's Trivy alerts went
   # stale between manual runs (issue #506). Same categories as the PR upload,
   # so alerts for packages main no longer ships close. Report-only: the PR job
-  # owns the CRITICAL gate.
+  # owns the blocking gate.
   image-scan:
     name: Image Scan (${{ matrix.app }})
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}

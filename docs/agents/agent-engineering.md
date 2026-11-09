@@ -430,9 +430,81 @@ model starts a new series. A changed system prompt does not, because that is
 the change the gate catches. Record with `--repeat 3` or more, so that one
 nondeterministic reply does not decide the comparison.
 
+### Record a reviewed live run
+
+The owner runs and reviews the live evaluation. An agent prepares it and never
+starts it, because each run is billed to the owner's provider account.
+
+1. Check out a commit on `main` and run `pnpm install`. The report stores
+   `git rev-parse HEAD`, and the ledger keeps it as the run's revision. No
+   database or Docker is needed: each case makes its own PGlite database.
+2. In the invoking shell, export only the credential of the chosen provider:
+   `OPENAI_API_KEY` for `openai` or `DEEPSEEK_API_KEY` for `deepseek`. Do not
+   rely on `.env`; the runner does not read it.
+3. Preview the selection with no provider call:
+   `pnpm eval:assistant --repeat 3`. It prints `Selected 15 cases × 3 repetitions`.
+4. Run it with the model the product uses by default
+   (`DEFAULT_AI_ASSISTANT_MODELS` in `assistant.ai-runtime.ts`):
+
+   ```sh
+   pnpm eval:assistant --live --provider openai --model gpt-4.1-mini --repeat 3
+   # or
+   pnpm eval:assistant --live --provider deepseek --model deepseek-chat --repeat 3
+   ```
+
+   The command prints `Report: <path>.json` and `Status:`. The file
+   `<path>.json.md` lists each result's case, repetition, mechanical verdict,
+   review flags and result UUID.
+
+5. For each of the 45 results, read its actions, rows and reply in the JSON
+   report, then run `pnpm eval:assistant:review` with that result UUID, as above.
+6. Run `pnpm eval:assistant:record --report <path>.json`. It appends one summary
+   to `assistant.eval.ledger.json` and refuses a run that is incomplete, not
+   fully reviewed, or lower than the last run in its series.
+7. Read the ledger diff: one new entry, with no prompt, reply or row in it. Run
+   `pnpm --filter @repo/api exec vitest run src/features/assistant/assistant.eval.ledger.test.ts`.
+   Commit only the ledger file on a `KAINE-test-...` branch and open a pull
+   request. The report stays under the gitignored `.ai.local/`.
+
+A run with a mechanical failure exits nonzero, but its report is complete, so it
+can be reviewed and recorded. The first recorded run of a series is the floor
+for every later run in that series. Record a failing first run only if that
+floor is the one you want later runs to meet.
+
+#### Model calls and cost
+
+Each model call is one step of `streamText`. A case takes one call for each
+expected tool call plus one call for the final reply. The seven tool cases
+expect 1, 2, 2, 1, 3, 2 and 2 tool calls, so they take 20 calls. The eight
+refusal cases take 1 to 3 calls each, so they take 8 to 18 calls. One
+repetition is 28 to 38 calls. `--repeat 3` is 84 to 114 calls. The
+hard limit is 8 steps × 15 cases × 3 repetitions = 360 calls.
+
+Token assumptions, measured offline at this commit: the nine tool definitions
+serialize to about 4,200 characters, the system prompt to 477 characters, and
+the 15 prompts to 868 characters. At about 3 to 4 characters per token, each
+call sends 1,200 to 1,600 tokens before history. The estimate uses 1,500 input
+and 100 output tokens per call. The ceiling uses 2,048 output tokens on every
+step, and each step resends all earlier output: per case 8 × 1,500 input plus
+2,048 × 28 resent output tokens, about 69,000 input and 16,400 output tokens.
+
+| `--repeat 3`                         | Calls | Input tokens | Output tokens | Cost        |
+| ------------------------------------ | ----- | ------------ | ------------- | ----------- |
+| `openai` `gpt-4.1-mini`, expected    | ~100  | ~150,000     | ~10,000       | about $0.08 |
+| `openai` `gpt-4.1-mini`, ceiling     | 360   | ~3,100,000   | ~737,000      | under $2.50 |
+| `deepseek` `deepseek-chat`, expected | ~100  | ~150,000     | ~10,000       | about $0.06 |
+| `deepseek` `deepseek-chat`, ceiling  | 360   | ~3,100,000   | ~737,000      | under $1.80 |
+
+The `openai` rows use $0.40 per million input and $1.60 per million output
+tokens. The `deepseek` rows use $0.30 and $1.10, the highest list prices found
+for `deepseek-chat`. Both are list prices on 2026-11-09 with no cache discount.
+Check the provider's pricing page before the run. The 15-minute run limit also
+stops a run that takes too long. A stopped run is incomplete and cannot be
+recorded. The report's `usage` field holds the real token counts of each result.
+
 The offline golden-set test derives its coverage floor from the tool set: every
-tool that `createAssistantTools` returns, except the read-only allowlist, needs
-a golden case that expects it and a tool input contract.
+tool that `createAssistantTools` returns needs a tool input contract, and every
+tool except the read-only allowlist also needs a golden case that expects it.
 
 ## Local monitoring
 
