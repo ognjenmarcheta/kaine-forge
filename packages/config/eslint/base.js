@@ -11,14 +11,15 @@ import apiBoundariesConfig from "./api-boundaries.js";
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
 // Package entries that pull Node-only dependencies (AWS SDK, Postgres, mail,
-// payment SDKs, pg-boss, node:crypto) and must never reach a browser or React
+// payment SDKs, pg-boss, node: builtins) and must never reach a browser or React
 // Native bundle. Kept as an anchored regex so client-safe subpaths
 // (@repo/storage/client, @repo/auth/{client,session,transport,form}) stay
-// importable. `[.]` instead of `\.` keeps the source text identical to the
-// runtime pattern for the contract test in
-// packages/config/monorepo-alignment.test.ts.
+// importable. packages/config/monorepo-alignment.test.ts follows the imports of
+// every packages/* export entry and fails when an entry that reaches Node-only
+// code does not match. `[.]` instead of `\.` keeps the source text identical to
+// the runtime pattern for that test.
 const SERVER_ONLY_ENTRY_PATTERN =
-  "^(@repo/storage(/storage[.](client|config))?|@repo/auth(/(server|instance|password))?|@repo/(db|email|billing|jobs)(/.*)?)$";
+  "^(@repo/storage(/storage[.](client|config))?|@repo/auth(/(audit|server|instance|password))?|@repo/(db|email|billing|jobs)(/.*)?)$";
 const SERVER_ONLY_ENTRY_MESSAGE =
   "Server-only package entry: it bundles Node-only dependencies into the client. Import a client-safe entry instead (@repo/storage/client, @repo/auth/client|session|transport|form).";
 

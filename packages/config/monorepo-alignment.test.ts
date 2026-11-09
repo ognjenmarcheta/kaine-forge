@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { createRequire } from "node:module";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { builtinModules, createRequire } from "node:module";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -365,6 +365,160 @@ function readWorkspaceManifests(): WorkspaceManifest[] {
       };
     })
     .sort((left, right) => left.dir.localeCompare(right.dir));
+}
+
+// --- Node-only reach of package export entries ---
+//
+// A manifest says which libraries a package depends on, not which export
+// entry loads them, so the scan follows each entry's runtime imports through
+// relative files and other @repo/* entries. `import type` and `export type`
+// are erased at build time and do not count.
+
+/**
+ * Third-party libraries that only run on Node: database drivers, the job
+ * queue, the payment and S3 SDKs, env-file loading, and WebAuthn
+ * verification. A manifest does not say whether a library bundles for a
+ * browser or Hermes, so they are named here. Every Node builtin counts too.
+ * An entry ending in `/` names a scope.
+ */
+const NODE_ONLY_LIBRARIES = [
+  "@aws-sdk/",
+  "@paddle/paddle-node-sdk",
+  "@simplewebauthn/server",
+  "dotenv",
+  // The scan stops at third-party imports, so the adapter that loads `pg` is named itself.
+  "drizzle-orm/node-postgres",
+  "pg",
+  "pg-boss",
+  "stripe"
+];
+
+/** Its export entries are ESLint, Vitest, and Tailwind presets that run in Node tooling, not in an app bundle. */
+const TOOLING_CONFIG_PACKAGE = "@repo/config";
+
+const RUNTIME_IMPORT =
+  /\b(?:import|export)\s+(type\s+)?(?:[\w$*{}\s,]+?\s+from\s+)?["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
+
+/**
+ * Drops comments that start a line, so an import inside a JSDoc example or a
+ * commented-out line is not followed. A comment opener later in a line is kept
+ * as code, because strings such as URLs (`//`) and globs (`/*`) contain them.
+ */
+const withoutComments = (source: string): string =>
+  source.replace(/^\s*\/\*[\s\S]*?\*\//gm, "").replace(/^\s*\/\/.*$/gm, "");
+
+const isNodeOnlySpecifier = (specifier: string): boolean =>
+  specifier.startsWith("node:") ||
+  builtinModules.includes(specifier) ||
+  NODE_ONLY_LIBRARIES.some((library) =>
+    library.endsWith("/")
+      ? specifier.startsWith(library)
+      : specifier === library || specifier.startsWith(`${library}/`)
+  );
+
+type PackageEntry = {
+  /** The import specifier a client would write, such as `@repo/auth/client`. */
+  specifier: string;
+  /** Absolute path of the TypeScript source the entry builds from, or null for a non-script entry (CSS). */
+  source: string | null;
+};
+
+/** Resolve an import target to a TypeScript file, the way the Bundler module resolution does. */
+function resolveScriptFile(target: string): string {
+  const stem = target.replace(/\.(js|ts|tsx)$/, "");
+  const found = [`${stem}.ts`, `${stem}.tsx`, join(stem, "index.ts"), join(stem, "index.tsx")].find(
+    (candidate) => existsSync(candidate)
+  );
+  if (!found) throw new Error(`cannot resolve ${relative(repoRoot, target)} to a .ts or .tsx file`);
+  return found;
+}
+
+/**
+ * Every packages/* export entry, keyed by the specifier clients import. Apps
+ * export nothing a client imports, and tooling entries serve local developer
+ * tools whose Node-side test fixtures import the engine root.
+ */
+function readPackageEntries(): Map<string, PackageEntry> {
+  const entries = new Map<string, PackageEntry>();
+  for (const manifest of readWorkspaceManifests()) {
+    if (!manifest.dir.startsWith("packages/") || manifest.name === TOOLING_CONFIG_PACKAGE) {
+      continue;
+    }
+    const exportsMap =
+      (readJson(`${manifest.dir}/package.json`) as { exports?: Record<string, unknown> }).exports ??
+      {};
+    for (const [subpath, value] of Object.entries(exportsMap)) {
+      const specifier = subpath === "." ? manifest.name : `${manifest.name}/${subpath.slice(2)}`;
+      const target =
+        typeof value === "string"
+          ? value
+          : typeof value === "object" && value !== null && "default" in value
+            ? value.default
+            : undefined;
+      if (typeof target !== "string") {
+        throw new Error(`${specifier} has no string "default" target the scan can follow`);
+      }
+      // `./dist/x.js` builds from `./src/x.ts`; a few entries point at `./src` directly.
+      const script = /^\.\/(dist|src)\/(.+)\.(js|ts|tsx)$/.exec(target);
+      if (!script && /\.(js|ts|tsx)$/.test(target)) {
+        throw new Error(`${specifier} -> ${target} is outside dist/ and src/`);
+      }
+      entries.set(specifier, {
+        specifier,
+        source: script
+          ? resolveScriptFile(resolve(repoRoot, manifest.dir, "src", script[2] ?? ""))
+          : null
+      });
+    }
+  }
+  return entries;
+}
+
+/**
+ * The import chain from an entry's source to the first Node-only specifier it
+ * reaches, or null when it reaches none.
+ */
+function nodeOnlyChain(source: string, entries: Map<string, PackageEntry>): string[] | null {
+  const parents = new Map<string, string | null>([[source, null]]);
+  const chainTo = (file: string, specifier: string): string[] => {
+    const chain = [specifier];
+    for (let current: string | null = file; current; current = parents.get(current) ?? null) {
+      chain.unshift(relative(repoRoot, current));
+    }
+    return chain;
+  };
+  const queue = [source];
+  // The queue grows while it is walked, so the loop is a breadth-first search.
+  for (const file of queue) {
+    for (const match of withoutComments(readFileSync(file, "utf8")).matchAll(RUNTIME_IMPORT)) {
+      if (match[1]) continue;
+      const specifier = match[2] ?? match[3] ?? "";
+      if (isNodeOnlySpecifier(specifier)) return chainTo(file, specifier);
+      let next: string | null = null;
+      if (specifier.startsWith(".")) {
+        // Stylesheets, JSON, and assets are imported by their real file name and
+        // carry no imports. FDD names such as `./billing.stripe` are scripts.
+        const target = resolve(dirname(file), specifier);
+        const assetImport =
+          !/\.(js|ts|tsx)$/.test(target) && existsSync(target) && statSync(target).isFile();
+        next = assetImport ? null : resolveScriptFile(target);
+      } else if (specifier.startsWith("@repo/")) {
+        const entry = entries.get(specifier);
+        const packageName = specifier.split("/").slice(0, 2).join("/");
+        if (!entry && packageName !== TOOLING_CONFIG_PACKAGE) {
+          throw new Error(
+            `${relative(repoRoot, file)} imports ${specifier}, which no manifest exports`
+          );
+        }
+        next = entry?.source ?? null;
+      }
+      if (next && !parents.has(next)) {
+        parents.set(next, file);
+        queue.push(next);
+      }
+    }
+  }
+  return null;
 }
 
 /** Walk production TS/TSX sources (skip tests and generated). */
@@ -1058,21 +1212,27 @@ describe("monorepo alignment", () => {
     expect(eslintBase.match(/regex: SERVER_ONLY_ENTRY_PATTERN/g)).toHaveLength(2);
 
     const serverOnly = new RegExp(pattern ?? "");
-    for (const specifier of [
-      "@repo/storage",
-      "@repo/storage/storage.client",
-      "@repo/auth",
-      "@repo/auth/server",
-      "@repo/auth/instance",
-      "@repo/db",
-      "@repo/db/client",
-      "@repo/email",
-      "@repo/billing",
-      "@repo/jobs",
-      "@repo/jobs/client"
-    ]) {
-      expect(serverOnly.test(specifier), `${specifier} must be blocked in clients`).toBe(true);
+    // Derive the Node-only entries from the sources, so a new package, subpath,
+    // or import that reaches Node-only code fails here until the pattern covers it.
+    const entries = readPackageEntries();
+    const nodeOnly = new Map<string, string[]>();
+    for (const { specifier, source } of entries.values()) {
+      const chain = source ? nodeOnlyChain(source, entries) : null;
+      if (chain) nodeOnly.set(specifier, chain);
     }
+    expect([...nodeOnly.keys()], "the scan must still find the known Node-only entries").toEqual(
+      expect.arrayContaining(["@repo/db/client", "@repo/storage", "@repo/billing"])
+    );
+    const missed = [...nodeOnly]
+      .filter(([specifier]) => !serverOnly.test(specifier))
+      .map(([specifier, chain]) => `${specifier}: ${chain.join(" -> ")}`);
+    expect(
+      missed,
+      "entries that reach Node-only code but SERVER_ONLY_ENTRY_PATTERN allows"
+    ).toEqual([]);
+    // Some entries are server-only by policy without a Node-only import
+    // (@repo/email holds the mail provider key), so the pattern may block more.
+    // These client-safe entries must stay importable.
     for (const specifier of [
       "@repo/storage/client",
       "@repo/storage/upload.lifecycle",
@@ -1080,6 +1240,7 @@ describe("monorepo alignment", () => {
       "@repo/auth/session",
       "@repo/auth/transport",
       "@repo/auth/form",
+      "@repo/auth/audit.definition",
       "@repo/logger"
     ]) {
       expect(serverOnly.test(specifier), `${specifier} must stay importable`).toBe(false);

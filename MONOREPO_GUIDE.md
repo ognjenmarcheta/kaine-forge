@@ -144,10 +144,10 @@ Each `apps/api/src/features/{feature}/` folder belongs to one bounded context of
 
 Some package entries pull Node-only dependencies (AWS SDK, Postgres, mail, payment SDKs, pg-boss, `node:crypto`). They must never reach a browser or React Native bundle. `SERVER_ONLY_ENTRY_PATTERN` in `packages/config/eslint/base.js` is the list, and ESLint blocks it in every DOM workspace and in mobile.
 
-- Server-only: every entry of `@repo/db`, `@repo/email`, `@repo/billing`, and `@repo/jobs`; bare `@repo/storage` and its `storage.client` and `storage.config` subpaths; bare `@repo/auth` and its `server`, `instance`, and `password` subpaths.
+- Server-only: every entry of `@repo/db`, `@repo/email`, `@repo/billing`, and `@repo/jobs`; bare `@repo/storage` and its `storage.client` and `storage.config` subpaths; bare `@repo/auth` and its `audit`, `server`, `instance`, and `password` subpaths.
 - Client-safe: the other subpaths, such as `@repo/storage/client` and `@repo/auth/client`, `session`, `transport`, and `form`.
 
-When a package or subpath starts to import a Node-only dependency, add it to the pattern in the same change. A DOM workspace declares `react-dom`, or depends on a workspace that does, and is not React Native or server-only. `packages/config/monorepo-alignment.test.ts` derives that list from the manifests and fails when the DOM block in `base.js` misses one.
+When a package or subpath starts to import a Node-only dependency, add it to the pattern in the same change. `packages/config/monorepo-alignment.test.ts` follows the runtime imports of every `packages/*` export entry and fails when an entry reaches a Node builtin or a library in its `NODE_ONLY_LIBRARIES` list but the pattern allows it. When a package adds a Node-only library, add the library to that list. A DOM workspace declares `react-dom`, or depends on a workspace that does, and is not React Native or server-only. `packages/config/monorepo-alignment.test.ts` derives that list from the manifests and fails when the DOM block in `base.js` misses one.
 
 ## 6. Data and Auth Rules
 
