@@ -65,6 +65,11 @@ export const createStoreWatcher = (options: StoreWatcherOptions): StoreWatcher =
       if (!running) return;
       const seen = new Set<number>();
       for (const entry of entries) {
+        // A folder without state.json is an issue mid-write: store.write creates
+        // the folder before it renames the state into place. Counting it would
+        // send a change for the half-written issue and a second one when the
+        // state lands. A known issue that loses its state is reported as removed.
+        if (entry.result.status === "missing") continue;
         seen.add(entry.issueNumber);
         const next = fingerprint(entry);
         if (known.get(entry.issueNumber) !== next) {
@@ -109,7 +114,9 @@ export const createStoreWatcher = (options: StoreWatcherOptions): StoreWatcher =
       starting ??= (async () => {
         running = true;
         known.clear();
-        for (const entry of await read()) known.set(entry.issueNumber, fingerprint(entry));
+        for (const entry of await read()) {
+          if (entry.result.status !== "missing") known.set(entry.issueNumber, fingerprint(entry));
+        }
         if (!running) return;
         attachFsWatch();
         timer = setInterval(() => {

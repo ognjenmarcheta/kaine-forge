@@ -7,6 +7,7 @@ import process from "node:process";
 import { describe, it } from "node:test";
 import { data, Evaluator, Lexer, Parser } from "@actions/expressions";
 import { parse } from "yaml";
+import { DOCKER_APPS } from "./ci-affected.mjs";
 import { QUALITY_JOBS, qualityGateFailures } from "./pr-quality-gate.mjs";
 
 function passingInput() {
@@ -435,6 +436,89 @@ describe("Hand-kept alignments", () => {
     const prDockerPaths = parse(filterStep.with.filters).docker;
     const dockerCache = parse(readFileSync(".github/workflows/docker-cache.yml", "utf8"));
     assert.deepEqual(dockerCache.on.push.paths, prDockerPaths);
+  });
+
+  it("builds each app image from the same inputs wherever it shares the layer cache", () => {
+    // context, file, build-args, target and the weekly APT_REFRESH key decide the
+    // layer keys, so a drift makes every PR build miss main's cache. cache-from and
+    // cache-to differ on purpose and stay out of the comparison.
+    const workflow = (name) => parse(readFileSync(`.github/workflows/${name}.yml`, "utf8"));
+    const matrixApps = (job) => job.strategy.matrix.include;
+    const apps = DOCKER_APPS.map(({ app, dockerfile }) => ({ app, dockerfile }));
+    const dockerCache = workflow("docker-cache").jobs["docker-cache"];
+    const imageScan = workflow("security").jobs["image-scan"];
+    const appImage = parse(readFileSync(".github/actions/app-image/action.yml", "utf8")).runs;
+    assert.deepEqual(matrixApps(dockerCache), apps, "docker-cache.yml must seed every app image");
+    assert.deepEqual(matrixApps(imageScan), apps, "security.yml must scan every app image");
+
+    const inputs = ({ steps }, { app, dockerfile }) => {
+      const build = steps.find((step) => step.uses?.startsWith("docker/build-push-action@"));
+      return {
+        context: build.with.context,
+        file: build.with.file
+          .replace("${{ matrix.dockerfile }}", dockerfile)
+          .replace("${{ inputs.app }}", app),
+        buildArgs: build.with["build-args"],
+        target: build.with.target,
+        aptKey: steps.find((step) => step.id === "apt")?.run
+      };
+    };
+    const drift = [];
+    for (const entry of apps) {
+      const expected = inputs(ciPr.jobs["docker-images"], entry);
+      assert.equal(expected.file, entry.dockerfile);
+      for (const [source, build] of [
+        [".github/workflows/docker-cache.yml", dockerCache],
+        [".github/workflows/security.yml", imageScan],
+        [".github/actions/app-image/action.yml", appImage]
+      ]) {
+        const actual = inputs(build, entry);
+        for (const key of Object.keys(expected)) {
+          if (actual[key] !== expected[key]) {
+            drift.push(
+              `${source} (${entry.app}) ${key}: ${actual[key]} != ci-pr.yml ${expected[key]}`
+            );
+          }
+        }
+      }
+    }
+    assert.deepEqual(drift, []);
+  });
+
+  it("pins pnpm in every workflow and app image to the root packageManager", () => {
+    const [, version] = /^pnpm@([^+]+)/.exec(rootPackage.packageManager);
+    const copies = [];
+    for (const name of readdirSync(".github/workflows")) {
+      const env = parse(readFileSync(`.github/workflows/${name}`, "utf8")).env ?? {};
+      if ("PNPM_VERSION" in env) copies.push([`.github/workflows/${name}`, env.PNPM_VERSION]);
+    }
+    assert.ok(copies.length > 0, "expected workflows that set env.PNPM_VERSION");
+    for (const name of readdirSync(".").filter((entry) => /^Dockerfile\./.test(entry))) {
+      const pinned = /corepack prepare pnpm@(\S+)/.exec(readFileSync(name, "utf8"))?.[1];
+      copies.push([name, pinned]);
+    }
+    assert.deepEqual(
+      copies.filter(([, pinned]) => pinned !== version),
+      [],
+      `set each copy to ${version} from package.json packageManager`
+    );
+  });
+
+  it("pins every pulled runner-cluster image by tag and digest", () => {
+    // kaine-ci-runner:local is built on the host and never pulled
+    // (imagePullPolicy: Never). A tag alone can move under the cluster.
+    const unpinned = [];
+    for (const name of readdirSync("tooling/ci-runners").filter((entry) =>
+      entry.endsWith(".yaml")
+    )) {
+      const text = readFileSync(`tooling/ci-runners/${name}`, "utf8");
+      for (const [, image] of text.matchAll(/^\s*(?:-\s*)?image:\s*(\S+)/gm)) {
+        if (image === "kaine-ci-runner:local") continue;
+        if (!/^[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}$/.test(image))
+          unpinned.push(`${name}: ${image}`);
+      }
+    }
+    assert.deepEqual(unpinned, []);
   });
 
   it("runs every scripts/*.test.mjs in both the PR job and the root test script", () => {
