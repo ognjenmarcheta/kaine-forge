@@ -265,12 +265,14 @@ repository root is its project file.
   KAINE-<type>-<description>, or KAINE-<issue>-<type>-<description> when the task names a GitHub
   issue. Use a Conventional Commit type and a short lowercase hyphenated description. No
   slashes."
-- Providers start switched off. Turn on each one in **Settings → Providers**.
+- Claude (instance id `claudeAgent`) and Codex start switched on. The other providers, OpenCode
+  included, start switched off; turn them on in **Settings → Providers**.
 - Set `T3CODE_TELEMETRY_ENABLED=false` in `~/.t3/service.env` and run `t3 service restart` to
   stop product events and relay traces.
 - Verified on 2026-11-09 (Ubuntu, ext4): the setup script made a fresh worktree of `main` ready
   in 8.5 seconds, wrote web 14641 and API 19641 to its `.env`, and left the primary `.env` on
-  3000 and 4000.
+  3000 and 4000. A Claude thread started with `t3 thread start` received the SessionStart
+  context, and the guard hook denied `git commit --no-verify`.
 
 ### MCP servers not adopted
 
