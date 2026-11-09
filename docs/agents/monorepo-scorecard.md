@@ -3458,7 +3458,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "dimension": 3,
           "ladderRank": 5,
           "disposition": "observed",
-          "reason": "Five held runs in sweep; the cause needs the run actors"
+          "reason": "Cause recorded on 11-02: repo-setup.json:20 fork_pr_contributor_approval holds the version-PR runs; the fix is an owner settings or token choice"
         },
         {
           "slug": "billing-sync-no-per-package-coverage-floor",
@@ -3489,8 +3489,8 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "title": "deps: transitive security fixes rely on hand-kept override floors with no stale-floor check",
           "dimension": 5,
           "ladderRank": 5,
-          "disposition": "fixed",
-          "reason": "fast-uri floor now ^3.1.9 (pnpm-workspace.yaml:197); the no-stale-floor-check gap stays under dim 5 evidence"
+          "disposition": "observed",
+          "reason": "The fast-uri floor is now ^3.1.9 (pnpm-workspace.yaml:197), but at 5babf89 no check catches a stale or ineffective override floor; #931 adds that test"
         },
         {
           "slug": "dependabot-security-updates-transitive-not-possible",
@@ -3618,7 +3618,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "dimension": 7,
           "ladderRank": 7,
           "disposition": "observed",
-          "reason": "ci-pr.yml:535-542"
+          "reason": "ci-pr.yml:563-570 fails only on CRITICAL; #932 raises it to fixable HIGH"
         },
         {
           "slug": "harness-eval-ledger-stale",
@@ -3630,7 +3630,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "changeset-backlog-36-pending",
-          "title": "release: 36 changesets wait behind version pr #815",
+          "title": "release: 52 changesets wait behind version pr #815",
           "dimension": 6,
           "ladderRank": 8,
           "disposition": "observed",
@@ -3646,11 +3646,11 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         },
         {
           "slug": "desk-opencode-skill-evidence-unrecorded",
-          "title": "desk: no offline replay or skill-read fixture for the opencode provider",
+          "title": "desk: no fixture shows the opencode provider reading a skill",
           "dimension": 10,
           "ladderRank": 8,
           "disposition": "observed",
-          "reason": "Only opencode-error.jsonl exists"
+          "reason": "Six OpenCode replay fixtures exist (opencode.stream.test.ts:11-93, opencode.runner.test.ts:92-160); none records a skill read, unlike codex-skill-read.jsonl and claude-skill-invoked.jsonl"
         },
         {
           "slug": "pnpm-version-duplicated",
@@ -3658,7 +3658,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "dimension": 3,
           "ladderRank": 8,
           "disposition": "observed",
-          "reason": "Seven copies, none tested"
+          "reason": "Six workflow and Dockerfile copies of the package.json packageManager version, none tested; #925 adds the test"
         },
         {
           "slug": "tag-release-steps-untested",
@@ -3995,7 +3995,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | `billing-sync-no-per-package-coverage-floor`          | 4         | 5      | observed    | —     | testing: billing and sync are measured only against the global floor                                                   |
 | `env-example-coverage-ungated`                        | 8         | 5      | observed    | —     | dx: no test checks that .env.example covers the api env schema                                                         |
 | `assistant-eval-prompt-drift-unrecorded`              | 10        | 5      | observed    | —     | eval: no check requires a fresh ledger run when the prompt or dataset hash changes                                     |
-| `transitive-security-via-manual-overrides`            | 5         | 5      | fixed       | —     | deps: transitive security fixes rely on hand-kept override floors with no stale-floor check                            |
+| `transitive-security-via-manual-overrides`            | 5         | 5      | observed    | —     | deps: transitive security fixes rely on hand-kept override floors with no stale-floor check                            |
 | `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible                    |
 | `visual-regression-label-gated`                       | 4         | 6      | observed    | —     | testing: visual baselines run only on PRs with the ci:run-visual label                                                 |
 | `dependabot-majors-on-coupled-catalog-pins`           | 5         | 6      | fixed       | —     | deps: dependabot proposes majors for simplewebauthn and wa-sqlite that the catalog says must move with another package |
@@ -4017,9 +4017,9 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | `trivy-pr-gate-critical-only`                         | 7         | 7      | observed    | —     | security: high image vulnerabilities do not fail pull requests                                                         |
 | `api-boundaries-stale-resolver-comment`               | 1         | 8      | observed    | —     | lint: the context-boundary rule comment says eslint-plugin-import has no TypeScript resolver                           |
 | `harness-eval-ledger-stale`                           | 10        | 8      | observed    | —     | eval: the harness-eval ledger has no run since 2026-10-20                                                              |
-| `changeset-backlog-36-pending`                        | 6         | 8      | observed    | —     | release: 36 changesets wait behind version pr #815                                                                     |
+| `changeset-backlog-36-pending`                        | 6         | 8      | observed    | —     | release: 52 changesets wait behind version pr #815                                                                     |
 | `ci-runner-images-tag-pinned`                         | 3         | 8      | observed    | —     | ci: self-hosted dind and buildkit images are tag-pinned outside dependabot                                             |
-| `desk-opencode-skill-evidence-unrecorded`             | 10        | 8      | observed    | —     | desk: no offline replay or skill-read fixture for the opencode provider                                                |
+| `desk-opencode-skill-evidence-unrecorded`             | 10        | 8      | observed    | —     | desk: no fixture shows the opencode provider reading a skill                                                           |
 | `pnpm-version-duplicated`                             | 3         | 8      | observed    | —     | ci: pnpm version is repeated in four workflows and two dockerfiles                                                     |
 | `tag-release-steps-untested`                          | 6         | 8      | observed    | —     | release: tag push and github release steps are inline bash without a test                                              |
 | `coverage-floors-far-below-measured`                  | 4         | 8      | observed    | —     | testing: global floors trail measured coverage by 21-24 points                                                         |
@@ -4142,7 +4142,7 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **CodeQL #114 is a false positive.** The slugify input has no repeated dashes after worktree.bootstrap.ts:31. It does not hold dim 7. It still needs a dismissal with a reason.
 - **Dims 1 and 6 held.** #846 and #847 are filed and open. Their 11-02 raise conditions are unchanged.
 
-### 2026-11-09 — tenth run (`5babf89`, fan-out)
+### 2026-11-09 — twelfth run (`5babf89`, fan-out)
 
 - **Full depth, like for like with 11-04.** Five probes with the same split (dims 1/2, 4/7, 3/5/6, 8/9, 10), all returned, all ten dimensions scored. Overall 7.9→7.9. No dimension moved.
 - **Real fixes that did not move a score.** #870 met one dim 2 band-9 condition (lint `^typecheck` edge). #917 and #872 closed every open code-scanning alert and the four dim 5 floor and ignore gaps. Each dimension still has an unmet band-9 condition from an earlier note, so none rises.
