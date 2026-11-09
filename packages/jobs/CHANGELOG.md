@@ -1,5 +1,13 @@
 # @repo/jobs
 
+## 1.1.1
+
+### Patch Changes
+
+- @repo/db@2.2.0
+  - @repo/email@1.3.4
+  - @repo/logger@1.2.1
+
 ## 1.1.0
 
 ### Minor Changes
