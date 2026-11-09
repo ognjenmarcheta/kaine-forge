@@ -316,6 +316,11 @@ The desk reads definitions from three sources. A later source overrides an earli
   | `tech-writer`        | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
   | `simplifier`         | `kaine-simplify`            | Over-engineering in a plan or diff                      |
 
+  `tooling/desk/src/jobs/jobs.specialist.test.ts` keeps each specialist's whole job prompt in
+  `tooling/desk/src/jobs/__snapshots__/jobs.specialist.<id>.txt`. When you change a specialist
+  file or add one, run `pnpm --filter @repo/desk exec vitest run -u src/jobs/jobs.specialist.test.ts`
+  and commit the snapshot with it. In CI, a specialist without a snapshot fails the test.
+
 - The built-in flow is `kaine-default`: plan, approve the plan, build, check, review, approve
   the change, ship a draft PR, and follow the PR. Its step ids are the stage names in "Stages".
 - The file name is the id. An id matches `^[a-z0-9][a-z0-9-]{0,63}$`.
