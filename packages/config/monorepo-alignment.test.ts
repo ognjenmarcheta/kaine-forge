@@ -386,6 +386,8 @@ const NODE_ONLY_LIBRARIES = [
   "@paddle/paddle-node-sdk",
   "@simplewebauthn/server",
   "dotenv",
+  // The scan stops at third-party imports, so the adapter that loads `pg` is named itself.
+  "drizzle-orm/node-postgres",
   "pg",
   "pg-boss",
   "stripe"
@@ -396,6 +398,14 @@ const TOOLING_CONFIG_PACKAGE = "@repo/config";
 
 const RUNTIME_IMPORT =
   /\b(?:import|export)\s+(type\s+)?(?:[\w$*{}\s,]+?\s+from\s+)?["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
+
+/**
+ * Drops comments that start a line, so an import inside a JSDoc example or a
+ * commented-out line is not followed. A comment opener later in a line is kept
+ * as code, because strings such as URLs (`//`) and globs (`/*`) contain them.
+ */
+const withoutComments = (source: string): string =>
+  source.replace(/^\s*\/\*[\s\S]*?\*\//gm, "").replace(/^\s*\/\/.*$/gm, "");
 
 const isNodeOnlySpecifier = (specifier: string): boolean =>
   specifier.startsWith("node:") ||
@@ -480,7 +490,7 @@ function nodeOnlyChain(source: string, entries: Map<string, PackageEntry>): stri
   const queue = [source];
   // The queue grows while it is walked, so the loop is a breadth-first search.
   for (const file of queue) {
-    for (const match of readFileSync(file, "utf8").matchAll(RUNTIME_IMPORT)) {
+    for (const match of withoutComments(readFileSync(file, "utf8")).matchAll(RUNTIME_IMPORT)) {
       if (match[1]) continue;
       const specifier = match[2] ?? match[3] ?? "";
       if (isNodeOnlySpecifier(specifier)) return chainTo(file, specifier);
