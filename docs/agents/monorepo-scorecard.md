@@ -3733,6 +3733,566 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "reason": "Stale count removed from ci-pr.yml in this run's ledger PR"
         }
       ]
+    },
+    {
+      "date": "2026-11-09",
+      "commit": "e5a10d7d5c7074c079136aa2e5e469857b9f79bb",
+      "mode": "fan-out",
+      "agent": "claude",
+      "overall": 8.8,
+      "dimensions": {
+        "1": {
+          "score": 8,
+          "evidence": "boundaries exit 0 (1559 files / 27 packages), knip exit 0. #921 added billing and jobs to SERVER_ONLY_ENTRY_PATTERN (packages/config/eslint/base.js:20-21) and the contract list asserts @repo/billing, @repo/jobs and @repo/jobs/client (monorepo-alignment.test.ts:1061-1075). #927 derives the ship-a-test list with reasoned exclusions (:1236-1267) and the DOM workspace list from manifests (:1110-1155); MONOREPO_GUIDE.md:143-150 documents client-safe vs server-only entries. Not 9: which packages are Node-only is still convention (MONOREPO_GUIDE.md:150 'add it to the pattern in the same change'); no test derives it from dependencies, so the #846 regression class would pass every gate.",
+          "calibration": "7→8 per the 11-02 binding note (billing and jobs covered and contract-tested). Raise to 9 when a test derives the Node-only package set from manifests and fails when SERVER_ONLY_ENTRY_PATTERN misses one."
+        },
+        "2": {
+          "score": 9,
+          "evidence": "lint dependsOn ^typecheck and hashes eslint.config.mjs (turbo.json:50-58), pinned by monorepo-alignment.test.ts:1398. packages/config/turbo.json:18-23 hashes root eslint.config.mjs, CONTEXT.md, the guide, the READMEs and docs/adr. The inputs-vs-reads scan covers .test.js (monorepo-alignment.test.ts:1569). MONOREPO_GUIDE.md:457-461 documents the inputs rule and DYNAMIC_READS. Band-10 gaps: the ESLint-loaded eslint.config.mjs input is not pinned by a test and the workspace tsconfig.json files the resolver probe loads are unhashed (packages/config/turbo.json:30); DYNAMIC_READS stays self-registered (:282-318).",
+          "calibration": "8→9: every 10-20, 11-04 and 11-09 condition is met (#870, #921, #927). The scan stays a floor by design per 10-20."
+        },
+        "3": {
+          "score": 9,
+          "evidence": "scripts/pr-quality-gate.test.mjs 'Hand-kept alignments' gates docker-cache paths (:434-439), Docker build inputs across ci-pr, docker-cache, security and app-image with matrix equality (:441-486), PNPM_VERSION copies vs packageManager (:488-505), runner images pinned by tag and digest (:507-522), the node --test list (:524-535). DOCKER_APPS derives from Dockerfile.* (scripts/ci-affected.mjs:14-21). The suite runs in ai-checks without a path filter (ci-pr.yml:275-301) and feeds PR Quality Gate (:850-856). PR runs 5-9 min; two active rulesets. Band-10: Dependabot parsing of the Helm values file (tooling/ci-runners/scale-set.values.yaml:41) is unproven until a bot PR lands.",
+          "calibration": "8→9: the 10-18 and 10-20 conditions (comment-only alignments tested, tooling tests on the PR path, Docker build inputs tested) are met by #925. The intermittent changesets error is scored under dim 6."
+        },
+        "4": {
+          "score": 9,
+          "evidence": "Global floors 65/60/61/66 (vitest.coverage.config.ts:71-75) = floor(measured)-5 against #934's measurement 70.73/65.58/66.15/71.93; billing (:96-101) and sync (:102-107) floors added. The e2e job starts RustFS on every shard (ci-pr.yml:630-636), creates the bucket (:698-715) and sets E2E_STORAGE_ENABLED (:782); on #934 shard 1 reported no skipped test where other PRs report '1 skipped'. #923 removed the desk watcher flake (server.watch.ts:68-72). Open: web-auth-todos-flows.e2e.ts:35 passes on CI retry (playwright.config.ts:24) after failing at :66 (toBeChecked after reload) and :74 in two PR runs today; cause unknown.",
+          "calibration": "8→9 per the 11-02 binding note (floors within ~5 points, attachment e2e in CI). Binding: drop to 8 if the todo e2e flake turns a main gate red, or if it is still undiagnosed at the next run, because a retried flake can hide a real local-change loss across reload."
+        },
+        "5": {
+          "score": 9,
+          "evidence": "audit --audit-level moderate exit 0 (1 low, deepmerge, no patch). scripts/dependency-overrides.test.mjs proves each override reaches a locked version (:115-135) and carries a reason (:138-150); it runs on PRs (ci-pr.yml:301) and found two dead overrides. Security gates moderate (security.yml:36-40) and runs Cargo Audit (:42-78), green on 7b2d54ad. glib accepted risk recorded with path, reason, risk and removal trigger (SECURITY.md:97-101). Band-10: PR dependency review fails only on high and diff-only (ci-pr.yml:160-168) while main gates moderate; Dependabot alert #1 is recorded but not dismissed on GitHub (owner).",
+          "calibration": "8→9: the 09-09 and 10-20 conditions (Cargo bot and audit gate, gated override floors) are met by #931."
+        },
+        "6": {
+          "score": 9,
+          "evidence": "release:apps runs one git push --atomic with no local update-ref (.ai/release-apps.util.ts:246-258), proven by a per-ref update hook (.ai/release-apps.util.spec.ts:126). .ai/release-workflow.spec.ts covers the release output to the deploy matrix (:144-218), job guards incl !cancelled() (:220-246), tag to image to webhook per app (:248-286), image tags, app-image inputs and build→scan→push with the scan equal to the PR gate (:288-382), and the pruner turbo version derived from pnpm-lock.yaml (:384-416; Dockerfile.api:22-24, Dockerfile.web:16-18). Observed: changesets/action failed 'Reference does not exist' in 2 of 17 Release runs today (release.yml:144-159); the action's finally deletes its temp ref changesets-ghcommit-temp/changeset-release/main and masks the real error; no deploy was lost (release:apps ran first, 9d287c3f moved nothing because main had advanced).",
+          "calibration": "8→9 per the 11-02 binding note (atomic push, publish/deploy path tested). Drop to 8 if a split release ships, or if the changesets error ever strands a moved branch without a deploy."
+        },
+        "7": {
+          "score": 9,
+          "evidence": "Code scanning 0 open. The PR Trivy gate fails on fixable HIGH or CRITICAL (ci-pr.yml:564-572); the release scan matches it (.github/actions/app-image/action.yml:66-75) and .ai/release-workflow.spec.ts:358-376 compares them. apps/web/src/nginx.headers.test.ts:135-172 checks HSTS, CSP and the other headers on every location of apps/web/nginx.conf. The API-key sweep classifies every Mutation field (api-keys.tenancy.test.ts:460-555). Introspection, depth and complexity have request-level tests (server.hardening.test.ts:98-237). Open owner decision: Mutation.sendMessage is classified allowed (:479), so a key creates an assistant conversation stamped with its creator's userId (assistant.adapter.ts:13-15; stamp has no apiKeyId guard, context.data.ts:316-321) although context.data.ts:339 states private rows need the user's own Session; the key cannot read or delete it.",
+          "calibration": "8→9: the three 11-02 conditions (PR image gate blocks HIGH, CSP/HSTS test, Trivy #98/#99 dispositions) and the 09-09/09-10 conditions are met by #931 and #932. The sendMessage finding is low severity and an owner decision; it does not hold the score."
+        },
+        "8": {
+          "score": 9,
+          "evidence": "portOwnerHint reads netstat and tasklist on win32 (scripts/doctor.mjs:244-262), tested by scripts/doctor.test.mjs:63-105 in the CI node list (ci-pr.yml:301). apps/api/src/env.config.test.ts:112-145 records every key validateApiEnv reads and fails when .env.example lacks one; apps/api/turbo.json:7 hashes .env.example. .ai/guide-commands.spec.ts:18-45 resolves every pnpm command under Common Commands (ai:test, ci-pr.yml:297). Band-10: the doctor still does not warn Windows users that host pnpm check fails in @repo/desk (docs/troubleshooting.md:121-125 documents it); commands outside Common Commands are unchecked (.ai/guide.md:68,70,96).",
+          "calibration": "8→9: the three conditions recorded as not-9 on 11-04 and 11-09 (Windows port hint, .env.example vs schema test, documented-commands test) are met by #928."
+        },
+        "9": {
+          "score": 9,
+          "evidence": "ai:doctor --strict exit 0 (40 kaine skills indexed). monorepo-alignment.test.ts:1269-1331 checks the MONOREPO_GUIDE §2 tree against the workspace manifests, the README package count and names, and the docs/README.md ADR index against docs/adr; packages/config/turbo.json:19-22 hashes what it reads. The Serena environment memory covers every .env.example key (environment_setup.md:12-43). security.yml:38-39 matches SECURITY.md:87. ADR 0005 carries a status note (docs/adr/0005-scrypt-password-hashing.md:8). Band-10: the context audit reports guide size with no ceiling (.ai/context-audit.ts:99); no check resolves ADR-to-ADR links; no test compares the Serena memory with .env.example.",
+          "calibration": "8→9 per the 11-02 and 11-04 notes: a manifest-derived check now stops the #848 drift class (#927), and the remaining doc drifts are fixed (#924, #931)."
+        },
+        "10": {
+          "score": 8,
+          "evidence": "Every assistant tool has a schema case (assistant.eval.data.ts:209-274, listNotes at :269-273) and assistant.eval.test.ts:65-87 fails when a tool lacks one. Specialist prompts have direct tests and byte snapshots (tooling/desk/src/jobs/jobs.specialist.test.ts:60-139). The live-run procedure, model-call count and cost are documented (docs/agents/agent-engineering.md:433-503). Not 9: the committed ledger is empty (assistant.eval.ledger.json:3). Also open: no prompt/dataset hash freshness check (assistant.eval.ledger.ts:92), no todo generator golden set (todos.ai-runtime.ts:88), harness-eval latest run 2026-10-20 (harness-evals.md:1027), createProviderPort untested (provider.probe.ts:100).",
+          "calibration": "Held at 8 per the 10-20 binding note: 9 needs at least one reviewed live run in the committed ledger. The owner's run is about $0.08 (docs/agents/agent-engineering.md)."
+        }
+      },
+      "findings": [
+        {
+          "slug": "e2e-todo-persistence-flake",
+          "title": "e2e: the todo flow passes on retry after failing at the reload check",
+          "dimension": 4,
+          "ladderRank": 2,
+          "disposition": "observed",
+          "reason": "web-auth-todos-flows.e2e.ts:35 failed at :66 and :74 in two PR runs and passed on retry (playwright.config.ts:24); cause unknown, may hide a local-change loss across reload. Proposed for filing"
+        },
+        {
+          "slug": "server-only-membership-not-derived",
+          "title": "lint: no test derives which packages are node-only, so a new one can miss the server-only pattern",
+          "dimension": 1,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "base.js:20-21, monorepo-alignment.test.ts:1061-1073, MONOREPO_GUIDE.md:150; the dim 1 band-9 condition. Proposed for filing"
+        },
+        {
+          "slug": "api-key-send-message-writes-private-row",
+          "title": "security: an api key can create an assistant conversation in its creator's private data",
+          "dimension": 7,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "api-keys.tenancy.test.ts:479 classifies sendMessage allowed; assistant.adapter.ts:13-15 and context.data.ts:316-321 vs the invariant at context.data.ts:339. Owner decision: refuse, or document in SECURITY.md:61"
+        },
+        {
+          "slug": "changesets-step-intermittent-reference-error",
+          "title": "release: changesets/action intermittently fails with reference does not exist and masks the real error",
+          "dimension": 6,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "2 of 17 Release runs on 2026-11-09 (release.yml:144-159); the action's finally deletes its temp ref changesets-ghcommit-temp/changeset-release/main; no deploy lost; not correlated with main advancing"
+        },
+        {
+          "slug": "release-trivy-comment-stale",
+          "title": "release: a release.yml comment still calls the image scan a critical-only gate",
+          "dimension": 7,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "release.yml:220"
+        },
+        {
+          "slug": "eslint-loaded-reads-unguarded",
+          "title": "build: the eslint-loaded config input is unpinned and resolver-loaded tsconfig.json files are unhashed",
+          "dimension": 2,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "Band-10 gap; monorepo-alignment.test.ts:1095,1174,1214, packages/config/turbo.json:30"
+        },
+        {
+          "slug": "e2e-storage-env-unpinned",
+          "title": "testing: no test keeps E2E_STORAGE_ENABLED set in the ci e2e job",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Band-10 gap; ci-pr.yml:782"
+        },
+        {
+          "slug": "coverage-floor-ratchet-by-comment",
+          "title": "testing: coverage floors rise only by the comment rule, with no ratchet check",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Band-10 gap; vitest.coverage.config.ts:68-70"
+        },
+        {
+          "slug": "trivy-severity-pinned-by-equality-only",
+          "title": "security: the release spec checks that both trivy gates match, not that high is blocked",
+          "dimension": 7,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Band-10 gap; .ai/release-workflow.spec.ts:371-376"
+        },
+        {
+          "slug": "pr-audit-level-below-main",
+          "title": "deps: pull requests gate dependency review at high while main audits at moderate",
+          "dimension": 5,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Band-10 gap; ci-pr.yml:160-168 vs security.yml:40"
+        },
+        {
+          "slug": "adr-cross-citations-ungated",
+          "title": "docs: no check resolves adr-to-adr links",
+          "dimension": 9,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Band-10 gap; the 11-02 ADR 0016 citation was this class"
+        },
+        {
+          "slug": "guide-commands-outside-common-ungated",
+          "title": "dx: guide commands outside common commands are not checked",
+          "dimension": 8,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Band-10 gap; .ai/guide.md:68,70,96 resolve today"
+        },
+        {
+          "slug": "desk-store-watcher-duplicate-event-flake",
+          "title": "desk: the store watcher reports a half-written issue, so one new issue sends two events and Release flakes",
+          "dimension": 4,
+          "ladderRank": 1,
+          "disposition": "fixed",
+          "reason": "#923: server.watch.ts:68-72"
+        },
+        {
+          "slug": "inputs-check-skips-js-tests",
+          "title": "build: the inputs-versus-reads check skips .test.js files, so the CONTEXT.md read is unhashed",
+          "dimension": 2,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "reason": "#921: monorepo-alignment.test.ts:1569"
+        },
+        {
+          "slug": "version-pr-branch-hand-update-unwarned",
+          "title": "release: no doc warns against updating changeset-release/main by hand, which fails the Release changesets step",
+          "dimension": 6,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "#922: docs/release-checklist.md:60"
+        },
+        {
+          "slug": "api-boundaries-stale-resolver-comment",
+          "title": "lint: the context-boundary rule comment says eslint-plugin-import has no TypeScript resolver",
+          "dimension": 1,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#921: api-boundaries.js:5-6"
+        },
+        {
+          "slug": "visual-regression-label-gated",
+          "title": "testing: visual baselines run only on PRs with the ci:run-visual label",
+          "dimension": 4,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "Deliberate cost choice (ci-pr.yml:704-709); band-9 gap"
+        },
+        {
+          "slug": "desk-specialist-prompts-untested",
+          "title": "desk: the eight specialist prompts have no snapshot and the brief target and fenced() guard are untested",
+          "dimension": 10,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "#929: jobs.specialist.test.ts:60-139"
+        },
+        {
+          "slug": "assistant-listnotes-schema-case-absent",
+          "title": "eval: listNotes has no schema case while listTodos has one for the same bound",
+          "dimension": 10,
+          "ladderRank": 7,
+          "disposition": "fixed",
+          "reason": "#929: assistant.eval.data.ts:269-273"
+        },
+        {
+          "slug": "documented-commands-ungated",
+          "title": "dx: no test checks that the commands AGENTS.md names exist in package.json",
+          "dimension": 8,
+          "ladderRank": 7,
+          "disposition": "fixed",
+          "reason": "#928: .ai/guide-commands.spec.ts:18-45 (Common Commands)"
+        },
+        {
+          "slug": "release-push-non-atomic",
+          "title": "release: release:apps pushes release branches one by one, so a failure can split the api and web pair",
+          "dimension": 6,
+          "ladderRank": 2,
+          "disposition": "fixed",
+          "issue": 847,
+          "reason": "#922: .ai/release-apps.util.ts:246-258; #847 closed"
+        },
+        {
+          "slug": "server-only-regex-misses-billing-jobs",
+          "title": "eslint: the server-only import block does not cover @repo/billing or @repo/jobs",
+          "dimension": 1,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "issue": 846,
+          "reason": "#921: base.js:20-21; #846 closed"
+        },
+        {
+          "slug": "release-apps-output-lost-on-partial-push",
+          "title": "release: a failed release-branch push writes no deploy output, so the app that already moved never deploys",
+          "dimension": 6,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "issue": 847,
+          "reason": "#922: one atomic push moves nothing on failure"
+        },
+        {
+          "slug": "csp-hsts-headers-untested",
+          "title": "security: csp and hsts headers exist only in the nginx template with no test",
+          "dimension": 7,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "reason": "#932: apps/web/src/nginx.headers.test.ts:135-172"
+        },
+        {
+          "slug": "eslint-contract-reads-unhashed-root-config",
+          "title": "build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits",
+          "dimension": 2,
+          "ladderRank": 3,
+          "disposition": "fixed",
+          "reason": "#921: packages/config/turbo.json:23"
+        },
+        {
+          "slug": "test-presence-list-misses-new-packages",
+          "title": "testing: the ship-a-test list omits billing, jobs, sync and ui-3d",
+          "dimension": 1,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "#927 derives the list (monorepo-alignment.test.ts:1236-1267)"
+        },
+        {
+          "slug": "docker-build-inputs-untested",
+          "title": "ci: docker build inputs in ci-pr, docker-cache, security and app-image match by comment only",
+          "dimension": 3,
+          "ladderRank": 4,
+          "disposition": "fixed",
+          "reason": "#925: pr-quality-gate.test.mjs:441-486"
+        },
+        {
+          "slug": "assistant-eval-ledger-empty",
+          "title": "eval: the committed assistant eval ledger holds no reviewed live run",
+          "dimension": 10,
+          "ladderRank": 4,
+          "disposition": "observed",
+          "reason": "Needs a paid live run by the owner"
+        },
+        {
+          "slug": "image-publish-deploy-jobs-untested",
+          "title": "release: the ghcr publish and deploy jobs and the app-image action have no test",
+          "dimension": 6,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "#926: .ai/release-workflow.spec.ts"
+        },
+        {
+          "slug": "release-branches-unprotected",
+          "title": "release: rulesets cover only main, so a push to release/<app> deploys without the main gates",
+          "dimension": 6,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Owner settings choice"
+        },
+        {
+          "slug": "changeset-release-ci-action-required",
+          "title": "ci: CI PR runs on changeset-release/main end action_required",
+          "dimension": 3,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Cause recorded on 11-02: repo-setup.json:20 fork_pr_contributor_approval holds the version-PR runs; the fix is an owner settings or token choice"
+        },
+        {
+          "slug": "billing-sync-no-per-package-coverage-floor",
+          "title": "testing: billing and sync are measured only against the global floor",
+          "dimension": 4,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "#934: vitest.coverage.config.ts:96-107"
+        },
+        {
+          "slug": "env-example-coverage-ungated",
+          "title": "dx: no test checks that .env.example covers the api env schema",
+          "dimension": 8,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "#928: env.config.test.ts:112-145"
+        },
+        {
+          "slug": "assistant-eval-prompt-drift-unrecorded",
+          "title": "eval: no check requires a fresh ledger run when the prompt or dataset hash changes",
+          "dimension": 10,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "assistant.eval.ledger.ts:92"
+        },
+        {
+          "slug": "transitive-security-via-manual-overrides",
+          "title": "deps: transitive security fixes rely on hand-kept override floors with no stale-floor check",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "fixed",
+          "reason": "#931: scripts/dependency-overrides.test.mjs:115-150"
+        },
+        {
+          "slug": "dependabot-security-updates-transitive-not-possible",
+          "title": "deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible",
+          "dimension": 5,
+          "ladderRank": 5,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "docker-pruner-turbo-unpinned",
+          "title": "deploy: the docker pruner installs turbo@2 unpinned while the lockfile has 2.11.10",
+          "dimension": 6,
+          "ladderRank": 6,
+          "disposition": "fixed",
+          "reason": "#926: version derived from pnpm-lock.yaml (Dockerfile.api:22-24, Dockerfile.web:16-18)"
+        },
+        {
+          "slug": "api-key-access-change-refusal-hand-listed",
+          "title": "security: the api-key access-change refusal test names five mutations instead of sweeping the schema",
+          "dimension": 7,
+          "ladderRank": 6,
+          "disposition": "fixed",
+          "reason": "#932: schema sweep at api-keys.tenancy.test.ts:460-555"
+        },
+        {
+          "slug": "todo-generation-eval-absent",
+          "title": "eval: the todo generator has no golden set or ledger",
+          "dimension": 10,
+          "ladderRank": 6,
+          "disposition": "observed",
+          "reason": "todos.ai-runtime.ts:88"
+        },
+        {
+          "slug": "serena-env-memory-incomplete",
+          "title": "ai: the serena environment memory lists no billing, jobs, retention or split storage expiry variables",
+          "dimension": 9,
+          "ladderRank": 6,
+          "disposition": "fixed",
+          "reason": "#924: environment_setup.md:12-43"
+        },
+        {
+          "slug": "server-only-split-undocumented",
+          "title": "docs: monorepo guide does not describe the client-safe versus server-only entry rule",
+          "dimension": 1,
+          "ladderRank": 6,
+          "disposition": "fixed",
+          "reason": "#927: MONOREPO_GUIDE.md:143-150"
+        },
+        {
+          "slug": "inputs-rule-undocumented-in-guide",
+          "title": "docs: monorepo guide does not explain the turbo test-inputs contract",
+          "dimension": 2,
+          "ladderRank": 6,
+          "disposition": "fixed",
+          "reason": "#927: MONOREPO_GUIDE.md:457-461"
+        },
+        {
+          "slug": "invitation-attachment-e2e-skipped-in-ci",
+          "title": "testing: the attachment e2e skips in ci without e2e_storage_enabled",
+          "dimension": 4,
+          "ladderRank": 6,
+          "disposition": "fixed",
+          "reason": "#934: ci-pr.yml:630-636,782"
+        },
+        {
+          "slug": "desk-provider-probe-untested",
+          "title": "desk: createProviderPort has no test; probeProvider is tested only through doctor",
+          "dimension": 10,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "provider.probe.ts:100; doctor.checks.test.ts:387-419"
+        },
+        {
+          "slug": "version-pr-runs-held-docs-stale",
+          "title": "release: version pr ci runs wait for approval while docs say they never start",
+          "dimension": 6,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "release.yml:155-159 and docs/release-checklist.md:60 still do not explain action_required"
+        },
+        {
+          "slug": "cargo-glib-alert-open-since-july",
+          "title": "deps: glib alert #1 is recorded as accepted risk but not dismissed on GitHub",
+          "dimension": 5,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "SECURITY.md:97-101; dismissal is an owner action"
+        },
+        {
+          "slug": "dynamic-reads-self-registration",
+          "title": "build: DYNAMIC_READS depends on authors registering git walks and subprocess tests",
+          "dimension": 2,
+          "ladderRank": 7,
+          "disposition": "observed",
+          "reason": "monorepo-alignment.test.ts:282-317"
+        },
+        {
+          "slug": "trivy-pr-gate-critical-only",
+          "title": "security: high image vulnerabilities do not fail pull requests",
+          "dimension": 7,
+          "ladderRank": 7,
+          "disposition": "fixed",
+          "reason": "#932: ci-pr.yml:564-572"
+        },
+        {
+          "slug": "harness-eval-ledger-stale",
+          "title": "eval: the harness-eval ledger has no run since 2026-10-20",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "docs/agents/harness-evals.md:1027; runs need owner budget"
+        },
+        {
+          "slug": "changeset-backlog-36-pending",
+          "title": "release: 52 changesets wait behind version pr #815",
+          "dimension": 6,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "Version PRs #815 and #920 merged; 3 changesets pending behind #933"
+        },
+        {
+          "slug": "ci-runner-images-tag-pinned",
+          "title": "ci: self-hosted dind and buildkit images are tag-pinned outside dependabot",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#925: tag@digest pins, gated at pr-quality-gate.test.mjs:507-522"
+        },
+        {
+          "slug": "desk-opencode-skill-evidence-unrecorded",
+          "title": "desk: no fixture shows the opencode provider reading a skill",
+          "dimension": 10,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "Six OpenCode replay fixtures exist (opencode.stream.test.ts:11-93, opencode.runner.test.ts:92-160); none records a skill read, unlike codex-skill-read.jsonl and claude-skill-invoked.jsonl"
+        },
+        {
+          "slug": "pnpm-version-duplicated",
+          "title": "ci: pnpm version is repeated in four workflows and two dockerfiles",
+          "dimension": 3,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#925: pr-quality-gate.test.mjs:488-505"
+        },
+        {
+          "slug": "tag-release-steps-untested",
+          "title": "release: tag push and github release steps are inline bash without a test",
+          "dimension": 6,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "release.yml:165-178"
+        },
+        {
+          "slug": "coverage-floors-far-below-measured",
+          "title": "testing: global floors trail measured coverage by 21-24 points",
+          "dimension": 4,
+          "ladderRank": 8,
+          "disposition": "fixed",
+          "reason": "#934: vitest.coverage.config.ts:71-75"
+        },
+        {
+          "slug": "windows-desk-no-preflight",
+          "title": "dx: the doctor does not warn windows users that host pnpm check fails in @repo/desk",
+          "dimension": 8,
+          "ladderRank": 8,
+          "disposition": "observed",
+          "reason": "The port-owner hint is fixed (#928); docs/troubleshooting.md:121-125 documents the desk failure"
+        },
+        {
+          "slug": "audit-ignore-doc-drift",
+          "title": "docs: security.yml points at package.json auditConfig while SECURITY.md names pnpm-workspace.yaml",
+          "dimension": 5,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "#931: security.yml:38-39 matches SECURITY.md:87"
+        },
+        {
+          "slug": "adr-0005-better-auth-unused-claim",
+          "title": "docs: adr 0005 alternatives still call better-auth unused",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "#927: status note at docs/adr/0005-scrypt-password-hashing.md:8"
+        },
+        {
+          "slug": "guide-size-budget-unenforced",
+          "title": "ai: the context audit reports guide size but enforces no ceiling",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "observed",
+          "reason": "Carried"
+        },
+        {
+          "slug": "workspace-tree-not-derived",
+          "title": "docs: no test derives the guide workspace tree or readme package count from manifests",
+          "dimension": 9,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "#927: monorepo-alignment.test.ts:1269-1331"
+        },
+        {
+          "slug": "dom-workspace-list-hand-maintained",
+          "title": "lint: the dom workspace list in base.js and its contract test are both hand-kept",
+          "dimension": 1,
+          "ladderRank": 9,
+          "disposition": "fixed",
+          "reason": "#927 derives the expected DOM set (monorepo-alignment.test.ts:1110-1155); base.js keeps literal globs checked by it"
+        },
+        {
+          "slug": "e2e-shard-comment-stale",
+          "title": "ci: the e2e shard comment says 5 spec files, there are 26",
+          "dimension": 4,
+          "ladderRank": 10,
+          "disposition": "fixed",
+          "reason": "#924: ci-pr.yml:602-608"
+        }
+      ]
     }
   ],
   "authoredFlows": [
@@ -3940,6 +4500,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 
 | Date       | Commit    | Mode       | Agent    | Overall | Dims | Findings filed |
 | ---------- | --------- | ---------- | -------- | ------- | ---- | -------------- |
+| 2026-11-09 | `e5a10d7` | fan-out    | claude   | **8.8** | 10   | 3              |
 | 2026-11-09 | `5babf89` | fan-out    | claude   | **7.9** | 10   | 4              |
 | 2026-11-04 | `7766e29` | fan-out    | desk-job | **7.9** | 10   | 8              |
 | 2026-11-02 | `87b8219` | fan-out    | desk-job | **7.7** | 10   | 1              |
@@ -3953,83 +4514,89 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
 | 2026-08-21 | `4cbdfeb` | sequential | opencode | **7.3** | 9    | 2              |
 | 2026-07-28 | `15102fc` | sequential | grok     | **7.3** | 9    | 2              |
 
-### Latest scorecard — 2026-11-09 (`5babf89`, fan-out)
+### Latest scorecard — 2026-11-09 (`e5a10d7`, fan-out)
 
-| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --- | ------------------------ | ----- | ------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Workspace & Boundaries   | 7.0   | `███████░░░` | 0   | sweep: boundaries exit 0 (1555 files / 27 packages), knip exit 0. #846 still open at 5babf895: SERVER_ONLY_ENTRY_PATTERN (packages/config/eslint/base.js:19-20) covers storage/auth/db/email only, and the contract list (monorepo-alignment.test.ts:1022-1031) omits billing and jobs. New since 11-04: the context-boundary rule (#890) is scoped to feature files (api-boundaries.js:139-149) and checked by api-boundaries.test.js:130-139 and monorepo-alignment.test.ts:1145-1169. api-boundaries.js:5-6 still says eslint-plugin-import has no TypeScript resolver, but #891 added one (base.js:53-69). Test-presence list (:1176-1195) still omits billing, jobs, sync and ui-3d. |
-| 2   | Build & Cache            | 8.0   | `████████░░` | 0   | #870 closed #864: lint has dependsOn ^typecheck and hashes eslint.config.mjs (turbo.json:50-60), enforced at monorepo-alignment.test.ts:1274. Still open: packages/config/turbo.json:12-32 does not hash root eslint.config.mjs, which three contract tests load (monorepo-alignment.test.ts:1053,1109,1149); 'inputs' absent from MONOREPO_GUIDE.md. New: the inputs-vs-reads scan matches only .test.ts, .test.tsx and .test.mjs files (monorepo-alignment.test.ts:1445), so api-boundaries.test.js:158 reads CONTEXT.md unhashed.                                                                                                                                                      |
-| 3   | CI Topology & Speed      | 8.0   | `████████░░` | 0   | sweep runs-main: CodeQL, Security, Docker Cache green on 5babf895; PR runs 4.5-9 min; two active rulesets. pr-quality-gate.test.mjs:416-451 now checks docker-cache paths, the node --test list and BuildKit cache expressions. Not 9: Docker build inputs still match by comment across ci-pr.yml:523-531, docker-cache.yml:76-80, security.yml:91-96, app-image/action.yml:54-64; PNPM_VERSION has six untested copies (ci-pr.yml:17, release.yml:28, security.yml:20, deep-checks.yml:16, Dockerfile.api:14, Dockerfile.web:8); apps hand-listed (scripts/ci-affected.mjs:6-9); runner images tag-pinned.                                                                              |
-| 4   | Testing & Coverage       | 8.0   | `████████░░` | 0   | Floors 50/42/45/50 (vitest.coverage.config.ts:78-82) vs last measured 70.73/65.58/66.15/71.93 (run 41677500043; no local summary). #915 added 5 visual baselines (web-visual-baseline.e2e.ts:72-108) that run only with the ci:run-visual label (ci-pr.yml:704-709). Release on 0ffad135 went red on a flake: server.events.test.ts:143-144 received a second 'build' issue-updated. Cause: store.write creates the folder before state.json (store.issue.ts:127-128), and the watcher counts the 'missing' read as a change (server.watch.ts:67-74). Attachment e2e still skips in CI (web-invitation-attachment.e2e.ts:91-94).                                                          |
-| 5   | Dependency Hygiene       | 8.0   | `████████░░` | 0   | sweep audit exit 0 (1 low). Four 11-04 gaps fixed: fast-uri ^3.1.9 (pnpm-workspace.yaml:197), minimatch ^11.0.1 with reason (:149-153), wa-sqlite and @simplewebauthn/server majors ignored (dependabot.yml:121-129, #872). Not 9: override floors are hand-kept with no stale-floor check (pnpm-workspace.yaml:185-213); Cargo has the updater (dependabot.yml:182-199) but no audit gate; glib alert #1 (medium, fix only in 0.20) open since 2026-07-27 with no recorded disposition.                                                                                                                                                                                                  |
-| 6   | Release & Deploy         | 8.0   | `████████░░` | 0   | #847 still open at 5babf895: per-app update-ref + push with no --atomic (.ai/release-apps.util.ts:246-249), output written after the loop (.ai/release-apps.ts:105-106). Release failed twice on main: 0ffad135 on the desk flake (dim 4) and 2dfa48ff at changesets/action ('Reference does not exist') after a hand merge of main into changeset-release/main mid-run; no doc warned against that (docs/release-checklist.md:59-60). deploy-images uses !cancelled() (release.yml:319-322), so no split release. 52 changesets pending behind #815. turbo@2 unpinned (Dockerfile.api:18, Dockerfile.web:12).                                                                            |
-| 7   | Security Posture         | 8.0   | `████████░░` | 0   | Code scanning: 0 open alerts (was 3). #98/#99 fixed by minimatch ^11.0.1 and glob ^14.0.2 overrides (pnpm-workspace.yaml:153,156-157); #114 closed with a documented linear regex (worktree.bootstrap.ts:31-35). Dependabot: deepmerge #145 low (no patch), glib #1 medium. Dependency review fails on high (ci-pr.yml:168). Not 9: the PR Trivy gate is CRITICAL-only (ci-pr.yml:563-570); CSP/HSTS (apps/web/nginx.conf:72,88) untested; api-key refusal test hand-lists five mutations (api-keys.tenancy.test.ts:328-350).                                                                                                                                                             |
-| 8   | DX & Onboarding          | 8.0   | `████████░░` | 0   | Every AGENTS.md Common Command resolves in package.json (check:affected :19, smoke :28, smoke:desktop :30, bootstrap :49, graph* :60-62, desk:run :70, docs:for :80, review:pre :81, public-text:* :82-83). New t3.json:6 setup reuses runWorktreeEnv (scripts/t3-worktree-setup.mjs:15,72-73), tested in the CI node list (ci-pr.yml:301). .env.example covers the API env schema by hand (apps/api/src/env.config.ts:17-127). Not 9: lsof-only port hint (doctor.mjs:224-234), no .env.example-vs-schema test, no documented-commands test.                                                                                                                                             |
-| 9   | Docs & Agent Scaffolding | 8.0   | `████████░░` | 0   | sweep ai:doctor --strict exit 0 (40 kaine skills, AGENTS.md index matches, incl. coupling-audit/document-release/qa/security-audit at :295,:300,:311,:317). #848 facts still hold; ADR 0025 indexed by hand (docs/README.md:29-52). Still open: environment_setup.md:12-35 lacks billing/jobs/retention/AI vars; security.yml:38-40 names package.json ignoreCves while SECURITY.md:85 names pnpm-workspace ignoreGhsas; ADR 0005:27 calls better-auth unused. No test derives the guide tree, readme count or ADR index from disk.                                                                                                                                                       |
-| 10  | AI & Agent Quality       | 8.0   | `████████░░` | 0   | createAssistantTools exposes 9 tools (assistant.tools.ts:24-133), each with a golden case (assistant.eval.data.ts:57-115); write tools derived (assistant.eval.test.ts:26-27,65-83). harness-eval --check gates PRs via ai:test (ci-pr.yml:297, package.json:58). Narrowed: probeProvider/versionAtLeast covered through runDoctor (doctor.checks.test.ts:379-419); six OpenCode replay fixtures. New: the eight #889 specialist prompts have no snapshot and specialistPrompt's brief target and fenced() guard are untested (jobs.specialist.ts:11-15,41-83). Not 9: assistant.eval.ledger.json:3 empty; harness-eval latest run 2026-10-20 (harness-evals.md:883).                     |
+| #   | Dimension                | Score |              | Δ   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --- | ------------------------ | ----- | ------------ | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace & Boundaries   | 8.0   | `████████░░` | ▲+1 | boundaries exit 0 (1559 files / 27 packages), knip exit 0. #921 added billing and jobs to SERVER_ONLY_ENTRY_PATTERN (packages/config/eslint/base.js:20-21) and the contract list asserts @repo/billing, @repo/jobs and @repo/jobs/client (monorepo-alignment.test.ts:1061-1075). #927 derives the ship-a-test list with reasoned exclusions (:1236-1267) and the DOM workspace list from manifests (:1110-1155); MONOREPO_GUIDE.md:143-150 documents client-safe vs server-only entries. Not 9: which packages are Node-only is still convention (MONOREPO_GUIDE.md:150 'add it to the pattern in the same change'); no test derives it from dependencies, so the #846 regression class would pass every gate.                                                                                                                                                                                                |
+| 2   | Build & Cache            | 9.0   | `█████████░` | ▲+1 | lint dependsOn ^typecheck and hashes eslint.config.mjs (turbo.json:50-58), pinned by monorepo-alignment.test.ts:1398. packages/config/turbo.json:18-23 hashes root eslint.config.mjs, CONTEXT.md, the guide, the READMEs and docs/adr. The inputs-vs-reads scan covers .test.js (monorepo-alignment.test.ts:1569). MONOREPO_GUIDE.md:457-461 documents the inputs rule and DYNAMIC_READS. Band-10 gaps: the ESLint-loaded eslint.config.mjs input is not pinned by a test and the workspace tsconfig.json files the resolver probe loads are unhashed (packages/config/turbo.json:30); DYNAMIC_READS stays self-registered (:282-318).                                                                                                                                                                                                                                                                        |
+| 3   | CI Topology & Speed      | 9.0   | `█████████░` | ▲+1 | scripts/pr-quality-gate.test.mjs 'Hand-kept alignments' gates docker-cache paths (:434-439), Docker build inputs across ci-pr, docker-cache, security and app-image with matrix equality (:441-486), PNPM_VERSION copies vs packageManager (:488-505), runner images pinned by tag and digest (:507-522), the node --test list (:524-535). DOCKER_APPS derives from Dockerfile.* (scripts/ci-affected.mjs:14-21). The suite runs in ai-checks without a path filter (ci-pr.yml:275-301) and feeds PR Quality Gate (:850-856). PR runs 5-9 min; two active rulesets. Band-10: Dependabot parsing of the Helm values file (tooling/ci-runners/scale-set.values.yaml:41) is unproven until a bot PR lands.                                                                                                                                                                                                       |
+| 4   | Testing & Coverage       | 9.0   | `█████████░` | ▲+1 | Global floors 65/60/61/66 (vitest.coverage.config.ts:71-75) = floor(measured)-5 against #934's measurement 70.73/65.58/66.15/71.93; billing (:96-101) and sync (:102-107) floors added. The e2e job starts RustFS on every shard (ci-pr.yml:630-636), creates the bucket (:698-715) and sets E2E_STORAGE_ENABLED (:782); on #934 shard 1 reported no skipped test where other PRs report '1 skipped'. #923 removed the desk watcher flake (server.watch.ts:68-72). Open: web-auth-todos-flows.e2e.ts:35 passes on CI retry (playwright.config.ts:24) after failing at :66 (toBeChecked after reload) and :74 in two PR runs today; cause unknown.                                                                                                                                                                                                                                                             |
+| 5   | Dependency Hygiene       | 9.0   | `█████████░` | ▲+1 | audit --audit-level moderate exit 0 (1 low, deepmerge, no patch). scripts/dependency-overrides.test.mjs proves each override reaches a locked version (:115-135) and carries a reason (:138-150); it runs on PRs (ci-pr.yml:301) and found two dead overrides. Security gates moderate (security.yml:36-40) and runs Cargo Audit (:42-78), green on 7b2d54ad. glib accepted risk recorded with path, reason, risk and removal trigger (SECURITY.md:97-101). Band-10: PR dependency review fails only on high and diff-only (ci-pr.yml:160-168) while main gates moderate; Dependabot alert #1 is recorded but not dismissed on GitHub (owner).                                                                                                                                                                                                                                                                |
+| 6   | Release & Deploy         | 9.0   | `█████████░` | ▲+1 | release:apps runs one git push --atomic with no local update-ref (.ai/release-apps.util.ts:246-258), proven by a per-ref update hook (.ai/release-apps.util.spec.ts:126). .ai/release-workflow.spec.ts covers the release output to the deploy matrix (:144-218), job guards incl !cancelled() (:220-246), tag to image to webhook per app (:248-286), image tags, app-image inputs and build→scan→push with the scan equal to the PR gate (:288-382), and the pruner turbo version derived from pnpm-lock.yaml (:384-416; Dockerfile.api:22-24, Dockerfile.web:16-18). Observed: changesets/action failed 'Reference does not exist' in 2 of 17 Release runs today (release.yml:144-159); the action's finally deletes its temp ref changesets-ghcommit-temp/changeset-release/main and masks the real error; no deploy was lost (release:apps ran first, 9d287c3f moved nothing because main had advanced). |
+| 7   | Security Posture         | 9.0   | `█████████░` | ▲+1 | Code scanning 0 open. The PR Trivy gate fails on fixable HIGH or CRITICAL (ci-pr.yml:564-572); the release scan matches it (.github/actions/app-image/action.yml:66-75) and .ai/release-workflow.spec.ts:358-376 compares them. apps/web/src/nginx.headers.test.ts:135-172 checks HSTS, CSP and the other headers on every location of apps/web/nginx.conf. The API-key sweep classifies every Mutation field (api-keys.tenancy.test.ts:460-555). Introspection, depth and complexity have request-level tests (server.hardening.test.ts:98-237). Open owner decision: Mutation.sendMessage is classified allowed (:479), so a key creates an assistant conversation stamped with its creator's userId (assistant.adapter.ts:13-15; stamp has no apiKeyId guard, context.data.ts:316-321) although context.data.ts:339 states private rows need the user's own Session; the key cannot read or delete it.     |
+| 8   | DX & Onboarding          | 9.0   | `█████████░` | ▲+1 | portOwnerHint reads netstat and tasklist on win32 (scripts/doctor.mjs:244-262), tested by scripts/doctor.test.mjs:63-105 in the CI node list (ci-pr.yml:301). apps/api/src/env.config.test.ts:112-145 records every key validateApiEnv reads and fails when .env.example lacks one; apps/api/turbo.json:7 hashes .env.example. .ai/guide-commands.spec.ts:18-45 resolves every pnpm command under Common Commands (ai:test, ci-pr.yml:297). Band-10: the doctor still does not warn Windows users that host pnpm check fails in @repo/desk (docs/troubleshooting.md:121-125 documents it); commands outside Common Commands are unchecked (.ai/guide.md:68,70,96).                                                                                                                                                                                                                                            |
+| 9   | Docs & Agent Scaffolding | 9.0   | `█████████░` | ▲+1 | ai:doctor --strict exit 0 (40 kaine skills indexed). monorepo-alignment.test.ts:1269-1331 checks the MONOREPO_GUIDE §2 tree against the workspace manifests, the README package count and names, and the docs/README.md ADR index against docs/adr; packages/config/turbo.json:19-22 hashes what it reads. The Serena environment memory covers every .env.example key (environment_setup.md:12-43). security.yml:38-39 matches SECURITY.md:87. ADR 0005 carries a status note (docs/adr/0005-scrypt-password-hashing.md:8). Band-10: the context audit reports guide size with no ceiling (.ai/context-audit.ts:99); no check resolves ADR-to-ADR links; no test compares the Serena memory with .env.example.                                                                                                                                                                                               |
+| 10  | AI & Agent Quality       | 8.0   | `████████░░` | 0   | Every assistant tool has a schema case (assistant.eval.data.ts:209-274, listNotes at :269-273) and assistant.eval.test.ts:65-87 fails when a tool lacks one. Specialist prompts have direct tests and byte snapshots (tooling/desk/src/jobs/jobs.specialist.test.ts:60-139). The live-run procedure, model-call count and cost are documented (docs/agents/agent-engineering.md:433-503). Not 9: the committed ledger is empty (assistant.eval.ledger.json:3). Also open: no prompt/dataset hash freshness check (assistant.eval.ledger.ts:92), no todo generator golden set (todos.ai-runtime.ts:88), harness-eval latest run 2026-10-20 (harness-evals.md:1027), createProviderPort untested (provider.probe.ts:100).                                                                                                                                                                                       |
 
-**Overall: 7.9** (0)
+**Overall: 8.8** (▲+0.9)
 
 ### Findings
 
-| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                                  |
-| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
-| `desk-store-watcher-duplicate-event-flake`            | 4         | 1      | observed    | —     | desk: the store watcher reports a half-written issue, so one new issue sends two events and Release flakes             |
-| `inputs-check-skips-js-tests`                         | 2         | 2      | observed    | —     | build: the inputs-versus-reads check skips .test.js files, so the CONTEXT.md read is unhashed                          |
-| `release-push-non-atomic`                             | 6         | 2      | open        | #847  | release: release:apps pushes release branches one by one, so a failure can split the api and web pair                  |
-| `turbo-lint-hash-omits-dependency-types`              | 2         | 2      | fixed       | #864  | build: turbo lint has no ^ edge while typed rules read dependency types                                                |
-| `server-only-regex-misses-billing-jobs`               | 1         | 3      | open        | #846  | eslint: the server-only import block does not cover @repo/billing or @repo/jobs                                        |
-| `release-apps-output-lost-on-partial-push`            | 6         | 3      | open        | #847  | release: a failed release-branch push writes no deploy output, so the app that already moved never deploys             |
-| `csp-hsts-headers-untested`                           | 7         | 3      | observed    | —     | security: csp and hsts headers exist only in the nginx template with no test                                           |
-| `eslint-contract-reads-unhashed-root-config`          | 2         | 3      | observed    | —     | build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits                 |
-| `version-pr-branch-hand-update-unwarned`              | 6         | 4      | observed    | —     | release: no doc warns against updating changeset-release/main by hand, which fails the Release changesets step         |
-| `test-presence-list-misses-new-packages`              | 1         | 4      | observed    | —     | testing: the ship-a-test list omits billing, jobs, sync and ui-3d                                                      |
-| `minimatch-override-pins-below-fixed-major`           | 5         | 4      | fixed       | —     | deps: the minimatch ^10.2.3 override holds the tree below the 11.0.1 fix                                               |
-| `trivy-medium-alerts-no-recorded-disposition`         | 7         | 4      | fixed       | —     | security: trivy #98 and #99 have no recorded fix or disposition                                                        |
-| `docker-build-inputs-untested`                        | 3         | 4      | observed    | —     | ci: docker build inputs in ci-pr, docker-cache, security and app-image match by comment only                           |
-| `assistant-eval-ledger-empty`                         | 10        | 4      | observed    | —     | eval: the committed assistant eval ledger holds no reviewed live run                                                   |
-| `desk-specialist-prompts-untested`                    | 10        | 5      | observed    | —     | desk: the eight specialist prompts have no snapshot and the brief target and fenced() guard are untested               |
-| `image-publish-deploy-jobs-untested`                  | 6         | 5      | observed    | —     | release: the ghcr publish and deploy jobs and the app-image action have no test                                        |
-| `release-branches-unprotected`                        | 6         | 5      | observed    | —     | release: rulesets cover only main, so a push to release/<app> deploys without the main gates                           |
-| `changeset-release-ci-action-required`                | 3         | 5      | observed    | —     | ci: CI PR runs on changeset-release/main end action_required                                                           |
-| `billing-sync-no-per-package-coverage-floor`          | 4         | 5      | observed    | —     | testing: billing and sync are measured only against the global floor                                                   |
-| `env-example-coverage-ungated`                        | 8         | 5      | observed    | —     | dx: no test checks that .env.example covers the api env schema                                                         |
-| `assistant-eval-prompt-drift-unrecorded`              | 10        | 5      | observed    | —     | eval: no check requires a fresh ledger run when the prompt or dataset hash changes                                     |
-| `transitive-security-via-manual-overrides`            | 5         | 5      | observed    | —     | deps: transitive security fixes rely on hand-kept override floors with no stale-floor check                            |
-| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible                    |
-| `visual-regression-label-gated`                       | 4         | 6      | observed    | —     | testing: visual baselines run only on PRs with the ci:run-visual label                                                 |
-| `dependabot-majors-on-coupled-catalog-pins`           | 5         | 6      | fixed       | —     | deps: dependabot proposes majors for simplewebauthn and wa-sqlite that the catalog says must move with another package |
-| `docker-pruner-turbo-unpinned`                        | 6         | 6      | observed    | —     | deploy: the docker pruner installs turbo@2 unpinned while the lockfile has 2.11.10                                     |
-| `api-key-access-change-refusal-hand-listed`           | 7         | 6      | observed    | —     | security: the api-key access-change refusal test names five mutations instead of sweeping the schema                   |
-| `todo-generation-eval-absent`                         | 10        | 6      | observed    | —     | eval: the todo generator has no golden set or ledger                                                                   |
-| `serena-env-memory-incomplete`                        | 9         | 6      | observed    | —     | ai: the serena environment memory lists no billing, jobs, retention or split storage expiry variables                  |
-| `trivy-api-minimatch-glob-medium`                     | 7         | 6      | fixed       | —     | security: trivy #98 and #99 (glob 13.0.5, minimatch 10.2.6) open in the api image                                      |
-| `server-only-split-undocumented`                      | 1         | 6      | observed    | —     | docs: monorepo guide does not describe the client-safe versus server-only entry rule                                   |
-| `inputs-rule-undocumented-in-guide`                   | 2         | 6      | observed    | —     | docs: monorepo guide does not explain the turbo test-inputs contract                                                   |
-| `invitation-attachment-e2e-skipped-in-ci`             | 4         | 6      | observed    | —     | testing: the attachment e2e skips in ci without e2e_storage_enabled                                                    |
-| `assistant-listnotes-schema-case-absent`              | 10        | 7      | observed    | —     | eval: listNotes has no schema case while listTodos has one for the same bound                                          |
-| `documented-commands-ungated`                         | 8         | 7      | observed    | —     | dx: no test checks that the commands AGENTS.md names exist in package.json                                             |
-| `desk-provider-probe-untested`                        | 10        | 7      | observed    | —     | desk: probeProvider, createProviderPort and versionAtLeast have no direct test                                         |
-| `codeql-desk-slugify-redos-alert-untriaged`           | 7         | 7      | fixed       | —     | security: codeql alert #114 on the desk slugify regex is open with no dismissal reason                                 |
-| `version-pr-runs-held-docs-stale`                     | 6         | 7      | observed    | —     | release: version pr ci runs wait for approval while docs say they never start                                          |
-| `cargo-glib-alert-open-since-july`                    | 5         | 7      | observed    | —     | deps: Cargo glib 0.18.5 Dependabot alert open since 2026-07-27                                                         |
-| `dynamic-reads-self-registration`                     | 2         | 7      | observed    | —     | build: DYNAMIC_READS depends on authors registering git walks and subprocess tests                                     |
-| `trivy-pr-gate-critical-only`                         | 7         | 7      | observed    | —     | security: high image vulnerabilities do not fail pull requests                                                         |
-| `api-boundaries-stale-resolver-comment`               | 1         | 8      | observed    | —     | lint: the context-boundary rule comment says eslint-plugin-import has no TypeScript resolver                           |
-| `harness-eval-ledger-stale`                           | 10        | 8      | observed    | —     | eval: the harness-eval ledger has no run since 2026-10-20                                                              |
-| `changeset-backlog-36-pending`                        | 6         | 8      | observed    | —     | release: 52 changesets wait behind version pr #815                                                                     |
-| `ci-runner-images-tag-pinned`                         | 3         | 8      | observed    | —     | ci: self-hosted dind and buildkit images are tag-pinned outside dependabot                                             |
-| `desk-opencode-skill-evidence-unrecorded`             | 10        | 8      | observed    | —     | desk: no fixture shows the opencode provider reading a skill                                                           |
-| `pnpm-version-duplicated`                             | 3         | 8      | observed    | —     | ci: pnpm version is repeated in four workflows and two dockerfiles                                                     |
-| `tag-release-steps-untested`                          | 6         | 8      | observed    | —     | release: tag push and github release steps are inline bash without a test                                              |
-| `coverage-floors-far-below-measured`                  | 4         | 8      | observed    | —     | testing: global floors trail measured coverage by 21-24 points                                                         |
-| `windows-desk-no-preflight`                           | 8         | 8      | observed    | —     | dx: no preflight warns windows users before pnpm check fails in @repo/desk                                             |
-| `audit-ignore-doc-drift`                              | 5         | 9      | observed    | —     | docs: security.yml points at package.json auditConfig while SECURITY.md names pnpm-workspace.yaml                      |
-| `adr-0005-better-auth-unused-claim`                   | 9         | 9      | observed    | —     | docs: adr 0005 alternatives still call better-auth unused                                                              |
-| `guide-size-budget-unenforced`                        | 9         | 9      | observed    | —     | ai: the context audit reports guide size but enforces no ceiling                                                       |
-| `workspace-tree-not-derived`                          | 9         | 9      | observed    | —     | docs: no test derives the guide workspace tree or readme package count from manifests                                  |
-| `dom-workspace-list-hand-maintained`                  | 1         | 9      | observed    | —     | lint: the dom workspace list in base.js and its contract test are both hand-kept                                       |
-| `e2e-shard-comment-stale`                             | 4         | 10     | observed    | —     | ci: the e2e shard comment says 5 spec files, there are 26                                                              |
+| Slug                                                  | Dimension | Ladder | Disposition | Issue | Title                                                                                                          |
+| ----------------------------------------------------- | --------- | ------ | ----------- | ----- | -------------------------------------------------------------------------------------------------------------- |
+| `desk-store-watcher-duplicate-event-flake`            | 4         | 1      | fixed       | —     | desk: the store watcher reports a half-written issue, so one new issue sends two events and Release flakes     |
+| `e2e-todo-persistence-flake`                          | 4         | 2      | observed    | —     | e2e: the todo flow passes on retry after failing at the reload check                                           |
+| `inputs-check-skips-js-tests`                         | 2         | 2      | fixed       | —     | build: the inputs-versus-reads check skips .test.js files, so the CONTEXT.md read is unhashed                  |
+| `release-push-non-atomic`                             | 6         | 2      | fixed       | #847  | release: release:apps pushes release branches one by one, so a failure can split the api and web pair          |
+| `server-only-regex-misses-billing-jobs`               | 1         | 3      | fixed       | #846  | eslint: the server-only import block does not cover @repo/billing or @repo/jobs                                |
+| `release-apps-output-lost-on-partial-push`            | 6         | 3      | fixed       | #847  | release: a failed release-branch push writes no deploy output, so the app that already moved never deploys     |
+| `csp-hsts-headers-untested`                           | 7         | 3      | fixed       | —     | security: csp and hsts headers exist only in the nginx template with no test                                   |
+| `eslint-contract-reads-unhashed-root-config`          | 2         | 3      | fixed       | —     | build: the eslint import-block contract reads root eslint.config.mjs, which the config test hash omits         |
+| `server-only-membership-not-derived`                  | 1         | 4      | observed    | —     | lint: no test derives which packages are node-only, so a new one can miss the server-only pattern              |
+| `version-pr-branch-hand-update-unwarned`              | 6         | 4      | fixed       | —     | release: no doc warns against updating changeset-release/main by hand, which fails the Release changesets step |
+| `test-presence-list-misses-new-packages`              | 1         | 4      | fixed       | —     | testing: the ship-a-test list omits billing, jobs, sync and ui-3d                                              |
+| `docker-build-inputs-untested`                        | 3         | 4      | fixed       | —     | ci: docker build inputs in ci-pr, docker-cache, security and app-image match by comment only                   |
+| `assistant-eval-ledger-empty`                         | 10        | 4      | observed    | —     | eval: the committed assistant eval ledger holds no reviewed live run                                           |
+| `api-key-send-message-writes-private-row`             | 7         | 5      | observed    | —     | security: an api key can create an assistant conversation in its creator's private data                        |
+| `desk-specialist-prompts-untested`                    | 10        | 5      | fixed       | —     | desk: the eight specialist prompts have no snapshot and the brief target and fenced() guard are untested       |
+| `image-publish-deploy-jobs-untested`                  | 6         | 5      | fixed       | —     | release: the ghcr publish and deploy jobs and the app-image action have no test                                |
+| `release-branches-unprotected`                        | 6         | 5      | observed    | —     | release: rulesets cover only main, so a push to release/<app> deploys without the main gates                   |
+| `changeset-release-ci-action-required`                | 3         | 5      | observed    | —     | ci: CI PR runs on changeset-release/main end action_required                                                   |
+| `billing-sync-no-per-package-coverage-floor`          | 4         | 5      | fixed       | —     | testing: billing and sync are measured only against the global floor                                           |
+| `env-example-coverage-ungated`                        | 8         | 5      | fixed       | —     | dx: no test checks that .env.example covers the api env schema                                                 |
+| `assistant-eval-prompt-drift-unrecorded`              | 10        | 5      | observed    | —     | eval: no check requires a fresh ledger run when the prompt or dataset hash changes                             |
+| `transitive-security-via-manual-overrides`            | 5         | 5      | fixed       | —     | deps: transitive security fixes rely on hand-kept override floors with no stale-floor check                    |
+| `dependabot-security-updates-transitive-not-possible` | 5         | 5      | observed    | —     | deps: Dependabot security updates for transitive pnpm dependencies end security_update_not_possible            |
+| `changesets-step-intermittent-reference-error`        | 6         | 6      | observed    | —     | release: changesets/action intermittently fails with reference does not exist and masks the real error         |
+| `visual-regression-label-gated`                       | 4         | 6      | observed    | —     | testing: visual baselines run only on PRs with the ci:run-visual label                                         |
+| `docker-pruner-turbo-unpinned`                        | 6         | 6      | fixed       | —     | deploy: the docker pruner installs turbo@2 unpinned while the lockfile has 2.11.10                             |
+| `api-key-access-change-refusal-hand-listed`           | 7         | 6      | fixed       | —     | security: the api-key access-change refusal test names five mutations instead of sweeping the schema           |
+| `todo-generation-eval-absent`                         | 10        | 6      | observed    | —     | eval: the todo generator has no golden set or ledger                                                           |
+| `serena-env-memory-incomplete`                        | 9         | 6      | fixed       | —     | ai: the serena environment memory lists no billing, jobs, retention or split storage expiry variables          |
+| `server-only-split-undocumented`                      | 1         | 6      | fixed       | —     | docs: monorepo guide does not describe the client-safe versus server-only entry rule                           |
+| `inputs-rule-undocumented-in-guide`                   | 2         | 6      | fixed       | —     | docs: monorepo guide does not explain the turbo test-inputs contract                                           |
+| `invitation-attachment-e2e-skipped-in-ci`             | 4         | 6      | fixed       | —     | testing: the attachment e2e skips in ci without e2e_storage_enabled                                            |
+| `eslint-loaded-reads-unguarded`                       | 2         | 7      | observed    | —     | build: the eslint-loaded config input is unpinned and resolver-loaded tsconfig.json files are unhashed         |
+| `assistant-listnotes-schema-case-absent`              | 10        | 7      | fixed       | —     | eval: listNotes has no schema case while listTodos has one for the same bound                                  |
+| `documented-commands-ungated`                         | 8         | 7      | fixed       | —     | dx: no test checks that the commands AGENTS.md names exist in package.json                                     |
+| `desk-provider-probe-untested`                        | 10        | 7      | observed    | —     | desk: createProviderPort has no test; probeProvider is tested only through doctor                              |
+| `version-pr-runs-held-docs-stale`                     | 6         | 7      | observed    | —     | release: version pr ci runs wait for approval while docs say they never start                                  |
+| `cargo-glib-alert-open-since-july`                    | 5         | 7      | observed    | —     | deps: glib alert #1 is recorded as accepted risk but not dismissed on GitHub                                   |
+| `dynamic-reads-self-registration`                     | 2         | 7      | observed    | —     | build: DYNAMIC_READS depends on authors registering git walks and subprocess tests                             |
+| `trivy-pr-gate-critical-only`                         | 7         | 7      | fixed       | —     | security: high image vulnerabilities do not fail pull requests                                                 |
+| `release-trivy-comment-stale`                         | 7         | 8      | observed    | —     | release: a release.yml comment still calls the image scan a critical-only gate                                 |
+| `e2e-storage-env-unpinned`                            | 4         | 8      | observed    | —     | testing: no test keeps E2E_STORAGE_ENABLED set in the ci e2e job                                               |
+| `coverage-floor-ratchet-by-comment`                   | 4         | 8      | observed    | —     | testing: coverage floors rise only by the comment rule, with no ratchet check                                  |
+| `trivy-severity-pinned-by-equality-only`              | 7         | 8      | observed    | —     | security: the release spec checks that both trivy gates match, not that high is blocked                        |
+| `pr-audit-level-below-main`                           | 5         | 8      | observed    | —     | deps: pull requests gate dependency review at high while main audits at moderate                               |
+| `adr-cross-citations-ungated`                         | 9         | 8      | observed    | —     | docs: no check resolves adr-to-adr links                                                                       |
+| `api-boundaries-stale-resolver-comment`               | 1         | 8      | fixed       | —     | lint: the context-boundary rule comment says eslint-plugin-import has no TypeScript resolver                   |
+| `harness-eval-ledger-stale`                           | 10        | 8      | observed    | —     | eval: the harness-eval ledger has no run since 2026-10-20                                                      |
+| `changeset-backlog-36-pending`                        | 6         | 8      | fixed       | —     | release: 52 changesets wait behind version pr #815                                                             |
+| `ci-runner-images-tag-pinned`                         | 3         | 8      | fixed       | —     | ci: self-hosted dind and buildkit images are tag-pinned outside dependabot                                     |
+| `desk-opencode-skill-evidence-unrecorded`             | 10        | 8      | observed    | —     | desk: no fixture shows the opencode provider reading a skill                                                   |
+| `pnpm-version-duplicated`                             | 3         | 8      | fixed       | —     | ci: pnpm version is repeated in four workflows and two dockerfiles                                             |
+| `tag-release-steps-untested`                          | 6         | 8      | observed    | —     | release: tag push and github release steps are inline bash without a test                                      |
+| `coverage-floors-far-below-measured`                  | 4         | 8      | fixed       | —     | testing: global floors trail measured coverage by 21-24 points                                                 |
+| `windows-desk-no-preflight`                           | 8         | 8      | observed    | —     | dx: the doctor does not warn windows users that host pnpm check fails in @repo/desk                            |
+| `guide-commands-outside-common-ungated`               | 8         | 9      | observed    | —     | dx: guide commands outside common commands are not checked                                                     |
+| `audit-ignore-doc-drift`                              | 5         | 9      | fixed       | —     | docs: security.yml points at package.json auditConfig while SECURITY.md names pnpm-workspace.yaml              |
+| `adr-0005-better-auth-unused-claim`                   | 9         | 9      | fixed       | —     | docs: adr 0005 alternatives still call better-auth unused                                                      |
+| `guide-size-budget-unenforced`                        | 9         | 9      | observed    | —     | ai: the context audit reports guide size but enforces no ceiling                                               |
+| `workspace-tree-not-derived`                          | 9         | 9      | fixed       | —     | docs: no test derives the guide workspace tree or readme package count from manifests                          |
+| `dom-workspace-list-hand-maintained`                  | 1         | 9      | fixed       | —     | lint: the dom workspace list in base.js and its contract test are both hand-kept                               |
+| `e2e-shard-comment-stale`                             | 4         | 10     | fixed       | —     | ci: the e2e shard comment says 5 spec files, there are 26                                                      |
 
 <!-- scorecard:generated:end -->
 
@@ -4148,3 +4715,11 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Real fixes that did not move a score.** #870 met one dim 2 band-9 condition (lint `^typecheck` edge). #917 and #872 closed every open code-scanning alert and the four dim 5 floor and ignore gaps. Each dimension still has an unmet band-9 condition from an earlier note, so none rises.
 - **Release red on main is not a split release.** 0ffad135 failed on a desk test flake and 2dfa48ff at the changesets step after a hand merge into `changeset-release/main`. The flake is scored under dim 4 per the 09-09 red-gate precedent. Dim 6 holds because `release:apps` ran before the failing step and `deploy-images` still ran.
 - **Scores describe 5babf89, not the open fix PRs.** #921 (#846 and the `.test.js` inputs gap), #922 (#847 and the version-PR branch warning) and #923 (the watcher flake) carry this run's fixes; the ledger PR carries two doc drifts and #931 the third. Score them when they merge: dim 1 → 8 on #846 per the 11-02 note; dim 6 stays 8 until the publish/deploy path also has a test.
+
+### 2026-11-09 — thirteenth run (`e5a10d7`, fan-out)
+
+- **Full depth, like for like with the twelfth run.** The five probes used the same split (dims 1/2, 4/7, 3/5/6, 8/9, 10), all returned, and all ten dimensions are scored. Overall 7.9→8.8 on the band-9 wave (#921–#934). Eight dimensions moved by one point each, every move with the cause named in its dimension note. Dim 10 held.
+- **Strict readings recorded, not waived.** Dim 2 rises although the ESLint-loaded config input has no pin test, because the 10-20 condition asked for the read to be hashed and it is. Dim 4 rises although a todo e2e flake passes on retry; its own binding drop condition is in the dim 4 note. Dim 7 rises although `sendMessage` lets an API key write a private row; that is an owner decision, filed as an observed finding.
+- **Dim 1 is the one agent-fixable gap below 9.** Billing and jobs are blocked, but which packages are Node-only is still a convention. Raise to 9 when a test derives that set from manifests.
+- **Dim 10 needs the owner.** 9 needs one reviewed live assistant eval run in the committed ledger, per the 10-20 note. With dims 1 and 10 at 9, the overall reaches 9.0.
+- **The changesets "Reference does not exist" failures are a dim 6 observed gap, not a regression.** Two runs that saw main advance succeeded, so main advancing is not the cause. No deploy was lost, because `release:apps` runs before the changesets step.
