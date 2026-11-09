@@ -58,7 +58,10 @@ Use this checklist before merging a release PR or cutting a manual release from 
 - [ ] `pnpm release:status`
 - [ ] Review generated changelog/version output before merging a version PR
 - [ ] Do not push to `changeset-release/main` or use "Update branch" on the version PR. The Release workflow rewrites that branch on every push to `main`; a hand update while Release runs fails its changesets step with "Reference does not exist".
-- [ ] Confirm the version PR shows its required checks. A PR opened with the job token gets no `pull_request` workflow runs; set repository secret `RELEASE_PR_TOKEN` (fine-grained PAT: Contents rw, Pull requests rw), or close and reopen the PR to trigger its checks.
+- [ ] Confirm that the required checks ran on the version PR. Without `RELEASE_PR_TOKEN`, the Release workflow opens and updates the PR with the job token, so `github-actions[bot]` is its author. GitHub holds the `pull_request` runs of a PR from that bot as `action_required` until a user with write access approves them. The `fork_pr_contributor_approval` policy in `.github/repo-setup.json` does not cause this hold, because it applies only to pull requests from forks. The owner chooses one of these options:
+  - Approve the held runs on the PR each time that the Release workflow updates it. This needs no setup.
+  - Set repository secret `RELEASE_PR_TOKEN` (fine-grained PAT: Contents rw, Pull requests rw). The token owner then authors the PR, and its runs start without approval. The PAT expires, so rotate it before its expiry date.
+  - Give the changesets step a GitHub App installation token. The App then authors the PR, and the token does not depend on a personal account. This needs a workflow change that creates the token before the changesets step.
 
 ## 8. Security Review
 
