@@ -1,5 +1,31 @@
 # @repo/config
 
+## 2.1.0
+
+### Minor Changes
+
+- 832d5e9: New lint rule `api/context-boundaries`: an `apps/api` feature imports another bounded context only
+  along an edge of the context map in `eslint/api-contexts.js`, and only through that feature's
+  `.module` or `.type` file (ADR 0025).
+- 87e1376: Add the `anti-slop/no-comment-provenance` lint rule: a comment states a reason, constraint, or
+  invariant, never a PR or issue number, a date, or change history. Existing violations are frozen
+  in per-workspace `eslint-suppressions.json` files, which lint fails on when an entry goes stale.
+
+### Patch Changes
+
+- 87b8219: The UI lab is now the agent desk's Lab view (`?view=lab`, G then L), and `@repo/ui-lab` is gone.
+  `pnpm lab` starts the desk UI dev server; the lab opens without a desk server. `lab-frame.html`
+  shows the lab alone for the compare view and `lab:shots`/`lab:diff`, and it is the one desk page
+  that the desk itself may frame. Lab themes load as a constructed stylesheet under the desk CSP.
+- 9a6e5a9: The `eslint-plugin-import` rules now resolve TypeScript imports through
+  `eslint-import-resolver-typescript`, so `import/no-cycle` checks `.ts` and `.tsx` files. It was a
+  no-op for them before. `no-cycle` runs with `disableScc`, which keeps cold lint near 30s.
+- bdbfa41: New theme roles: `attention` ("your turn", warning colors today), `border-state` (selected,
+  pressed, and current borders at border-bold contrast), five text styles (`--ds-type-title`,
+  `-heading`, `-body`, `-label`, `-mono`), density roles switched by `data-density="compact"`, and
+  named layers and layout widths. The light chart series is now the same color-blind-safe palette in
+  every theme, and the light warning fill reaches 3:1 on the page.
+
 ## 2.0.0
 
 ### Major Changes

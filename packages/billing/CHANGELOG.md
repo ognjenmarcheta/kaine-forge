@@ -1,5 +1,12 @@
 # @repo/billing
 
+## 0.1.1
+
+### Patch Changes
+
+- 05fa337: Stripe requests and the documented webhook endpoint now use API version `2026-10-28.endive`, the
+  version that `stripe` 23.1.0 types.
+
 ## 0.1.0
 
 ### Minor Changes

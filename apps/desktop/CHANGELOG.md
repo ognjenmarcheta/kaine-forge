@@ -1,5 +1,18 @@
 # @repo/desktop
 
+## 1.3.0
+
+### Minor Changes
+
+- 54a7471: The desktop app keeps synced Todos and Notes in a SQLite database per User and Organization, so a
+  restart with no network shows them. The shell runs its own database commands with one connection
+  per file, because `tauri-plugin-sql` pools connections and splits a transaction. Signing out
+  deletes the User's database files.
+
+### Patch Changes
+
+- a9a2d2c: The desktop crate declares Rust 1.90, the minimum that Tauri 2.12 needs, instead of 1.77.
+
 ## 1.2.1
 
 ### Patch Changes

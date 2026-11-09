@@ -1,5 +1,80 @@
 # @repo/mobile
 
+## 1.12.0
+
+### Minor Changes
+
+- a9a2d2c: A first sync of a large Organization loads only the newest 500 Todos and Notes (issue #800).
+  `syncPull` takes `window`, payloads name lists with older rows in `older`, and the new
+  `syncPullOlder` loads them page by page. The engine stores where each list continues and exposes
+  `loadOlder`; the web and mobile lists load older rows past the local ones, online only. Every later
+  change of any row still syncs.
+- be77d99: Mobile keeps synced Todos in an `expo-sqlite` database per User and Organization, so a cold start
+  with no network shows them. Signing out deletes the User's databases, and starting sync deletes
+  other Users'. New todo stays disabled until sync starts. This adds a native module: rebuild the
+  dev client (`expo run:android` / `expo run:ios`).
+- 3e8bb66: The sync status now says why sync stops. Web and desktop show "Offline" with no network: the
+  engine gets `createBrowserOnlineDetector(window)`, because TanStack's default detector counted any
+  visible tab as online. A request with no response, or a gateway error, shows the new `unreachable`
+  state ("Can't reach the server – retrying"); other failures keep "Sync failed – retrying". A failure
+  now wins over Syncing while changes wait. `engine.retry()` pulls and sends waiting changes at once,
+  and the web header and mobile Todos header offer it as Retry now.
+
+### Patch Changes
+
+- a9a2d2c: Sign-out now warns when some of the User's data could not be deleted from this device: a toast on
+  web and desktop, an alert on mobile. The sign-out still completes, and the next deletion retries.
+- 1aa632d: The web app keeps synced Todos and Notes in a device database (SQLite on OPFS), one per User and
+  Organization, shared by every open tab. A reload while offline shows them, and the next pull asks
+  only for the changes after the stored cursor. `createSyncEngine` takes an optional `persistence`;
+  without it, or where the browser has no OPFS, rows stay in memory as before. Signing out deletes
+  the User's device databases, and signing in as another User deletes the previous User's stored rows. Screens key their live queries on the new `engine.id`, so an
+  Organization switch never reuses a collection for another engine.
+- ebffe67: Pin the TanStack DB 1.0 RC set for offline sync (`@tanstack/db` and `@tanstack/react-db` 1.0.0-rc.1, `@tanstack/offline-transactions` 1.2.0). The sync engine now waits for a local change with `transaction.when("settled")`, and `useLiveQuery` no longer takes a dependency array.
+- bdbfa41: New theme roles: `attention` ("your turn", warning colors today), `border-state` (selected,
+  pressed, and current borders at border-bold contrast), five text styles (`--ds-type-title`,
+  `-heading`, `-body`, `-label`, `-mono`), density roles switched by `data-density="compact"`, and
+  named layers and layout widths. The light chart series is now the same color-blind-safe palette in
+  every theme, and the light warning fill reaches 3:1 on the page.
+- Updated dependencies [ba578e9]
+- Updated dependencies [d1325ed]
+- Updated dependencies [1a3fc0f]
+- Updated dependencies [6a13c9b]
+- Updated dependencies [cef5a53]
+- Updated dependencies [cd5c89e]
+- Updated dependencies [a4943a9]
+- Updated dependencies [cc50650]
+- Updated dependencies [b1b7350]
+- Updated dependencies [d2ade33]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [5c0f6b4]
+- Updated dependencies [4c41c94]
+- Updated dependencies [cc50650]
+- Updated dependencies [87b8219]
+- Updated dependencies [2271b43]
+- Updated dependencies [e4a6c42]
+- Updated dependencies [27abb62]
+- Updated dependencies [87b8219]
+- Updated dependencies [db42d07]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [0a0832a]
+- Updated dependencies [a9a2d2c]
+- Updated dependencies [3e8bb66]
+- Updated dependencies [1aa632d]
+- Updated dependencies [ebffe67]
+- Updated dependencies [bdbfa41]
+  - @repo/storage@1.7.0
+  - @repo/translation@1.15.0
+  - @repo/sync@0.2.0
+  - @repo/mobile-ui@2.1.0
+  - @repo/auth@5.2.1
+  - @repo/feature-flags@1.2.0
+  - @repo/logger@1.2.1
+  - @repo/persistence@1.1.2
+  - @repo/query@2.0.0
+  - @repo/todos@1.1.0
+
 ## 1.11.0
 
 ### Minor Changes

@@ -1,5 +1,36 @@
 # @repo/doc-export
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [d1325ed]
+- Updated dependencies [1a3fc0f]
+- Updated dependencies [d947f31]
+- Updated dependencies [91e33eb]
+- Updated dependencies [cef5a53]
+- Updated dependencies [79327c2]
+- Updated dependencies [40b44ce]
+- Updated dependencies [d9eecbc]
+- Updated dependencies [cd5c89e]
+- Updated dependencies [a4943a9]
+- Updated dependencies [cc50650]
+- Updated dependencies [b1b7350]
+- Updated dependencies [d2ade33]
+- Updated dependencies [a554319]
+- Updated dependencies [5c0f6b4]
+- Updated dependencies [69d84bb]
+- Updated dependencies [4c41c94]
+- Updated dependencies [cc50650]
+- Updated dependencies [87b8219]
+- Updated dependencies [2271b43]
+- Updated dependencies [e4a6c42]
+- Updated dependencies [27abb62]
+- Updated dependencies [bdbfa41]
+- Updated dependencies [87b8219]
+- Updated dependencies [5a9cb42]
+  - @repo/desk@0.6.0
+
 ## 0.1.2
 
 ### Patch Changes
