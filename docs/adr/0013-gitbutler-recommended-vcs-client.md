@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-23
+- Applies to: `.husky/pre-push`, `.ai/permissions.json`
 
 ## Context
 

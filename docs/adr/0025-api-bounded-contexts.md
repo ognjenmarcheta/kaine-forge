@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-06
+- Applies to: `apps/api/src/features/**`, `packages/config/eslint/api-contexts.js`, `packages/config/eslint/api-boundaries.js`
 
 ## Context
 

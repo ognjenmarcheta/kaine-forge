@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-02-18
+- Applies to: `apps/mobile/package.json`
 
 ## Context
 

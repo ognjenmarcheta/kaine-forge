@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-03
+- Applies to: `.config/wt.toml`, `.worktreeinclude`, `scripts/worktree-env.mjs`, `.ai/hooks/worktrunk-cli.mjs`
 
 ## Context
 

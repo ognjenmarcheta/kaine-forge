@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-02
+- Applies to: `tooling/desk/src/jobs/**`
 
 ## Context
 

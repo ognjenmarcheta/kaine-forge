@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-26
+- Applies to: `.ai/template-sync.ts`, `.ai/template-sync.manifest.json`
 
 ## Context
 
