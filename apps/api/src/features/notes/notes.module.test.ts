@@ -47,7 +47,8 @@ beforeAll(async () => {
     data: createScopedData({ db, requireOrganizationScope: () => scope }),
     publish: (eventName, ...payload) => {
       events.push([eventName, ...payload]);
-    }
+    },
+    recordEvent: () => Promise.resolve()
   });
 }, 30_000);
 

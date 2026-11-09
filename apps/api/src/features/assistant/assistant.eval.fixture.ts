@@ -112,11 +112,12 @@ export async function seedEvalFixture(database: TestDatabase, evaluation: Execut
     logger,
     // An evaluation runs on the unlimited Plan: no limit applies.
     plan: { withinLimit: (_limit, _count, create) => create(data) },
-    publish: () => {}
+    publish: () => {},
+    recordEvent: () => Promise.resolve()
   });
   return {
     data,
-    notes: createNotes({ data, publish: () => {} }),
+    notes: createNotes({ data, publish: () => {}, recordEvent: () => Promise.resolve() }),
     todos,
     scope,
     ids,

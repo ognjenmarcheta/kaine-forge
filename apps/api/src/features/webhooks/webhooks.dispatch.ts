@@ -1,17 +1,13 @@
 import { webhookEndpointsTable } from "@repo/db/schema";
-import type { Database } from "@repo/db/types";
-import type { WebhookDelivery } from "@repo/jobs";
-import type { Logger } from "@repo/logger";
-import { and, arrayContains, eq } from "drizzle-orm";
+import type { JobConnection, WebhookDelivery } from "@repo/jobs";
+import { arrayContains } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import { isWebhookEventType, type PubSubEventMap } from "../../pubsub";
+import type { RecordOrganizationEvent } from "../../pubsub";
 
-/** Any event payload the pubsub carries; only organization events have webhooks. */
-type PubSubPayload = PubSubEventMap[keyof PubSubEventMap][number];
-
-type DeliveryQueue = (delivery: WebhookDelivery) => Promise<unknown>;
+/** Stores one delivery job through `connection`, so it commits with that transaction. */
+type DeliveryQueue = (delivery: WebhookDelivery, connection: JobConnection) => Promise<unknown>;
 
 let deliveryQueue: DeliveryQueue | null = null;
 
@@ -21,16 +17,17 @@ export function setWebhookDeliveryQueue(queue: DeliveryQueue | null): void {
 }
 
 /** Enqueues one delivery on the queue the process set; rejects when none is set. */
-export function enqueueWebhookDelivery(delivery: WebhookDelivery): Promise<unknown> {
+export function enqueueWebhookDelivery(
+  delivery: WebhookDelivery,
+  connection: JobConnection
+): Promise<unknown> {
   return deliveryQueue
-    ? deliveryQueue(delivery)
+    ? deliveryQueue(delivery, connection)
     : Promise.reject(new Error("webhook delivery queue is not set"));
 }
 
 export interface WebhookDispatcherDeps {
-  db: Database;
   enqueue: DeliveryQueue;
-  logger: Pick<Logger, "error">;
   now?: () => Date;
 }
 
@@ -38,53 +35,38 @@ export interface WebhookDispatcherDeps {
 const jsonObject = z.record(z.string(), z.unknown());
 
 /**
- * Enqueues one `webhook.deliver` job per Webhook Endpoint of the event's own
- * Organization that subscribes to the event. It never throws or blocks the
- * caller: a failed lookup or enqueue is logged, and the event is not delivered.
+ * Stores one `webhook.deliver` job per Webhook Endpoint of the scope's
+ * Organization that subscribes to the event, in the caller's transaction: the
+ * deliveries exist only if the write that caused them commits. A failed lookup
+ * or enqueue rejects, so the write fails instead of losing its event. A
+ * receiver deduplicates by event id, because a delivery can be retried.
  */
 export function createWebhookDispatcher({
-  db,
   enqueue,
-  logger,
   now = () => new Date()
-}: WebhookDispatcherDeps): (eventType: string, payload: PubSubPayload) => void {
-  const dispatch = async (eventType: string, organizationId: string, payload: PubSubPayload) => {
-    const endpoints = await db
-      .select({ id: webhookEndpointsTable.id })
-      .from(webhookEndpointsTable)
-      .where(
-        and(
-          eq(webhookEndpointsTable.organizationId, organizationId),
-          arrayContains(webhookEndpointsTable.eventTypes, [eventType])
-        )
-      );
+}: WebhookDispatcherDeps): RecordOrganizationEvent {
+  return async (tx, eventType, ...[payload]) => {
+    const endpoints = await tx.selectFrom(
+      webhookEndpointsTable,
+      arrayContains(webhookEndpointsTable.eventTypes, [eventType])
+    );
 
     if (endpoints.length === 0) {
       return;
     }
 
+    const { organizationId } = tx.stamp();
     const eventId = randomUUID();
     const occurredAt = now().toISOString();
     const data = jsonObject.parse(JSON.parse(JSON.stringify(payload)));
+    const connection = tx.jobConnection();
 
-    await Promise.all(
-      endpoints.map((endpoint) =>
-        enqueue({ data, endpointId: endpoint.id, eventId, eventType, occurredAt, organizationId })
-      )
-    );
-  };
-
-  return (eventType, payload) => {
-    if (
-      !isWebhookEventType(eventType) ||
-      !("organizationId" in payload) ||
-      typeof payload.organizationId !== "string"
-    ) {
-      return;
+    // One at a time: the statements share the transaction's single connection.
+    for (const endpoint of endpoints) {
+      await enqueue(
+        { data, endpointId: endpoint.id, eventId, eventType, occurredAt, organizationId },
+        connection
+      );
     }
-
-    dispatch(eventType, payload.organizationId, payload).catch((error: unknown) => {
-      logger.error({ err: error, eventType }, "webhook event not dispatched");
-    });
   };
 }

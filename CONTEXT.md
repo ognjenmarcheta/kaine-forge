@@ -69,7 +69,7 @@ A secret that lets a program call the GraphQL API as one **Organization**. A mem
 _Avoid_: token, access token, personal access token
 
 **Webhook Endpoint**:
-An HTTPS URL on port 443 that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once, at creation or rotation. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. URLs that resolve to a non-public address are refused.
+An HTTPS URL on port 443 that receives signed `POST` deliveries of an **Organization**'s events (such as `todo:created`) it subscribes to. Its signing secret is shown once, at creation or rotation. Each delivery attempt is retried with backoff on failure and written to the endpoint's delivery log. A delivery is stored in the same transaction as the write that caused the event, so it exists if and only if that write commits. A delivery can arrive more than once; a receiver deduplicates by the event id. URLs that resolve to a non-public address are refused.
 _Avoid_: callback, hook URL, integration
 
 **Plan**:

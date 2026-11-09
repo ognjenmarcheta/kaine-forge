@@ -60,9 +60,10 @@ const createWriters: SyncModuleDeps["createWriters"] = ({ data, publish, defer }
     data,
     logger,
     plan: unlimited(data),
-    publish
+    publish,
+    recordEvent: () => Promise.resolve()
   }),
-  notes: createNotes({ data, publish })
+  notes: createNotes({ data, publish, recordEvent: () => Promise.resolve() })
 });
 
 function syncWith(writers: SyncModuleDeps["createWriters"] = createWriters): Sync {
@@ -407,7 +408,8 @@ describe("sync push", () => {
             });
           }
         },
-        publish: input.publish
+        publish: input.publish,
+        recordEvent: () => Promise.resolve()
       })
     }));
 

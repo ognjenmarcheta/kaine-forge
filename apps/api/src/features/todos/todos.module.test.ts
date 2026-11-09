@@ -60,7 +60,8 @@ function todosWith(attachments?: TodoAttachments): Todos {
     }),
     publish: (eventName, ...payload) => {
       events.push([eventName, ...payload]);
-    }
+    },
+    recordEvent: () => Promise.resolve()
   });
 }
 
@@ -95,7 +96,8 @@ async function freePlanTodos(
       requireOrganizationScope: () => freeScope,
       usage: { todos: () => countTodos(freeData) }
     }),
-    publish: () => {}
+    publish: () => {},
+    recordEvent: () => Promise.resolve()
   });
   return { todos, total: () => countTodos(freeData) };
 }

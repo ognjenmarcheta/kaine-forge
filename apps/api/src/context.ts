@@ -4,7 +4,7 @@ import { resolveOrganizationScope, type AuthenticatedOrganizationScope } from "@
 import { createServerAuth } from "@repo/auth/server";
 import { db } from "@repo/db";
 import type { FeatureFlags } from "@repo/feature-flags";
-import { createChildLogger, createLogger, type Logger } from "@repo/logger";
+import { createChildLogger, type Logger } from "@repo/logger";
 import { t } from "@repo/translation";
 import type { IncomingHttpHeaders } from "node:http";
 
@@ -85,12 +85,9 @@ export interface ApiKeyRequest {
   scope: AuthenticatedOrganizationScope;
 }
 
-// Every organization event also goes to the Organization's Webhook Endpoints.
-const dispatchWebhookEvent = createWebhookDispatcher({
-  db,
-  enqueue: enqueueWebhookDelivery,
-  logger: createLogger({ name: "webhooks" })
-});
+// Every organization event also goes to the Organization's Webhook Endpoints,
+// stored in the transaction of the write that caused it.
+const recordEvent = createWebhookDispatcher({ enqueue: enqueueWebhookDelivery });
 
 async function resolveRequestIdentity(
   headers: RequestHeaders,
@@ -151,8 +148,6 @@ export async function createContextFromHeaders(
     ...payload: PubSubEventMap[TEventName]
   ): void => {
     pubsub.publish(eventName, ...payload);
-    const [event] = payload;
-    dispatchWebhookEvent(eventName, event);
   };
   const attachments = createAttachments({
     data,
@@ -173,7 +168,14 @@ export async function createContextFromHeaders(
       usage: { todos: () => countTodos(scoped) }
     });
   const billing = billingFor(data);
-  const todos = createTodos({ attachments, data, logger: contextLogger, plan: billing, publish });
+  const todos = createTodos({
+    attachments,
+    data,
+    logger: contextLogger,
+    plan: billing,
+    publish,
+    recordEvent
+  });
   const sync = createSync({
     db,
     data,
@@ -198,9 +200,10 @@ export async function createContextFromHeaders(
           data: savepointData,
           logger: contextLogger,
           plan: billingFor(savepointData),
-          publish: publishAfterCommit
+          publish: publishAfterCommit,
+          recordEvent
         }),
-        notes: createNotes({ data: savepointData, publish: publishAfterCommit })
+        notes: createNotes({ data: savepointData, publish: publishAfterCommit, recordEvent })
       };
     }
   });
@@ -215,7 +218,7 @@ export async function createContextFromHeaders(
     requireUserId,
     data,
     todos,
-    notes: createNotes({ data, publish }),
+    notes: createNotes({ data, publish, recordEvent }),
     sync,
     attachments,
     billing,

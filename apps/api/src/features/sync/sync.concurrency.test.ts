@@ -241,9 +241,10 @@ describe.skipIf(!adminUrl)("sync versions on real Postgres", () => {
           data,
           logger: createLogger({ name: "sync-concurrency-test", level: "silent" }),
           plan: { withinLimit: (_limit, _countUsed, create) => create(data) },
-          publish: () => undefined
+          publish: () => undefined,
+          recordEvent: () => Promise.resolve()
         }),
-        notes: createNotes({ data, publish: () => undefined })
+        notes: createNotes({ data, publish: () => undefined, recordEvent: () => Promise.resolve() })
       })
     });
     // Edits two lines apart, so no two of them touch.
