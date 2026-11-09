@@ -18,8 +18,8 @@ const MEMBERS_LABELS = {
  * Recipient binding (a different signed-in email is refused) stays with the
  * packages/auth invitation security tests.
  *
- * Todo attachment upload requires S3-compatible storage (CI only provides Postgres).
- * Set E2E_STORAGE_ENABLED=1 to run the real storage flow below.
+ * Todo attachment upload requires S3-compatible storage. The CI e2e job starts
+ * RustFS and sets E2E_STORAGE_ENABLED=1; set it locally to run the flow below.
  */
 test("an invited user signs up from the invitation link and joins the organization", async ({
   page,

@@ -409,7 +409,7 @@ Root commands:
 | `pnpm build`          | build all workspaces                                                                                                  |
 | `pnpm build:core`     | build API and web dependency graph                                                                                    |
 | `pnpm check`          | format check, lint, boundaries, typecheck, test, knip                                                                 |
-| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for `@repo/auth`, `@repo/api`, and `@repo/mobile-ui`           |
+| `pnpm coverage`       | Vitest coverage: global floors plus per-package floors for auth, api, mobile-ui, billing, and sync                    |
 | `pnpm test:e2e`       | Playwright web/API suite                                                                                              |
 | `pnpm generate`       | GraphQL codegen                                                                                                       |
 | `pnpm create:feature` | scaffold an organization-scoped feature slice (API + web) and wire it in                                              |
