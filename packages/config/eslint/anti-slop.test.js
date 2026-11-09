@@ -46,7 +46,9 @@ ruleTester.run("no-comment-provenance", antiSlopPlugin.rules["no-comment-provena
     "// Since API 2025-03-31.basil the period lives on the item.",
     "// The listener is added in the constructor, before the first event.",
     "// ADR 0005 explains why unsalted hashes no longer verify.",
-    'const color = "#123"; // value is a token name, not a reference'
+    'const color = "#123"; // value is a token name, not a reference',
+    "// Mirror at https://notgithub.com/acme/app/pull/42 and github.com.example.org/acme/app/issues/7.",
+    "// The API lives at https://github.com/acme/app/blob/main/README.md."
   ],
   invalid: [
     {
