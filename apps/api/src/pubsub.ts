@@ -1,6 +1,6 @@
+import type { NotificationPayloadByType, NotificationType } from "@repo/auth/notifications";
 import { createPubSub, filter, pipe } from "graphql-yoga";
 
-import type { NotificationView } from "./features/notifications/notifications.module";
 import { ReplicaEventTarget } from "./pubsub.replicas";
 
 export interface TodoSubscriptionPayload {
@@ -37,6 +37,21 @@ export interface NoteSubscriptionPayload {
 export interface NoteDeletedPayload {
   id: string;
   organizationId: string;
+}
+
+/** A payload with the GraphQL type the `NotificationPayload` union resolves it to. */
+export type NotificationPayloadView = {
+  [TType in NotificationType]: NotificationPayloadByType[TType] & { graphqlType: string };
+}[NotificationType];
+
+/** A Notification as the API returns and streams it. */
+export interface NotificationView {
+  id: string;
+  type: NotificationType;
+  organizationId: string | null;
+  payload: NotificationPayloadView;
+  readAt: Date | null;
+  createdAt: Date;
 }
 
 /** A new in-app Notification; it streams to its recipient only. */

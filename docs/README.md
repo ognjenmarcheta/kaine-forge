@@ -50,6 +50,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0023-desk-provider-choice.md`](adr/0023-desk-provider-choice.md): desk provider choice.
 - [`adr/0024-worktrunk-worktree-manager.md`](adr/0024-worktrunk-worktree-manager.md): worktrunk as the optional worktree manager, per-worktree ports, and the `wt merge` denial.
 - [`adr/0025-api-bounded-contexts.md`](adr/0025-api-bounded-contexts.md): the seven API bounded contexts and the `api/context-boundaries` lint rule.
+- [`adr/0026-api-table-ownership-and-kernel-direction.md`](adr/0026-api-table-ownership-and-kernel-direction.md): each API table has one owning context, and the shared kernel imports no feature.
 
 ## AI assistant docs
 

@@ -1,4 +1,4 @@
-import type { NotificationPayloadByType, NotificationType } from "@repo/auth/notifications";
+import type { NotificationType } from "@repo/auth/notifications";
 import { notificationPreferencesTable, notificationsTable } from "@repo/db/schema";
 import type { Database } from "@repo/db/types";
 import { and, count, eq, isNull, sql } from "drizzle-orm";
@@ -10,20 +10,7 @@ import {
   type NotificationChannels
 } from "./notifications.definition";
 import { pageOwnedByUser, type Connection, type PageInput } from "../../context.data";
-
-/** A payload with the GraphQL type the `NotificationPayload` union resolves it to. */
-export type NotificationPayloadView = {
-  [TType in NotificationType]: NotificationPayloadByType[TType] & { graphqlType: string };
-}[NotificationType];
-
-export interface NotificationView {
-  id: string;
-  type: NotificationType;
-  organizationId: string | null;
-  payload: NotificationPayloadView;
-  readAt: Date | null;
-  createdAt: Date;
-}
+import type { NotificationView } from "../../pubsub";
 
 export interface NotificationConnection extends Connection<NotificationView> {
   unreadCount: number;

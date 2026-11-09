@@ -54,7 +54,7 @@ Do **not** use it when the feature is not organization-scoped CRUD, or when it n
 
 6. Translate `packages/translation/src/locales/de/{plural}.json`, `.../sr/{plural}.json`, and the `navigation.{plural}` key in both. The generator writes English placeholders. `locale-consistency.test.ts` rejects values identical to English, so `pnpm check` fails until translation is complete. Add a locale/key exception only for a term that is legitimately identical in both languages; stale exceptions also fail.
 
-7. Add `{plural}` to one bounded context in `packages/config/eslint/api-contexts.js` and to the `CONTEXT.md` **Context map** table (ADR 0025). `api-boundaries.test.js` fails `pnpm check` until the folder is mapped and the table matches. The context is a domain decision: propose the one whose terms the feature uses, and let the user confirm it. Add an edge to `uses` only for an import the feature needs, and only through the other feature's `.module.ts` or `.type.ts`.
+7. Add `{plural}` to the `features` and `{pluralCamel}Table` to the `tables` of one bounded context in `packages/config/eslint/api-contexts.js`, and add the feature to the `CONTEXT.md` **Context map** table (ADR 0025, ADR 0026). `api-boundaries.test.js` fails `pnpm check` until the folder is mapped and the table matches, and lint fails on an import of an unmapped table. A synced slice also adds its table to `API_FOREIGN_TABLES.sync`. The context is a domain decision: propose the one whose terms the feature uses, and let the user confirm it. Add an edge to `uses` only for an import the feature needs, and only through the other feature's `.module.ts` or `.type.ts`.
 
 8. Verify, in this order:
 

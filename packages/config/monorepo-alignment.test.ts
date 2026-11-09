@@ -1207,7 +1207,7 @@ describe("monorepo alignment", () => {
     expect(cycle.map((message) => message.ruleId)).toEqual(["import/no-cycle"]);
   }, 30_000);
 
-  it("applies the API context-boundary rule to feature sources only (ADR 0025)", async () => {
+  it("applies the API context-boundary rule to feature and kernel sources (ADR 0025, ADR 0026)", async () => {
     // A glob typo would turn the gate off with a green lint run, as the
     // resolver-less import/* rules already are. Ask ESLint what each file gets.
     const { ESLint } = await import("eslint");
@@ -1222,13 +1222,15 @@ describe("monorepo alignment", () => {
       return Array.isArray(entry) ? entry[0] : entry;
     };
 
-    const [feature, compositionRoot, featureTest] = await Promise.all([
+    const [feature, kernel, compositionRoot, featureTest] = await Promise.all([
       boundaryRule("apps/api/src/features/todos/todos.module.ts"),
+      boundaryRule("apps/api/src/pubsub.ts"),
       boundaryRule("apps/api/src/context.ts"),
       boundaryRule("apps/api/src/features/todos/todos.module.test.ts")
     ]);
 
     expect(feature, "feature sources must get the rule at error").toBe(2);
+    expect(kernel, "the shared kernel must not import features").toBe(2);
     expect(compositionRoot, "the composition root wires every context").toBeUndefined();
     expect(featureTest, "tests may wire collaborators across contexts").toBeUndefined();
   }, 30_000);

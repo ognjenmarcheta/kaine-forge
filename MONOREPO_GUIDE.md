@@ -130,7 +130,7 @@ Component files use kebab-case: `todo-list.tsx`, `login-form.tsx`, `organization
 
 Feature folders are lowercase kebab-case under `features/{feature}/`. Feature-specific components live in `features/{feature}/components/`. Shared app hooks live in `src/hooks/`. Shared package hooks live in the appropriate package.
 
-Each `apps/api/src/features/{feature}/` folder belongs to one bounded context of the `CONTEXT.md` Context map. The map's source is `packages/config/eslint/api-contexts.js`. The lint rule `api/context-boundaries` lets a feature import another context only along a listed edge, and only through that feature's `.module.ts` or `.type.ts` (ADR 0025). A new API feature fails `pnpm check` until you add it to a context.
+Each `apps/api/src/features/{feature}/` folder belongs to one bounded context of the `CONTEXT.md` Context map. The map's source is `packages/config/eslint/api-contexts.js`. The lint rule `api/context-boundaries` lets a feature import another context only along a listed edge, and only through that feature's `.module.ts` or `.type.ts` (ADR 0025). A new API feature fails `pnpm check` until you add it to a context. Each `@repo/db/schema` table also belongs to one context, or to better-auth: a feature imports only its own context's tables, better-auth's tables, and the foreign tables that `API_FOREIGN_TABLES` names for it. The shared kernel (`apps/api/src/*.ts` and `middleware/`, except the composition roots) imports no feature (ADR 0026).
 
 ## 5. Strings, Types, and Package Boundaries
 
