@@ -31,7 +31,8 @@ One issue that a person, `kaine-intake`, and the agent desk read the same way: t
    `- ` line. Add extra sections (`## Context`, `## Related`, `## Origin`) only after the six.
 3. Work that waits for an upstream fix or a decision states its trigger and stays unlabelled.
 4. Save the body to a file and check it: `pnpm desk contract --file <file>` must print 6/6 with at
-   least one criterion. Fix the body until it does.
+   least one criterion. Fix the body until it does. Then remove each match from the guide's
+   "Cut filler patterns" list.
 5. Create it: `gh issue create --title "<type>(<scope>): <summary>" --body-file <file>`.
 6. To rewrite an existing issue, keep every fact the author wrote, move it under the right
    heading, and change the body only when the user asked for it:

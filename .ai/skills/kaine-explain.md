@@ -35,6 +35,7 @@ the task, or authorize publication, dependencies, or changes to application code
    and consistent terms. Aim for 20 words in instructions and 25 in descriptions
    when practical. Preserve accuracy and meaningful uncertainty over word limits;
    do not claim full ASD-STE100 compliance or restrict domain terms to its dictionary.
+   Remove the filler patterns that the guide's "Cut filler patterns" list names.
 6. End every substantive final reply with **In plain language**, as described
    below. Check that this ending agrees with the evidence and adds no promises.
 
