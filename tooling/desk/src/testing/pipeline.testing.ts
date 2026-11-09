@@ -211,7 +211,11 @@ export const reviewOutput = (over: Partial<ReviewerOutput> = {}): ReviewerOutput
   acceptanceStatus: [
     { criterion: "Export button downloads a CSV", status: "met", evidence: `${FEATURE_FILE}:1` }
   ],
-  reviewSections: REVIEW_SECTIONS.map((heading) => ({ heading, verdict: "pass", notes: "" })),
+  reviewSections: REVIEW_SECTIONS.map((heading) => ({
+    heading,
+    verdict: "pass",
+    notes: heading === "Scope" ? "Primary intent: export reports as CSV. No tagalongs." : ""
+  })),
   prDraft: { title: "feat: export reports as CSV", body: "Adds the export." },
   plainLanguage: "The change is safe to merge.",
   ...over

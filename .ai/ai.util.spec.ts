@@ -376,6 +376,13 @@ describe("lintReviewSource", () => {
     expect(issues.some((i) => i.message.includes("Security, Auth & Tenancy"))).toBe(true);
   });
 
+  it("does not accept a longer heading for a required one", () => {
+    const longer = fullReview.replace("## Scope\n", "## Scope and boundaries\n");
+    expect(lintReviewSource(longer).map((issue) => issue.message)).toEqual([
+      "review source missing required heading '## Scope'"
+    ]);
+  });
+
   it("passes a complete checklist", () => {
     expect(lintReviewSource(fullReview)).toEqual([]);
   });
