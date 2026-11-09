@@ -35,9 +35,8 @@ jobs:
 
       - name: Run audit (moderate and above)
         # Fails the job on moderate, high, or critical advisories (pnpm audit exit non-zero).
-        # To suppress a known false positive, use pnpm's audit config
-        # (e.g. package.json "pnpm"."auditConfig"."ignoreCves") and document the
-        # reason in the PR that adds the ignore entry.
+        # To accept a known advisory, add it to auditConfig.ignoreGhsas in
+        # pnpm-workspace.yaml and document it in the PR, as SECURITY.md requires.
         run: pnpm audit --audit-level moderate
 
   cargo-audit:
