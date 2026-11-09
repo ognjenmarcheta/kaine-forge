@@ -1,0 +1,7 @@
+{
+  "monorepo-alignment.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 7
+    }
+  }
+}

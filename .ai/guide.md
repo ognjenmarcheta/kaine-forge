@@ -31,6 +31,9 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Do not commit secrets or local assistant state.
 - Only the repository owner may merge into `main`, manually after required checks pass. Agents and bots may propose changes and create PRs, but must not merge, approve PRs on the owner's behalf, enable automatic merging, or bypass branch protection through CLI, API, or browser actions.
 - Never co-author yourself (or any AI/tool identity) in git history: no `Co-Authored-By:` trailers for assistants, no “Generated with …” / “Made with …” AI footers, and do not set commit author/committer to an AI name or noreply AI email. Commits remain under the human contributor’s identity only. The `commit-msg` hook enforces this via commitlint.
+- Before editing a path, run `pnpm docs:for <path>` and read every governing doc it lists. Before requesting review, run `pnpm review:pre` and resolve or explain each finding. A new ADR that governs specific paths declares them in its `Applies to:` line.
+- Comments state a reason, constraint, or invariant, never PR or issue numbers, dates, or change history (`anti-slop/no-comment-provenance`). Existing hits are frozen in per-workspace `eslint-suppressions.json` files that may only shrink.
+- Keep private names and local machine paths out of commits, added lines, and PR text. `pnpm public-text:check` blocks them on push and in CI; add a name with `pnpm public-text:hash "<name>"`.
 - Treat every top-level `Dockerfile.<app>` as a deployable app contract. The Release workflow on `main` runs `pnpm release:apps` after quality gates; manual CLI dry-runs and repairs belong to a human operator because agent policy blocks `release:apps`, including `--dry-run`.
 
 ## Common Commands
@@ -45,6 +48,9 @@ This repository is a Turborepo and pnpm monorepo template for React/Vite web, Gr
 - Lint: `pnpm lint`
 - Typecheck: `pnpm typecheck`
 - Test: `pnpm test`
+- List the docs that govern a path or your diff: `pnpm docs:for <path>` / `pnpm docs:for --diff` (`--json` for agents)
+- Pre-review report (changed files, applicable `REVIEW.md` items, provable findings): `pnpm review:pre`
+- Visual regression of key screens in the pinned Playwright container: `pnpm --filter @repo/e2e test:visual` (`--update-snapshots` to accept); PRs run it with the `ci:run-visual` label
 - Smoke the API, including the two-organization tenancy proof (no Docker, no browser): `pnpm smoke`
 - Build API and web core: `pnpm run build:core`
 - Deployable app release branches: the Release workflow updates them; manual `pnpm release:apps` is a human operation.

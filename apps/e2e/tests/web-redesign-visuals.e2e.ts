@@ -11,7 +11,6 @@ for (const theme of ["light", "dark"] as const) {
     await page.setViewportSize({ width: 360, height: 900 });
     await page.goto("/auth");
     await expect(page.getByRole("textbox", { name: "Email", exact: true })).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath(`auth-${theme}.png`), fullPage: true });
     await page.getByRole("link", { name: "Create account", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Full name", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`signup-${theme}.png`), fullPage: true });
@@ -105,7 +104,6 @@ for (const theme of ["light", "dark"] as const) {
     await expect(
       page.getByRole("checkbox", { name: "Review the design system", exact: true })
     ).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath(`todos-${theme}.png`) });
     await page.locator('[data-slot="sidebar-trigger"]').click();
     await page.getByRole("button", { name: /^Appearance\b/ }).hover();
     await page.mouse.move(800, 500);

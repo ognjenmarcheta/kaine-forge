@@ -224,6 +224,25 @@ jobs:
           git fetch -q origin "$BASE_REF"
           pnpm exec commitlint --from "$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")" --to "$HEAD_SHA"
 
+      # Private names (salted digests in .github/public-text-hashes.json) and local
+      # paths must not reach the PR's commits, added lines, title, or body. Title
+      # and body go through env and a file, never inlined into the script
+      # (untrusted input); `--pr-title=` keeps a title that starts with "-" a value.
+      - name: Public text (PR title, body, and commits)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          git fetch -q origin "$BASE_REF"
+          node scripts/check-public-text.mjs \
+            --from "$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")" --to "$HEAD_SHA" \
+            --pr-title="$PR_TITLE" --pr-body-file "$RUNNER_TEMP/pr-body.md"
+
       - name: Quality gates (affected packages)
         env:
           # Some API modules import the DB client at load time during tests/coverage.
@@ -279,7 +298,7 @@ jobs:
           # scripts/* tests are not under vitest.coverage.config.ts projects.
           # scripts/pr-quality-gate.test.mjs fails when this list differs from the
           # root "test" script or from the tracked scripts/*.test.mjs files.
-          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs
+          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/check-public-text.test.mjs scripts/docs-for.test.mjs scripts/pre-review.test.mjs
 
   coverage:
     name: Coverage Threshold
@@ -670,16 +689,60 @@ jobs:
           SYNC_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
         run: pnpm --filter @repo/api exec vitest run src/features/sync/sync.concurrency.test.ts src/pubsub.replicas.test.ts
 
+      # Visual baselines (@visual) run on shard 1 for merge queue and manual
+      # runs, and on a PR with the ci:run-visual label. Labels are read live, as
+      # in the GraphQL schema job: a re-run replays the original event payload.
+      - name: Decide visual regression run
+        id: visual
+        if: matrix.shard == 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          run=true
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            # A failed lookup fails the step instead of skipping the comparison.
+            labels="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')"
+            if ! grep -qx 'ci:run-visual' <<<"$labels"; then
+              run=false
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      # Before the sharded run, on the freshly seeded database, so no other spec
+      # has changed the seeded user's state. The browser runs in the Playwright
+      # container that made the baselines (apps/e2e/scripts/visual-baseline.run.ts).
+      - name: Run visual regression
+        id: visual-run
+        if: steps.visual.outputs.run == 'true'
+        env:
+          E2E_SERVE_BUILD: "true"
+        run: pnpm --filter @repo/e2e test:visual --output=visual-results
+
+      # Holds the actual, expected, and diff PNG of each failed comparison. An
+      # intended change commits the actual PNGs as the new baselines.
+      - name: Upload visual diffs
+        if: failure() && steps.visual-run.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-visual-diffs
+          path: apps/e2e/visual-results
+          retention-days: 7
+
       # Invoked directly rather than via `pnpm run test:e2e` so this shard's
       # --shard flag reaches playwright. The root script also re-runs
       # db:ensure/db:push/db:seed, which the previous step already did.
+      # It also runs when only the visual step failed.
       - name: Run Playwright e2e
+        if: success() || steps.visual-run.outcome == 'failure'
         env:
           # Serve the downloaded core-dist builds (apps/e2e/playwright.config.ts).
           E2E_SERVE_BUILD: "true"
         run: |
           pnpm --filter @repo/e2e exec playwright test \
             --shard=${{ matrix.shard }}/2 \
+            --grep-invert @visual \
             --reporter=blob
 
       - name: Upload blob report
