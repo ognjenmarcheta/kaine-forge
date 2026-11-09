@@ -22,6 +22,7 @@ while read -r _ LOCAL_SHA _ REMOTE_SHA; do
   # An equal range is a commitlint usage error (exit 9); main's own HEAD has nothing to lint.
   if [ "$FROM" != "$LOCAL_SHA" ]; then
     pnpm exec commitlint --from "$FROM" --to "$LOCAL_SHA" </dev/null
+    node scripts/check-public-text.mjs --from "$FROM" --to "$LOCAL_SHA" </dev/null
   fi
   # The oldest base across pushed refs scopes the typecheck when HEAD has no upstream.
   PUSHED_BASE="$(git merge-base "${PUSHED_BASE:-$FROM}" "$FROM" 2>/dev/null || true)"

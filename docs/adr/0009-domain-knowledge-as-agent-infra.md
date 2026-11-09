@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-22
+- Applies to: `.ai/review.md`, `.ai/skills/kaine-encode-knowledge.md`, `docs/agents/day-one.md`
 
 ## Context
 

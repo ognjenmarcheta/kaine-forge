@@ -2,6 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-30
+- Applies to: `packages/sync/**`, `apps/api/src/features/sync/**`
 
 ## Context
 

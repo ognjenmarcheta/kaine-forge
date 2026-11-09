@@ -1,0 +1,7 @@
+{
+  "tests/helpers/auth.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}

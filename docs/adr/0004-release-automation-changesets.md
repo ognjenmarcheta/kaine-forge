@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-02-19
+- Applies to: `.changeset/**`, `.github/workflows/release.yml`
 
 ## Context
 
