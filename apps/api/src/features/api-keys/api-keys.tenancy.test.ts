@@ -7,9 +7,12 @@
 // scopes built by the real resolveApiKeyScope from real membership rows. A
 // Session request (x-test-organization) is the positive control and manages
 // Webhook Endpoints.
+import type { Permission } from "@repo/auth/permissions";
 import { createLogger } from "@repo/logger";
 import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { operationFor, rootFields } from "../../schema/schema.operations.fixture";
 
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@localhost:5432/api-keys-tenancy-test";
 process.env.API_CORS_ORIGINS = "http://localhost:3000";
@@ -128,6 +131,7 @@ vi.mock("@repo/auth/server", () => ({
 }));
 
 const { createApiServer } = await import("../../server");
+const { apiTypeDefs } = await import("../../schema/features");
 const { setWebhookDeliveryQueue } = await import("../webhooks/webhooks.dispatch");
 setWebhookDeliveryQueue((delivery) => enqueue("webhook.deliver", delivery));
 const {
@@ -444,4 +448,108 @@ describe("Webhook Endpoint management", () => {
       { action: "webhook_secret_rotated", metadata: { url: "https://93.184.215.14/hook" } }
     ]);
   });
+});
+
+// What an API Key request gets from each Mutation field, called with a
+// placeholder for every required argument (the first value of an enum):
+// "allowed" means the same answer as its creator's Session, any other value is
+// the refusal. A new Mutation field fails the sweep below until it is listed.
+// SECURITY.md "Key scope" names what a key must never do.
+type ApiKeyAnswer = "allowed" | "authentication required" | `permission required: ${Permission}`;
+
+const API_KEY_MUTATIONS: Record<string, ApiKeyAnswer> = {
+  "Mutation._empty": "allowed",
+  "Mutation.setOrganizationTheme": "permission required: organization:update",
+  "Mutation.createTodo": "allowed",
+  "Mutation.generateTodos": "allowed",
+  "Mutation.updateTodo": "allowed",
+  "Mutation.deleteTodo": "allowed",
+  "Mutation.toggleTodo": "allowed",
+  "Mutation.createNote": "allowed",
+  "Mutation.updateNote": "allowed",
+  "Mutation.deleteNote": "allowed",
+  "Mutation.addTodoToNote": "allowed",
+  "Mutation.syncPush": "allowed",
+  "Mutation.requestUploadUrl": "allowed",
+  "Mutation.confirmUpload": "allowed",
+  "Mutation.deleteFile": "allowed",
+  // kind: avatar, the creator's own; the organization_logo row is below.
+  "Mutation.requestPublicAssetUpload": "authentication required",
+  "Mutation.confirmPublicAssetUpload": "authentication required",
+  "Mutation.sendMessage": "allowed",
+  "Mutation.deleteConversation": "authentication required",
+  "Mutation.startCheckout": "permission required: billing:manage",
+  "Mutation.openBillingPortal": "permission required: billing:manage",
+  "Mutation.setFeatureFlagOverride": "allowed",
+  "Mutation.clearFeatureFlagOverride": "allowed",
+  "Mutation.markNotificationRead": "authentication required",
+  "Mutation.markAllNotificationsRead": "authentication required",
+  "Mutation.updateNotificationPreference": "authentication required",
+  // kind: user; the organization row is below.
+  "Mutation.requestDataExport": "authentication required",
+  "Mutation.dataExportDownloadUrl": "authentication required",
+  "Mutation.createApiKey": "permission required: apiKey:create",
+  "Mutation.revokeApiKey": "permission required: apiKey:delete",
+  "Mutation.createWebhookEndpoint": "permission required: webhook:create",
+  "Mutation.updateWebhookEndpoint": "permission required: webhook:update",
+  "Mutation.rotateWebhookSecret": "permission required: webhook:update",
+  "Mutation.deleteWebhookEndpoint": "permission required: webhook:delete"
+};
+
+// Fields whose answer depends on an argument value the placeholder does not pick.
+const API_KEY_MUTATION_VARIANTS: Array<[string, string, ApiKeyAnswer]> = [
+  [
+    "requestPublicAssetUpload(organization_logo)",
+    'mutation { requestPublicAssetUpload(input: { kind: organization_logo, mimeType: "image/png", sizeBytes: 1 }) { __typename } }',
+    "allowed"
+  ],
+  [
+    "confirmPublicAssetUpload(organization_logo)",
+    'mutation { confirmPublicAssetUpload(kind: organization_logo, stagingKey: "tenancy contract") { __typename } }',
+    "allowed"
+  ],
+  [
+    "requestDataExport(organization)",
+    "mutation { requestDataExport(kind: organization) { __typename } }",
+    "permission required: organization:export"
+  ]
+];
+
+const mutationFields = rootFields(apiTypeDefs).filter((root) => root.operation === "mutation");
+
+async function expectApiKeyAnswer(operation: string, answer: ApiKeyAnswer) {
+  const keyError = (await runAs(KEY_A, operation)).errors?.[0]?.message;
+  if (answer === "allowed") {
+    const sessionError = (await runInSession(fixture.orgA, operation)).errors?.[0]?.message;
+    expect(keyError).toBe(sessionError);
+  } else {
+    expect(keyError).toBe(answer);
+  }
+}
+
+// Last in the file: allowed calls write placeholder rows into Organization A.
+describe("API Key Mutation sweep", () => {
+  it("lists no Mutation field the schema no longer has", () => {
+    const coordinates = mutationFields.map((root) => root.coordinate);
+
+    expect(Object.keys(API_KEY_MUTATIONS).filter((key) => !coordinates.includes(key))).toEqual([]);
+  });
+
+  describe.each(mutationFields)("$coordinate", (root) => {
+    it("answers an API Key as classified", async () => {
+      const answer = API_KEY_MUTATIONS[root.coordinate];
+      if (answer === undefined) {
+        throw new Error(`classify ${root.coordinate} in API_KEY_MUTATIONS`);
+      }
+
+      await expectApiKeyAnswer(operationFor(root), answer);
+    });
+  });
+
+  it.each(API_KEY_MUTATION_VARIANTS)(
+    "answers %s as classified",
+    async (_name, operation, answer) => {
+      await expectApiKeyAnswer(operation, answer);
+    }
+  );
 });

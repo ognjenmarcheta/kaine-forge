@@ -1,7 +1,7 @@
 name: Build, scan, and push an app image
 description: >-
-  Builds Dockerfile.<app>, fails on a fixable CRITICAL vulnerability before
-  anything is pushed, and pushes the scanned image to GHCR under every tag.
+  Builds Dockerfile.<app>, fails on a fixable HIGH or CRITICAL vulnerability
+  before anything is pushed, and pushes the scanned image to GHCR under every tag.
 
 inputs:
   app:
@@ -63,14 +63,14 @@ runs:
         outputs: type=docker,dest=${{ runner.temp }}/${{ inputs.app }}.tar
         cache-from: ${{ !steps.buildkit.outputs.endpoint && format('type=gha,scope={0}', inputs.app) || '' }}
 
-    # The PR docker-images gate: a fixable CRITICAL finding fails the job
-    # before anything is pushed.
-    - name: Fail on fixable CRITICAL vulnerabilities
+    # The PR docker-images gate: a fixable HIGH or CRITICAL finding fails the
+    # job before anything is pushed.
+    - name: Fail on fixable HIGH or CRITICAL vulnerabilities
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
       with:
         input: ${{ runner.temp }}/${{ inputs.app }}.tar
         format: table
-        severity: CRITICAL
+        severity: CRITICAL,HIGH
         ignore-unfixed: true
         exit-code: "1"
 
