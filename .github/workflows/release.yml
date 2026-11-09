@@ -15,8 +15,8 @@ on:
         default: ""
 
 concurrency:
-  # Queue, never cancel: release:apps pushes release/<app> branches sequentially.
-  # Cancelling mid-loop leaves a split deploy pair (see issue #139).
+  # Queue, never cancel: a cancelled run can leave release/<app> branches moved
+  # by its atomic push while the image deploy jobs for them never run.
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
