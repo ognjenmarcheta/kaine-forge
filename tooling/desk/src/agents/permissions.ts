@@ -223,6 +223,7 @@ export const KAINE_SKILLS: readonly string[] = [
   "kaine-build-3d",
   "kaine-build-ui",
   "kaine-computer-use",
+  "kaine-coupling-audit",
   "kaine-create-feature",
   "kaine-create-theme",
   "kaine-debug",
