@@ -279,10 +279,11 @@ describe("auth emails on the real auth instance", () => {
   ])(
     "alerts the previous address after a verified email change $label",
     async ({ withSession }) => {
-      const { email, headers } = await signUpGerman("change-email");
+      const { email, headers, userId } = await signUpGerman("change-email");
       const newEmail = `moved-${crypto.randomUUID().slice(0, 8)}@example.com`;
       const token = await createEmailVerificationToken(SECRET, email, newEmail, 3600, {
-        requestType: "change-email-verification"
+        requestType: "change-email-verification",
+        userId
       });
 
       await auth.api.verifyEmail({ query: { token }, ...(withSession ? { headers } : {}) });
