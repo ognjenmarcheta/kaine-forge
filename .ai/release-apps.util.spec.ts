@@ -117,6 +117,32 @@ describe("runReleaseApps against a real repository", () => {
     expect(refOnOrigin(origin, "refs/heads/release/api")).toBe(second);
   });
 
+  it("moves no release branch when one push is refused, so a rerun deploys the pair", () => {
+    write(clone, "Dockerfile.web", "FROM scratch\n");
+    write(clone, "apps/web/package.json", `${JSON.stringify({ name: "@repo/web" })}\n`);
+    write(clone, "apps/web/src/index.ts", "export {};\n");
+    // One commit touches both apps, so both release branches are due.
+    const head = pushApiChange(clone, "paired");
+    const hook = path.join(origin, "hooks", "pre-receive");
+    writeFileSync(
+      hook,
+      '#!/bin/sh\nwhile read old new ref; do\n  [ "$ref" = refs/heads/release/web ] && exit 1\ndone\nexit 0\n',
+      { mode: 0o755 }
+    );
+
+    expect(() =>
+      runReleaseApps({ apps: [], dryRun: false }, { repoRoot: clone, stdio: "ignore" })
+    ).toThrow();
+    expect(refOnOrigin(origin, "refs/heads/release/api")).toBeNull();
+    expect(refOnOrigin(origin, "refs/heads/release/web")).toBeNull();
+
+    rmSync(hook);
+    const rerun = runReleaseApps({ apps: [], dryRun: false }, { repoRoot: clone, stdio: "ignore" });
+    expect(releaseOutputLine(rerun)).toBe('apps=["api","web"]');
+    expect(refOnOrigin(origin, "refs/heads/release/api")).toBe(head);
+    expect(refOnOrigin(origin, "refs/heads/release/web")).toBe(head);
+  });
+
   it("skips an app whose files did not change since its release branch", () => {
     pushApiChange(clone, "first");
     runReleaseApps({ apps: [], dryRun: false }, { repoRoot: clone, stdio: "ignore" });

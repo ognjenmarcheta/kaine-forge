@@ -215,7 +215,7 @@ const buildPlans = (options: ReleaseAppsOptions, git: Git, repoRoot: string): Ap
 };
 
 /**
- * Move each affected app's release branch to HEAD by fast-forward and push it.
+ * Move each affected app's release branch to HEAD by fast-forward in one atomic push.
  * Pure git against `context.repoRoot`; the CLI in release-apps.ts owns argument
  * parsing and console output, so this path can run against a temporary repository.
  */
@@ -243,9 +243,20 @@ export const runReleaseApps = (
     return { status: "planned", plans };
   }
 
+  // One atomic push: the api and web images ship as a pair, so either every
+  // release branch moves or none does, and a rerun still sees each one as due.
+  // Local branches move only after origin accepted the push for the same reason.
+  git.stream(
+    [
+      "push",
+      "--atomic",
+      "origin",
+      ...plans.map((plan) => `HEAD:refs/heads/${plan.app.releaseBranch}`)
+    ],
+    stdio
+  );
   for (const plan of plans) {
     git.stream(["update-ref", `refs/heads/${plan.app.releaseBranch}`, "HEAD"], "ignore");
-    git.stream(["push", "origin", `HEAD:refs/heads/${plan.app.releaseBranch}`], stdio);
   }
 
   return { status: "updated", plans };
