@@ -9,8 +9,13 @@ RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 
 FROM base AS pruner
 WORKDIR /app
-# The root turbo version in pnpm-lock.yaml; .ai/release-workflow.spec.ts fails when they differ.
-RUN pnpm add -g turbo@2.11.10
+# Installs the turbo version pnpm-lock.yaml resolves for the root workspace, so turbo prune
+# matches the repo's turbo and a lockfile bump needs no Dockerfile edit. The lockfile alone
+# keys this layer. .ai/release-workflow.spec.ts runs this extraction against the lockfile.
+COPY pnpm-lock.yaml ./
+RUN turbo_version="$(awk '/^  \.:$/ { root = 1; next } root && /^  [^ ]/ { exit } root && /^      turbo:$/ { turbo = 1; next } turbo && /^        version:/ { print $2; exit }' pnpm-lock.yaml)" \
+  && test -n "$turbo_version" \
+  && pnpm add -g "turbo@$turbo_version"
 COPY . .
 RUN turbo prune @repo/web --docker
 

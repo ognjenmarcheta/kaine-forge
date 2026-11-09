@@ -379,16 +379,23 @@ describe("Docker pruner turbo", () => {
   );
 
   it.each(discoverDeployableApps(repoRoot).map((app) => app.dockerfile))(
-    "%s installs the turbo version pnpm-lock.yaml resolves",
+    "%s derives the turbo it installs from pnpm-lock.yaml",
     (dockerfile) => {
-      const pins = [...readText(dockerfile).matchAll(/pnpm add -g turbo@(\S+)/g)].map(
+      const source = readText(dockerfile);
+      // A literal pin turns every lockfile turbo bump red until the Dockerfiles are edited.
+      const installs = [...source.matchAll(/pnpm add -g "?turbo@([^"\s]+)/g)].map(
         (match) => match[1]
       );
-      expect(
-        pins,
-        `${dockerfile} must run \`pnpm add -g turbo@${rootTurbo}\`, the version pnpm-lock.yaml ` +
-          `resolves for the root workspace, so turbo prune matches the CI turbo.`
-      ).toEqual([rootTurbo]);
+      expect(installs, `${dockerfile} must install "turbo@$turbo_version", not a literal`).toEqual([
+        "$turbo_version"
+      ]);
+
+      const extraction = /turbo_version="\$\((.+)\)" \\$/m.exec(source)?.[1];
+      if (extraction === undefined) throw new Error(`${dockerfile} sets no turbo_version`);
+      const run = spawnSync("sh", ["-c", extraction], { cwd: repoRoot, encoding: "utf8" });
+
+      expect(run.stderr).toBe("");
+      expect(run.stdout).toBe(`${rootTurbo}\n`);
     }
   );
 });
