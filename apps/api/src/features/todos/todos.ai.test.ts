@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createTodoAiWorkflow } from "./todos.ai";
+import { ensureTodoTitle } from "./todos.util";
 
 const todo = {
   completed: false,
@@ -62,6 +63,35 @@ describe("createTodoAiWorkflow", () => {
     });
 
     expect(createTodo.mock.calls).toEqual([[drafts[0]], [drafts[1]]]);
+  });
+
+  it("drops a blank-title draft before writing, so no stored todo is left behind a failure", async () => {
+    // Like the Todo module's create: a blank title throws after trimming.
+    const createTodo = vi.fn(async (input: { title: string }) => ({
+      ...todo,
+      title: ensureTodoTitle(input.title)
+    }));
+    const drafts = [
+      { description: null, title: "Book venue" },
+      { description: null, title: "   " },
+      { description: null, title: "Send invites" }
+    ];
+    const workflow = createTodoAiWorkflow({
+      createTodo,
+      generateTodoDrafts: vi.fn(async () => drafts),
+      isConfigured: () => true,
+      maxGeneratedTodos: 2,
+      reportGenerationFailure: vi.fn()
+    });
+
+    await expect(workflow.generateTodos({ prompt: "Plan the party" })).resolves.toEqual({
+      status: "CREATED",
+      todos: [
+        { ...todo, title: "Book venue" },
+        { ...todo, title: "Send invites" }
+      ]
+    });
+    expect(createTodo.mock.calls).toEqual([[drafts[0]], [drafts[2]]]);
   });
 
   it("reports the failure instead of swallowing it when generation throws", () => {
