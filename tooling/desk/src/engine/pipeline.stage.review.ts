@@ -5,6 +5,7 @@ import { CHECK_REPORT_FILE, checkReportSchema } from "../check";
 import {
   reviewFindingSchema,
   reviewerOutputSchema,
+  storedReviewerOutputSchema,
   type ReviewFinding,
   type ReviewerOutput
 } from "../contracts";
@@ -23,7 +24,7 @@ import { workspacesForPlan } from "./pipeline.stage.build";
 /** `review.json`: the validated review plus the findings the engine rejected. */
 export const reviewArtifactSchema = z
   .object({
-    review: reviewerOutputSchema,
+    review: storedReviewerOutputSchema,
     rejected: z.array(z.object({ finding: reviewFindingSchema, reason: z.string() })),
     /** The worktree diff the reviewer saw. */
     diffHash: z.string().regex(/^[0-9a-f]{64}$/)

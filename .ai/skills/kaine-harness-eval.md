@@ -112,6 +112,39 @@ When the encoding is in a skill under `.ai/skills/`, strip that copy too, run
   area. More work in the with-arm, such as extra verification, is a cost of the
   encoding. Write it in the ledger prose.
 
+## Keep the arms fair
+
+Check these five conditions on the generated task prompts before you spend a
+trial. A run that breaks one is void, not weak.
+
+1. **Never leak the answer.** The rubric, the expected outcome, the metric names,
+   and the ground truth (for example the list of sibling callers) go to the
+   scorer only. The trial prompt never names them, hints at them, or carries a
+   ready-made command that finds them.
+2. **Only the rule varies.** Both arms get the same task text, the same output
+   format, the same agent, and the same tools. Give neither arm coaching that
+   the other arm does not get.
+3. **Score blind.** Strip the arm label before scoring: give each transcript a
+   neutral id and keep the id-to-arm map apart until every trial has its score.
+4. **Fresh context per trial.** Dispatch a new agent for each trial. A trial
+   learns only from the injected surfaces and what it reads during the task.
+5. **A real environment.** The trial works in the repository with its normal
+   files and tools. Do not hand it a summary that a real session would not have.
+
+## Degradation probe: does the rule last?
+
+A rule can work at turn 0 and fade after a long conversation. To measure this,
+keep one agent per trial and probe it at fixed points. Send the task at turn 0.
+Then send unrelated filler turns (questions about other areas of the repo) and
+one distractor turn that invites the opposite behaviour. Send an equivalent
+probe task at turns 6 and 10, through a follow-up message to the same agent.
+Score each probe on the same rubric. Record the probes as separate trials whose
+note names the turn (`turn 0`, `turn 6`, `turn 10`). A rule that holds at
+turn 0 and drops by turn 10 is a `tighten` candidate: its wording or its
+position in the guide does not survive context growth. Run the degradation
+probe only after a turn-0 run shows an `effect`; a rule with no effect at
+turn 0 has nothing to degrade.
+
 ## Calibrate the noise floor first
 
 With `n = 3`, two arms can differ by a full rubric point by chance. A protocol 2
@@ -203,7 +236,8 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
    the installed agent directories — arm B must strip every copy the trial can
    see.
 2. Run the behavioural probe for both arms. Do not proceed on a probe without a
-   positive control, and never on an introspection answer.
+   positive control, and never on an introspection answer. Check the task
+   prompts against _Keep the arms fair_.
 3. Build the arms by the construction you chose above. Record the commit the
    trials ran against — a `git worktree` pin is the cleaner record, but it has
    no `node_modules`, so a trial cannot run `pnpm test` inside one. When the
