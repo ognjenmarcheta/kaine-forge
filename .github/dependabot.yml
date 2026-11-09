@@ -155,9 +155,10 @@ updates:
       - dependency-name: "changesets/action"
         update-types: ["version-update:semver-major"]
 
-  # Dockerfile.api, Dockerfile.web, and the ARC runner image pin base images by
-  # digest. Dependabot matches any file whose name contains "dockerfile" and
-  # bumps the sha256.
+  # Dockerfile.api, Dockerfile.web, the ARC runner image, and the runner cluster
+  # manifests (tooling/ci-runners/*.yaml) pin images by tag@digest. Dependabot
+  # reads files whose name contains "dockerfile" and the image: keys of
+  # Kubernetes manifests in these directories, and bumps the tag and sha256.
   - package-ecosystem: docker
     directories:
       - "/"
