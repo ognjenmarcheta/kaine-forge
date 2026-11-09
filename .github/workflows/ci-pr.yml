@@ -298,7 +298,7 @@ jobs:
           # scripts/* tests are not under vitest.coverage.config.ts projects.
           # scripts/pr-quality-gate.test.mjs fails when this list differs from the
           # root "test" script or from the tracked scripts/*.test.mjs files.
-          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/check-public-text.test.mjs scripts/docs-for.test.mjs scripts/pre-review.test.mjs scripts/t3-worktree-setup.test.mjs
+          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/check-public-text.test.mjs scripts/docs-for.test.mjs scripts/pre-review.test.mjs scripts/t3-worktree-setup.test.mjs scripts/dependency-overrides.test.mjs
 
   coverage:
     name: Coverage Threshold
@@ -601,11 +601,10 @@ jobs:
       # Sharded across jobs, not workers: the specs share one seeded user, so
       # intra-job parallelism races on active-organization state (see
       # apps/e2e/playwright.config.ts). Each shard gets its own Postgres service,
-      # so shards are isolated. Sized at 2 because there are only 5 spec files and
-      # each shard still re-pays install + browser install + db seed; build:core
-      # is shared via the core-dist artifact (issue #145). Raise shard count
-      # here and in --shard= together when the suite grows. Do not raise
-      # playwright workers.
+      # so shards are isolated. Sized at 2 because each shard re-pays install +
+      # browser install + db seed; build:core is shared via the core-dist
+      # artifact (issue #145). Raise shard count here and in --shard= together
+      # when the suite grows. Do not raise playwright workers.
       fail-fast: false
       matrix:
         shard: [1, 2]

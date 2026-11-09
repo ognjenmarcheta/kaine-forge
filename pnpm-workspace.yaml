@@ -154,7 +154,7 @@ overrides:
   # GHSA-3g3m-2fjr-6pw4 (fixed 14.0.2, no 11.x or 13.x fix) via expo>@expo/* and
   # vite-plugin-pwa>workbox-build. Both call only glob()/globSync(), which 14 keeps.
   "glob@11": "^14.0.2"
-  "glob@13": "^14.0.2"
+  "glob@13": "^14.0.2" # same advisory as glob@11
   shell-quote: "^1.11.0" # GHSA-pqg4-j6r4-53mv via @changesets/cli>launch-editor
   launch-editor: "^2.14.2" # GHSA-587h-7wmj-h5pm via @changesets/cli (3.0.3 is the latest release)
   # solid-js 1.9.17 moves to seroval ~1.6.8 (GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp) via better-auth.
@@ -184,8 +184,8 @@ overrides:
   esbuild: "^0.28.1"
   # Security floors for transitive Dependabot highs (GHSA fixes; 2026-08 triage).
   "@xmldom/xmldom": "^0.8.15" # 2026-09-09: six GHSAs via expo>@expo/cli>@expo/plist (#258)
-  defu: "^6.1.5"
-  "nanoid@3": "^3.3.18"
+  defu: "^6.1.5" # GHSA-737v-mqg7-c878 via better-auth
+  "nanoid@3": "^3.3.18" # GHSA-28wg-ghj8-5hjv, GHSA-2v37-7h3g-55p8 via postcss and expo-router
   node-forge: "^1.4.2" # GHSA-7wch-p9px-956x, GHSA-jc66-7q78-782g, GHSA-8hrf-8g6f-7xwp, GHSA-hqq3-7jhf-c5jx, GHSA-5x38-2vff-x55p via expo>@expo/cli
   # Security floors from the 2026-09 audit (issue #258). All transitive dev
   # tooling; caret ranges so later patches flow and the major stays put.
@@ -204,17 +204,12 @@ overrides:
   flatted: "^3.4.2" # GHSA-25h7-pfq9-p65f, GHSA-rf6f-7fwh-wjgh via @vitest/ui
   "js-yaml@3": "^3.15.1" # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj via @changesets/cli>@manypkg/get-packages
   "js-yaml@4": "^4.3.2" # same advisories + GHSA-2883-xcg3-v3hh via @commitlint/load>cosmiconfig and @changesets/parse
-  postcss: "^8.5.18" # GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849 via vitest>vite
-  "rollup@4": "^4.59.0" # GHSA-mw96-cpmx-2vgc via vitest>vite (web itself builds with vite 8 / rolldown)
-  # vite 7 is only vitest's; parent-scoped so the floor does not rewrite peer
-  # ranges elsewhere (a bare `vite@7` selector narrowed @tailwindcss/vite's
-  # `^5||^6||^7||^8` peer to `^7.3.5` and left web's vite 8 "unmet").
-  "vitest>vite": "^7.3.5" # GHSA-p9ff-h696-f583, GHSA-fx2h-pf6j-xcff, GHSA-v2wj-q39q-566r
-  "@vitest/mocker>vite": "^7.3.5"
+  postcss: "^8.5.18" # GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849 via vite and tailwindcss 3
+  "rollup@4": "^4.59.0" # GHSA-mw96-cpmx-2vgc via vite-plugin-pwa>workbox-build
   # Keep better-auth/expo peers on the Expo SDK 55 line (not random major peers).
   expo-constants: "~55.0.17"
-  expo-linking: "~55.0.16"
-  "@expo/metro-runtime": "~55.0.12"
+  expo-linking: "~55.0.16" # same Expo SDK 55 line
+  "@expo/metro-runtime": "~55.0.12" # same Expo SDK 55 line
 
 # Respect the device preference in the installed native drawer (source and module).
 patchedDependencies:

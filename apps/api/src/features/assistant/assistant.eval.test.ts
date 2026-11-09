@@ -62,10 +62,12 @@ describe("assistant golden set", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("covers every write tool with an expected call and an input contract", () => {
+  it("covers every write tool with an expected call and every tool with an input contract", () => {
     // The coverage floor, as a test: a tool added to createAssistantTools ships
-    // with a golden case that expects it and a schema case, or a deliberate
-    // entry in READ_ONLY_TOOLS.
+    // with a schema case, and with a golden case that expects it unless it is a
+    // deliberate entry in READ_ONLY_TOOLS. A read tool still takes model-chosen
+    // input, such as a list bound, so the allowlist never exempts it from a
+    // schema case.
     const expected = new Set<string>(
       assistantEvalCases.flatMap((evalCase) => evalCase.expectTools)
     );
@@ -78,6 +80,8 @@ describe("assistant golden set", () => {
     }
     for (const name of WRITE_TOOLS) {
       expect(expected.has(name), `no golden case expects ${name}`).toBe(true);
+    }
+    for (const name of Object.keys(tools)) {
       expect(schemaCovered.has(name), `no schema case covers ${name}`).toBe(true);
     }
   });
