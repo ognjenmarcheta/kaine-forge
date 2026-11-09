@@ -1,5 +1,6 @@
 # Gitignored files that `wt step copy-ignored` (.config/wt.toml) and Claude Code desktop
-# copy from the primary checkout into a new worktree. Do not add node_modules or
+# copy from the primary checkout into a new worktree, as does the T3 Code setup script
+# (scripts/t3-worktree-setup.mjs). Do not add node_modules or
 # .tauri-target: on ext4 every copy is a full copy, and `pnpm install --prefer-offline`
 # hardlinks from the pnpm store instead.
 .env
