@@ -1,5 +1,12 @@
 # @repo/desk
 
+## 0.6.1
+
+### Patch Changes
+
+- 1d503d9: The store watcher no longer reports an issue while its folder exists without `state.json`. A new
+  issue now sends one `issue-updated` event instead of two, and never a brief `issue-removed`.
+
 ## 0.6.0
 
 ### Minor Changes

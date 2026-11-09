@@ -1,5 +1,22 @@
 # @repo/api
 
+## 2.5.1
+
+### Patch Changes
+
+- fd6e3e5: AI todo generation drops a draft with a blank title before it writes anything. Before, such a draft
+  answered `AI_GENERATION_FAILED` while the todos created before it stayed stored and published.
+- @repo/auth@5.2.1
+  - @repo/billing@0.1.1
+  - @repo/db@2.2.0
+  - @repo/email@1.3.4
+  - @repo/feature-flags@1.2.0
+  - @repo/jobs@1.1.1
+  - @repo/logger@1.2.1
+  - @repo/storage@1.7.0
+  - @repo/theme@0.2.0
+  - @repo/translation@1.15.0
+
 ## 2.5.0
 
 ### Minor Changes
