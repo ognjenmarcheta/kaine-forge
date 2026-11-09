@@ -1,0 +1,21 @@
+# Gitleaks config for CI (.github/workflows/security.yml) and `pnpm scan:secrets`.
+# Needs Gitleaks 8.25 or newer: older versions ignore [[allowlists]] and its condition.
+[extend]
+useDefault = true
+
+# Desk test fixtures: token-shaped placeholders that the redaction and ship tests
+# need. Not real credentials. A finding is allowed only when both the path and the
+# exact value match, so a moved line or a new commit stays allowed, and a real
+# token in a desk test or a fixture value elsewhere is still reported.
+[[allowlists]]
+description = "Desk test fixtures"
+condition = "AND"
+paths = ['''^tooling/desk/src/.+\.test\.ts$''']
+regexes = [
+  '''^ghp_1234567890abcdefABCDEF1234567890abcd$''',
+  '''^gho_1234567890abcdefABCDEF$''',
+  '''^sk-abcdefghijklmnop$''',
+  # Sample repository key in the docker naming tests. The [-] keeps template
+  # adoption, which skips desk tests, from rewriting the name here.
+  '''^kaine[-]forge-1a2b3c$''',
+]

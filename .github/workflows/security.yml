@@ -48,26 +48,25 @@ jobs:
     timeout-minutes: 20
     env:
       CARGO_AUDIT_VERSION: "0.22.2"
+      # sha256 of cargo-audit-x86_64-unknown-linux-musl-v<version>.tgz from the
+      # rustsec/rustsec release. Change it together with the version.
+      CARGO_AUDIT_SHA256: "7fb9497f8594b389e5fce5ef9b92db08432996895b2e0c5a0167a69ed445c428"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Compiling cargo-audit takes minutes; cache the binary per version.
-      - name: Cache cargo-audit
-        id: cargo-audit-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cargo/bin/cargo-audit
-          key: cargo-audit-${{ runner.os }}-${{ env.CARGO_AUDIT_VERSION }}
-
+      # The static release binary needs no Rust toolchain or C linker, which the
+      # ARC runner image (tooling/ci-runners/runner.Dockerfile) does not have, and
+      # it reads the committed Cargo.lock without calling cargo.
       - name: Install cargo-audit
-        # The cache holds only the binary, not cargo's install records, so on a hit
-        # cargo install refuses the untracked file ("already exists in
-        # destination"). The key pins the version, so a hit needs no install.
-        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
         run: |
-          cargo --version
-          cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
+          set -euo pipefail
+          name="cargo-audit-x86_64-unknown-linux-musl-v${CARGO_AUDIT_VERSION}"
+          curl -fsSLo "$RUNNER_TEMP/$name.tgz" \
+            "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv${CARGO_AUDIT_VERSION}/$name.tgz"
+          echo "${CARGO_AUDIT_SHA256}  $RUNNER_TEMP/$name.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$name.tgz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
 
       - name: Run cargo audit
         working-directory: apps/desktop/src-tauri
@@ -75,7 +74,7 @@ jobs:
         # the fix is glib 0.20, which the Tauri 2 gtk-rs 0.18 stack does not allow,
         # and nothing in the graph calls the unsound VariantStrIter. SECURITY.md
         # records the reason and the removal trigger.
-        run: cargo audit --ignore RUSTSEC-2024-0429
+        run: cargo-audit audit --ignore RUSTSEC-2024-0429
 
   secret-scan:
     name: Secret Scan
@@ -91,6 +90,10 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The action defaults to 8.24.3, which ignores [[allowlists]] in
+          # .gitleaks.toml and so fails full-history scans on the desk fixtures.
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_CONFIG: .gitleaks.toml
 
   # ci-pr.yml scans images only for pull requests, so main's Trivy alerts went
   # stale between manual runs (issue #506). Same categories as the PR upload,
