@@ -303,6 +303,16 @@ For user-facing web/API flows:
 pnpm test:e2e
 ```
 
+### Visual regression baselines
+
+`apps/e2e/tests/web-visual-baseline.e2e.ts` compares a few key screens against committed PNG baselines in its `-snapshots/` folder: sign-in at 360px and the populated todos shell at 1440px in light and dark, and sign-up at 360px in light only. Font rendering differs between machines, so the screenshots always come from the Chromium in the official `mcr.microsoft.com/playwright` image whose version matches the installed `@playwright/test`. `pnpm --filter @repo/e2e test:visual` starts that container, runs the `@visual` specs with the container as the browser, and stops it. The test runner and the web and API servers stay on your machine. You need Docker and a prepared local database (`pnpm db:prepare:local`). A plain `pnpm test:e2e` skips these specs.
+
+- To check the screens, run `pnpm --filter @repo/e2e test:visual`.
+- After an intended UI change, run `pnpm --filter @repo/e2e test:visual --update-snapshots`, look at each changed PNG, and commit them with the change.
+- After a `@playwright/test` version bump, update the baselines in the same way, because the container image changes with it.
+
+PR CI skips the `@visual` specs by default. They run on e2e shard 1 for merge queue and manual runs, and on a PR with the `ci:run-visual` label. Add the label, then push or re-run the E2E job: the label alone does not start a run. When a comparison fails, the `e2e-visual-diffs` artifact holds the actual, expected, and diff PNG of each screen. If the change is intended, update the baselines locally, or copy each `*-actual.png` from that artifact over its baseline.
+
 ## Release Flow
 
 ```bash
