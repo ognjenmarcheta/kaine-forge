@@ -8,6 +8,7 @@ An ADR records one architectural decision, why it was made, and what it costs. A
 - Do not delete or rewrite an accepted ADR. To change a decision, add a new ADR, set the old one's status to `Superseded by ADR NNNN`, and link back from the new one.
 - Keep it short. Link to code, docs, and tests instead of copying them.
 - Use `CONTEXT.md` terms for domain concepts.
+- Add an `Applies to:` line when the decision governs specific paths: comma-separated, repo-relative globs in backticks. `pnpm docs:for <path>` matches only these globs, and only an `Accepted` ADR governs; others are listed as context. Leave the line out when the decision governs no specific path.
 
 ## Template
 
@@ -16,6 +17,7 @@ An ADR records one architectural decision, why it was made, and what it costs. A
 
 - Status: Proposed | Accepted | Superseded by ADR NNNN
 - Date: YYYY-MM-DD
+- Applies to: `path/to/governed/**`, `path/to/file.ts`
 
 ## Context
 

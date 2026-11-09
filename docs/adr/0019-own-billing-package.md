@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-28
+- Applies to: `packages/billing/**`, `apps/api/src/features/billing/**`, `packages/db/src/schema/billing.schema.ts`
 
 ## Context
 

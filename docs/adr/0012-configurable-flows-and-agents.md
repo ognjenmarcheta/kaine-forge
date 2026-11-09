@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-22
+- Applies to: `tooling/desk/defaults/**`, `tooling/desk/agents/**`, `tooling/desk/src/contracts/**`, `tooling/desk/src/registry/**`, `tooling/desk/src/engine/**`
 
 Supersedes in part [ADR 0011](0011-local-agent-desk.md): its fixed layout of one planner, one
 builder, one reviewer, and two gates. Every other decision of ADR 0011 stands.

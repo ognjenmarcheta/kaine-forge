@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-27
+- Applies to: `packages/jobs/**`, `apps/api/src/worker.ts`
 
 ## Context
 

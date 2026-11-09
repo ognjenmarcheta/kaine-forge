@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-02-18
+- Applies to: `.github/workflows/ci-pr.yml`, `.github/workflows/deep-checks.yml`, `scripts/ci-affected.mjs`, `scripts/pr-quality-gate.mjs`
 
 ## Context
 

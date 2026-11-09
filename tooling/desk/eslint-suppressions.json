@@ -1,0 +1,37 @@
+{
+  "src/engine/pipeline.runner.draft.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/github/github.format.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/log/log.writer.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/server/server.github.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/server/server.scorecard.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/ship/ship.run.git.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/stats/stats.aggregate.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 4
+    }
+  }
+}

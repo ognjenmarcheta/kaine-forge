@@ -1,0 +1,12 @@
+{
+  "src/auth.instance.email.db.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/auth.instance.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}
