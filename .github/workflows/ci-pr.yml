@@ -224,6 +224,25 @@ jobs:
           git fetch -q origin "$BASE_REF"
           pnpm exec commitlint --from "$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")" --to "$HEAD_SHA"
 
+      # Private names (salted digests in .github/public-text-hashes.json) and local
+      # paths must not reach the PR's commits, added lines, title, or body. Title
+      # and body go through env and a file, never inlined into the script
+      # (untrusted input); `--pr-title=` keeps a title that starts with "-" a value.
+      - name: Public text (PR title, body, and commits)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          git fetch -q origin "$BASE_REF"
+          node scripts/check-public-text.mjs \
+            --from "$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")" --to "$HEAD_SHA" \
+            --pr-title="$PR_TITLE" --pr-body-file "$RUNNER_TEMP/pr-body.md"
+
       - name: Quality gates (affected packages)
         env:
           # Some API modules import the DB client at load time during tests/coverage.
@@ -279,7 +298,7 @@ jobs:
           # scripts/* tests are not under vitest.coverage.config.ts projects.
           # scripts/pr-quality-gate.test.mjs fails when this list differs from the
           # root "test" script or from the tracked scripts/*.test.mjs files.
-          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/t3-worktree-setup.test.mjs
+          node --test scripts/pnpm.test.mjs scripts/db-local.test.mjs scripts/create-package.test.mjs scripts/doctor.test.mjs scripts/fix-esm-extensions.test.mjs scripts/check-image-packages.test.mjs scripts/no-ai-coauthor.test.mjs scripts/pr-quality-gate.test.mjs scripts/metro-assets.test.mjs scripts/ci-runners.test.mjs scripts/ci-affected.test.mjs scripts/smoke-deployed.test.mjs scripts/smoke-desktop.test.mjs scripts/github-setup.test.mjs scripts/worktree-env.test.mjs scripts/check-public-text.test.mjs scripts/docs-for.test.mjs scripts/pre-review.test.mjs scripts/t3-worktree-setup.test.mjs
 
   coverage:
     name: Coverage Threshold

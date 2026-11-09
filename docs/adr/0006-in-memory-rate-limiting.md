@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-03
+- Applies to: `apps/api/src/middleware/rate-limit.middleware.ts`
 
 ## Context
 

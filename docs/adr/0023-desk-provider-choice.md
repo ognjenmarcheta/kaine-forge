@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-03
+- Applies to: `tooling/desk/src/agents/provider.*.ts`
 
 ## Context
 

@@ -1,0 +1,62 @@
+{
+  "src/api.jobs.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/assistant/assistant.ai-runtime.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/assistant/assistant.eval.data.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/assistant/assistant.tools.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/data-export/data-export.job.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/notes/notes.router.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/notifications/notifications.delivery.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/storage/attachment.module.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/sync/sync.concurrency.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/sync/sync.config.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/features/todos/todos.module.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/pubsub.replicas.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}

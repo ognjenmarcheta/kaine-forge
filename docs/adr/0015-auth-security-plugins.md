@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-26
+- Applies to: `packages/auth/src/auth.instance.ts`, `apps/web/src/features/security/**`
 
 ## Context
 

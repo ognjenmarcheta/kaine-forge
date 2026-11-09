@@ -56,6 +56,7 @@ Labels apply to review responses only. GitHub issue titles keep the `kaine-score
 
 ## Method
 
+- When you can run commands on the branch, start with `pnpm review:pre --base <base> --json`: it lists the changed files, the governing docs, the `REVIEW.md` items that apply, and the findings a script can prove. Its output is a starting point, not a verdict.
 - Read the diff and surrounding code.
 - Read the tests first: do they cover the change, test behavior rather than implementation, and would they fail on a regression? Missing or implementation-coupled tests are findings, and so is a new test that fails the `kaine-test` value gate.
 - When a test's strength is in doubt and you can run commands, probe it: invert one condition the diff adds, run the scoped test, then restore the file. A test that stays green is a finding.

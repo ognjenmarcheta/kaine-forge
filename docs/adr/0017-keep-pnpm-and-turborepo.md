@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-26
+- Applies to: `package.json`, `pnpm-workspace.yaml`, `turbo.json`
 
 ## Context
 

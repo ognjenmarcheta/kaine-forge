@@ -1,0 +1,12 @@
+{
+  ".ai/install.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  ".ai/template-adoption.util.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}
