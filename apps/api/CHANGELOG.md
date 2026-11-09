@@ -1,5 +1,27 @@
 # @repo/api
 
+## 2.5.2
+
+### Patch Changes
+
+- dd570f1: `api/context-boundaries` now checks table imports and the shared kernel. An `apps/api` feature
+  imports only its own context's `@repo/db/schema` tables, better-auth's tables, and the foreign
+  tables that `API_FOREIGN_TABLES` names for it. A kernel file imports no feature (ADR 0026).
+- 36502f9: Webhook deliveries of Todo and Note events are now stored in the write's own transaction. An
+  event is no longer lost when the enqueue fails or the API stops after the commit; a failed enqueue
+  fails the write instead. `JobQueue.enqueue` accepts `{ connection }` to store a job in a transaction.
+- Updated dependencies [36502f9]
+  - @repo/jobs@1.2.0
+  - @repo/auth@5.2.2
+  - @repo/billing@0.1.1
+  - @repo/db@2.2.0
+  - @repo/email@1.3.4
+  - @repo/feature-flags@1.2.0
+  - @repo/logger@1.2.1
+  - @repo/storage@1.7.0
+  - @repo/theme@0.2.0
+  - @repo/translation@1.15.0
+
 ## 2.5.1
 
 ### Patch Changes
