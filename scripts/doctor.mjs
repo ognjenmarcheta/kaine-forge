@@ -218,20 +218,47 @@ export function isPortOpen(port, host = "127.0.0.1") {
 }
 
 /**
- * @param {number} port
- * @returns {string | null}
+ * @param {string} command
+ * @param {string[]} args
+ * @returns {string | null} stdout, or null when the command is missing or fails
  */
-function lsofPortHint(port) {
+function runStdout(command, args) {
   try {
-    const out = execFileSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], {
+    return execFileSync(command, args, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
     });
-    const line = out.split("\n").find((l) => l && !l.startsWith("COMMAND"));
-    return line ? line.trim() : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Names the process that listens on a port. Windows has no lsof, so it reads
+ * netstat. netstat translates the State column, so a listening row is found by
+ * its unspecified foreign address, which is the same in every locale.
+ * @param {number} port
+ * @param {{ platform?: string, run?: (command: string, args: string[]) => string | null }} [options]
+ * @returns {string | null}
+ */
+export function portOwnerHint(port, { platform = process.platform, run = runStdout } = {}) {
+  if (platform !== "win32") {
+    const out = run("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"]);
+    const line = out?.split("\n").find((l) => l && !l.startsWith("COMMAND"));
+    return line ? line.trim() : null;
+  }
+  const pid = run("netstat", ["-ano", "-p", "tcp"])
+    ?.split(/\r?\n/)
+    .map((l) => l.trim().split(/\s+/))
+    .find(
+      ([proto, local, foreign]) =>
+        proto === "TCP" && local?.endsWith(`:${port}`) && foreign === "0.0.0.0:0"
+    )
+    ?.at(-1);
+  if (!pid || !/^\d+$/.test(pid)) return null;
+  const tasks = run("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"]);
+  const name = tasks ? /^"([^"]+)","/.exec(tasks.trim())?.[1] : undefined;
+  return name ? `${name} (PID ${pid})` : `PID ${pid}`;
 }
 
 /**
@@ -347,7 +374,7 @@ async function checkPorts() {
       notes.push(`${port} (${label}): free`);
       continue;
     }
-    const owner = lsofPortHint(port);
+    const owner = portOwnerHint(port);
     notes.push(
       owner
         ? `${port} (${label}): in use — ${owner}`

@@ -1,12 +1,24 @@
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, readdirSync, readFileSync } from "node:fs";
 import console from "node:console";
+import { join } from "node:path";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 
-export const DOCKER_APPS = [
-  { app: "api", dockerfile: "Dockerfile.api", workspace: "@repo/api" },
-  { app: "web", dockerfile: "Dockerfile.web", workspace: "@repo/web" }
-];
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+/**
+ * Each top-level Dockerfile.<app> deploys the workspace in apps/<app>: the rule
+ * discoverDeployableApps in .ai/release.util.ts applies, so a new Dockerfile
+ * gets a PR image build without a second list to edit.
+ */
+export const DOCKER_APPS = readdirSync(ROOT)
+  .flatMap((entry) => /^Dockerfile\.([A-Za-z0-9_-]+)$/.exec(entry)?.[1] ?? [])
+  .sort((left, right) => left.localeCompare(right))
+  .map((app) => ({
+    app,
+    dockerfile: `Dockerfile.${app}`,
+    workspace: JSON.parse(readFileSync(join(ROOT, "apps", app, "package.json"), "utf8")).name
+  }));
 
 /**
  * Decide which heavy PR jobs run from `turbo ls --affected` output. `force` is set

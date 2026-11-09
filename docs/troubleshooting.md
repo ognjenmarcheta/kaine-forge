@@ -16,7 +16,7 @@ Common local setup and runtime failures for Kaine Forge. Prefer this guide befor
 
 1. Stop the host Postgres (or move it off 5432), **or**
 2. Change Compose host port (e.g. `"5433:5432"`) and set `DATABASE_URL` to that port.
-3. Confirm which process owns 5432: `lsof -i :5432` (macOS/Linux).
+3. Confirm which process owns 5432: `lsof -i :5432` (macOS/Linux) or `netstat -ano -p tcp | findstr :5432` (Windows; the last column is the PID). `pnpm preflight` prints the owner on every platform.
 
 Compose default is `5432:5432` with `POSTGRES_DB=monorepo_dev` (see `docker-compose.yml` and `.env.example`).
 
