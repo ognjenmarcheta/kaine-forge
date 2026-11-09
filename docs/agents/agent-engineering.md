@@ -260,8 +260,11 @@ repository root is its project file.
 - T3 Code does not run `t3.json` actions on its own. Import them once for each project: **Settings
   → Projects → Actions → Import scripts → Import from t3.json**. T3 Code 0.1.7 ignores
   `stopOnSettle`, which a later release reads; the other fields work.
-- New threads run in the project checkout, which fits GitButler. Choose a worktree for a thread
-  that needs its own dev server or build output. T3 worktrees live in `~/.t3/worktrees`; let T3
+- New threads run in the project checkout by default, which fits a checkout on
+  `gitbutler/workspace`. When the checkout is on `main` or holds your own uncommitted work, set
+  **Settings → Threads → New threads** to a new worktree, so each thread gets its own branch. T3
+  Code's Git actions run plain `git commit` and `git push`, so do not use them in a GitButler
+  checkout. T3 worktrees live in `~/.t3/worktrees`; let T3
   Code remove them, not `wt remove`.
 - T3 Code names new worktree branches `t3/<name>` by default, which breaks the branch rule. In
   **Settings → Worktrees → Worktree branch naming**, choose custom instructions: "Name the branch
