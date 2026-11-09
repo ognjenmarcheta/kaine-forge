@@ -72,10 +72,10 @@ Fork workflows require the owner's approval before execution. Do not give fork
 workflows repository secrets or write tokens. The repository defaults to read-only
 workflow tokens; release and labeling jobs declare their limited write permissions.
 
-Version PRs opened using `GITHUB_TOKEN` do not trigger PR workflows automatically.
-The owner can close and reopen the version PR in GitHub to trigger checks. Do not
-merge until the required checks pass. A separately configured `RELEASE_PR_TOKEN`
-also supports triggering CI; no such credential is required for local setup.
+GitHub holds the PR workflow runs of a version PR opened using `GITHUB_TOKEN` until
+the owner approves them on the PR. Do not merge until the required checks pass. A
+separately configured `RELEASE_PR_TOKEN` starts those runs without approval; no such
+credential is required for local setup. `docs/release-checklist.md` lists the options.
 
 The 2026-09-13 publication audit, its target settings, and the transition evidence are
 archived in [public repository readiness](docs/archive/publication-readiness.md).
