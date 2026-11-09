@@ -152,10 +152,12 @@ jobs:
           push-git-tags: false
           create-github-releases: false
         env:
-          # A version PR opened with the job token gets no `pull_request` workflow
-          # runs, so its required checks never report. Set repository secret
+          # With the job token, github-actions[bot] authors the version PR, and
+          # GitHub holds its `pull_request` runs as `action_required` until a user
+          # with write access approves them. Set repository secret
           # RELEASE_PR_TOKEN (fine-grained PAT: Contents rw, Pull requests rw) to
-          # have the PR trigger CI. Falls back to the job token when unset.
+          # start those runs without approval. Falls back to the job token when
+          # unset. docs/release-checklist.md lists the owner's options.
           GITHUB_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
 
       # Both steps below key on the tags at HEAD, not on the action's `published`
@@ -217,8 +219,9 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(images)}\n`);
           '
 
-  # Builds the tagged app image, gates it on the same Trivy CRITICAL scan as the
-  # PR docker-images job, then pushes the scanned image to GHCR. Never runs for
+  # Builds the tagged app image, gates it on the same Trivy scan as the PR
+  # docker-images job (a fixable HIGH or CRITICAL finding fails it), then pushes
+  # the scanned image to GHCR. Never runs for
   # pull requests (no trigger here), forks, other refs, or runs without app tags.
   publish-images:
     name: Publish Image (${{ matrix.app }})
