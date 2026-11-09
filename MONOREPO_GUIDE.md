@@ -140,6 +140,15 @@ Each `apps/api/src/features/{feature}/` folder belongs to one bounded context of
 - Drizzle schemas are the source of truth for database shapes. Derive validators and types from `@repo/db`.
 - Package exports are the public API. Add exports deliberately and import through `@repo/<package>` subpaths.
 
+### Client-safe and server-only entries
+
+Some package entries pull Node-only dependencies (AWS SDK, Postgres, mail, payment SDKs, pg-boss, `node:crypto`). They must never reach a browser or React Native bundle. `SERVER_ONLY_ENTRY_PATTERN` in `packages/config/eslint/base.js` is the list, and ESLint blocks it in every DOM workspace and in mobile.
+
+- Server-only: every entry of `@repo/db`, `@repo/email`, `@repo/billing`, and `@repo/jobs`; bare `@repo/storage` and its `storage.client` and `storage.config` subpaths; bare `@repo/auth` and its `server`, `instance`, and `password` subpaths.
+- Client-safe: the other subpaths, such as `@repo/storage/client` and `@repo/auth/client`, `session`, `transport`, and `form`.
+
+When a package or subpath starts to import a Node-only dependency, add it to the pattern in the same change. A DOM workspace declares `react-dom`, or depends on a workspace that does, and is not React Native or server-only. `packages/config/monorepo-alignment.test.ts` derives that list from the manifests and fails when the DOM block in `base.js` misses one.
+
 ## 6. Data and Auth Rules
 
 - User-created data is organization-scoped by default. New data tables need an `organizationId` foreign key unless there is a clear system-level reason not to.
@@ -444,6 +453,12 @@ pnpm --filter @repo/mobile-ui typecheck
 - After deployable app changes land on `main`, the Release workflow updates affected `release/<app>` branches. Manual repair commands are human-only.
 
 Before finishing a substantial task, run the narrowest useful workspace checks plus the relevant root gates.
+
+### Turbo test inputs
+
+Turbo hashes a workspace's `test` task from the workspace's own files, the build inputs of its workspace dependencies, and the root global dependencies. A test that reads another repository file must list it in `tasks.test.inputs` of the workspace `turbo.json` as `$TURBO_ROOT$/<path>`. Create that file with `"extends": ["//"]` if it is missing. Without the input, an edit to the file leaves the test on a stale cache hit.
+
+The test "hashes every repository file a workspace test reads outside its package" in `packages/config/monorepo-alignment.test.ts` scans test sources for literal file reads and fails on a missing input. A read the scan cannot see, such as a git walk or a child process, goes in that file's `DYNAMIC_READS` list with the inputs it needs.
 
 ### Lint baseline
 
