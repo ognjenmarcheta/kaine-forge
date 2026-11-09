@@ -773,4 +773,39 @@ describe("createSyncEngine with device storage", () => {
     await third.ready;
     expect(titles(third)).toEqual(["Kept"]);
   });
+
+  it("keeps the server's rows when a restart sends a change the page left in the Outbox", async () => {
+    const server = createFakeServer();
+    server.apply({ todoCreate: { id: "t1", title: "Draft", description: null, noteId: null } });
+    server.apply({ todoCreate: { id: "t2", title: "Other", description: null, noteId: null } });
+    const outbox = memoryStorage();
+    const open = (persistence?: PersistedCollectionPersistence) => {
+      const engine = createSyncEngine({
+        transport: server.transport,
+        storage: outbox,
+        onlineDetector: controlledOnline(),
+        leaderElection: alwaysLeader,
+        ...(persistence ? { persistence } : {})
+      });
+      engines.push(engine);
+      return engine;
+    };
+    const first = open();
+    await first.ready;
+    // The page closes after the push lands and before the pull after it answers.
+    const pullOnce = server.transport.pull;
+    server.transport.pull = () => new Promise<SyncPullPage>(() => undefined);
+    await first.updateTodo("t1", { completed: true });
+    await vi.waitFor(() => expect(server.todos.get("t1")?.completed).toBe(true));
+    first.dispose();
+    server.transport.pull = pullOnce;
+
+    const second = open(deviceStorage().persistence);
+    await second.ready;
+    await vi.waitFor(() => expect(second.getStatus().pending).toBe(0));
+    await second.pull();
+
+    expect(titles(second)).toEqual(["Draft", "Other"]);
+    expect(second.todos.get("t1")?.completed).toBe(true);
+  });
 });
