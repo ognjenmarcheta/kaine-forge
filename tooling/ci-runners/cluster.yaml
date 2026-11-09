@@ -1,6 +1,7 @@
 # Shared cluster objects for the ARC runner scale sets (docs/self-hosted-ci.md).
 # bootstrap.sh applies this file; add-repo.sh installs one scale set per repo
-# into the arc-runners namespace.
+# into the arc-runners namespace. Images carry tag@digest: the Dependabot docker
+# entry for /tooling/ci-runners bumps both.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -25,7 +26,7 @@ spec:
     spec:
       containers:
         - name: registry
-          image: registry:3.1.1
+          image: registry:3.1.1@sha256:325b4b29b041e82803abeb703e201655e4e23ab83264ec1a7c9ddb0a5b14a6e0
           env:
             - name: REGISTRY_PROXY_REMOTEURL
               value: https://registry-1.docker.io
@@ -94,7 +95,7 @@ spec:
     spec:
       containers:
         - name: buildkitd
-          image: moby/buildkit:v0.34.2
+          image: moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
           args:
             - --addr
             - unix:///run/buildkit/buildkitd.sock

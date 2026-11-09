@@ -53,8 +53,12 @@ export function createTodoAiWorkflow(adapter: TodoAiWorkflowAdapter) {
       try {
         const drafts = await adapter.generateTodoDrafts({ prompt });
         const createdTodos: TodoEventPayload[] = [];
+        // Drafts are created one by one, so a draft that create would reject must
+        // be dropped before the first write: a rejection mid-loop would answer
+        // FAILED while the earlier todos stay stored and published.
+        const usableDrafts = drafts.filter((draft) => draft.title.trim().length > 0);
 
-        for (const draft of drafts.slice(0, adapter.maxGeneratedTodos)) {
+        for (const draft of usableDrafts.slice(0, adapter.maxGeneratedTodos)) {
           createdTodos.push(await adapter.createTodo(draft));
         }
 

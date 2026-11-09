@@ -8,6 +8,7 @@ import {
   missingTrackerLabels,
   nodeSatisfiesEngine,
   pnpmMatchesPackageManager,
+  portOwnerHint,
   REQUIRED_ENV_KEYS,
   rustToolchainResult
 } from "./doctor.mjs";
@@ -57,6 +58,52 @@ describe("checkPortsFor", () => {
     assert.deepEqual(ports("WEB_PORT=13001\nAPI_PORT=14002\n"), [5432, 9000, 9001, 13001, 14002]);
     assert.deepEqual(ports(""), [5432, 9000, 9001, 3000, 4000]);
   });
+});
+
+describe("portOwnerHint", () => {
+  const netstat = [
+    "",
+    "Active Connections",
+    "",
+    "  Proto  Local Address          Foreign Address        State           PID",
+    "  TCP    0.0.0.0:15432          0.0.0.0:0              LISTENING       1111",
+    "  TCP    127.0.0.1:5432         127.0.0.1:50211        ESTABLISHED     2222",
+    "  TCP    0.0.0.0:5432           0.0.0.0:0              ABHÖREN         4567",
+    ""
+  ].join("\r\n");
+  const lsof = [
+    "COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME",
+    "postgres 4567 dev    7u  IPv4  0x1      0t0  TCP *:5432 (LISTEN)",
+    ""
+  ].join("\n");
+  /** @param {Record<string, string>} outputs */
+  const runner = (outputs) => (command) => outputs[command] ?? null;
+
+  for (const [name, platform, outputs, expected] of [
+    [
+      "names the Windows listener from netstat and tasklist",
+      "win32",
+      { netstat, tasklist: '"postgres.exe","4567","Services","0","12,345 K"\r\n' },
+      "postgres.exe (PID 4567)"
+    ],
+    [
+      "falls back to the Windows PID when tasklist finds no name",
+      "win32",
+      { netstat, tasklist: "INFO: No tasks are running which match the specified criteria.\r\n" },
+      "PID 4567"
+    ],
+    [
+      "returns the lsof listener row on Linux and macOS",
+      "linux",
+      { lsof },
+      "postgres 4567 dev    7u  IPv4  0x1      0t0  TCP *:5432 (LISTEN)"
+    ],
+    ["returns null when no tool names an owner", "win32", {}, null]
+  ]) {
+    it(name, () => {
+      assert.equal(portOwnerHint(5432, { platform, run: runner(outputs) }), expected);
+    });
+  }
 });
 
 describe("labelerLabelNames", () => {
