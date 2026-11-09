@@ -1,5 +1,16 @@
 # @repo/auth
 
+## 5.2.2
+
+### Patch Changes
+
+- Updated dependencies [36502f9]
+  - @repo/jobs@1.2.0
+  - @repo/db@2.2.0
+  - @repo/email@1.3.4
+  - @repo/logger@1.2.1
+  - @repo/translation@1.15.0
+
 ## 5.2.1
 
 ### Patch Changes
