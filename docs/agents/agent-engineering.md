@@ -257,6 +257,9 @@ repository root is its project file.
   `scripts/worktree-env.mjs`, and runs `pnpm ai:install --auto`. The ports come from a hash of the
   worktree path: web 10000-14999, API the web port plus 5000. **Dev** runs `pnpm dev` and stops
   when the thread settles. **Check affected** runs `pnpm check:affected`.
+- T3 Code does not run `t3.json` actions on its own. Import them once for each project: **Settings
+  → Projects → Actions → Import scripts → Import from t3.json**. T3 Code 0.1.7 ignores
+  `stopOnSettle`, which a later release reads; the other fields work.
 - New threads run in the project checkout, which fits GitButler. Choose a worktree for a thread
   that needs its own dev server or build output. T3 worktrees live in `~/.t3/worktrees`; let T3
   Code remove them, not `wt remove`.
