@@ -90,7 +90,7 @@ catalog:
   "@tailwindcss/vite": "^4.3.4"
   "@vitejs/plugin-react": "^6.2.1"
   vite: "^8.3.6"
-  jsdom: "^30.1.3"
+  jsdom: "^31.0.0"
   "@testing-library/dom": "^10.4.2"
   "@testing-library/react": "^16.3.3"
   "@testing-library/user-event": "^14.6.8"
@@ -148,7 +148,13 @@ overrides:
   "pptxgenjs>image-size": "2.0.4"
   # minimatch: transitive vulnerability floor. Caret, not an exact pin — the old
   # exact pin (10.2.1) became the vulnerable version itself (GHSA-23c5-xmqv-rm74).
-  minimatch: "^10.2.3"
+  # GHSA-g3hv-75wg-m249 has no fixed 10.x. 11 removes makeRe(), which only the
+  # eslint-plugin-import rule no-internal-modules calls; this repo does not enable it.
+  minimatch: "^11.0.1"
+  # GHSA-3g3m-2fjr-6pw4 (fixed 14.0.2, no 11.x or 13.x fix) via expo>@expo/* and
+  # vite-plugin-pwa>workbox-build. Both call only glob()/globSync(), which 14 keeps.
+  "glob@11": "^14.0.2"
+  "glob@13": "^14.0.2"
   shell-quote: "^1.11.0" # GHSA-pqg4-j6r4-53mv via @changesets/cli>launch-editor
   launch-editor: "^2.14.2" # GHSA-587h-7wmj-h5pm via @changesets/cli (3.0.3 is the latest release)
   # solid-js 1.9.17 moves to seroval ~1.6.8 (GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp) via better-auth.
@@ -186,7 +192,11 @@ overrides:
   # Selector `pkg@N` keeps the floor inside the major the dependent expects.
   "brace-expansion@5": "^5.0.11" # GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p via minimatch
   browserslist: "^4.28.7" # GHSA-73wf-gq98-2v4g, GHSA-c83g-rgw3-j3cx via @graphql-inspector/cli>@babel/core
-  "fast-uri@3": "^3.1.6" # GHSA-f65p-4m7j-42xc and four more via @commitlint/cli>…>ajv
+  # GHSA-f65p-4m7j-42xc and four more via @commitlint/cli>…>ajv; 3.1.9 fixes GHSA-333x-w4r6-6crp,
+  # GHSA-wjr9-j795-jxcr, GHSA-xhq7-xmqj-769h, GHSA-w74x-v6f9-j3xg (also via workbox-build>ajv).
+  "fast-uri@3": "^3.1.9"
+  # GHSA-rj75-hqrm-r3gf (fixed 6.1.5), GHSA-w9m9-85wc-3x92 via nativewind>tailwindcss 3.
+  "postcss-selector-parser@6": "^6.1.5"
   # GHSA-qr28-fpjm-wq7f, GHSA-vcc3-ghjq-m6fr via expo-router and @react-navigation/core>query-string@7.
   # 0.3+ is ESM-only, so query-string@7.1.3 is patched below to read its default export.
   # Remove both when expo-router drops query-string@7 (expo-router 58, Expo SDK 58).
