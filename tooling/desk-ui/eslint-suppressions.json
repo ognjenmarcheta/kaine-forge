@@ -1,0 +1,37 @@
+{
+  "src/gates/gate.confirm.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/shell/shell.format.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/shell/shell.undo.test.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/work/work.present.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "tests/desk.e2e.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "tests/fixture.data.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 2
+    }
+  },
+  "tests/fixture.server.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 2
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "src/schema/organizations.migration.test.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}

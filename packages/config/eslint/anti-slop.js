@@ -1,3 +1,5 @@
+import { URL } from "node:url";
+
 // Rules live in a dedicated plugin namespace so they never collide with the
 // no-restricted-syntax composition in react.js.
 const SHAPE_NAME = /Shape/;
@@ -137,10 +139,87 @@ const requireSafetyCommentForTypeAssertion = {
   }
 };
 
+// Tool directives carry their own syntax; a reason after `--` is not prose to police.
+const DIRECTIVE_COMMENT =
+  /^\s*(?:eslint(?:-disable|-enable|-disable-next-line|-disable-line|-env)?\s|globals?\s|exported\s|@ts-(?:expect-error|ignore|nocheck|check)\b|prettier-ignore|(?:istanbul|c8|v8)\s+ignore|@vitest-environment\s|\/\s*<reference\s)/;
+const MONTH =
+  "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+const LINK_CANDIDATE = /(?:https?:\/\/)?(?:[\w-]+\.)+[a-z]{2,}\/[^\s)>\]"'`]*/gi;
+const GITHUB_THREAD_PATH = /^\/[^/]+\/[^/]+\/(?:pull|issues)\/\d+/;
+// A PR or issue link on github.com itself. The host is compared after URL parsing,
+// so `notgithub.com/...` and `github.com.example.org/...` do not match.
+const githubThreadLink = {
+  exec(text) {
+    for (const [candidate] of text.matchAll(LINK_CANDIDATE)) {
+      let url;
+      try {
+        url = new URL(/^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`);
+      } catch {
+        continue;
+      }
+      const path = GITHUB_THREAD_PATH.exec(url.pathname);
+      if (path && (url.hostname === "github.com" || url.hostname === "www.github.com")) {
+        return [candidate, `${url.hostname}${path[0]}`];
+      }
+    }
+    return null;
+  }
+};
+const PROVENANCE_PATTERNS = [
+  /\b((?:PRs?|pull requests?|issues?)\s+#?\d+)\b/i,
+  // `#123` issue or PR references. Not `&#123;` entities, `page#123` anchors,
+  // 6- and 8-digit hex colors, or the `#000`-style grey shorthands.
+  /(?:^|[^\w&#/])(#(?!(\d)\2\2\b)\d{1,5})\b/,
+  githubThreadLink,
+  // ISO dates, except dated API versions such as `2025-03-31.basil`.
+  /\b(\d{4}-\d{2}-\d{2})\b(?!\.[a-z])/,
+  new RegExp(`\\b(${MONTH}\\.?\\s+(?:\\d{1,2},?\\s+)?\\d{4})\\b`),
+  /\b(as of\s+\d{4})\b/i,
+  /\b((?:added|introduced|changed|removed|fixed|moved|renamed|updated)\s+in\s+(?:(?:a|an|the|this|that)\s+)?(?:(?:later|earlier|previous|recent|follow-up)\s+)?(?:PR|pull request|commit|issue)s?)\b/i
+];
+
+const noCommentProvenance = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "Disallow comments that cite provenance (PR or issue numbers, dates, change history) instead of a reason, constraint, or invariant."
+    },
+    schema: [],
+    messages: {
+      provenance:
+        'Comments state a reason, constraint, or invariant, not where a change came from. Remove "{{match}}"; the PR and git history keep it.'
+    }
+  },
+  create(context) {
+    return {
+      Program() {
+        for (const comment of context.sourceCode.getAllComments()) {
+          if (SAFETY_COMMENT.test(comment.value) || DIRECTIVE_COMMENT.test(comment.value)) {
+            continue;
+          }
+          for (const pattern of PROVENANCE_PATTERNS) {
+            const found = pattern.exec(comment.value);
+            if (found) {
+              context.report({
+                loc: comment.loc,
+                messageId: "provenance",
+                data: { match: found[1] }
+              });
+              break;
+            }
+          }
+        }
+      }
+    };
+  }
+};
+
 export const antiSlopPlugin = {
   meta: { name: "anti-slop" },
   rules: {
     "no-chained-type-assertions": noChainedTypeAssertions,
+    "no-comment-provenance": noCommentProvenance,
     "no-shape-in-symbol-names": noShapeInSymbolNames,
     "no-unknown-type-aliases": noUnknownTypeAliases,
     "require-safety-comment-for-type-assertion": requireSafetyCommentForTypeAssertion
@@ -155,6 +234,7 @@ export default [
     },
     rules: {
       "anti-slop/no-chained-type-assertions": "error",
+      "anti-slop/no-comment-provenance": "error",
       "anti-slop/no-shape-in-symbol-names": "error",
       "anti-slop/no-unknown-type-aliases": "error",
       "no-restricted-properties": [

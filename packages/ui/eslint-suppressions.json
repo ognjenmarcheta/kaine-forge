@@ -1,0 +1,27 @@
+{
+  "src/components/composed/nav-user.test.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/components/composed/nav-user.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/components/composed/organization-switcher.test.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/components/composed/organization-switcher.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  },
+  "src/components/composed/shell-select-control.tsx": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}

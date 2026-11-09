@@ -445,6 +445,16 @@ pnpm --filter @repo/mobile-ui typecheck
 
 Before finishing a substantial task, run the narrowest useful workspace checks plus the relevant root gates.
 
+### Lint baseline
+
+A new ESLint rule can ship as `error` before every existing violation is fixed. ESLint's own suppressions file, `eslint-suppressions.json`, freezes the old violations. It is keyed by file path (relative to the directory that runs `eslint .`) and rule id, with a count for each file. Each workspace keeps its own file; the root file covers `pnpm ai:lint`.
+
+- A violation within the frozen count passes. A violation above the count fails, and ESLint reports every violation of that rule in that file.
+- An entry that no longer matches fails lint with exit code 2, so the baseline can only shrink. After you fix a frozen violation, run `pnpm --filter <workspace> exec eslint . --prune-suppressions`.
+- To freeze a new rule: `pnpm --filter <workspace> exec eslint . --suppress-rule <plugin/rule>`. Do not use `--suppress-all`, because it also freezes violations of other rules.
+- ESLint writes the file without a final newline. Run `pnpm exec prettier --write <workspace>/eslint-suppressions.json` after you regenerate it.
+- Pre-commit runs ESLint from the repo root, so it reads only the root file. A staged file with frozen violations fails pre-commit. Fix the comment and prune the entry.
+
 ## 18. AI Assistant Scaffold
 
 `.ai/` is canonical. Installed assistant files should not be edited directly.

@@ -1,0 +1,7 @@
+{
+  "src/jobs.email.ts": {
+    "anti-slop/no-comment-provenance": {
+      "count": 1
+    }
+  }
+}
