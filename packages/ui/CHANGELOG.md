@@ -1,5 +1,13 @@
 # @repo/ui
 
+## 2.1.1
+
+### Patch Changes
+
+- bac980d: The collapsed sidebar no longer opens the tooltip of every menu item that the pointer or focus
+  touched while the sidebar was expanded. A tooltip now opens on the rail only on a hover or focus.
+- @repo/theme@0.2.0
+
 ## 2.1.0
 
 ### Minor Changes
