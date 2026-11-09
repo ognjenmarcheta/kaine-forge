@@ -29,9 +29,10 @@ export const slugify = (text: string): string => {
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    // The step above leaves no runs of "-", so single-dash anchors suffice and stay linear.
+    .replace(/^-|-$/g, "")
     .slice(0, MAX_SLUG_LENGTH)
-    .replace(/-+$/g, "");
+    .replace(/-$/, "");
   return slug === "" ? "work" : slug;
 };
 
