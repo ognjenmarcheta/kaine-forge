@@ -192,8 +192,8 @@ export async function createContextFromHeaders(
         todos: createTodos({
           // Objects are deleted only once the push commits.
           attachments: {
-            detach: async (todoId) => {
-              const { purge } = await savepointAttachments.detach(todoId);
+            detach: async (todoId, tx) => {
+              const { purge } = await savepointAttachments.detach(todoId, tx);
               return { purge: async () => defer(purge) };
             }
           },

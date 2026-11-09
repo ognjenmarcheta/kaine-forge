@@ -22,7 +22,9 @@ commits or rolls back with the write.
    write's transaction. `RecordOrganizationEvent` in `pubsub.ts` is the seam: a module calls it
    inside the transaction of the write, and calls `publish` for the live stream after the commit.
    The Todo and Note modules open a transaction for each write that emits an event. A sync push
-   runs them in its savepoints, so a rejected mutation or a failed push stores no delivery.
+   runs them in its savepoints, so a rejected mutation or a failed push stores no delivery. A Todo
+   delete soft-deletes its Attachments in the same transaction, in a savepoint so that a failed
+   detach does not stop the delete, and purges their objects only after the commit.
 2. **The connection.** `ScopedData.jobConnection()` gives the job queue a connection on the
    ScopedData's handle. It turns pg-boss's `$n` placeholders into Drizzle parameters, so the
    statement runs inside the open transaction. `JobQueue.enqueue` takes it as `{ connection }`.
@@ -32,7 +34,7 @@ commits or rolls back with the write.
    retry limit (ADR 0018). A delivery can repeat, so a receiver deduplicates by the event id.
 5. **Test.** `webhooks.dispatch.test.ts` runs the real Todo and Note modules, the dispatcher, and the
    job queue on one PGlite database: a committed write stores its delivery, a rolled-back
-   transaction stores none, and a failed enqueue leaves no row.
+   transaction stores none, and a failed enqueue undoes every create, update, toggle, and delete.
 
 ## Alternatives Considered
 

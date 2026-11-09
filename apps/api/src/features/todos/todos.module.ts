@@ -23,11 +23,12 @@ export interface TodoListArgs extends PageInput {
 
 /**
  * What deleting a Todo does to its Attachments. `detach` soft-deletes their
- * rows; the purge it returns deletes their stored objects, bounds each delete
- * in time, logs its own failures, and never rejects.
+ * rows through `tx`, so they roll back with the Todo delete; the purge it
+ * returns deletes their stored objects, bounds each delete in time, logs its
+ * own failures, and never rejects. Call the purge only after the commit.
  */
 export interface TodoAttachments {
-  detach: (todoId: string) => Promise<{ purge: () => Promise<void> }>;
+  detach: (todoId: string, tx: ScopedData) => Promise<{ purge: () => Promise<void> }>;
 }
 
 export interface TodoModuleDeps {
@@ -224,14 +225,17 @@ export function createTodos({
       // todo:delete alone deletes the Todo's Attachments too: they belong to
       // the Todo, so attachment:delete governs only deleting one on its own.
       data.authorize("todo:delete");
-      let purge: () => Promise<void> = async () => undefined;
-      try {
-        ({ purge } = await attachments.detach(id));
-      } catch (err) {
-        warnCleanupFailed(err, id);
-      }
+      const { row, purge } = await data.transaction(async (tx) => {
+        let purgeObjects: () => Promise<void> = async () => undefined;
+        try {
+          // A savepoint: a failed detach must not abort the Todo delete.
+          ({ purge: purgeObjects } = await tx.transaction((savepoint) =>
+            attachments.detach(id, savepoint)
+          ));
+        } catch (err) {
+          warnCleanupFailed(err, id);
+        }
 
-      const row = await data.transaction(async (tx) => {
         const [deleted] = await tx
           .delete(todosTable, eq(todosTable.id, id))
           .returning({ id: todosTable.id, organizationId: todosTable.organizationId });
@@ -239,7 +243,7 @@ export function createTodos({
         if (deleted) {
           await recordEvent(tx, "todo:deleted", deleted);
         }
-        return deleted;
+        return { row: deleted, purge: purgeObjects };
       });
 
       if (row) {

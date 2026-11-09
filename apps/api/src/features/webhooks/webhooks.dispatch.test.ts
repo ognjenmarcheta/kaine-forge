@@ -70,6 +70,48 @@ async function deliveredTitles(): Promise<string[]> {
   return jobs.rows.map((row) => row.title);
 }
 
+const failingEnqueue = () => Promise.reject(new Error("queue unavailable"));
+
+function failingNotes() {
+  return createNotes({
+    data,
+    publish: () => undefined,
+    recordEvent: createWebhookDispatcher({ enqueue: failingEnqueue })
+  });
+}
+
+async function seedTodo(): Promise<string> {
+  const [todo] = await database.db
+    .insert(todosTable)
+    .values({ ...data.stamp("userId"), title: "Seeded" })
+    .returning();
+  if (!todo) throw new Error("failed to seed todo");
+  return todo.id;
+}
+
+async function seedNote(): Promise<string> {
+  const [note] = await database.db
+    .insert(notesTable)
+    .values({ ...data.stamp("userId"), title: "Seeded" })
+    .returning();
+  if (!note) throw new Error("failed to seed note");
+  return note.id;
+}
+
+async function readTodo(id: string) {
+  return database.db
+    .select({ title: todosTable.title, completed: todosTable.completed })
+    .from(todosTable)
+    .where(eq(todosTable.id, id));
+}
+
+async function readNote(id: string) {
+  return database.db
+    .select({ title: notesTable.title })
+    .from(notesTable)
+    .where(eq(notesTable.id, id));
+}
+
 async function storedTitles(title: string): Promise<string[]> {
   const rows = await database.db
     .select({ title: todosTable.title })
@@ -106,7 +148,15 @@ beforeAll(async () => {
       organizationId: organization.id,
       url: "https://hooks.example.com/in",
       secret: "whsec_hooks",
-      eventTypes: ["todo:created", "note:created"]
+      eventTypes: [
+        "todo:created",
+        "todo:updated",
+        "todo:toggled",
+        "todo:deleted",
+        "note:created",
+        "note:updated",
+        "note:deleted"
+      ]
     })
     .returning();
   if (!endpoint) throw new Error("failed to seed endpoint");
@@ -186,4 +236,51 @@ describe("webhook deliveries in the write's transaction", () => {
       .where(eq(notesTable.title, "Undeliverable note"));
     expect(rows).toEqual([]);
   });
+
+  // Each write records its event in its own transaction, so a failed enqueue undoes the write.
+  it.each([
+    {
+      write: "updating a Todo",
+      seed: seedTodo,
+      read: readTodo,
+      before: [{ title: "Seeded", completed: false }],
+      act: (id: string) => todosOn(data, failingEnqueue).update(id, { title: "Changed" })
+    },
+    {
+      write: "toggling a Todo",
+      seed: seedTodo,
+      read: readTodo,
+      before: [{ title: "Seeded", completed: false }],
+      act: (id: string) => todosOn(data, failingEnqueue).toggle(id)
+    },
+    {
+      write: "deleting a Todo",
+      seed: seedTodo,
+      read: readTodo,
+      before: [{ title: "Seeded", completed: false }],
+      act: (id: string) => todosOn(data, failingEnqueue).delete(id)
+    },
+    {
+      write: "updating a Note",
+      seed: seedNote,
+      read: readNote,
+      before: [{ title: "Seeded" }],
+      act: (id: string) => failingNotes().update(id, { title: "Changed" })
+    },
+    {
+      write: "deleting a Note",
+      seed: seedNote,
+      read: readNote,
+      before: [{ title: "Seeded" }],
+      act: (id: string) => failingNotes().delete(id)
+    }
+  ])(
+    "fails $write and leaves the row as it was when its delivery cannot be stored",
+    async ({ seed, read, act, before }) => {
+      const id = await seed();
+
+      await expect(act(id)).rejects.toThrow("queue unavailable");
+      expect(await read(id)).toEqual(before);
+    }
+  );
 });
