@@ -1,5 +1,12 @@
 # @repo/ui-3d
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [bac980d]
+  - @repo/ui@2.1.1
+
 ## 0.1.2
 
 ### Patch Changes

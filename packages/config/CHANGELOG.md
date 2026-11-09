@@ -1,5 +1,14 @@
 # @repo/config
 
+## 2.2.1
+
+### Patch Changes
+
+- fcb955b: The server-only import block for client workspaces now also covers `@repo/auth/audit`, which
+  reaches `@repo/db` and `node:async_hooks`. A contract test now derives the Node-only entries from
+  the imports of each package export, so a new entry that reaches Node-only code fails until the
+  pattern covers it.
+
 ## 2.2.0
 
 ### Minor Changes

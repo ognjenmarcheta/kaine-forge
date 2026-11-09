@@ -1,5 +1,12 @@
 # @repo/sync
 
+## 0.2.1
+
+### Patch Changes
+
+- a9b1aad: A pull now waits until the engine has read the stored rows' cursor. Before, a change the Outbox
+  replayed at start pulled first, and the Todo and Note lists could show empty after a reload.
+
 ## 0.2.0
 
 ### Minor Changes
