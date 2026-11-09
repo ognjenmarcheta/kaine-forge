@@ -54,14 +54,17 @@ jobs:
 
       # Compiling cargo-audit takes minutes; cache the binary per version.
       - name: Cache cargo-audit
+        id: cargo-audit-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cargo/bin/cargo-audit
           key: cargo-audit-${{ runner.os }}-${{ env.CARGO_AUDIT_VERSION }}
 
       - name: Install cargo-audit
-        # Linux runners ship stable Rust; cargo install exits 0 when the cached
-        # binary already has this version.
+        # The cache holds only the binary, not cargo's install records, so on a hit
+        # cargo install refuses the untracked file ("already exists in
+        # destination"). The key pins the version, so a hit needs no install.
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
         run: |
           cargo --version
           cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
