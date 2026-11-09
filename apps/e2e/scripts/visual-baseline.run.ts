@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
+// The port inside the container. Docker picks a free host port for it.
 const port = 3333;
 const require = createRequire(import.meta.url);
 const manifest: unknown = JSON.parse(
@@ -35,10 +36,16 @@ function docker(args: string[]): string {
 }
 
 // Docker publishes the port before the server listens, so wait for its log line.
+// The container runs without --rm, so its logs survive a failed start.
 async function waitForServer(container: string, deadline: number): Promise<void> {
   while (Date.now() < deadline) {
     const logs = spawnSync("docker", ["logs", container], { encoding: "utf8" });
-    if (`${logs.stdout}${logs.stderr}`.includes("Listening on")) return;
+    const output = `${logs.stdout}${logs.stderr}`;
+    if (output.includes("Listening on")) return;
+    if (docker(["inspect", "--format={{.State.Running}}", container]) !== "true") {
+      process.stderr.write(output);
+      throw new Error(`The Playwright browser container ${container} exited before it started.`);
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`The Playwright browser server did not start in container ${container}.`);
@@ -47,12 +54,11 @@ async function waitForServer(container: string, deadline: number): Promise<void>
 const container = docker([
   "run",
   "--detach",
-  "--rm",
   "--init",
   "--ipc=host",
   "--user=pwuser",
   "--workdir=/home/pwuser",
-  `--publish=127.0.0.1:${String(port)}:${String(port)}`,
+  `--publish=127.0.0.1::${String(port)}`,
   `mcr.microsoft.com/playwright:v${version}-noble`,
   "npx",
   "-y",
@@ -66,6 +72,8 @@ let status = 1;
 try {
   // The first start downloads the playwright package inside the container.
   await waitForServer(container, Date.now() + 180_000);
+  // For example "127.0.0.1:49153".
+  const hostAddress = docker(["port", container, `${String(port)}/tcp`]).split("\n")[0];
   const result = spawnSync(
     "pnpm",
     ["exec", "playwright", "test", "--grep", "@visual", ...process.argv.slice(2)],
@@ -73,13 +81,17 @@ try {
       stdio: "inherit",
       env: {
         ...process.env,
-        PW_TEST_CONNECT_WS_ENDPOINT: `ws://127.0.0.1:${String(port)}/`,
+        PW_TEST_CONNECT_WS_ENDPOINT: `ws://${hostAddress ?? ""}/`,
         PW_TEST_CONNECT_EXPOSE_NETWORK: "<loopback>"
       }
     }
   );
+  if (result.error) console.error(`Could not run playwright test: ${result.error.message}`);
+  if (result.signal) console.error(`playwright test stopped on signal ${result.signal}.`);
   status = result.status ?? 1;
 } finally {
-  docker(["stop", container]);
+  // A cleanup failure only warns, so it cannot hide the error that ended the run.
+  const removed = spawnSync("docker", ["rm", "--force", container], { encoding: "utf8" });
+  if (removed.status !== 0) console.error(`Could not remove container ${container}.`);
 }
 process.exitCode = status;

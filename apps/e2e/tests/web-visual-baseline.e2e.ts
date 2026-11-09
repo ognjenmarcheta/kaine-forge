@@ -15,10 +15,18 @@ test.skip(
 // Fixed locale and time zone keep formatted dates the same on every machine.
 test.use({ reducedMotion: "reduce", locale: "en-US", timezoneId: "UTC" });
 
-/** Two fixed todos so the populated shell does not depend on seeded rows. */
-async function mockPopulatedTodos(page: Page): Promise<void> {
+/**
+ * Two fixed todos and the default Organization Theme, so the populated shell does not
+ * depend on the rows or the theme of a prepared local database.
+ */
+async function mockPopulatedShell(page: Page): Promise<void> {
   await page.route("**/graphql", async (route) => {
-    if (!(route.request().postData() ?? "").includes("query SyncPull")) {
+    const body = route.request().postData() ?? "";
+    if (body.includes("query OrganizationTheme")) {
+      await route.fulfill({ json: { data: { organizationTheme: "byte-forge" } } });
+      return;
+    }
+    if (!body.includes("query SyncPull")) {
       await route.continue();
       return;
     }
@@ -74,9 +82,10 @@ test.describe("visual baselines", { tag: "@visual" }, () => {
       });
 
       test(`populated todos shell at 1440px matches the ${theme} baseline`, async ({ page }) => {
+        // Before sign-in, so the first sync pull already gets the fixed rows.
+        await mockPopulatedShell(page);
         await signIn(page);
         await page.setViewportSize({ width: 1440, height: 900 });
-        await mockPopulatedTodos(page);
         await page.goto("/todos");
         await expect(
           page.getByRole("checkbox", { name: "Review the design system", exact: true })
@@ -85,6 +94,7 @@ test.describe("visual baselines", { tag: "@visual" }, () => {
         await expect(page.getByRole("status", { name: "Sync status", exact: true })).toHaveText(
           "Online"
         );
+        await expect(page.locator("html")).toHaveAttribute("data-theme", "byte-forge");
         await expect(page).toHaveScreenshot(`todos-populated-${theme}.png`);
       });
     });
