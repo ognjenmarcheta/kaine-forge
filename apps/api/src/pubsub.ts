@@ -1,6 +1,7 @@
 import type { NotificationPayloadByType, NotificationType } from "@repo/auth/notifications";
 import { createPubSub, filter, pipe } from "graphql-yoga";
 
+import type { ScopedData } from "./context.data";
 import { ReplicaEventTarget } from "./pubsub.replicas";
 
 export interface TodoSubscriptionPayload {
@@ -81,6 +82,18 @@ type OrganizationEventName = Exclude<
   keyof PubSubEventMap,
   "assistant:delta" | "notification:created"
 >;
+
+/**
+ * Stores what an organization event causes besides the live stream (its
+ * webhook deliveries) through `tx`, so it commits or rolls back with the write
+ * that caused it. Call it inside the write's transaction; `publish` the event
+ * after the commit. A failure rejects, so the write fails with it.
+ */
+export type RecordOrganizationEvent = <TEventName extends OrganizationEventName>(
+  tx: ScopedData,
+  eventName: TEventName,
+  ...payload: PubSubEventMap[TEventName]
+) => Promise<void>;
 
 /**
  * Each organization-scoped GraphQL subscription field and the event it

@@ -12,7 +12,7 @@ import {
 import type { CreateNoteInput, NotePatch, UpdateNoteInput } from "./notes.type";
 import { ensureNoteTitle, parseOptionalBody } from "./notes.util";
 import type { Connection, PageInput, ScopedData } from "../../context.data";
-import type { PubSubEventMap } from "../../pubsub";
+import type { PubSubEventMap, RecordOrganizationEvent } from "../../pubsub";
 
 export interface NoteListArgs extends PageInput {
   search?: string | null | undefined;
@@ -20,15 +20,18 @@ export interface NoteListArgs extends PageInput {
 
 export interface NoteModuleDeps {
   data: ScopedData;
+  /** Streams an event to live subscribers; call it after the write commits. */
   publish: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
   ) => void;
+  recordEvent: RecordOrganizationEvent;
 }
 
 /**
  * Every Note read and write for one request's Authenticated Organization
- * Scope. Writes normalize their input and publish one `note:*` event.
+ * Scope. Writes normalize their input, record one `note:*` event in the
+ * write's transaction, and publish it after the commit.
  */
 export interface Notes {
   list: (args: NoteListArgs) => Promise<Connection<Note>>;
@@ -47,7 +50,7 @@ export interface Notes {
   delete: (id: string) => Promise<boolean>;
 }
 
-export function createNotes({ data, publish }: NoteModuleDeps): Notes {
+export function createNotes({ data, publish, recordEvent }: NoteModuleDeps): Notes {
   return {
     list: ({ search, ...page }) => listNotesByScope(data, page, search),
     get: (id) => getNoteById(data, id),
@@ -60,10 +63,15 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
       };
 
       if (input.id !== undefined) {
-        const inserted = await createNoteWithId(data, { ...fields, id: input.id });
+        const { id } = input;
+        const inserted = await data.transaction(async (tx) => {
+          const note = await createNoteWithId(tx, { ...fields, id });
+          if (note) await recordEvent(tx, "note:created", note);
+          return note;
+        });
         if (!inserted) {
           // The same author creating the same id again is a replayed push.
-          const existing = await getNoteById(data, input.id);
+          const existing = await getNoteById(data, id);
           if (existing?.userId === data.stamp("userId").userId) {
             return existing;
           }
@@ -73,7 +81,11 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
         return inserted;
       }
 
-      const note = await createNote(data, fields);
+      const note = await data.transaction(async (tx) => {
+        const created = await createNote(tx, fields);
+        await recordEvent(tx, "note:created", created);
+        return created;
+      });
       publish("note:created", note);
       return note;
     },
@@ -82,15 +94,24 @@ export function createNotes({ data, publish }: NoteModuleDeps): Notes {
       const patch: NotePatch = {};
       if (input.title !== undefined) patch.title = ensureNoteTitle(input.title);
       if (input.body !== undefined) patch.body = parseOptionalBody(input.body);
-      const note = await updateNote(data, id, patch);
+      const note = await data.transaction(async (tx) => {
+        const updated = await updateNote(tx, id, patch);
+        await recordEvent(tx, "note:updated", updated);
+        return updated;
+      });
       publish("note:updated", note);
       return note;
     },
     async delete(id) {
       data.authorize("note:delete");
-      const deleted = await deleteNote(data, id);
+      const event = { id, organizationId: data.stamp().organizationId };
+      const deleted = await data.transaction(async (tx) => {
+        const removed = await deleteNote(tx, id);
+        if (removed) await recordEvent(tx, "note:deleted", event);
+        return removed;
+      });
       if (deleted) {
-        publish("note:deleted", { id, organizationId: data.stamp().organizationId });
+        publish("note:deleted", event);
       }
       return deleted;
     }

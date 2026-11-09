@@ -13,7 +13,7 @@ import {
   type ScopedData
 } from "../../context.data";
 import { formatLoggableError } from "../../observability";
-import type { PubSubEventMap } from "../../pubsub";
+import type { PubSubEventMap, RecordOrganizationEvent } from "../../pubsub";
 import type { Billing } from "../billing/billing.module";
 
 export interface TodoListArgs extends PageInput {
@@ -23,11 +23,12 @@ export interface TodoListArgs extends PageInput {
 
 /**
  * What deleting a Todo does to its Attachments. `detach` soft-deletes their
- * rows; the purge it returns deletes their stored objects, bounds each delete
- * in time, logs its own failures, and never rejects.
+ * rows through `tx`, so they roll back with the Todo delete; the purge it
+ * returns deletes their stored objects, bounds each delete in time, logs its
+ * own failures, and never rejects. Call the purge only after the commit.
  */
 export interface TodoAttachments {
-  detach: (todoId: string) => Promise<{ purge: () => Promise<void> }>;
+  detach: (todoId: string, tx: ScopedData) => Promise<{ purge: () => Promise<void> }>;
 }
 
 export interface TodoModuleDeps {
@@ -36,16 +37,19 @@ export interface TodoModuleDeps {
   logger: Pick<Logger, "warn">;
   /** The Plan's todo limit; see billing.module.ts. */
   plan: Pick<Billing, "withinLimit">;
+  /** Streams an event to live subscribers; call it after the write commits. */
   publish: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
   ) => void;
+  recordEvent: RecordOrganizationEvent;
 }
 
 /**
  * Every Todo read and write for one request's Authenticated Organization
- * Scope. Writes normalize their input and publish one `todo:*` event; delete
- * also cleans up the Todo's Attachments.
+ * Scope. Writes normalize their input, record one `todo:*` event in the
+ * write's transaction, and publish it after the commit; delete also cleans up
+ * the Todo's Attachments.
  */
 export interface Todos {
   list: (args: TodoListArgs) => Promise<Connection<Todo>>;
@@ -79,22 +83,39 @@ export async function countTodos(data: ScopedData): Promise<number> {
   return row?.total ?? 0;
 }
 
-export function createTodos({ attachments, data, logger, plan, publish }: TodoModuleDeps): Todos {
+export function createTodos({
+  attachments,
+  data,
+  logger,
+  plan,
+  publish,
+  recordEvent
+}: TodoModuleDeps): Todos {
   async function get(id: string): Promise<Todo | null> {
     const todos = await data.selectFrom(todosTable, eq(todosTable.id, id)).limit(1);
     return todos[0] ?? null;
   }
 
-  async function write(id: string, patch: TodoPatch): Promise<Todo> {
-    const todos = await data
-      .update(todosTable, { ...patch, updatedAt: new Date() }, eq(todosTable.id, id))
-      .returning();
-    const todo = todos[0];
+  /** Updates the Todo and records `eventName` in one transaction, then publishes it. */
+  async function write(
+    eventName: "todo:updated" | "todo:toggled",
+    id: string,
+    patch: TodoPatch
+  ): Promise<Todo> {
+    const todo = await data.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(todosTable, { ...patch, updatedAt: new Date() }, eq(todosTable.id, id))
+        .returning();
 
-    if (!todo) {
-      throw new Error("todo not found");
-    }
+      if (!updated) {
+        throw new Error("todo not found");
+      }
 
+      await recordEvent(tx, eventName, updated);
+      return updated;
+    });
+
+    publish(eventName, todo);
     return todo;
   }
 
@@ -145,32 +166,37 @@ export function createTodos({ attachments, data, logger, plan, publish }: TodoMo
       }
 
       // Counted and inserted under the limit's lock, so two parallel creates
-      // cannot both take a cap's last slot.
-      const { todo, created } = await plan.withinLimit("todos", countTodos, async (tx) => {
-        const values = { ...tx.stamp("userId"), title, description, completed: false, noteId };
+      // cannot both take a cap's last slot. The inner transaction holds the
+      // insert and its event also when no limit applies and `tx` is not one.
+      const { todo, created } = await plan.withinLimit("todos", countTodos, (limited) =>
+        limited.transaction(async (tx) => {
+          const values = { ...tx.stamp("userId"), title, description, completed: false, noteId };
 
-        if (input.id === undefined) {
-          const todos = await tx.insert(todosTable).values(values).returning();
-          return { todo: todos[0], created: true };
-        }
+          if (input.id === undefined) {
+            const todos = await tx.insert(todosTable).values(values).returning();
+            if (todos[0]) await recordEvent(tx, "todo:created", todos[0]);
+            return { todo: todos[0], created: true };
+          }
 
-        const inserted = await tx
-          .insert(todosTable)
-          .values({ ...values, id: input.id })
-          .onConflictDoNothing({ target: todosTable.id })
-          .returning();
+          const inserted = await tx
+            .insert(todosTable)
+            .values({ ...values, id: input.id })
+            .onConflictDoNothing({ target: todosTable.id })
+            .returning();
 
-        if (inserted[0]) {
-          return { todo: inserted[0], created: true };
-        }
+          if (inserted[0]) {
+            await recordEvent(tx, "todo:created", inserted[0]);
+            return { todo: inserted[0], created: true };
+          }
 
-        // The same author creating the same id again is a replayed push.
-        const existing = await tx.selectFrom(todosTable, eq(todosTable.id, input.id)).limit(1);
-        if (existing[0]?.userId === values.userId) {
-          return { todo: existing[0], created: false };
-        }
-        throw new Error("todo id conflict");
-      });
+          // The same author creating the same id again is a replayed push.
+          const existing = await tx.selectFrom(todosTable, eq(todosTable.id, input.id)).limit(1);
+          if (existing[0]?.userId === values.userId) {
+            return { todo: existing[0], created: false };
+          }
+          throw new Error("todo id conflict");
+        })
+      );
 
       if (!todo) {
         throw new Error("failed to create todo");
@@ -183,9 +209,7 @@ export function createTodos({ attachments, data, logger, plan, publish }: TodoMo
     },
     async update(id, input) {
       data.authorize("todo:update");
-      const todo = await write(id, applyTodoPatch(input));
-      publish("todo:updated", todo);
-      return todo;
+      return write("todo:updated", id, applyTodoPatch(input));
     },
     async toggle(id) {
       data.authorize("todo:update");
@@ -195,25 +219,32 @@ export function createTodos({ attachments, data, logger, plan, publish }: TodoMo
         throw new Error("todo not found");
       }
 
-      const todo = await write(id, { completed: !current.completed });
-      publish("todo:toggled", todo);
-      return todo;
+      return write("todo:toggled", id, { completed: !current.completed });
     },
     async delete(id) {
       // todo:delete alone deletes the Todo's Attachments too: they belong to
       // the Todo, so attachment:delete governs only deleting one on its own.
       data.authorize("todo:delete");
-      let purge: () => Promise<void> = async () => undefined;
-      try {
-        ({ purge } = await attachments.detach(id));
-      } catch (err) {
-        warnCleanupFailed(err, id);
-      }
+      const { row, purge } = await data.transaction(async (tx) => {
+        let purgeObjects: () => Promise<void> = async () => undefined;
+        try {
+          // A savepoint: a failed detach must not abort the Todo delete.
+          ({ purge: purgeObjects } = await tx.transaction((savepoint) =>
+            attachments.detach(id, savepoint)
+          ));
+        } catch (err) {
+          warnCleanupFailed(err, id);
+        }
 
-      const deleted = await data
-        .delete(todosTable, eq(todosTable.id, id))
-        .returning({ id: todosTable.id, organizationId: todosTable.organizationId });
-      const row = deleted[0];
+        const [deleted] = await tx
+          .delete(todosTable, eq(todosTable.id, id))
+          .returning({ id: todosTable.id, organizationId: todosTable.organizationId });
+
+        if (deleted) {
+          await recordEvent(tx, "todo:deleted", deleted);
+        }
+        return { row: deleted, purge: purgeObjects };
+      });
 
       if (row) {
         publish("todo:deleted", row);

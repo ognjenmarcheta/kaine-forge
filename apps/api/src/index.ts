@@ -105,7 +105,9 @@ setNotificationDispatcher(
     sendEmail: queueEmail
   })
 );
-setWebhookDeliveryQueue((delivery) => jobQueue.enqueue("webhook.deliver", delivery));
+setWebhookDeliveryQueue((delivery, connection) =>
+  jobQueue.enqueue("webhook.deliver", delivery, { connection })
+);
 const sweep = resolveAttachmentSweepConfig(process.env);
 
 if (sweep) {

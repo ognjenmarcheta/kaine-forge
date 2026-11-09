@@ -4,6 +4,7 @@ import {
   type AuthenticatedOrganizationScope
 } from "@repo/auth/scope";
 import type { Database } from "@repo/db/types";
+import type { JobConnection } from "@repo/jobs";
 import { and, asc, desc, eq, getTableName, gt, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import type {
   AnyPgColumn,
@@ -180,6 +181,13 @@ export interface ScopedData {
    */
   lockOrganization(key: string): Promise<void>;
   /**
+   * The job queue's connection on this ScopedData's database handle. A job
+   * stored through it commits or rolls back with the surrounding transaction.
+   * It runs raw SQL without the organization predicate: pass it only to the
+   * job queue's `enqueue`.
+   */
+  jobConnection(): JobConnection;
+  /**
    * One page of the table in `order`, after the `after` cursor: `first` is
    * clamped to the order's limits, and `first + 1` rows are read to set
    * `hasNextPage`. A malformed or foreign cursor throws `invalid cursor`.
@@ -303,6 +311,40 @@ function insertInto<TTable extends OrganizationOwnedTable>(db: Database, table: 
   return db.insert(table);
 }
 
+// pg-boss binds its values as `$1`, `$2`, ... placeholders. Each becomes a
+// Drizzle parameter, so the statement runs on this handle, inside its
+// transaction when it has one.
+const PLACEHOLDER = /\$(\d+)/;
+
+function jobConnectionOf(db: Database): JobConnection {
+  return {
+    async executeSql(text, values = []) {
+      const chunks = text.split(PLACEHOLDER).map((part, index) => {
+        if (index % 2 === 0) {
+          return sql.raw(part);
+        }
+        const position = Number(part);
+        if (position < 1 || position > values.length) {
+          throw new Error(`job statement has no value for $${part}`);
+        }
+        return sql.param(values[position - 1]);
+      });
+      const result: unknown = await db.execute(sql.join(chunks));
+
+      if (
+        typeof result !== "object" ||
+        result === null ||
+        !("rows" in result) ||
+        !Array.isArray(result.rows)
+      ) {
+        throw new Error("job statement returned no rows array");
+      }
+
+      return { rows: result.rows };
+    }
+  };
+}
+
 export function createScopedData(input: {
   db: Database;
   requireOrganizationScope: () => AuthenticatedOrganizationScope;
@@ -352,6 +394,7 @@ export function createScopedData(input: {
         sql`select pg_advisory_xact_lock(hashtext(${organizationId}), hashtext(${key}))`
       );
     },
+    jobConnection: () => jobConnectionOf(db),
     page: (table, input, order, ...conditions) =>
       selectPage(
         db,

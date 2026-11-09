@@ -270,7 +270,8 @@ describe("createAttachments", () => {
       data,
       logger,
       plan: { withinLimit: (_limit, _count, create) => create(data) },
-      publish: () => {}
+      publish: () => {},
+      recordEvent: () => Promise.resolve()
     });
     const todo = await todos.create({ title: "With photos" });
     for (const name of ["a.png", "b.png"]) {

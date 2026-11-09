@@ -23,7 +23,7 @@ import {
 
 import { countTodos, createTodos, type TodoAttachments, type Todos } from "./todos.module";
 import { createScopedData, type ScopedData } from "../../context.data";
-import type { PubSubEventMap } from "../../pubsub";
+import type { PubSubEventMap, RecordOrganizationEvent } from "../../pubsub";
 import { createTestBilling, fakeBillingProvider } from "../billing/billing.test-helpers";
 import { createAttachments } from "../storage/attachment.module";
 import { createMemoryObjectStore } from "../storage/attachment.store.memory";
@@ -38,7 +38,10 @@ let logger: Logger;
 let warn: MockInstance<Logger["warn"]>;
 let deleteObject: (object: { bucket: string; key: string }) => Promise<void>;
 
-function todosWith(attachments?: TodoAttachments): Todos {
+function todosWith(
+  attachments?: TodoAttachments,
+  recordEvent: RecordOrganizationEvent = () => Promise.resolve()
+): Todos {
   return createTodos({
     attachments:
       attachments ??
@@ -60,7 +63,8 @@ function todosWith(attachments?: TodoAttachments): Todos {
     }),
     publish: (eventName, ...payload) => {
       events.push([eventName, ...payload]);
-    }
+    },
+    recordEvent
   });
 }
 
@@ -95,7 +99,8 @@ async function freePlanTodos(
       requireOrganizationScope: () => freeScope,
       usage: { todos: () => countTodos(freeData) }
     }),
-    publish: () => {}
+    publish: () => {},
+    recordEvent: () => Promise.resolve()
   });
   return { todos, total: () => countTodos(freeData) };
 }
@@ -315,6 +320,28 @@ describe("createTodos", () => {
       error: { message: "s3 unreachable", name: "Error", stack: expect.any(String) },
       todoId: todo.id
     });
+  });
+
+  it("keeps the Todo, its Attachments, and their objects when the delete rolls back", async () => {
+    const todo = await todosWith().create({ title: "Undeletable" });
+    await seedAttachments(todo.id, ["c.png"]);
+    const purged: string[] = [];
+    deleteObject = async ({ key }) => {
+      purged.push(key);
+    };
+    events = [];
+    const failing = todosWith(undefined, () => Promise.reject(new Error("queue unavailable")));
+
+    await expect(failing.delete(todo.id)).rejects.toThrow("queue unavailable");
+
+    expect((await todosWith().get(todo.id))?.id).toBe(todo.id);
+    const rows = await database.db
+      .select({ status: filesTable.status })
+      .from(filesTable)
+      .where(eq(filesTable.entityId, todo.id));
+    expect(rows).toEqual([{ status: "uploaded" }]);
+    expect(purged).toEqual([]);
+    expect(events).toEqual([]);
   });
 
   it("warns and still deletes the Todo when detaching its Attachments fails", async () => {

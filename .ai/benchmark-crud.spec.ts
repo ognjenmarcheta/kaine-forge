@@ -39,9 +39,9 @@ it("validates the independent CRUD verifier against working APIs and a deliberat
     const mutation = `
 vi.mock("${src}features/notes/notes.adapter", async (importOriginal) => ({
   ...await importOriginal(),
-  deleteNote: async (_scope, id) => {
-    if (!holder.database) throw new Error("Missing fixture");
-    const result = await holder.database.client.query("DELETE FROM notes WHERE id = $1 RETURNING id", [id]);
+  // The delete runs in the module's transaction, so it goes through that handle without the scope.
+  deleteNote: async (scope, id) => {
+    const result = await scope.jobConnection().executeSql("DELETE FROM notes WHERE id = $1 RETURNING id", [id]);
     return result.rows.length > 0;
   }
 }));`;

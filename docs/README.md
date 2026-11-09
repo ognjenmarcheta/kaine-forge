@@ -51,6 +51,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0024-worktrunk-worktree-manager.md`](adr/0024-worktrunk-worktree-manager.md): worktrunk as the optional worktree manager, per-worktree ports, and the `wt merge` denial.
 - [`adr/0025-api-bounded-contexts.md`](adr/0025-api-bounded-contexts.md): the seven API bounded contexts and the `api/context-boundaries` lint rule.
 - [`adr/0026-api-table-ownership-and-kernel-direction.md`](adr/0026-api-table-ownership-and-kernel-direction.md): each API table has one owning context, and the shared kernel imports no feature.
+- [`adr/0027-webhook-deliveries-in-the-write-transaction.md`](adr/0027-webhook-deliveries-in-the-write-transaction.md): webhook deliveries are stored in the transaction of the write that caused the event.
 
 ## AI assistant docs
 

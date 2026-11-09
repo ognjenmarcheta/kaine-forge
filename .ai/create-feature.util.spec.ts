@@ -214,9 +214,12 @@ describe("buildFeatureFiles", () => {
   it("reads and writes only through the request's scoped data, never the db singleton", () => {
     const module = read(`${apiDir}/purchase-orders.module.ts`);
 
-    for (const call of ["selectFrom", "insert", "update", "delete"]) {
-      expect(module).toMatch(new RegExp(`\\bdata\\s*\\.${call}\\(`));
+    expect(module).toMatch(/\bdata\s*\.selectFrom\(/);
+    // Writes run in the request scope's transaction, so their event commits with them.
+    for (const call of ["insert", "update", "delete"]) {
+      expect(module).toMatch(new RegExp(`\\btx\\s*\\.${call}\\(`));
     }
+    expect(module).toContain("data.transaction(async (tx) => {");
     expect(module).toContain('...data.stamp("userId")');
     for (const [path, content] of files) {
       expect(content, path).not.toMatch(/import \{[^}]*\bdb\b[^}]*\} from "@repo\/db"/);
@@ -376,7 +379,7 @@ describe("applyCreateFeature", () => {
     );
     expect(read("apps/api/src/context.ts")).toContain("  scaffoldfixtures: Scaffoldfixtures;");
     expect(read("apps/api/src/context.ts")).toContain(
-      "    scaffoldfixtures: createScaffoldfixtures({ data, publish }),"
+      "    scaffoldfixtures: createScaffoldfixtures({ data, publish, recordEvent }),"
     );
     expect(read("apps/api/src/schema/features.ts")).toContain(
       'import { scaffoldfixturesResolvers } from "../features/scaffoldfixtures/scaffoldfixtures.router";'
@@ -547,10 +550,10 @@ CREATE OR REPLACE TRIGGER "scaffold_fixtures_sync_tombstone" AFTER DELETE ON "sc
     );
     expect(syncModule).toContain("  async scaffoldFixtureDelete({ id }, { scaffoldFixtures }) {");
     expect(read("apps/api/src/features/sync/sync.module.test.ts")).toContain(
-      "  scaffoldFixtures: createScaffoldFixtures({ data, publish })\n});"
+      "  scaffoldFixtures: createScaffoldFixtures({ data, publish, recordEvent: () => Promise.resolve() })\n});"
     );
     expect(read("apps/api/src/context.ts")).toContain(
-      "        scaffoldFixtures: createScaffoldFixtures({ data: savepointData, publish: publishAfterCommit })"
+      "        scaffoldFixtures: createScaffoldFixtures({ data: savepointData, publish: publishAfterCommit, recordEvent })"
     );
   });
 

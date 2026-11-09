@@ -3,6 +3,12 @@ import { PgBoss, type Db, type JobWithMetadata } from "pg-boss";
 
 import type { JobDefinitions, JobHandlers, JobPayload, JobPayloadData } from "./jobs.definition";
 
+/**
+ * A connection pg-boss runs its statements on. Passed to `enqueue`, it stores
+ * the job in that connection's open transaction.
+ */
+export type JobConnection = Db;
+
 /** Postgres schema that holds the runner's own tables (ADR 0018). */
 export const JOBS_SCHEMA = "pgboss";
 
@@ -26,10 +32,15 @@ export interface JobQueueOptions<TDefinitions extends JobDefinitions> {
 export interface JobQueue<TDefinitions extends JobDefinitions> {
   /** Installs or migrates the job schema and creates one queue per definition. */
   start(): Promise<void>;
-  /** Stores the job and resolves with its id. Waits for a start() in progress. */
+  /**
+   * Stores the job and resolves with its id. Waits for a start() in progress.
+   * With a `connection`, the job is stored in that connection's transaction:
+   * it exists only if that transaction commits.
+   */
   enqueue<TName extends keyof TDefinitions & string>(
     name: TName,
-    payload: JobPayload<TDefinitions[TName]>
+    payload: JobPayload<TDefinitions[TName]>,
+    options?: { connection?: JobConnection }
   ): Promise<string>;
   /** Runs the handlers in this process. Without it, the process only enqueues. */
   startRunner(handlers: JobHandlers<TDefinitions>): Promise<void>;
@@ -86,14 +97,20 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
     }
   };
 
-  const storeJob = async (name: string, payload: JobPayloadData): Promise<string> => {
+  const storeJob = async (
+    name: string,
+    payload: JobPayloadData,
+    connection: JobConnection | undefined
+  ): Promise<string> => {
     if (!starting) {
       throw new Error("job queue is not started");
     }
 
     try {
       await starting;
-      const id = await boss.send(name, payload);
+      const id = connection
+        ? await boss.send(name, payload, { db: connection })
+        : await boss.send(name, payload);
 
       if (!id) {
         throw new Error(`job ${name} was not stored`);
@@ -143,8 +160,8 @@ export function createJobQueue<TDefinitions extends JobDefinitions>(
       return starting;
     },
 
-    enqueue(name, payload) {
-      const sending = storeJob(name, payload);
+    enqueue(name, payload, options) {
+      const sending = storeJob(name, payload, options?.connection);
       pending.add(sending);
       // The catch only keeps this bookkeeping chain from becoming an
       // unhandled rejection; the caller receives `sending` itself.

@@ -269,19 +269,22 @@ import type {
 } from "./${names.pluralKebab}.type";
 import { ensure${names.singularPascal}Title, parseOptionalBody } from "./${names.pluralKebab}.util";
 import type { Connection, PageInput, ScopedData } from "../../context.data";
-import type { PubSubEventMap } from "../../pubsub";
+import type { PubSubEventMap, RecordOrganizationEvent } from "../../pubsub";
 
 export interface ${names.singularPascal}ModuleDeps {
   data: ScopedData;
+  /** Streams an event to live subscribers; call it after the write commits. */
   publish: <TEventName extends keyof PubSubEventMap>(
     eventName: TEventName,
     ...payload: PubSubEventMap[TEventName]
   ) => void;
+  recordEvent: RecordOrganizationEvent;
 }
 
 /**
  * Every ${names.singularPascal} read and write for one request's Authenticated Organization
- * Scope. Writes normalize their input and publish one \`${names.singularCamel}:*\` event.
+ * Scope. Writes normalize their input, record one \`${names.singularCamel}:*\` event in the
+ * write's transaction, and publish it after the commit.
  */
 export interface ${names.pluralPascal} {
   /** Newest first; throws \`invalid cursor\` for a malformed or foreign \`after\`. */
@@ -301,7 +304,11 @@ export interface ${names.pluralPascal} {
   delete: (id: string) => Promise<boolean>;
 }
 
-export function create${names.pluralPascal}({ data, publish }: ${names.singularPascal}ModuleDeps): ${names.pluralPascal} {
+export function create${names.pluralPascal}({
+  data,
+  publish,
+  recordEvent
+}: ${names.singularPascal}ModuleDeps): ${names.pluralPascal} {
   return {
     list: (page) =>
       data.page(${names.pluralCamel}Table, page, {
@@ -316,15 +323,19 @@ export function create${names.pluralPascal}({ data, publish }: ${names.singularP
       return rows[0] ?? null;
     },
     async create(input) {
-      const rows = await data
-        .insert(${names.pluralCamel}Table)
-        .values({
-          ...data.stamp("userId"),${sync ? "\n          ...(input.id === undefined ? {} : { id: input.id })," : ""}
-          title: ensure${names.singularPascal}Title(input.title),
-          body: parseOptionalBody(input.body ?? null)
-        })${sync ? `\n        .onConflictDoNothing({ target: ${names.pluralCamel}Table.id })` : ""}
-        .returning();
-      const ${names.singularCamel} = rows[0];${
+      const values = {
+        ...data.stamp("userId"),${sync ? "\n        ...(input.id === undefined ? {} : { id: input.id })," : ""}
+        title: ensure${names.singularPascal}Title(input.title),
+        body: parseOptionalBody(input.body ?? null)
+      };
+      const ${names.singularCamel} = await data.transaction(async (tx) => {
+        const [row] = await tx
+          .insert(${names.pluralCamel}Table)
+          .values(values)${sync ? `\n          .onConflictDoNothing({ target: ${names.pluralCamel}Table.id })` : ""}
+          .returning();
+        if (row) await recordEvent(tx, "${names.singularCamel}:created", row);
+        return row;
+      });${
         sync
           ? `
       if (!${names.singularCamel} && input.id !== undefined) {
@@ -345,26 +356,32 @@ export function create${names.pluralPascal}({ data, publish }: ${names.singularP
       const patch: ${names.singularPascal}Patch = {};
       if (input.title !== undefined) patch.title = ensure${names.singularPascal}Title(input.title);
       if (input.body !== undefined) patch.body = parseOptionalBody(input.body);
-      const rows = await data
-        .update(
-          ${names.pluralCamel}Table,
-          { ...patch, updatedAt: new Date() },
-          eq(${names.pluralCamel}Table.id, id)
-        )
-        .returning();
-      const ${names.singularCamel} = rows[0];
-      if (!${names.singularCamel}) throw new Error("${names.singularWords} not found");
+      const ${names.singularCamel} = await data.transaction(async (tx) => {
+        const [row] = await tx
+          .update(
+            ${names.pluralCamel}Table,
+            { ...patch, updatedAt: new Date() },
+            eq(${names.pluralCamel}Table.id, id)
+          )
+          .returning();
+        if (!row) throw new Error("${names.singularWords} not found");
+        await recordEvent(tx, "${names.singularCamel}:updated", row);
+        return row;
+      });
       publish("${names.singularCamel}:updated", ${names.singularCamel});
       return ${names.singularCamel};
     },
     async delete(id) {
-      const rows = await data
-        .delete(${names.pluralCamel}Table, eq(${names.pluralCamel}Table.id, id))
-        .returning({
-          id: ${names.pluralCamel}Table.id,
-          organizationId: ${names.pluralCamel}Table.organizationId
-        });
-      const row = rows[0];
+      const row = await data.transaction(async (tx) => {
+        const [deleted] = await tx
+          .delete(${names.pluralCamel}Table, eq(${names.pluralCamel}Table.id, id))
+          .returning({
+            id: ${names.pluralCamel}Table.id,
+            organizationId: ${names.pluralCamel}Table.organizationId
+          });
+        if (deleted) await recordEvent(tx, "${names.singularCamel}:deleted", deleted);
+        return deleted;
+      });
       if (row) publish("${names.singularCamel}:deleted", row);
       return row !== undefined;
     }
@@ -520,7 +537,8 @@ function ${names.pluralCamel}For(owner: AuthenticatedOrganizationScope): ${names
     data: createScopedData({ db: database.db, requireOrganizationScope: () => owner }),
     publish: (eventName, ...payload) => {
       events.push([eventName, ...payload]);
-    }
+    },
+    recordEvent: () => Promise.resolve()
   });
 }
 
@@ -892,7 +910,7 @@ const wireApiContext = (source: string, names: FeatureNames): string => {
     path,
     withField,
     "    loaders: createApiLoaders(",
-    `    ${names.pluralCamel}: create${names.pluralPascal}({ data, publish }),\n`
+    `    ${names.pluralCamel}: create${names.pluralPascal}({ data, publish, recordEvent }),\n`
   );
 };
 
@@ -1214,8 +1232,8 @@ const wireSyncModuleTest = (source: string, names: FeatureNames): string => {
   return insertAfter(
     path,
     withImport,
-    "  notes: createNotes({ data, publish })",
-    `,\n  ${names.pluralCamel}: create${names.pluralPascal}({ data, publish })`
+    "  notes: createNotes({ data, publish, recordEvent: () => Promise.resolve() })",
+    `,\n  ${names.pluralCamel}: create${names.pluralPascal}({ data, publish, recordEvent: () => Promise.resolve() })`
   );
 };
 
@@ -1224,8 +1242,8 @@ const wireSyncWriters = (source: string, names: FeatureNames): string =>
   insertAfter(
     "apps/api/src/context.ts",
     source,
-    "        notes: createNotes({ data: savepointData, publish: publishAfterCommit })",
-    `,\n        ${names.pluralCamel}: create${names.pluralPascal}({ data: savepointData, publish: publishAfterCommit })`
+    "        notes: createNotes({ data: savepointData, publish: publishAfterCommit, recordEvent })",
+    `,\n        ${names.pluralCamel}: create${names.pluralPascal}({ data: savepointData, publish: publishAfterCommit, recordEvent })`
   );
 
 const wireSyncTarget = (path: string, source: string, names: FeatureNames): string => {

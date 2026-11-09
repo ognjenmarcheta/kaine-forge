@@ -285,8 +285,8 @@ export function createAttachments({
       });
       return true;
     },
-    async detach(todoId) {
-      const files = await deleteFilesByEntity(data, ATTACHMENT_ENTITY_TYPES.todo, todoId);
+    async detach(todoId, tx) {
+      const files = await deleteFilesByEntity(tx, ATTACHMENT_ENTITY_TYPES.todo, todoId);
 
       return {
         purge: async () => {
