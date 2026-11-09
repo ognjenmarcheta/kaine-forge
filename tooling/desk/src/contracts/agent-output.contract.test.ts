@@ -11,6 +11,7 @@ import {
   intakeOutputSchema,
   plannerOutputSchema,
   reviewerOutputSchema,
+  storedReviewerOutputSchema,
   type PlannerOutput,
   type ReviewerOutput
 } from "./agent-output.contract";
@@ -44,7 +45,11 @@ const reviewer = (): ReviewerOutput => ({
     }
   ],
   acceptanceStatus: [{ criterion: "Parses output", status: "met", evidence: "a.test.ts" }],
-  reviewSections: REVIEW_SECTIONS.map((heading) => ({ heading, verdict: "pass", notes: "" })),
+  reviewSections: REVIEW_SECTIONS.map((heading) => ({
+    heading,
+    verdict: "pass",
+    notes: heading === "Scope" ? "Primary intent: add the contracts. No tagalongs." : ""
+  })),
   prDraft: { title: "feat(desk): contracts", body: "Closes #1" },
   plainLanguage: "The change is fine."
 });
@@ -118,7 +123,7 @@ describe("reviewer output", () => {
     expect(reviewerOutputSchema.safeParse(reviewer()).success).toBe(true);
   });
 
-  it("requires all nine REVIEW.md headings exactly once", () => {
+  it("requires every REVIEW.md heading exactly once", () => {
     const missing = { ...reviewer(), reviewSections: reviewer().reviewSections.slice(1) };
     expect(reviewerOutputSchema.safeParse(missing).success).toBe(false);
 
@@ -127,6 +132,32 @@ describe("reviewer output", () => {
       reviewSections: [...reviewer().reviewSections, reviewer().reviewSections[0]]
     };
     expect(reviewerOutputSchema.safeParse(duplicated).success).toBe(false);
+  });
+
+  it.each([
+    ["marked n/a", { verdict: "n/a", notes: "Primary intent: add the contracts." }],
+    ["given no notes", { verdict: "pass", notes: " " }]
+  ] as const)("rejects a new review whose Scope section is %s", (_name, scope) => {
+    const review = reviewer();
+    const reviewSections = review.reviewSections.map((section) =>
+      section.heading === "Scope" ? { ...section, ...scope } : section
+    );
+    expect(reviewerOutputSchema.safeParse({ ...review, reviewSections }).success).toBe(false);
+  });
+
+  it("reads a stored review written before the Scope section, but not as new output", () => {
+    const review = reviewer();
+    const older = {
+      ...review,
+      reviewSections: review.reviewSections.filter((section) => section.heading !== "Scope")
+    };
+    expect(storedReviewerOutputSchema.safeParse(older).success).toBe(true);
+    expect(reviewerOutputSchema.safeParse(older).success).toBe(false);
+    const missingAnother = {
+      ...older,
+      reviewSections: older.reviewSections.filter((section) => section.heading !== "Correctness")
+    };
+    expect(storedReviewerOutputSchema.safeParse(missingAnother).success).toBe(false);
   });
 
   it("mirrors the headings of .ai/review.md, the checklist the reviewer reads", async () => {

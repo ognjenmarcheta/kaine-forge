@@ -41,6 +41,8 @@ export const REVIEW_SECTIONS = [
 ] as const;
 export const reviewSectionSchema = z.enum(REVIEW_SECTIONS);
 export type ReviewSection = z.infer<typeof reviewSectionSchema>;
+/** Sections that reviews stored before them do not have. New reviewer output needs every section. */
+const REVIEW_SECTIONS_ADDED_LATER: readonly ReviewSection[] = ["Scope"];
 
 export const AGENT_OUTPUT_ROLES = ["intake", "planner", "builder", "reviewer", "report"] as const;
 export type AgentOutputRole = (typeof AGENT_OUTPUT_ROLES)[number];
@@ -233,7 +235,7 @@ export const reviewFindingSchema = z
   .strict();
 export type ReviewFinding = z.infer<typeof reviewFindingSchema>;
 
-export const reviewerOutputSchema = z
+const reviewerOutputObject = z
   .object({
     verdict: z.enum(["approve", "changes-requested"]),
     findings: z.array(reviewFindingSchema),
@@ -259,11 +261,14 @@ export const reviewerOutputSchema = z
     prDraft: z.object({ title: nonEmpty, body: nonEmpty }).strict(),
     plainLanguage: nonEmpty
   })
-  .strict()
-  .superRefine((review, context) => {
+  .strict();
+
+const checkReview =
+  (required: readonly ReviewSection[]) =>
+  (review: z.infer<typeof reviewerOutputObject>, context: z.RefinementCtx): void => {
     const seen = new Set(review.reviewSections.map((section) => section.heading));
-    const missing = REVIEW_SECTIONS.filter((heading) => !seen.has(heading));
-    if (missing.length > 0 || review.reviewSections.length !== REVIEW_SECTIONS.length) {
+    const missing = required.filter((heading) => !seen.has(heading));
+    if (missing.length > 0 || review.reviewSections.length !== seen.size) {
       context.addIssue({
         code: "custom",
         path: ["reviewSections"],
@@ -279,8 +284,26 @@ export const reviewerOutputSchema = z
         message: "An approving review has no blocking findings"
       });
     }
-  });
+  };
+
+/** What a reviewer returns now: every section, and a Scope verdict that names the primary intent. */
+export const reviewerOutputSchema = reviewerOutputObject.superRefine((review, context) => {
+  checkReview(REVIEW_SECTIONS)(review, context);
+  const scope = review.reviewSections.find((section) => section.heading === "Scope");
+  if (scope && (scope.verdict === "n/a" || scope.notes.trim() === "")) {
+    context.addIssue({
+      code: "custom",
+      path: ["reviewSections"],
+      message: "Scope always applies: give it a verdict and name the primary intent in its notes"
+    });
+  }
+});
 export type ReviewerOutput = z.infer<typeof reviewerOutputSchema>;
+
+/** A review read back from `review.json`. It may predate the sections added later. */
+export const storedReviewerOutputSchema = reviewerOutputObject.superRefine(
+  checkReview(REVIEW_SECTIONS.filter((heading) => !REVIEW_SECTIONS_ADDED_LATER.includes(heading)))
+);
 
 // --- report ---------------------------------------------------------------
 

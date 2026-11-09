@@ -210,7 +210,11 @@ export const reviewArtifact = (): string => {
     acceptanceStatus: [
       { criterion: "Empty board explains how to start", status: "met", evidence: "board.empty.tsx" }
     ],
-    reviewSections: REVIEW_SECTIONS.map((heading) => ({ heading, verdict: "pass", notes: "" })),
+    reviewSections: REVIEW_SECTIONS.map((heading) => ({
+      heading,
+      verdict: "pass",
+      notes: heading === "Scope" ? "Primary intent: add a board empty state. No tagalongs." : ""
+    })),
     prDraft: { title: "feat(web): add a board empty state", body: "Adds an empty state." },
     plainLanguage: "The change is small and safe. Two small notes remain."
   });
