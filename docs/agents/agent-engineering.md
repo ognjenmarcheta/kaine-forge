@@ -239,6 +239,47 @@ probe. The SessionStart hook and `pnpm doctor` print its `Worktrunk:` line.
   through `wt switch --create`. Worktrunk's LLM commit messages are not used: agents commit with
   `but` or git under commitlint.
 
+### T3 Code agent harness
+
+T3 Code 0.1.7 (`pingdotgg/t3code`, MIT, read at t3.codes on 2026-11-09) is optional tooling for
+each machine. It runs the agent CLIs that are already installed and signed in (Claude Code,
+Codex, OpenCode, and others) as threads in one desktop, web, and phone app. `t3.json` at the
+repository root is its project file.
+
+- Install the `t3` command with `curl -fsSL https://t3.codes/install.sh | sh`. The script checks
+  the release checksum and needs no sudo. Then run `t3 service install`. Run one T3 server per
+  machine. A desktop app on the same machine turns off **Settings → Environments → Local
+  environment** and connects to that server.
+- `t3.json` gives the project three actions. **Setup worktree** runs
+  `scripts/t3-worktree-setup.mjs` once in each new T3 worktree and holds the agent until it
+  exits. It does the steps of the worktrunk hooks: it copies what `.worktreeinclude` lists from
+  `T3CODE_PROJECT_ROOT`, installs, builds `./packages/*`, sets ports with
+  `scripts/worktree-env.mjs`, and runs `pnpm ai:install --auto`. The ports come from a hash of the
+  worktree path: web 10000-14999, API the web port plus 5000. **Dev** runs `pnpm dev` and stops
+  when the thread settles. **Check affected** runs `pnpm check:affected`.
+- T3 Code does not run `t3.json` actions on its own. Import them once for each project: **Settings
+  → Projects → Actions → Import scripts → Import from t3.json**. T3 Code 0.1.7 ignores
+  `stopOnSettle`, which a later release reads; the other fields work.
+- New threads run in the project checkout by default, which fits a checkout on
+  `gitbutler/workspace`. When the checkout is on `main` or holds your own uncommitted work, set
+  **Settings → Threads → New threads** to a new worktree, so each thread gets its own branch. T3
+  Code's Git actions run plain `git commit` and `git push`, so do not use them in a GitButler
+  checkout. T3 worktrees live in `~/.t3/worktrees`; let T3
+  Code remove them, not `wt remove`.
+- T3 Code names new worktree branches `t3/<name>` by default, which breaks the branch rule. In
+  **Settings → Worktrees → Worktree branch naming**, choose custom instructions: "Name the branch
+  KAINE-<type>-<description>, or KAINE-<issue>-<type>-<description> when the task names a GitHub
+  issue. Use a Conventional Commit type and a short lowercase hyphenated description. No
+  slashes."
+- Claude (instance id `claudeAgent`) and Codex start switched on. The other providers, OpenCode
+  included, start switched off; turn them on in **Settings → Providers**.
+- Set `T3CODE_TELEMETRY_ENABLED=false` in `~/.t3/service.env` and run `t3 service restart` to
+  stop product events and relay traces.
+- Verified on 2026-11-09 (Ubuntu, ext4): the setup script made a fresh worktree of `main` ready
+  in 8.5 seconds, wrote web 14641 and API 19641 to its `.env`, and left the primary `.env` on
+  3000 and 4000. A Claude thread started with `t3 thread start` received the SessionStart
+  context, and the guard hook denied `git commit --no-verify`.
+
 ### MCP servers not adopted
 
 | Server              | Reason                                                                                                                                                                                                                |
