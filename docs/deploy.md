@@ -11,6 +11,7 @@ The Release workflow (`.github/workflows/release.yml`) runs on every push to `ma
 3. It pushes the scanned image to GitHub Container Registry (GHCR).
 4. It adds the image digest to the job summary and to the GitHub Release notes of that tag.
 5. It attaches an SPDX JSON SBOM of the pushed image to the GitHub Release as `sbom-<app>.spdx.json`.
+6. It publishes the GitHub Release. The release of an app tag stays a draft until these steps finish, because the repository uses immutable releases and a published release accepts no new assets. When the image job fails, the release stays a draft. Re-run the failed job to publish it.
 
 | App | Tag           | Image                        | Image tags                           |
 | --- | ------------- | ---------------------------- | ------------------------------------ |
