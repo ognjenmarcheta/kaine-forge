@@ -580,9 +580,10 @@ export const lintReviewSource = (
     return [{ file, level: "error", message: "missing .ai/review.md (canonical REVIEW source)" }];
   }
   const issues: LintIssue[] = [];
+  const lines = new Set(content.split("\n").map((line) => line.trimEnd()));
   for (const heading of REVIEW_REQUIRED_HEADINGS) {
     const needle = `## ${heading}`;
-    if (!content.includes(needle)) {
+    if (!lines.has(needle)) {
       issues.push({
         file,
         level: "error",
