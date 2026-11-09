@@ -601,11 +601,10 @@ jobs:
       # Sharded across jobs, not workers: the specs share one seeded user, so
       # intra-job parallelism races on active-organization state (see
       # apps/e2e/playwright.config.ts). Each shard gets its own Postgres service,
-      # so shards are isolated. Sized at 2 because there are only 5 spec files and
-      # each shard still re-pays install + browser install + db seed; build:core
-      # is shared via the core-dist artifact (issue #145). Raise shard count
-      # here and in --shard= together when the suite grows. Do not raise
-      # playwright workers.
+      # so shards are isolated. Sized at 2 because each shard re-pays install +
+      # browser install + db seed; build:core is shared via the core-dist
+      # artifact (issue #145). Raise shard count here and in --shard= together
+      # when the suite grows. Do not raise playwright workers.
       fail-fast: false
       matrix:
         shard: [1, 2]

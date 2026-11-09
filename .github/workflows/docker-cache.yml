@@ -68,6 +68,7 @@ jobs:
 
       # Must match the PR job's build inputs (context, file, build-args):
       # any difference changes the layer keys and the PR build misses the cache.
+      # scripts/pr-quality-gate.test.mjs fails when they differ.
       # mode=max exports the intermediate pruner/builder stages too, which is
       # where the pnpm install and turbo build layers live.
       - name: Build ${{ matrix.app }} image (cache only)

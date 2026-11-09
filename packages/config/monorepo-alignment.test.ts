@@ -283,7 +283,7 @@ const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readon
   {
     file: "packages/config/monorepo-alignment.test.ts",
     reason:
-      "walks git ls-files and reads every workspace manifest, turbo.json, vitest config and src tree",
+      "walks git ls-files and reads every workspace manifest, turbo.json, vitest config and src tree, and lists the docs/adr records",
     needs: [
       "$TURBO_ROOT$/{apps,packages,tooling}/*/package.json",
       "$TURBO_ROOT$/{apps,packages}/*/turbo.json",
@@ -291,7 +291,8 @@ const DYNAMIC_READS: ReadonlyArray<{ file: string; reason: string; needs: readon
       "$TURBO_ROOT$/{apps,packages,tooling}/*/vitest.config.ts",
       "$TURBO_ROOT$/{apps,packages}/*/src/**/*.{ts,tsx}",
       "$TURBO_ROOT$/tooling/*/*.{ts,tsx}",
-      "$TURBO_ROOT$/tooling/*/{src,tests}/**/*.{ts,tsx}"
+      "$TURBO_ROOT$/tooling/*/{src,tests}/**/*.{ts,tsx}",
+      "$TURBO_ROOT$/docs/adr/*.md"
     ]
   },
   {
@@ -326,6 +327,44 @@ function assertPackageHasExports(relativePath: string, expectedSubpaths: string[
   for (const subpath of expectedSubpaths) {
     expect(exportsMap).toHaveProperty(subpath);
   }
+}
+
+type WorkspaceManifest = {
+  /** Repo-relative workspace directory, such as `packages/ui`. */
+  dir: string;
+  name: string;
+  scripts: Record<string, string>;
+  /** Every declared dependency name: dependencies, devDependencies, and peerDependencies. */
+  dependencyNames: Set<string>;
+};
+
+/** Every tracked workspace manifest under apps/, packages/, and tooling/. */
+function readWorkspaceManifests(): WorkspaceManifest[] {
+  return execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" })
+    .split("\n")
+    .filter((file) => /^(apps|packages|tooling)\/[^/]+\/package\.json$/.test(file))
+    .map((manifest) => {
+      const packageJson = readJson(manifest) as {
+        name?: string;
+        scripts?: Record<string, string>;
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+        peerDependencies?: Record<string, string>;
+      };
+      return {
+        dir: manifest.replace(/\/package\.json$/, ""),
+        name: packageJson.name ?? "",
+        scripts: packageJson.scripts ?? {},
+        dependencyNames: new Set(
+          Object.keys({
+            ...packageJson.dependencies,
+            ...packageJson.devDependencies,
+            ...packageJson.peerDependencies
+          })
+        )
+      };
+    })
+    .sort((left, right) => left.dir.localeCompare(right.dir));
 }
 
 /** Walk production TS/TSX sources (skip tests and generated). */
@@ -1068,13 +1107,36 @@ describe("monorepo alignment", () => {
       return JSON.stringify(rules?.["no-restricted-imports"] ?? null);
     };
 
-    const domWorkspaces = [
-      "apps/web",
-      "apps/desktop",
-      "packages/ui",
-      "packages/ui-3d",
-      "tooling/desk-ui"
-    ];
+    // Derive the DOM workspaces from the manifests, so a new one that base.js
+    // misses fails here. A DOM workspace declares react-dom, or depends on a
+    // workspace that does (desktop wraps @repo/web). React Native workspaces
+    // declare react-dom only for their tests, and a server-only package such as
+    // @repo/email renders React on the server, so neither is a DOM client.
+    const manifests = readWorkspaceManifests();
+    const serverOnlyEntry = new RegExp(pattern ?? "(?!)");
+    const isClient = (manifest: WorkspaceManifest): boolean =>
+      !manifest.dependencyNames.has("react-native") && !serverOnlyEntry.test(manifest.name);
+    const domNames = new Set(
+      manifests
+        .filter((manifest) => isClient(manifest) && manifest.dependencyNames.has("react-dom"))
+        .map((manifest) => manifest.name)
+    );
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const manifest of manifests) {
+        if (domNames.has(manifest.name) || !isClient(manifest)) continue;
+        if ([...manifest.dependencyNames].some((dependency) => domNames.has(dependency))) {
+          domNames.add(manifest.name);
+          grew = true;
+        }
+      }
+    }
+    const domWorkspaces = manifests
+      .filter((manifest) => domNames.has(manifest.name))
+      .map((manifest) => manifest.dir);
+    expect(domWorkspaces, "the manifest rule must still find the web and desktop apps").toEqual(
+      expect.arrayContaining(["apps/web", "apps/desktop"])
+    );
     // Each config resolution loads the whole flat config; resolve them together.
     const [mobile, ...domOptions] = await Promise.all(
       ["apps/mobile", ...domWorkspaces].map((workspace) =>
@@ -1174,28 +1236,26 @@ describe("monorepo alignment", () => {
   it("requires each source workspace to ship at least one vitest test", () => {
     // Every workspace uses `vitest run --passWithNoTests`, so a package with no
     // tests still passes green. This gate keeps that flag safe by asserting the
-    // testable workspaces actually ship tests. apps/e2e is excluded: it ships
-    // Playwright specs, not vitest unit tests.
-    const workspaces = [
-      "apps/api",
-      "apps/web",
-      "apps/mobile",
-      "apps/desktop",
-      "packages/auth",
-      "packages/config",
-      "packages/db",
-      "packages/email",
-      "packages/feature-flags",
-      "packages/logger",
-      "packages/mobile-ui",
-      "packages/persistence",
-      "packages/query",
-      "packages/storage",
-      "packages/todos",
-      "packages/theme",
-      "packages/translation",
-      "packages/ui"
-    ];
+    // workspaces with a test script actually ship tests. The list comes from the
+    // manifests, so a new workspace is covered the day it lands. Each exclusion
+    // names why that workspace has no vitest test.
+    const exclusions = new Map([
+      ["apps/e2e", "ships Playwright *.e2e.ts specs, run by test:e2e, not vitest tests"],
+      [
+        "tooling/graphql-codegen",
+        "holds only codegen.ts; the ci-pr.yml GraphQL drift step proves its output"
+      ]
+    ]);
+    const withTestScript = readWorkspaceManifests()
+      .filter((manifest) => manifest.scripts.test !== undefined)
+      .map((manifest) => manifest.dir);
+    for (const [excluded, reason] of exclusions) {
+      expect(withTestScript, `stale exclusion ${excluded} (${reason})`).toContain(excluded);
+    }
+    const workspaces = withTestScript.filter((dir) => !exclusions.has(dir));
+    expect(workspaces, "the manifest scan must find the source workspaces").toEqual(
+      expect.arrayContaining(["apps/api", "packages/config", "tooling/desk"])
+    );
     const tracked = execSync("git ls-files", { cwd: repoRoot, encoding: "utf8" }).split("\n");
 
     for (const workspace of workspaces) {
@@ -1204,6 +1264,70 @@ describe("monorepo alignment", () => {
       );
       expect(hasTest, `${workspace} must ship at least one *.test.ts(x) file`).toBe(true);
     }
+  });
+
+  it("keeps the workspace tree, package count, and ADR index in the docs in step with disk", () => {
+    // MONOREPO_GUIDE.md, README.md, and docs/README.md restate facts that live
+    // on disk. Read the facts from disk, so a workspace or ADR added without
+    // the doc update fails here instead of drifting.
+    const manifests = readWorkspaceManifests();
+    const workspacesIn = (group: string): string[] =>
+      manifests
+        .filter((manifest) => manifest.dir.startsWith(`${group}/`))
+        .map((manifest) => manifest.dir.slice(group.length + 1))
+        .sort();
+
+    const tree =
+      /## 2\. Workspace Topology\n+```text\n([\s\S]*?)```/.exec(
+        readText("MONOREPO_GUIDE.md")
+      )?.[1] ?? "";
+    const treeEntries = new Map<string, string[]>();
+    let treeGroup = "";
+    for (const line of tree.split("\n")) {
+      const group = /^ {2}([a-z]+)\/$/.exec(line)?.[1];
+      if (group) {
+        treeGroup = group;
+        treeEntries.set(group, []);
+        continue;
+      }
+      // Directory entries only: the tree also lists loose files such as dev-mobile-lan.ts.
+      const entry = /^ {4}([\w-]+)\/(?:\s|$)/.exec(line)?.[1];
+      if (entry) treeEntries.get(treeGroup)?.push(entry);
+    }
+    for (const group of ["apps", "packages", "tooling"]) {
+      expect(
+        (treeEntries.get(group) ?? []).sort(),
+        `MONOREPO_GUIDE.md section 2 must list every ${group}/* workspace, and only those`
+      ).toEqual(workspacesIn(group));
+    }
+
+    const packages = workspacesIn("packages");
+    // prettier-ignore
+    const numberWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+      "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+      "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three", "twenty-four",
+      "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine", "thirty"];
+    const readme = readText("README.md");
+    const counts = [...readme.matchAll(/\b([a-z-]+) shared packages\b/g)].map((match) => match[1]);
+    expect(counts.length, "README.md must state the shared package count").toBeGreaterThan(0);
+    expect(
+      new Set(counts),
+      `README.md must count ${packages.length} shared packages in words`
+    ).toEqual(new Set([numberWords[packages.length]]));
+    const listed =
+      /`packages\/\*`: [a-z-]+ shared packages: ([^.]+)\./
+        .exec(readme)?.[1]
+        ?.split(/,\s*/)
+        .map((name) => name.replace(/^and\s+/, "").trim()) ?? [];
+    expect(listed.sort(), "README.md must name every packages/* workspace").toEqual(packages);
+
+    const adrFiles = readdirSync(resolve(repoRoot, "docs/adr"))
+      .filter((file) => /^\d{4}-[\w-]+\.md$/.test(file))
+      .sort();
+    const indexed = [...readText("docs/README.md").matchAll(/\]\(adr\/(\d{4}-[\w-]+\.md)\)/g)]
+      .map((match) => match[1])
+      .sort();
+    expect(indexed, "docs/README.md must index every docs/adr ADR once").toEqual(adrFiles);
   });
 
   it("requires every workspace to declare @repo/config so turbo can see the preset edge", () => {
