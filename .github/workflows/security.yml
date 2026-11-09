@@ -58,7 +58,7 @@ jobs:
   # ci-pr.yml scans images only for pull requests, so main's Trivy alerts went
   # stale between manual runs (issue #506). Same categories as the PR upload,
   # so alerts for packages main no longer ships close. Report-only: the PR job
-  # owns the CRITICAL gate.
+  # owns the blocking gate.
   image-scan:
     name: Image Scan (${{ matrix.app }})
     runs-on: ${{ fromJSON(github.event.repository.visibility == 'private' && vars.CI_SELF_HOSTED_LINUX == 'true' && fromJSON(vars.CI_SELF_HOSTED_LINUX) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","linux","x64","kaine-ci-linux"]' || '["ubuntu-latest"]') }}

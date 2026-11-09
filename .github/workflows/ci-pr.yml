@@ -543,7 +543,7 @@ jobs:
           ignore-unfixed: true
 
       # SARIF upload needs GitHub Code Scanning (same gate as CodeQL upload).
-      # CRITICAL fail below still hard-gates repos without Code Scanning.
+      # The fail step below still hard-gates repos without Code Scanning.
       - name: Upload Trivy SARIF
         if: |
           always() &&
@@ -554,18 +554,19 @@ jobs:
           sarif_file: trivy-${{ matrix.app }}.sarif
           category: trivy-${{ matrix.app }}
 
-      # Base images are pinned by digest (Dockerfile.*); a CRITICAL finding here
-      # is actionable on this PR rather than ambient base-image churn (issue #155).
+      # Base images are pinned by digest (Dockerfile.*); a fixable HIGH or CRITICAL
+      # finding here is actionable on this PR rather than ambient base-image churn.
       # Second pass over the same image: reuse the binary, vulnerability DB and
       # image analysis the SARIF pass left in the shared cache-dir instead of
       # installing Trivy and restoring the DB cache again (about 25s on api).
-      # One pass cannot serve both: `severity` applies to the whole run.
-      - name: Fail on fixable CRITICAL vulnerabilities
+      # One pass cannot serve both: for SARIF output trivy-action drops `severity`
+      # (the report keeps every severity), so an exit code there would fail on any.
+      - name: Fail on fixable HIGH or CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           input: ${{ runner.temp }}/${{ matrix.app }}.tar
           format: table
-          severity: CRITICAL
+          severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
           skip-setup-trivy: true
