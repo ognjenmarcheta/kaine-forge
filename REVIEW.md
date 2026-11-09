@@ -15,7 +15,7 @@ Use skill `kaine-review` for method and severity ordering; this file is the **wh
 ## Scope
 
 - [ ] The change has one primary intent. Each other delta is either supporting (tests, docs, or evidence that the primary change needs to be complete) or a tagalong (behavior, API, visual, policy, or cleanup that could be removed on its own). Tagalongs are removed or split into their own change.
-- [ ] Review findings keep the change inside its primary intent. A finding may make the intent correct and safe, ask for missing evidence, or remove a tagalong. It does not ask the change to absorb adjacent cleanup, sibling fixes, migrations, or new API that review discovered: those become their own issue.
+- [ ] Review findings keep the change inside its primary intent. A finding may make the intent correct and safe, ask for missing evidence, or remove a tagalong. It does not ask the change to absorb adjacent cleanup, sibling fixes, migrations, or new API that review discovered: those become their own issue. The exception is work the primary change cannot be correct or safe without, such as the migration a schema change needs or the same authorization fix on a sibling route: that work belongs in the change.
 - [ ] Growth from an earlier review round is unwound or split, unless the primary change cannot be correct or safe without it.
 - [ ] A delta that breaks a current rule (accepted ADR, `REVIEW.md`, `docs/ui/guidelines.md`, `CONTEXT.md`) is fixed to follow the rule or removed. The rule is not rewritten to rescue the implementation; a rule change is a separate, deliberate decision.
 
