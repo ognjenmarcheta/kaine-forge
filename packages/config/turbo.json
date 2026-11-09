@@ -8,13 +8,16 @@
       "outputs": []
     },
     "test": {
-      "description": "The contract tests read files outside this package, so those files are inputs too (issue #353): the ruleset, workflows, Dockerfiles, .gitignore, package.json, turbo.json, tooling/dev-mobile-lan.ts, every workspace's manifest, tsconfig.build.json, turbo.json, and vitest config, every src/** TypeScript file (the @repo/* export and vitest-import scans), the tooling/* TypeScript files the vitest-import scan also reads (issue #490), and the root coverage config plus every tooling turbo.json that the derived inputs check reads (issue #516). The tokens.generated.css read checks the generated theme import. Globs stay narrow because explicit inputs also match gitignored files such as dist/ and .turbo/*.log.",
+      "description": "The contract tests read files outside this package, so those files are inputs too (issue #353): the ruleset, workflows, Dockerfiles, .gitignore, package.json, turbo.json, tooling/dev-mobile-lan.ts, every workspace's manifest, tsconfig.build.json, turbo.json, and vitest config, every src/** TypeScript file (the @repo/* export and vitest-import scans), the tooling/* TypeScript files the vitest-import scan also reads (issue #490), and the root coverage config plus every tooling turbo.json that the derived inputs check reads (issue #516). The tokens.generated.css read checks the generated theme import. The ESLint contract tests load the root eslint.config.mjs, and the context-boundary test reads CONTEXT.md and lists the API feature folders. Globs stay narrow because explicit inputs also match gitignored files such as dist/ and .turbo/*.log.",
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.github/rulesets/main.json",
         "$TURBO_ROOT$/.github/workflows/*.yml",
         "$TURBO_ROOT$/Dockerfile.*",
         "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/CONTEXT.md",
+        "$TURBO_ROOT$/eslint.config.mjs",
+        "$TURBO_ROOT$/apps/api/src/features/**",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/turbo.json",
         "$TURBO_ROOT$/vitest.coverage.config.ts",

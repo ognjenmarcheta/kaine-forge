@@ -2,8 +2,8 @@
 // another feature of its own context freely. It imports another context only
 // when its context uses that context, and only through that feature's public files.
 //
-// The rule resolves relative specifiers with path math, not an import resolver:
-// eslint-plugin-import has no TypeScript resolver in this repo and resolves nothing.
+// The rule resolves relative specifiers with path math, not the import resolver,
+// so its result depends only on the file path and the specifier.
 import { dirname, resolve, sep } from "node:path";
 
 import { API_CONTEXTS, API_PUBLIC_FILES } from "./api-contexts.js";

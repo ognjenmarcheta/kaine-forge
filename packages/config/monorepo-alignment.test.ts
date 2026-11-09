@@ -1027,7 +1027,10 @@ describe("monorepo alignment", () => {
       "@repo/auth/instance",
       "@repo/db",
       "@repo/db/client",
-      "@repo/email"
+      "@repo/email",
+      "@repo/billing",
+      "@repo/jobs",
+      "@repo/jobs/client"
     ]) {
       expect(serverOnly.test(specifier), `${specifier} must be blocked in clients`).toBe(true);
     }
@@ -1439,7 +1442,7 @@ describe("monorepo alignment", () => {
 
     const testFiles = [...tracked].filter(
       (file) =>
-        /^(apps|packages|tooling)\/[^/]+\/.*\.test\.(ts|tsx|mjs)$/.test(file) ||
+        /^(apps|packages|tooling)\/[^/]+\/.*\.test\.(ts|tsx|mjs|js)$/.test(file) ||
         /^tooling\/[^/]+\/src\/testing\/.*\.ts$/.test(file)
     );
     expect(testFiles.length).toBeGreaterThan(100);
