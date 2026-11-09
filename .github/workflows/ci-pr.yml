@@ -84,6 +84,13 @@ jobs:
               - "apps/mobile/src/graphql/**"
               - "tooling/graphql-codegen/**"
 
+      # The ARC runner image ships only the node binary, without npm and npx.
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: ".nvmrc"
+          package-manager-cache: false
+
       # turbo is a standalone binary: npx runs the root devDependency version
       # without a pnpm install, which would delay every job by about 20 s.
       - name: Affected workspaces

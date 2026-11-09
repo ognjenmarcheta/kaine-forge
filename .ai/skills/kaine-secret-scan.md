@@ -10,11 +10,11 @@ Use this skill before repository history becomes more visible or leaves the mach
 
 ## Workflow
 
-1. Confirm gitleaks is installed: `gitleaks version`. If missing: `brew install gitleaks` (see README Prerequisites).
+1. Confirm gitleaks 8.25 or newer is installed: `gitleaks version`. If it is missing or older, run `brew install gitleaks` or `brew upgrade gitleaks` (see README Prerequisites). Older versions ignore the `[[allowlists]]` in `.gitleaks.toml` and report the known fixtures.
 2. Run `pnpm scan:secrets` from the repo root. It scans the **full git history**, not only the worktree.
 3. For a suspected range only, narrow with `gitleaks git . --log-opts="<range>"`.
 4. Triage every finding:
-   - False positive (test fixture, example value, documented placeholder): add a targeted `.gitleaksignore` entry or inline `gitleaks:allow` comment, and state why in the PR.
+   - False positive (test fixture, example value, documented placeholder): add the path and the exact value to an `[[allowlists]]` entry with `condition = "AND"` in `.gitleaks.toml`. Anchor both patterns with `^…$` and escape regex characters such as `.` in them, so the entry cannot hide another secret in the same file. Or add an inline `gitleaks:allow` comment, and state why in the PR. Do not use `.gitleaksignore`: its fingerprints include the commit and line, so the finding returns when the line moves or a new commit contains it.
    - Real secret: stop and report to a human. The secret must be rotated at its provider first. History rewriting is a separate human decision — never rewrite or force-push autonomously.
 5. Re-run `pnpm scan:secrets` until it exits clean.
 
