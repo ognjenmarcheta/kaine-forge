@@ -43,29 +43,29 @@ catalogs:
       specifier: ^4.3.4
       version: 4.3.4
     '@tanstack/browser-db-sqlite-persistence':
-      specifier: 1.0.0-rc.1.2
-      version: 1.0.0-rc.1.2
+      specifier: 1.0.0-rc.1.3
+      version: 1.0.0-rc.1.3
     '@tanstack/db':
-      specifier: 1.0.0-rc.1.2
-      version: 1.0.0-rc.1.2
+      specifier: 1.0.0-rc.1.3
+      version: 1.0.0-rc.1.3
     '@tanstack/db-sqlite-persistence-core':
-      specifier: 1.0.0-rc.1.2
-      version: 1.0.0-rc.1.2
+      specifier: 1.0.0-rc.1.3
+      version: 1.0.0-rc.1.3
     '@tanstack/expo-db-sqlite-persistence':
-      specifier: 1.0.0-rc.1.2
-      version: 1.0.0-rc.1.2
+      specifier: 1.0.0-rc.1.3
+      version: 1.0.0-rc.1.3
     '@tanstack/offline-transactions':
       specifier: 1.2.0
       version: 1.2.0
     '@tanstack/react-db':
-      specifier: 1.0.0-rc.1.2
-      version: 1.0.0-rc.1.2
+      specifier: 1.0.0-rc.1.3
+      version: 1.0.0-rc.1.3
     '@tanstack/react-query':
       specifier: ^5.105.3
       version: 5.105.3
     '@tanstack/tauri-db-sqlite-persistence':
-      specifier: 1.0.0-rc.1.2
-      version: 1.0.0-rc.1.2
+      specifier: 1.0.0-rc.1.3
+      version: 1.0.0-rc.1.3
     '@tauri-apps/api':
       specifier: 2.12.4
       version: 2.12.4
@@ -543,10 +543,10 @@ importers:
         version: link:../../packages/translation
       '@tanstack/expo-db-sqlite-persistence':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(expo-sqlite@55.0.20(expo@55.0.28)(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(expo-sqlite@55.0.20(expo@55.0.28)(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(typescript@5.9.3)
       '@tanstack/react-db':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(react@19.2.0)(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(react@19.2.0)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.3(@types/react@19.2.14)(react@19.2.0)
@@ -703,10 +703,10 @@ importers:
         version: link:../../packages/ui
       '@tanstack/browser-db-sqlite-persistence':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)
       '@tanstack/react-db':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(react@19.2.8)(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(react@19.2.8)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.3(@types/react@19.2.18)(react@19.2.8)
@@ -715,7 +715,7 @@ importers:
         version: 5.105.3(@tanstack/react-query@5.105.3(@types/react@19.2.18)(react@19.2.8))(@types/react@19.2.18)(csstype@3.2.3)(react@19.2.8)
       '@tanstack/tauri-db-sqlite-persistence':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.12.4
@@ -1114,13 +1114,13 @@ importers:
     dependencies:
       '@tanstack/db':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(typescript@5.9.3)
       '@tanstack/db-sqlite-persistence-core':
         specifier: 'catalog:'
-        version: 1.0.0-rc.1.2(typescript@5.9.3)
+        version: 1.0.0-rc.1.3(typescript@5.9.3)
       '@tanstack/offline-transactions':
         specifier: 'catalog:'
-        version: 1.2.0(@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))
+        version: 1.2.0(@tanstack/db@1.0.0-rc.1.3(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))
     devDependencies:
       '@repo/config':
         specifier: workspace:*
@@ -6207,8 +6207,8 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
-  '@tanstack/browser-db-sqlite-persistence@1.0.0-rc.1.2':
-    resolution: {integrity: sha512-KmfSK6kftRE4KnuCHT7OU273K4+bFuto69eJT/fFWWAdWmnS8F2DvCwlIoyv/mgxCUp7jN49WwJbZIQvD6vyYg==}
+  '@tanstack/browser-db-sqlite-persistence@1.0.0-rc.1.3':
+    resolution: {integrity: sha512-/nTizQEpMC+BeELYepGg6Nsg986ZKCJpO9fSQe9deA2GcL7bN4JU6prCiGhKwg7+hPXdqFqVlm8FznFkhIDozQ==}
     peerDependencies:
       '@journeyapps/wa-sqlite': ^1.4.1
       typescript: '>=4.7'
@@ -6218,13 +6218,13 @@ packages:
     peerDependencies:
       typescript: '>=4.7'
 
-  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1.2':
-    resolution: {integrity: sha512-zxLiYfvojDqk5UHXd1Z6V/T5WXwTSn31iVW7FtBMLGY7oE6HQnu8d5qfPb84RhALZB6aRjPsrctItiVSxP/e4A==}
+  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1.3':
+    resolution: {integrity: sha512-9RJ/VHPXrK1aF6p+XBvauvs6wBFIPd7Ul4XRY2ELNVE02xwIT/GbO4S+GI8EX33mwPmtr9jj+hdvSsduVKjeWA==}
     peerDependencies:
       typescript: '>=4.7'
 
-  '@tanstack/db@1.0.0-rc.1.2':
-    resolution: {integrity: sha512-CV7LeIezOpPTeNrBRlRv/4n8l2z6p/y2OJ9sPU/OwL3rM7XUgXGdzDC+OtyzKxelGZUcd1YS61GY2cs5/MWIMQ==}
+  '@tanstack/db@1.0.0-rc.1.3':
+    resolution: {integrity: sha512-O68zGYcb/24XrZQNkIBWlON2MiqgC+sSmnM+xxC7AZSEHQAYeUDy1IQE8g4vr3in8WMwD6/Jm/Y+7EoaR5H1eA==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -6233,8 +6233,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  '@tanstack/expo-db-sqlite-persistence@1.0.0-rc.1.2':
-    resolution: {integrity: sha512-/xgqS4Gh1FMKpElmreH4kp1iveVV+rgZayRbn0Jt+rV4xv9z+i+LHF+DdOtrI4EcAnIUn1aMgxMa/9J52sTJfQ==}
+  '@tanstack/expo-db-sqlite-persistence@1.0.0-rc.1.3':
+    resolution: {integrity: sha512-vQRh/qq/iB0+FTlmdJgfO0Xj/8bjaE6cLPKNzd4TDF4JOwSZ3xikoMkRVQwN+fszx9FxLuA7jKVU5BXGuGiTag==}
     peerDependencies:
       expo-sqlite: ^55.0.10 || ^57.0.0
       typescript: '>=4.7'
@@ -6272,8 +6272,8 @@ packages:
   '@tanstack/query-devtools@5.105.3':
     resolution: {integrity: sha512-CZQ7vqAc/XTxi6omDeAkQW3RW99HKIxZDvHi1Y/hnyZFMmYhEfCmBd7wfUb1m/BEqdXTEKqZvoRKI7oKDKUchA==}
 
-  '@tanstack/react-db@1.0.0-rc.1.2':
-    resolution: {integrity: sha512-Mjh2muEuzT5F1qAZYzzzqjT6HrpZ0//kjaqwZWW25TD3T1Xrg4Yt9Xx80mbdUeC4HPtoaxnMpjjWIVORsNX/vw==}
+  '@tanstack/react-db@1.0.0-rc.1.3':
+    resolution: {integrity: sha512-lFSAD+kSP7NLNLuFi/YNZmI2V4Vg1cJBqtwEbmGMhpfVRT8zEeoOcao7P2BoRcPvNbqdFz+nFfkZKTmpGrpDgw==}
     peerDependencies:
       react: '>=18.0.0'
 
@@ -6314,8 +6314,8 @@ packages:
   '@tanstack/store@0.11.0':
     resolution: {integrity: sha512-WlzzCt3xi0G6pCAJu1U+2jiECwabETDpQDi3hfkFZvJii9AuZqEKbOiVarX1/bWhTNjU486yQtJCCasi/0q+Cw==}
 
-  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1.2':
-    resolution: {integrity: sha512-KZiadgXwmdVn4J3/puwKkMNWABlBQw3cn4i8/2QIL2KNuD4xtuh92rW6TljJTIzRKSTrOUG51L0GiXpjoIwSTw==}
+  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1.3':
+    resolution: {integrity: sha512-M+C9kN54cTThe//hLssOy4OXmdi1CR/NaYCcY0a4TClafxy6DrUfT7a+r16KvvTU14y5DALd4OmO09sad8/mHQ==}
     peerDependencies:
       '@tauri-apps/plugin-sql': ^2.3.2
       typescript: '>=4.7'
@@ -18556,10 +18556,10 @@ snapshots:
       tailwindcss: 4.3.4
       vite: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
 
-  '@tanstack/browser-db-sqlite-persistence@1.0.0-rc.1.2(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)':
+  '@tanstack/browser-db-sqlite-persistence@1.0.0-rc.1.3(@journeyapps/wa-sqlite@1.7.2)(typescript@5.9.3)':
     dependencies:
       '@journeyapps/wa-sqlite': 1.7.2
-      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.3(typescript@5.9.3)
       typescript: 5.9.3
 
   '@tanstack/db-ivm@1.0.0-rc.1.2(typescript@5.9.3)':
@@ -18567,13 +18567,13 @@ snapshots:
       fractional-indexing: 3.4.0
       typescript: 5.9.3
 
-  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1.2(typescript@5.9.3)':
+  '@tanstack/db-sqlite-persistence-core@1.0.0-rc.1.3(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
-      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.3(typescript@5.9.3)
       typescript: 5.9.3
 
-  '@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3)':
+  '@tanstack/db@1.0.0-rc.1.3(typescript@5.9.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@tanstack/db-ivm': 1.0.0-rc.1.2(typescript@5.9.3)
@@ -18582,9 +18582,9 @@ snapshots:
 
   '@tanstack/devtools-event-client@0.4.4': {}
 
-  '@tanstack/expo-db-sqlite-persistence@1.0.0-rc.1.2(expo-sqlite@55.0.20(expo@55.0.28)(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(typescript@5.9.3)':
+  '@tanstack/expo-db-sqlite-persistence@1.0.0-rc.1.3(expo-sqlite@55.0.20(expo@55.0.28)(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.3(typescript@5.9.3)
       expo-sqlite: 55.0.20(expo@55.0.28)(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       typescript: 5.9.3
 
@@ -18598,9 +18598,9 @@ snapshots:
     dependencies:
       remove-accents: 0.5.0
 
-  '@tanstack/offline-transactions@1.2.0(@tanstack/db@1.0.0-rc.1.2(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))':
+  '@tanstack/offline-transactions@1.2.0(@tanstack/db@1.0.0-rc.1.3(typescript@5.9.3))(react-native@0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8))':
     dependencies:
-      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.3(typescript@5.9.3)
     optionalDependencies:
       react-native: 0.83.10(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.8)
 
@@ -18626,16 +18626,16 @@ snapshots:
     transitivePeerDependencies:
       - csstype
 
-  '@tanstack/react-db@1.0.0-rc.1.2(react@19.2.0)(typescript@5.9.3)':
+  '@tanstack/react-db@1.0.0-rc.1.3(react@19.2.0)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.3(typescript@5.9.3)
       react: 19.2.0
     transitivePeerDependencies:
       - typescript
 
-  '@tanstack/react-db@1.0.0-rc.1.2(react@19.2.8)(typescript@5.9.3)':
+  '@tanstack/react-db@1.0.0-rc.1.3(react@19.2.8)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db': 1.0.0-rc.1.3(typescript@5.9.3)
       react: 19.2.8
     transitivePeerDependencies:
       - typescript
@@ -18681,9 +18681,9 @@ snapshots:
 
   '@tanstack/store@0.11.0': {}
 
-  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1.2(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)':
+  '@tanstack/tauri-db-sqlite-persistence@1.0.0-rc.1.3(@tauri-apps/plugin-sql@2.6.0)(typescript@5.9.3)':
     dependencies:
-      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.2(typescript@5.9.3)
+      '@tanstack/db-sqlite-persistence-core': 1.0.0-rc.1.3(typescript@5.9.3)
       '@tauri-apps/plugin-sql': 2.6.0
       typescript: 5.9.3
 
