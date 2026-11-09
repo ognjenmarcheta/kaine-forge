@@ -64,6 +64,8 @@ Use `.github/pull_request_template.md` as the shape. Include:
 - Screenshots or recordings for visible UI changes.
 - Notes about migrations, environment variables, or generated files.
 
+Before you open the PR, read the body once against the guide's "Cut filler patterns" list and remove each match.
+
 Open against `main` as draft unless the user explicitly asks for ready-for-review. Include the linked issue when one exists. Use `gh pr create --base main --head <branch> --draft --title <title> --body-file <file>` with the prepared description; omit `--draft` only for an explicit ready-for-review request. Report the PR URL and the checks actually run.
 
 Stop at the PR handoff. Only the repository owner performs the final merge manually after required checks pass. Do not merge, approve on the owner's behalf, enable automatic merging, or bypass protection through CLI, API, or browser actions.

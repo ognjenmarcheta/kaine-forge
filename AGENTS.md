@@ -174,6 +174,20 @@ When giving the human instructions, explaining something to them, or asking clar
 
 Use STE-inspired prose without claiming full ASD-STE100 compliance. Preserve technical depth, domain terms, and meaningful uncertainty. This rule applies to human-facing prose, not internal agent scratch work.
 
+#### Cut filler patterns
+
+Each pattern below adds words but no facts. Check replies, PR bodies, issue bodies, review replies, changesets, and docs for them before you send or save:
+
+- **Contrast for weight:** "It's not just X, it's Y", "This isn't about X". State Y.
+- **Closers that repeat the point:** "That's the real win.", "This ensures a smooth experience." Delete them. Required sections such as **In plain language** are not closers.
+- **Run-ups before the point:** "Here's the thing", "Let's dive in", "Great question", "In short". Start with the point.
+- **Inflated or sales words without a fact:** robust, seamless, powerful, crucial, comprehensive, leverage, game-changer. Give the fact (a number, a behavior, a file) or delete the word.
+- **Lists padded to three:** Use the number of items the meaning needs.
+- **Writing about the text:** "This PR aims to...", "This section describes...". Say what the change does.
+- **Chat leftovers in saved text:** "I hope this helps", "Let me know if...", "As requested". Delete them from PRs, issues, and docs.
+
+When a claim needs a fact that you do not have, delete the claim or ask. Do not invent a number. Apply these checks to text you write or rewrite. Do not edit existing text only to remove a pattern. Quotes and examples keep their wording.
+
 Always read `CONTEXT.md` (and domain docs under `docs/agents/domain.md`) before naming product concepts, and use that ubiquitous language.
 
 ### Response Framing
