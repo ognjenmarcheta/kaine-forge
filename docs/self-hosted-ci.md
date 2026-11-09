@@ -204,7 +204,10 @@ requirement.
 
 The runner image pins the runner version. GitHub stops serving old runner
 versions, so bump the base image when Dependabot proposes it and run
-`bootstrap` again.
+`bootstrap` again. `cluster.yaml` and `scale-set.values.yaml` pin the registry,
+BuildKit, and DinD images by tag and digest, and Dependabot proposes those bumps
+too. After you merge one, run `bootstrap` again for `cluster.yaml`, or
+`add-repo` again for `scale-set.values.yaml`.
 
 ### Automatic hosted fallback
 
