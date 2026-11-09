@@ -29,6 +29,7 @@ const nonEmpty = z.string().min(1);
 /** Mirrors REVIEW_REQUIRED_HEADINGS in `.ai/ai.util.ts` and the REVIEW.md headings. */
 export const REVIEW_SECTIONS = [
   "Correctness",
+  "Scope",
   "Security, Auth & Tenancy",
   "Architecture & Boundaries",
   "Data & GraphQL",

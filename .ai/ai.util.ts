@@ -55,6 +55,7 @@ export const TOML_HEADER = `# ${GEN_NOTICE}`;
 
 export const REVIEW_REQUIRED_HEADINGS = [
   "Correctness",
+  "Scope",
   "Security, Auth & Tenancy",
   "Architecture & Boundaries",
   "Data & GraphQL",

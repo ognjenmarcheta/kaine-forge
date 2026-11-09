@@ -28,7 +28,7 @@ REVIEW-BODY: check tenancy.
 
 ## Review headings
 
-Review in this order and report one `reviewSections` entry for each: Correctness; Security, Auth & Tenancy; Architecture & Boundaries; Data & GraphQL; Performance; UI & i18n; Quality Gates; Domain Language; Template & AI Hygiene. `REVIEW.md` in the repository root is the installed copy of the checklist above. No agent loads it automatically.
+Review in this order and report one `reviewSections` entry for each: Correctness; Scope; Security, Auth & Tenancy; Architecture & Boundaries; Data & GraphQL; Performance; UI & i18n; Quality Gates; Domain Language; Template & AI Hygiene. `REVIEW.md` in the repository root is the installed copy of the checklist above. No agent loads it automatically.
 
 ## Issue
 
