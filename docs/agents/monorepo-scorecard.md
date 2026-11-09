@@ -3272,7 +3272,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
         "9": {
           "score": 8,
           "evidence": "sweep ai:doctor --strict exit 0 (40 kaine skills, AGENTS.md index matches, incl. coupling-audit/document-release/qa/security-audit at :295,:300,:311,:317). #848 facts still hold; ADR 0025 indexed by hand (docs/README.md:29-52). Still open: environment_setup.md:12-35 lacks billing/jobs/retention/AI vars; security.yml:38-40 names package.json ignoreCves while SECURITY.md:85 names pnpm-workspace ignoreGhsas; ADR 0005:27 calls better-auth unused. No test derives the guide tree, readme count or ADR index from disk.",
-          "calibration": "Held at 8 per the 11-04 note. Env memory and audit-ignore drift fixed in this run's ledger PR; 9 still needs a manifest-derived check."
+          "calibration": "Held at 8 per the 11-04 note. Env memory drift fixed in this run's ledger PR and audit-ignore drift in #931; 9 still needs a manifest-derived check."
         },
         "10": {
           "score": 8,
@@ -3690,7 +3690,7 @@ A dimension whose evidence could not be gathered is recorded `unscored` with a r
           "dimension": 5,
           "ladderRank": 9,
           "disposition": "observed",
-          "reason": "security.yml comment aligned with SECURITY.md in this run's ledger PR"
+          "reason": "security.yml comment aligned with SECURITY.md in #931"
         },
         {
           "slug": "adr-0005-better-auth-unused-claim",
@@ -4147,4 +4147,4 @@ Binding on later runs. Each note records a judgment that should not be silently 
 - **Full depth, like for like with 11-04.** Five probes with the same split (dims 1/2, 4/7, 3/5/6, 8/9, 10), all returned, all ten dimensions scored. Overall 7.9→7.9. No dimension moved.
 - **Real fixes that did not move a score.** #870 met one dim 2 band-9 condition (lint `^typecheck` edge). #917 and #872 closed every open code-scanning alert and the four dim 5 floor and ignore gaps. Each dimension still has an unmet band-9 condition from an earlier note, so none rises.
 - **Release red on main is not a split release.** 0ffad135 failed on a desk test flake and 2dfa48ff at the changesets step after a hand merge into `changeset-release/main`. The flake is scored under dim 4 per the 09-09 red-gate precedent. Dim 6 holds because `release:apps` ran before the failing step and `deploy-images` still ran.
-- **Scores describe 5babf89, not the open fix PRs.** #921 (#846 and the `.test.js` inputs gap), #922 (#847 and the version-PR branch warning) and #923 (the watcher flake) carry this run's fixes; the ledger PR carries three doc drifts. Score them when they merge: dim 1 → 8 on #846 per the 11-02 note; dim 6 stays 8 until the publish/deploy path also has a test.
+- **Scores describe 5babf89, not the open fix PRs.** #921 (#846 and the `.test.js` inputs gap), #922 (#847 and the version-PR branch warning) and #923 (the watcher flake) carry this run's fixes; the ledger PR carries two doc drifts and #931 the third. Score them when they merge: dim 1 → 8 on #846 per the 11-02 note; dim 6 stays 8 until the publish/deploy path also has a test.

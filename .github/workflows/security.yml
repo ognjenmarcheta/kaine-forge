@@ -35,8 +35,9 @@ jobs:
 
       - name: Run audit (high and critical)
         # Fails the job on high/critical advisories (pnpm audit exit non-zero).
-        # To accept a known advisory, add it to auditConfig.ignoreGhsas in
-        # pnpm-workspace.yaml and document it in the PR, as SECURITY.md requires.
+        # To suppress a known false positive, use pnpm's audit config
+        # (e.g. package.json "pnpm"."auditConfig"."ignoreCves") and document the
+        # reason in the PR that adds the ignore entry.
         run: pnpm audit --audit-level high
 
   secret-scan:
