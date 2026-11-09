@@ -81,8 +81,20 @@ Runtime variable behavior is documented in `MONOREPO_GUIDE.md` section 9 and `.e
 ## Automation
 
 - Dependency audit and secret scanning: `.github/workflows/security.yml`.
-  - On `main` push, weekly schedule, and manual dispatch, `pnpm audit --audit-level high` **fails the job** on high or critical advisories (it no longer warns and continues).
+  - On `main` push, weekly schedule, and manual dispatch, `pnpm audit --audit-level moderate` **fails the job** on moderate, high, or critical advisories (it no longer warns and continues).
+  - On the same triggers, `cargo audit` fails the job on RustSec vulnerability advisories in `apps/desktop/src-tauri/Cargo.lock`. Unmaintained and unsound notices print as warnings. An accepted advisory gets `--ignore <RUSTSEC id>` in the workflow and an entry under [Accepted advisories](#accepted-advisories).
+  - `scripts/dependency-overrides.test.mjs` fails when an override in `pnpm-workspace.yaml` has no reason comment, matches nothing in `pnpm-lock.yaml`, or leaves a resolution it governs outside its range.
   - Use `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml` for an explicitly accepted advisory exception. Document the reason, affected paths, remaining risk, and removal trigger in the PR.
 - PR quality/security gate: `.github/workflows/ci-pr.yml`.
 - Code scanning alerts (CodeQL and Trivy): the repository owner triages open alerts on `main` weekly. Each alert is fixed, dismissed as a false positive with a reason, or dismissed as accepted risk with an issue link.
 - AI tooling health/drift check: `pnpm ai:doctor`.
+
+## Accepted advisories
+
+Each entry names the advisory, the affected path, why it cannot be fixed now, the remaining risk, and the removal trigger. The repository owner dismisses the matching GitHub alert as accepted risk with this reason.
+
+- **GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429 (glib 0.18.5, medium, unsound).**
+  - Affected path: `apps/desktop/src-tauri/Cargo.lock`, Linux builds only: `tauri` 2 → `gtk`, `webkit2gtk`, `wry`, `tao`, and `muda` → gtk-rs 0.18 → `glib` 0.18.5.
+  - Why not fixed: the fix is in glib 0.20. Tauri 2 and its gtk-rs 0.18 crates require glib 0.18, so Cargo cannot select 0.20.
+  - Remaining risk: `glib::VariantStrIter` (from `Variant::array_iter_str`) can dereference a null pointer and crash. The desktop crate does not use glib, and no other locked crate calls `array_iter_str` or `VariantStrIter`. A future dependency that calls it can crash the desktop app on Linux.
+  - Removal trigger: a Tauri release that moves to gtk-rs 0.20 or later (glib >= 0.20). Then update `Cargo.lock`, delete the `--ignore RUSTSEC-2024-0429` flag in `.github/workflows/security.yml`, and delete this entry.
