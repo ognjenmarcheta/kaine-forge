@@ -186,8 +186,9 @@ it("adds existing workspace roots without reverting Serena migrations, comments,
 });
 
 it("resets seed-owned settings in an existing install and drops the deprecated base_modes key", () => {
+  // An adopted seed: the install predates adoption and still carries the template name.
   const seed = [
-    "project_name: kaine-forge",
+    "project_name: acme-ops",
     "line_ending: lf",
     "excluded_apis: [shell]",
     'read_only_memory_patterns: [".*"]',
@@ -203,6 +204,7 @@ it("resets seed-owned settings in an existing install and drops the deprecated b
     ""
   ].join("\n");
   expect(checkSerenaProjectSemantics(seed, previous)).toEqual([
+    'project_name is not "acme-ops"',
     "line_ending differs from the seed",
     "excluded_apis differs from the seed",
     "read_only_memory_patterns differs from the seed"
@@ -210,7 +212,7 @@ it("resets seed-owned settings in an existing install and drops the deprecated b
   const merged = mergeSerenaProjectSeed(seed, previous);
   const parsed: unknown = parseYaml(merged);
   expect(parsed).toEqual({
-    project_name: "kaine-forge",
+    project_name: "acme-ops",
     line_ending: "lf",
     excluded_apis: ["shell"],
     symbol_info_budget: 3,

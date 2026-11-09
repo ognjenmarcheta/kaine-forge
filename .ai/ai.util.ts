@@ -1104,6 +1104,8 @@ export const renderSerenaProject = (source: string): string =>
 
 /** Seed keys the installer owns in `.serena/project.yml`; `project.local.yml` stays the personal override. */
 const SERENA_SEED_MANAGED_KEYS = [
+  // Template adoption rewrites the seed's name, and a file installed before adoption must follow it.
+  "project_name",
   "line_ending",
   "excluded_apis",
   "included_apis",
@@ -1207,7 +1209,8 @@ export const checkSerenaProjectSemantics = (
       problems.push(`language server "${language}" is not configured`);
     }
   }
-  for (const key of SERENA_SEED_MANAGED_KEYS) {
+  // project_name is reported above, with the expected name.
+  for (const key of SERENA_SEED_MANAGED_KEYS.filter((managed) => managed !== "project_name")) {
     if (key in seed && !isDeepStrictEqual(installed[key], seed[key])) {
       problems.push(`${key} differs from the seed`);
     }

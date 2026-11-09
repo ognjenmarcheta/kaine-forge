@@ -1,3 +1,6 @@
+import { join } from "node:path";
+import { format, getFileInfo, resolveConfig } from "prettier";
+
 export interface TemplateAdoptionInput {
   productName?: string;
   packageName?: string;
@@ -148,6 +151,8 @@ export const adoptionTargets = [
   "docs/agents/monorepo-scorecard.md"
 ] as const;
 
+const TEMPLATE_OWNER = "ognjenmarcheta";
+
 const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bKaine Forge\b/g, "Kaine Forge"],
   [/\bkaine-forge\b/g, "kaine-forge"],
@@ -160,7 +165,7 @@ const templateReferencePatterns: ReadonlyArray<readonly [RegExp, string]> = [
   [/__Secure-kaine\./g, "__Secure-kaine."],
   [/"kaine"/g, '"kaine"'],
   // Owner handle in badge URLs, issue-tracker links, and CODEOWNERS.
-  [/\bognjenmarcheta\b/g, "ognjenmarcheta"]
+  [/\bognjenmarcheta\b/g, TEMPLATE_OWNER]
 ];
 
 const normalizePath = (path: string): string => path.replace(/\\/g, "/").replace(/^\.\//, "");
@@ -607,9 +612,16 @@ export const applyTemplateAdoption = (
 };
 
 export const activeTemplateReferences = (
-  files: ReadonlyMap<string, string>
+  files: ReadonlyMap<string, string>,
+  adoption?: Pick<TemplateAdoptionConfig, "repoOwner">
 ): TemplateReference[] => {
   const references: TemplateReference[] = [];
+  // An adopter that keeps the template owner's account writes that handle on purpose.
+  // GitHub handles ignore case.
+  const patterns =
+    adoption?.repoOwner?.toLowerCase() === TEMPLATE_OWNER
+      ? templateReferencePatterns.filter(([, label]) => label !== TEMPLATE_OWNER)
+      : templateReferencePatterns;
 
   for (const [path, source] of files) {
     if (excludedFromTemplateAdoption(path)) {
@@ -619,7 +631,7 @@ export const activeTemplateReferences = (
     const lines = source.split(/\r?\n/);
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = lines[lineIndex]!;
-      for (const [pattern, label] of templateReferencePatterns) {
+      for (const [pattern, label] of patterns) {
         pattern.lastIndex = 0;
         if (pattern.test(line)) {
           references.push({ path, line: lineIndex + 1, match: label });
@@ -631,4 +643,30 @@ export const activeTemplateReferences = (
   return references.sort((left, right) =>
     left.path === right.path ? left.line - right.line : left.path.localeCompare(right.path)
   );
+};
+
+/**
+ * Format adopted files with the repository's Prettier config. The identity replacements change
+ * line lengths, so a product name longer than the template's fails `pnpm format:check` without this.
+ */
+export const formatAdoptedFiles = async (
+  files: ReadonlyMap<string, string>,
+  paths: readonly string[],
+  root: string
+): Promise<Map<string, string>> => {
+  const formatted = new Map(files);
+  for (const path of paths) {
+    const source = formatted.get(path);
+    if (source === undefined) {
+      continue;
+    }
+    const filepath = join(root, path);
+    const info = await getFileInfo(filepath, { ignorePath: join(root, ".prettierignore") });
+    if (info.ignored || info.inferredParser === null) {
+      continue;
+    }
+    const options = await resolveConfig(filepath);
+    formatted.set(path, await format(source, { ...options, filepath }));
+  }
+  return formatted;
 };
