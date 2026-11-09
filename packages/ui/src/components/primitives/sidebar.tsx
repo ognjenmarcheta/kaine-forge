@@ -593,6 +593,11 @@ function SidebarMenuButton({
   // open tooltip is the top layer and takes the first Escape, such as in the phone sheet.
   const tooltipHidden = state !== "collapsed" || isMobile;
   const [tooltipOpen, setTooltipOpen] = React.useState(false);
+  // Radix reports only a change from the `open` prop. While hidden that prop is false, so the
+  // close of a hover or focus is never reported: keep the state closed, or it opens on collapse.
+  if (tooltipHidden && tooltipOpen) {
+    setTooltipOpen(false);
+  }
 
   const button = (
     <Comp

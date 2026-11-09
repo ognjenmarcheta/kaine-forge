@@ -271,6 +271,36 @@ describe("sidebar menu tooltip", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("stays closed on collapse after the expanded sidebar was hovered or focused", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const menu = (open: boolean) => (
+      <SidebarProvider open={open}>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Orders">Orders</SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarProvider>
+    );
+    mount(menu(true));
+    const button = Array.from(document.querySelectorAll("button")).find(
+      (element) => element.textContent === "Orders"
+    );
+    act(() => button?.focus());
+    act(() => button?.blur());
+
+    act(() => root?.render(menu(false)));
+
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+  });
 });
 
 describe("sidebar menu button brand variant", () => {
