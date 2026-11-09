@@ -326,7 +326,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true ]; then
+          # A separate assignment, so a failed lookup fails the step under set -e.
+          is_draft="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+          if [ "$is_draft" = true ]; then
             gh release upload "$TAG" "sbom-$APP.spdx.json" --clobber
             gh release edit "$TAG" --draft=false
           else
