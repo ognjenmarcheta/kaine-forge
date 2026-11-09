@@ -701,10 +701,12 @@ jobs:
         run: |
           set -euo pipefail
           run=true
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] &&
-            ! gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name' \
-              | grep -x 'ci:run-visual' >/dev/null; then
-            run=false
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            # A failed lookup fails the step instead of skipping the comparison.
+            labels="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')"
+            if ! grep -qx 'ci:run-visual' <<<"$labels"; then
+              run=false
+            fi
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 

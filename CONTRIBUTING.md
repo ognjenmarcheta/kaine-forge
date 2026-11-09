@@ -305,7 +305,7 @@ pnpm test:e2e
 
 ### Visual regression baselines
 
-`apps/e2e/tests/web-visual-baseline.e2e.ts` compares a few key screens (sign-in and sign-up at 360px, the populated todos shell at 1440px, in light and dark) against committed PNG baselines in its `-snapshots/` folder. Font rendering differs between machines, so the screenshots always come from the Chromium in the official `mcr.microsoft.com/playwright` image whose version matches the installed `@playwright/test`. `pnpm --filter @repo/e2e test:visual` starts that container, runs the `@visual` specs with the container as the browser, and stops it. The test runner and the web and API servers stay on your machine. You need Docker and a prepared local database (`pnpm db:prepare:local`). A plain `pnpm test:e2e` skips these specs.
+`apps/e2e/tests/web-visual-baseline.e2e.ts` compares a few key screens against committed PNG baselines in its `-snapshots/` folder: sign-in at 360px and the populated todos shell at 1440px in light and dark, and sign-up at 360px in light only. Font rendering differs between machines, so the screenshots always come from the Chromium in the official `mcr.microsoft.com/playwright` image whose version matches the installed `@playwright/test`. `pnpm --filter @repo/e2e test:visual` starts that container, runs the `@visual` specs with the container as the browser, and stops it. The test runner and the web and API servers stay on your machine. You need Docker and a prepared local database (`pnpm db:prepare:local`). A plain `pnpm test:e2e` skips these specs.
 
 - To check the screens, run `pnpm --filter @repo/e2e test:visual`.
 - After an intended UI change, run `pnpm --filter @repo/e2e test:visual --update-snapshots`, look at each changed PNG, and commit them with the change.
