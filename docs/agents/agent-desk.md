@@ -1152,14 +1152,17 @@ for the limits (8 GB in the VM is the minimum that was tested).
 
 ### Models
 
-`models.<role>` takes a Claude alias (`opus`, `sonnet`, `haiku`) or a full model id. Without
-it, a Claude role uses the CLI default, which is Opus. Start from this table:
+For a Claude role, `models.<role>` takes a Claude alias (`opus`, `sonnet`, `haiku`) or a full
+model id. Without it, the role uses the Claude CLI default. That default is Opus unless your
+Claude settings or your organization set another model. A Codex role passes the value to
+`codex -m`, so it needs an OpenAI model id. Start from this table:
 
-| Role                       | Start on                         | Why                                                             |
-| -------------------------- | -------------------------------- | --------------------------------------------------------------- |
-| planner, builder           | the default (Opus)               | They make the judgment calls and edit the code.                 |
-| intake, reviewer           | the default, or `sonnet`         | Repeated, well-defined tasks. Measure before you move them.     |
-| `kaine-explorer` subagents | `sonnet` (set in its agent file) | They read and search. The parent agent checks what they return. |
+| Role                       | Start on                                                                               | Why                                                             |
+| -------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| planner, builder           | Opus                                                                                   | They make the judgment calls and edit the code.                 |
+| intake                     | Opus, or `sonnet`                                                                      | A repeated, well-defined task. Measure before you move it.      |
+| reviewer                   | Codex (the default provider). For `sonnet`, also set `providers.reviewer` to `claude`. | A repeated, well-defined task. Measure before you move it.      |
+| `kaine-explorer` subagents | `sonnet` in Claude Code (set in its agent file)                                        | They read and search. The parent agent checks what they return. |
 
 - Keep the builder on the main model. A cheaper builder under an Opus planner (Claude Code's
   `opusplan`) puts the code edits on the smaller model.
