@@ -533,7 +533,7 @@ const checkOpencodeModels = (config: DeskConfig): DoctorCheck[] => {
           "OpenCode model",
           // An agent file can still name the model, so this cannot be an error.
           "warn",
-          `OpenCode has no model in the config for: ${roles.join(", ")}. Set models.<role> to provider/model, for example anthropic/claude-haiku-4-5, unless the agent file names one.`
+          `OpenCode has no model in the config for: ${roles.join(", ")}. Set models.<role> to provider/model, for example anthropic/claude-sonnet-5-5, unless the agent file names one.`
         )
       ];
 };

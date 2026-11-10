@@ -1052,7 +1052,15 @@ export const renderClaudeAgentDefinition = (definition: AgentDefinition): string
 export const renderCodexSkill = renderClaudeSkill;
 export const renderCursorSkill = renderClaudeSkill;
 export const renderGrokSkill = renderClaudeSkill;
-export const renderGrokAgentDefinition = renderClaudeAgentDefinition;
+/**
+ * Grok Build reads Claude's agent format, but a Claude model alias such as `sonnet` names
+ * no Grok model, so a Grok subagent always runs on its caller's model.
+ */
+export const renderGrokAgentDefinition = (definition: AgentDefinition): string =>
+  renderClaudeAgentDefinition({
+    ...definition,
+    frontmatterRaw: definition.frontmatterRaw.replace(/^model:.*$/m, "model: inherit")
+  });
 
 /** Claude tool names that unlock each OpenCode permission action an allowlist can deny. */
 const OPENCODE_AGENT_PERMISSION_TOOLS = {

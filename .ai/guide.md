@@ -213,6 +213,8 @@ Example: 🧭 **Kaine Forge** — wiring password-reset emails · packages/auth 
 
 Prefer the `kaine-*` subagent types — `kaine-implementer` for changes, `kaine-explorer` for read-only research — they carry these rules in their own system prompt. When you must use a built-in `general-purpose` agent, paste the relevant Working Rules into its prompt.
 
+In Claude Code, `kaine-explorer` runs on Sonnet: it reads and searches, and you verify its leads. Grok Build and OpenCode run it on the caller's model. `kaine-implementer` inherits your model, so delegate code changes to it, not to a cheaper agent. Keep judgment calls on your own model. A lower price alone is not a reason to delegate.
+
 A spawned subagent does receive this guide — `CLAUDE.md` imports it, and the `2026-09-11` harness-eval run confirmed the behaviour: `general-purpose` trials produced the focus banner and the repo's own anti-pattern language with zero tool calls, so they could not have read it from disk. The injection is frozen at session start, so an edit made mid-session reaches no agent dispatched afterwards. What carrying rules into the prompt buys is emphasis, not presence: with the verification close pasted in, 3 of 3 trials produced a red-green proof against 1 of 3 without it. Carry the relevant parts in for that reason:
 
 - Include the **Working Rules** that bear on its task (package boundaries, no `any`, token-only styling, organization-scoped data, i18n, generated GraphQL) — the subset that applies, not the whole guide.
