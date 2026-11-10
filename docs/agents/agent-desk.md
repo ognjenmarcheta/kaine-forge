@@ -1150,6 +1150,28 @@ The `docker` block sets the limits of the containers. All fields are optional:
 empty: the container uses the login in the auth volume. Docker Desktop must have enough memory
 for the limits (8 GB in the VM is the minimum that was tested).
 
+### Models
+
+`models.<role>` takes a Claude alias (`opus`, `sonnet`, `haiku`) or a full model id. Without
+it, a Claude role uses the CLI default, which is Opus. Start from this table:
+
+| Role                       | Start on                         | Why                                                             |
+| -------------------------- | -------------------------------- | --------------------------------------------------------------- |
+| planner, builder           | the default (Opus)               | They make the judgment calls and edit the code.                 |
+| intake, reviewer           | the default, or `sonnet`         | Repeated, well-defined tasks. Measure before you move them.     |
+| `kaine-explorer` subagents | `sonnet` (set in its agent file) | They read and search. The parent agent checks what they return. |
+
+- Keep the builder on the main model. A cheaper builder under an Opus planner (Claude Code's
+  `opusplan`) puts the code edits on the smaller model.
+- When a role falls short, first give it a check it can run on its own work: the loop checks do
+  this. Then move it to the next model up. The desk config has no effort field. In your own
+  sessions, raise effort one level before you change model. Above `high`, one more effort level
+  can cost as much as a bigger model.
+- Keep Fable for large migrations and architecture work that Opus does not finish.
+- Measure each change with `pnpm desk stats`. Compare cost per accepted run, not price per token.
+- A Claude alias does not reach OpenCode or Grok Build. OpenCode needs `provider/model`, and an
+  agent file installed for Grok always inherits its caller's model.
+
 ## OpenCode
 
 OpenCode runs any model provider under one CLI, so one role, often the reviewer, can use a
@@ -1159,7 +1181,7 @@ OpenCode 1.x is not supported. Set the provider and a model for the role:
 ```json
 {
   "providers": { "reviewer": "opencode" },
-  "models": { "reviewer": "anthropic/claude-haiku-4-5" }
+  "models": { "reviewer": "anthropic/claude-sonnet-5-5" }
 }
 ```
 

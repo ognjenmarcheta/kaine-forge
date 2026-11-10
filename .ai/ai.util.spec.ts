@@ -31,6 +31,7 @@ import {
   renderCodexConfig,
   renderCursorRulesFile,
   renderCursorSkill,
+  renderGrokAgentDefinition,
   renderGrokConfig,
   renderGrokPreToolUseHook,
   renderGrokSessionStartHook,
@@ -860,6 +861,18 @@ describe("renderClaudeAgentDefinition", () => {
       "---\nname: kaine-implementer\ndescription: Does agent things.\nmodel: inherit\n---\nSystem prompt.\n"
     );
     expect(output.endsWith("\n")).toBe(true);
+  });
+});
+
+describe("renderGrokAgentDefinition", () => {
+  it("replaces a Claude model alias with inherit", () => {
+    const def = parseAgentDefinitionFile(
+      "kaine-explorer",
+      agentDef("kaine-explorer").replace("model: inherit", "model: sonnet\ntools: Read")
+    );
+    expect(renderGrokAgentDefinition(def)).toBe(
+      "---\nname: kaine-explorer\ndescription: Does agent things.\nmodel: inherit\ntools: Read\n---\nSystem prompt.\n"
+    );
   });
 });
 

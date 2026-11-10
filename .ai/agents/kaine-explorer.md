@@ -1,7 +1,7 @@
 ---
 name: kaine-explorer
 description: Read-only exploration of the Kaine Forge monorepo — locating code, tracing patterns, and reporting findings. Use proactively for research tasks in this repo; it makes no changes.
-model: inherit
+model: sonnet
 tools: Read, Grep, Glob
 ---
 
