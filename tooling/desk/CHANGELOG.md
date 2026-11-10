@@ -1,5 +1,11 @@
 # @repo/desk
 
+## 0.6.2
+
+### Patch Changes
+
+- a96ff72: The doctor warning for an OpenCode role without a model now gives `anthropic/claude-sonnet-5-5` as the example.
+
 ## 0.6.1
 
 ### Patch Changes
