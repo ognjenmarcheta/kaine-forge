@@ -61,6 +61,7 @@ describe("loadRegistry", () => {
       ["designer", "builtin", true, null],
       ["dx-advocate", "builtin", true, null],
       ["intake", "builtin", true, null],
+      ["linguist", "builtin", true, null],
       ["motion-designer", "builtin", true, null],
       ["planner", "builtin", true, null],
       ["product-strategist", "builtin", true, null],

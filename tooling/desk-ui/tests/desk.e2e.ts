@@ -268,9 +268,7 @@ test("opens an issue: the rail opens a step in the side sheet, and the flow map 
   await expect(page.getByRole("group", { name: "Flow map of the steps" })).toHaveCount(0);
   await more(page, "Show the flow map");
   const graph = page.getByRole("group", { name: "Flow map of the steps" });
-  await expect(
-    graph.getByRole("group", { name: /^Approve & ship: Waiting for you/ })
-  ).toBeVisible();
+  await expect(graph.getByRole("group", { name: /^Approve & ship: Your turn/ })).toBeVisible();
   await expect(page.getByRole("list", { name: "What the colors mean" })).toContainText("Went back");
   // Every stage is inside the graph at a 1440 px desktop: nothing is cropped.
   const box = await graph.boundingBox();
@@ -310,7 +308,7 @@ test("opens an issue: the rail opens a step in the side sheet, and the flow map 
   // The rail names every step with who works there and its status, and marks the current one.
   await expect(rail(page).getByRole("button", { name: /·/ })).toHaveCount(9);
   await expect(stage(page, /^Approve & ship/)).toHaveAttribute("aria-current", "step");
-  await expect(stage(page, /^Approve & ship/)).toContainText("You decide · Waiting for you");
+  await expect(stage(page, /^Approve & ship/)).toContainText("You decide · Your turn");
 
   // The graph keeps its pan and zoom controls and cannot be edited.
   await expect(graph.getByRole("button", { name: "Zoom in" })).toBeVisible();
@@ -415,7 +413,7 @@ test("shows the history of every step run, and the agent runs with their trace a
   const steps = page.getByRole("list", { name: "Steps of this issue, newest first" });
   const newest = steps.locator(":scope > li").first();
   await expect(newest).toContainText("Approve & ship");
-  await expect(newest).toContainText("Waiting for you");
+  await expect(newest).toContainText("Your turn");
   await expect(steps).toContainText("Check · round 2");
   await expect(steps).toContainText("Went back");
   const handoffs = page.getByRole("region", { name: "Handoffs across the run" });
@@ -638,7 +636,7 @@ test("the incident jumps to the failure in the trace, and the filters narrow the
   // The rows, not the log lines inside an open row.
   const rows = steps.locator(":scope > li");
   await expect(rows).toHaveCount(8);
-  const failure = steps.getByRole("button", { name: /Stopped|Needs you/ });
+  const failure = steps.getByRole("button", { name: /Stopped/ });
   await expect(failure).toBeFocused();
   await expect(failure).toHaveAttribute("aria-expanded", "true");
   await expect(rows.first()).toContainText("FAIL apps/web/src/board.test.tsx again");

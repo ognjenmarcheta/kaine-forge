@@ -48,10 +48,11 @@
       "outputs": []
     },
     "lint": {
-      "description": "Lint workspace source. Typed rules load the shared tsconfig presets through projectService, so they are inputs too (issue #308). Typed rules also read dependency types through the @repo/* source paths, so ^typecheck carries a dependency change into the hash (issue #864).",
+      "description": "Lint workspace source. Typed rules load the shared tsconfig presets through projectService, so they are inputs too (issue #308). Typed rules also read dependency types through the @repo/* source paths, so ^typecheck carries a dependency change into the hash (issue #864). The domain/banned-terms rule reads its words from CONTEXT.md.",
       "dependsOn": ["^typecheck"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/CONTEXT.md",
         "$TURBO_ROOT$/eslint.config.mjs",
         "$TURBO_ROOT$/packages/config/eslint/**",
         "$TURBO_ROOT$/packages/config/typescript/*.json"

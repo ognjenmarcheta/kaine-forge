@@ -229,6 +229,7 @@ export const KAINE_SKILLS: readonly string[] = [
   "kaine-debug",
   "kaine-design-review",
   "kaine-document-release",
+  "kaine-domain-language",
   "kaine-dx-review",
   "kaine-encode-knowledge",
   "kaine-explain",

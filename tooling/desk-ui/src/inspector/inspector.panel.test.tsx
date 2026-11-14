@@ -256,7 +256,7 @@ describe("StageSheet", () => {
   it("shows why the desk needs the engineer, without a dangling colon", () => {
     show(103, "build");
     expect(region().textContent).toContain(
-      "Needs you: Two consecutive checks failed the same way: FAIL apps/web/src/board.test.tsx"
+      "Stopped · Two consecutive checks failed the same way: FAIL apps/web/src/board.test.tsx"
     );
     expect(region().textContent).toContain("The same check failure came back.");
   });

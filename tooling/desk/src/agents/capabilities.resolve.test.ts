@@ -354,6 +354,7 @@ describe("the built-in agents", () => {
       "designer",
       "dx-advocate",
       "intake",
+      "linguist",
       "motion-designer",
       "planner",
       "product-strategist",

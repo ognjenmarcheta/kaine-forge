@@ -4,6 +4,14 @@ Kaine Forge is a monorepo template for organization-scoped apps. This context na
 
 ## Language
 
+**User**:
+A person who signs in. A User belongs to **Organizations** through **Organization Membership**. Their email, password, passkeys, and **Sessions** are their account, which only they manage.
+_Avoid_: customer, tenant
+
+**Session**:
+One signed-in browser or device of a **User**, created at sign-in and ended by sign-out, expiry, or revocation. It holds zero or one **Active Organization**.
+_Avoid_: login (as a noun), token
+
 **Organization**:
 A tenant-like workspace that owns user-created data and membership.
 _Avoid_: account, team
@@ -263,3 +271,32 @@ This repository is a multi-platform **template**. Reference features are not req
 - "agent" can mean any AI assistant (Claude, Codex) or a desk **Agent** definition. Use **Agent** only for the desk definition; say "AI assistant" otherwise.
 - "role" means the user's role in an **Organization Membership** (owner, admin, member, or a **Custom Role**); a role grants **Permissions**. On the agent desk, a role (planner, builder, reviewer) is the permission profile and the config key for providers and models; each built-in **Agent** has its role as its id. Name a desk definition an **Agent**, not a role.
 - "full-stack feature" can mean API + web only, or API + web + mobile. Prefer the **Template platform surfaces** matrix over assuming mobile is required.
+- "account" can mean a **User**'s own sign-in (the account settings pages and the security emails), or the better-auth `account` table, which links one sign-in method to a User. Never use it for an **Organization**.
+- "activity" in product copy hides which record it shows. Name the record, such as **Audit Events**. On the agent desk, "activity" is the event history of one issue or **Desk job**.
+- "workspace" in code and tooling means a pnpm workspace package or the web app's work area (`workspace-navigation.provider.tsx`). In product copy, say **Organization**.
+
+## Banned terms
+
+A check enforces each word below, because no correct use of it exists in its scope. The `_Avoid_` lists above depend on the concept, so they stay guidance for authors and reviewers. Add a word here only when it is wrong everywhere in a scope; when a correct use appears, narrow the scope or remove the row (ADR 0028).
+
+- `product`: the English copy of every translation namespace except `desk`.
+- `desk`: the English copy in `desk.json`.
+- `names`: names declared in TypeScript under `apps/` and `packages/` (lint rule `domain/banned-terms`), and the type and field names in `apps/api/schema.graphql`.
+
+The check matches whole words in any case, with an optional plural `s`. `packages/config/eslint/domain-terms.js` reads this table.
+
+| Word                  | Use instead                     | Applies to         |
+| --------------------- | ------------------------------- | ------------------ |
+| team                  | **Organization**, or members    | `product`, `names` |
+| workspace             | **Organization**                | `product`          |
+| tier                  | **Plan**                        | `product`, `names` |
+| activity feed         | **Audit Events**                | `product`, `names` |
+| invite link           | **Invitation**                  | `product`, `names` |
+| sync queue            | **Outbox**                      | `product`, `names` |
+| mutation log          | **Outbox**                      | `product`, `names` |
+| soft delete           | **Tombstone**                   | `product`, `names` |
+| personal access token | **API Key**                     | `product`, `names` |
+| skin                  | **Organization Theme**          | `product`, `names` |
+| needs you             | **Stopped** (an **Item state**) | `desk`             |
+| waiting for you       | **Your turn** (an Item state)   | `desk`             |
+| board                 | **Inbox** or **All work**       | `desk`             |

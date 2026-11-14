@@ -38,7 +38,7 @@ export async function signIn(
 
 export const ONBOARDING_LABELS = {
   nameTitle: /^(Name your organization|auth\.onboarding\.organization\.title)$/,
-  inviteTitle: /^(Invite your team|auth\.onboarding\.invite\.title)$/,
+  inviteTitle: /^(Invite members|auth\.onboarding\.invite\.title)$/,
   rename: /^(Save and continue|auth\.onboarding\.organization\.rename)$/,
   skip: /^(Skip for now|auth\.onboarding\.skip)$/
 } as const;

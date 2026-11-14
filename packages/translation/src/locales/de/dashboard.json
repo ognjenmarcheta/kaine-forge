@@ -9,10 +9,10 @@
   "dashboard.newTodo": "Neue Aufgabe",
   "dashboard.newNote": "Neue Notiz",
   "dashboard.gettingStarted.title": "Erste Schritte",
-  "dashboard.gettingStarted.description": "Ein paar Schritte, um deinen Arbeitsbereich einzurichten.",
+  "dashboard.gettingStarted.description": "Ein paar Schritte, um deine Organisation einzurichten.",
   "dashboard.gettingStarted.todo": "Aufgabe erstellen",
   "dashboard.gettingStarted.note": "Notiz schreiben",
-  "dashboard.gettingStarted.invite": "Team einladen",
+  "dashboard.gettingStarted.invite": "Mitglieder einladen",
   "dashboard.gettingStarted.done": "{step} (erledigt)",
   "dashboard.gettingStarted.dismiss": "Checkliste ausblenden",
   "dashboard.counts.title": "Auf einen Blick",
@@ -39,9 +39,9 @@
   "dashboard.chats.error": "Neueste Chats konnten nicht geladen werden.",
   "dashboard.chats.empty": "Noch keine Chats",
   "dashboard.chats.emptyAction": "Chat starten",
-  "dashboard.activity.title": "Neueste Aktivität",
+  "dashboard.activity.title": "Neueste Audit-Ereignisse",
   "dashboard.activity.viewAll": "Audit-Protokoll anzeigen",
-  "dashboard.activity.loading": "Neueste Aktivität wird geladen",
-  "dashboard.activity.error": "Neueste Aktivität konnte nicht geladen werden.",
-  "dashboard.activity.empty": "Noch keine Aktivität"
+  "dashboard.activity.loading": "Neueste Audit-Ereignisse werden geladen",
+  "dashboard.activity.error": "Neueste Audit-Ereignisse konnten nicht geladen werden.",
+  "dashboard.activity.empty": "Noch keine Audit-Ereignisse"
 }

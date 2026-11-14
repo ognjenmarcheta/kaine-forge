@@ -9,10 +9,10 @@
   "dashboard.newTodo": "Novi zadatak",
   "dashboard.newNote": "Nova beleška",
   "dashboard.gettingStarted.title": "Prvi koraci",
-  "dashboard.gettingStarted.description": "Nekoliko koraka za podešavanje radnog prostora.",
+  "dashboard.gettingStarted.description": "Nekoliko koraka za podešavanje organizacije.",
   "dashboard.gettingStarted.todo": "Napravi zadatak",
   "dashboard.gettingStarted.note": "Napiši belešku",
-  "dashboard.gettingStarted.invite": "Pozovi svoj tim",
+  "dashboard.gettingStarted.invite": "Pozovi članove",
   "dashboard.gettingStarted.done": "{step} (završeno)",
   "dashboard.gettingStarted.dismiss": "Sakrij listu",
   "dashboard.counts.title": "Ukratko",
@@ -39,9 +39,9 @@
   "dashboard.chats.error": "Nije moguće učitati nedavne razgovore.",
   "dashboard.chats.empty": "Još nema razgovora",
   "dashboard.chats.emptyAction": "Započni razgovor",
-  "dashboard.activity.title": "Nedavna aktivnost",
+  "dashboard.activity.title": "Nedavni događaji revizije",
   "dashboard.activity.viewAll": "Prikaži dnevnik aktivnosti",
-  "dashboard.activity.loading": "Učitavanje nedavne aktivnosti",
-  "dashboard.activity.error": "Nije moguće učitati nedavnu aktivnost.",
-  "dashboard.activity.empty": "Još nema aktivnosti"
+  "dashboard.activity.loading": "Učitavanje nedavnih događaja revizije",
+  "dashboard.activity.error": "Nije moguće učitati nedavne događaje revizije.",
+  "dashboard.activity.empty": "Još nema događaja revizije"
 }
