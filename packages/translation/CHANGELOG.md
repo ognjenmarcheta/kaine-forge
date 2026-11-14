@@ -1,5 +1,11 @@
 # @repo/translation
 
+## 1.15.1
+
+### Patch Changes
+
+- 1b07779: The new lint rule `domain/banned-terms` and a config test block the `CONTEXT.md` Banned terms in declared names under `apps/` and `packages/`, in English copy, and in the GraphQL schema. Thirteen English strings that used a banned word now use the glossary term, and the German and Serbian strings follow them: "Invite members", "set up your organization", "Recent audit events", the Work navigation group, and, on the desk, "Your turn", "Stopped", and "All work".
+
 ## 1.15.0
 
 ### Minor Changes
