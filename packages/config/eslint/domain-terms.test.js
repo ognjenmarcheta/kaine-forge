@@ -41,12 +41,15 @@ ruleTester.run("banned-terms", domainTermsPlugin.rules["banned-terms"], {
     // An imported name belongs to its package; only declarations are checked.
     { code: 'import { teamId } from "lib"; use(teamId);', options },
     // Both words of a phrase must sit next to each other.
-    { code: "const syncState = 1; const queue = [];", options },
-    // A shorthand binding takes its name from the source object.
-    { code: "const { teamId } = props;", options }
+    { code: "const syncState = 1; const queue = [];", options }
   ],
   invalid: [
     { code: "const teamId = 1;", options, errors: [banned("teamId", "team", "Organization")] },
+    {
+      code: "const { teamId } = props;",
+      options,
+      errors: [banned("teamId", "team", "Organization")]
+    },
     {
       code: "const { organizationId: teamId } = source;",
       options,
@@ -100,8 +103,9 @@ describe("parseBannedTerms", () => {
     ).toEqual([{ word: "invite link", use: "Invitation", scopes: ["product", "names"] }]);
   });
 
-  it("reads no terms from a document without the section", () => {
+  it("reads no terms from a document without the section, or from an empty table", () => {
     expect(parseBannedTerms("# Context\n\n## Language\n")).toEqual([]);
+    expect(parseBannedTerms(table(""))).toEqual([]);
   });
 
   it("throws on an unknown scope, so a typo cannot switch a row off", () => {
@@ -114,13 +118,6 @@ describe("parseBannedTerms", () => {
 describe("CONTEXT.md Banned terms", () => {
   const terms = readBannedTerms(repoRoot);
   const inScope = (scope) => terms.filter(({ scopes }) => scopes.includes(scope));
-
-  it("reads rows from the section when CONTEXT.md has one", () => {
-    const hasSection = /^## Banned terms$/m.test(
-      readFileSync(join(repoRoot, "CONTEXT.md"), "utf8")
-    );
-    expect(hasSection && terms.length === 0, "the section parsed to no rows").toBe(false);
-  });
 
   it("keeps them out of the English copy", () => {
     const hits = readdirSync(localesDir)

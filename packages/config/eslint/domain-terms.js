@@ -115,8 +115,8 @@ const bannedTerms = {
     const checkKey = (node) => {
       if (!node.computed) check(node.key);
     };
-    // Every name a binding declares. A shorthand `{ teamId }` takes its name from the
-    // source object, whose own declaration is checked, so only an alias is the author's.
+    // Every name a binding declares, shorthand `{ teamId }` too: product code can alias a
+    // dependency's property to a glossary name.
     const checkBinding = (node) => {
       if (!node) return;
       if (node.type === "Identifier") check(node);
@@ -126,8 +126,7 @@ const bannedTerms = {
       else if (node.type === "ArrayPattern") node.elements.forEach(checkBinding);
       else if (node.type === "ObjectPattern") {
         for (const property of node.properties) {
-          if (property.type === "RestElement") checkBinding(property.argument);
-          else if (!property.shorthand) checkBinding(property.value);
+          checkBinding(property.type === "RestElement" ? property.argument : property.value);
         }
       }
     };
