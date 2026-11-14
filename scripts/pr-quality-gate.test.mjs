@@ -439,7 +439,7 @@ describe("Hand-kept alignments", () => {
   });
 
   it("builds each app image from the same inputs wherever it shares the layer cache", () => {
-    // context, file, build-args, target and the weekly APT_REFRESH key decide the
+    // context, file, build-args, target and the daily APT_REFRESH key decide the
     // layer keys, so a drift makes every PR build miss main's cache. cache-from and
     // cache-to differ on purpose and stay out of the comparison.
     const workflow = (name) => parse(readFileSync(`.github/workflows/${name}.yml`, "utf8"));
