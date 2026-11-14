@@ -7,6 +7,7 @@ import tseslint from "typescript-eslint";
 
 import antiSlopConfig from "./anti-slop.js";
 import apiBoundariesConfig from "./api-boundaries.js";
+import domainTermsConfig from "./domain-terms.js";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
@@ -41,6 +42,7 @@ export default [
   ...tseslint.configs.recommended,
   ...antiSlopConfig,
   ...apiBoundariesConfig,
+  ...domainTermsConfig,
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     languageOptions: {

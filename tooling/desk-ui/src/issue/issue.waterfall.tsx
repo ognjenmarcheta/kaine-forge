@@ -31,7 +31,7 @@ export interface TraceFocus {
   readonly count: number;
 }
 
-/** "Check · round 2", or "Needs you" for a stop. */
+/** "Check · round 2", or "Stopped" for a stop. */
 export const stepName = (t: Translate, names: StageNames, step: TraceStep): string => {
   const stage =
     step.key === "needs-you" || step.key === "cancelled"

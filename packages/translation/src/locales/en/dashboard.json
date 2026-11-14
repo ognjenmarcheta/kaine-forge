@@ -9,10 +9,10 @@
   "dashboard.newTodo": "New todo",
   "dashboard.newNote": "New note",
   "dashboard.gettingStarted.title": "Getting started",
-  "dashboard.gettingStarted.description": "A few steps to set up your workspace.",
+  "dashboard.gettingStarted.description": "A few steps to set up your organization.",
   "dashboard.gettingStarted.todo": "Create a todo",
   "dashboard.gettingStarted.note": "Write a note",
-  "dashboard.gettingStarted.invite": "Invite your team",
+  "dashboard.gettingStarted.invite": "Invite members",
   "dashboard.gettingStarted.done": "{step} (done)",
   "dashboard.gettingStarted.dismiss": "Hide checklist",
   "dashboard.counts.title": "At a glance",
@@ -39,9 +39,9 @@
   "dashboard.chats.error": "Could not load recent chats.",
   "dashboard.chats.empty": "No chats yet",
   "dashboard.chats.emptyAction": "Start a chat",
-  "dashboard.activity.title": "Recent activity",
+  "dashboard.activity.title": "Recent audit events",
   "dashboard.activity.viewAll": "View audit log",
-  "dashboard.activity.loading": "Loading recent activity",
-  "dashboard.activity.error": "Could not load recent activity.",
-  "dashboard.activity.empty": "No activity yet"
+  "dashboard.activity.loading": "Loading recent audit events",
+  "dashboard.activity.error": "Could not load recent audit events.",
+  "dashboard.activity.empty": "No audit events yet"
 }

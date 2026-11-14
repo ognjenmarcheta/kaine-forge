@@ -139,7 +139,7 @@ it("offers to add the first todo when none are open, focusing the quick add", as
 it.each([
   { permissions: ["audit:read"], shown: true },
   { permissions: ["todo:create", "member:update"], shown: false }
-])("shows Recent activity only with audit:read ($permissions)", async ({ permissions, shown }) => {
+])("shows audit events only with audit:read ($permissions)", async ({ permissions, shown }) => {
   api.permissions = permissions;
   await renderDashboard(
     () =>
