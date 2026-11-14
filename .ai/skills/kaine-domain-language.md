@@ -6,7 +6,7 @@ argument-hint: sharpen <concept, plan, or issue> | audit <path or namespace> | r
 
 # Domain Language Workflow
 
-`CONTEXT.md` is the ubiquitous language of Kaine Forge: one name for each product concept, used the same way in talk, issues, code, schema, and screen copy. This skill keeps the glossary sharp and the code faithful to it.
+`CONTEXT.md` is the ubiquitous language of this repository: one name for each product concept, used the same way in talk, issues, code, schema, and screen copy. This skill keeps the glossary sharp and the code faithful to it.
 
 ## Goal and non-goals
 
