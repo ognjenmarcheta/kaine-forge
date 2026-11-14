@@ -32,6 +32,8 @@ When output names a domain concept in an issue title, refactor proposal, hypothe
 
 If the concept needed is not in the glossary yet, either reconsider whether the term is project language or record the gap in `CONTEXT.md`.
 
+The **Banned terms** table in `CONTEXT.md` lists the words that are wrong everywhere in a scope. The lint rule `domain/banned-terms` and `packages/config/eslint/domain-terms.test.js` block them in declared names, English copy, and the GraphQL schema (ADR 0028). The `_Avoid_` lists depend on the concept, so no check enforces them. Use `kaine-domain-language` to add a term with the owner, to audit a scope for drift, or to rename code and copy to a term.
+
 ## Flag ADR conflicts
 
 If output contradicts an existing ADR, surface it explicitly rather than silently overriding it:

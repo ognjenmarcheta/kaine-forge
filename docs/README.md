@@ -52,6 +52,7 @@ Design-token conformance is enforced continuously by `packages/ui/src/styles/des
 - [`adr/0025-api-bounded-contexts.md`](adr/0025-api-bounded-contexts.md): the seven API bounded contexts and the `api/context-boundaries` lint rule.
 - [`adr/0026-api-table-ownership-and-kernel-direction.md`](adr/0026-api-table-ownership-and-kernel-direction.md): each API table has one owning context, and the shared kernel imports no feature.
 - [`adr/0027-webhook-deliveries-in-the-write-transaction.md`](adr/0027-webhook-deliveries-in-the-write-transaction.md): webhook deliveries are stored in the transaction of the write that caused the event.
+- [`adr/0028-enforce-glossary-banned-terms.md`](adr/0028-enforce-glossary-banned-terms.md): a lint rule and a test enforce the `CONTEXT.md` Banned terms in names, copy, and the GraphQL schema.
 
 ## AI assistant docs
 
