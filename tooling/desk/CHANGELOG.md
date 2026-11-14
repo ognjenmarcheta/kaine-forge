@@ -1,5 +1,11 @@
 # @repo/desk
 
+## 0.7.0
+
+### Minor Changes
+
+- 1b07779: The desk ships a ninth specialist, `linguist`. It runs the `kaine-domain-language` audit on a plan or diff and reports names and copy that drift from the `CONTEXT.md` terms.
+
 ## 0.6.2
 
 ### Patch Changes

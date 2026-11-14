@@ -1,5 +1,21 @@
 # @repo/web
 
+## 1.17.3
+
+### Patch Changes
+
+- Updated dependencies [1b07779]
+  - @repo/translation@1.15.1
+  - @repo/auth@5.2.3
+  - @repo/feature-flags@1.2.0
+  - @repo/persistence@1.1.2
+  - @repo/query@2.0.0
+  - @repo/storage@1.7.0
+  - @repo/sync@0.2.1
+  - @repo/theme@0.2.0
+  - @repo/todos@1.1.0
+  - @repo/ui@2.1.1
+
 ## 1.17.2
 
 ### Patch Changes
