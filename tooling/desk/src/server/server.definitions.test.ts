@@ -82,6 +82,7 @@ describe("GET /api/agents", () => {
       ["designer", "builtin", true],
       ["dx-advocate", "builtin", true],
       ["intake", "builtin", true],
+      ["linguist", "builtin", true],
       ["motion-designer", "builtin", true],
       ["planner", "builtin", true],
       ["product-strategist", "builtin", true],

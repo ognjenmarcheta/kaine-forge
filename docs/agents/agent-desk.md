@@ -302,7 +302,7 @@ The desk reads definitions from three sources. A later source overrides an earli
 
 - The built-in agents are `intake`, `planner`, `builder`, and `reviewer`. Their prompts are in
   `tooling/desk/defaults/agents/`. The desk rules stay in `tooling/desk/agents/rules.md`.
-- The desk also ships eight built-in **specialists**. Each is a read-only `report` agent that
+- The desk also ships nine built-in **specialists**. Each is a read-only `report` agent that
   runs one skill. No built-in flow uses them: add them to your own flow in the flow editor.
 
   | Agent                | Skill                       | Judges                                                  |
@@ -315,6 +315,7 @@ The desk reads definitions from three sources. A later source overrides an earli
   | `security-officer`   | `kaine-security-audit`      | The trust boundaries that the work touches              |
   | `tech-writer`        | `kaine-document-release`    | Product docs that the change makes wrong or incomplete  |
   | `simplifier`         | `kaine-simplify`            | Over-engineering in a plan or diff                      |
+  | `linguist`           | `kaine-domain-language`     | Names and copy that drift from the `CONTEXT.md` terms   |
 
   `tooling/desk/src/jobs/jobs.specialist.test.ts` keeps each specialist's whole job prompt in
   `tooling/desk/src/jobs/__snapshots__/jobs.specialist.<id>.txt`. When you change a specialist
