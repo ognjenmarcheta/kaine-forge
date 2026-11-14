@@ -16,7 +16,7 @@ import { createTestBilling, fakeBillingProvider } from "./billing.test-helpers";
 import { createScopedData } from "../../context.data";
 
 let database: TestDatabase;
-const organizationIds = { paid: "", unpaid: "", team: "", portal: "" };
+const organizationIds = { paid: "", unpaid: "", seated: "", portal: "" };
 let userId: string;
 
 interface Recorded {
@@ -88,20 +88,20 @@ beforeAll(async () => {
     .returning();
   if (!user || !colleague || !other) throw new Error("failed to seed users");
   userId = user.id;
-  const [paid, unpaid, team, portal] = await db
+  const [paid, unpaid, seated, portal] = await db
     .insert(organizationsTable)
-    .values(["paid", "unpaid", "team", "portal"].map((slug) => ({ name: slug, slug, userId })))
+    .values(["paid", "unpaid", "seated", "portal"].map((slug) => ({ name: slug, slug, userId })))
     .returning();
-  if (!paid || !unpaid || !team || !portal) throw new Error("failed to seed organizations");
+  if (!paid || !unpaid || !seated || !portal) throw new Error("failed to seed organizations");
   Object.assign(organizationIds, {
     paid: paid.id,
     unpaid: unpaid.id,
-    team: team.id,
+    seated: seated.id,
     portal: portal.id
   });
   await db.insert(membersTable).values(
     [user, colleague, other].map((member) => ({
-      organizationId: organizationIds.team,
+      organizationId: organizationIds.seated,
       role: "member",
       userId: member.id
     }))
@@ -185,14 +185,14 @@ describe("startCheckout", () => {
   });
 
   it("charges a per-seat Plan for every member and returns to the billing page", async () => {
-    const { billing, recorded } = billingFor(organizationIds.team);
+    const { billing, recorded } = billingFor(organizationIds.seated);
 
     await billing.startCheckout("business", "year");
 
     expect(recorded.checkouts).toEqual([
       {
-        customerRef: `cus_${organizationIds.team}`,
-        organizationId: organizationIds.team,
+        customerRef: `cus_${organizationIds.seated}`,
+        organizationId: organizationIds.seated,
         priceId: "price_biz_y",
         quantity: 3,
         successUrl: "https://app.example/organization/billing?checkout=success",

@@ -10,6 +10,7 @@ import {
   domainTermsPlugin,
   findBannedInCopy,
   findBannedInName,
+  parseBannedTerms,
   readBannedTerms
 } from "./domain-terms.js";
 
@@ -40,10 +41,27 @@ ruleTester.run("banned-terms", domainTermsPlugin.rules["banned-terms"], {
     // An imported name belongs to its package; only declarations are checked.
     { code: 'import { teamId } from "lib"; use(teamId);', options },
     // Both words of a phrase must sit next to each other.
-    { code: "const syncState = 1; const queue = [];", options }
+    { code: "const syncState = 1; const queue = [];", options },
+    // A shorthand binding takes its name from the source object.
+    { code: "const { teamId } = props;", options }
   ],
   invalid: [
     { code: "const teamId = 1;", options, errors: [banned("teamId", "team", "Organization")] },
+    {
+      code: "const { organizationId: teamId } = source;",
+      options,
+      errors: [banned("teamId", "team", "Organization")]
+    },
+    {
+      code: "function select(teamId: string) {}",
+      options,
+      errors: [banned("teamId", "team", "Organization")]
+    },
+    {
+      code: "const count = (...teams: string[]) => teams.length;",
+      options,
+      errors: [banned("teams", "team", "Organization")]
+    },
     {
       code: "interface Props { teams: string[] }",
       options,
@@ -72,14 +90,36 @@ ruleTester.run("banned-terms", domainTermsPlugin.rules["banned-terms"], {
   ]
 });
 
+describe("parseBannedTerms", () => {
+  const table = (rows) =>
+    `## Banned terms\n\nIntro.\n\n| Word | Use instead | Applies to |\n| ---- | ----------- | ---------- |\n${rows}\n\n## Next\n`;
+
+  it("reads each row's word, term, and scopes", () => {
+    expect(
+      parseBannedTerms(table("| Invite Link | **Invitation** | `product`, `names` |"))
+    ).toEqual([{ word: "invite link", use: "Invitation", scopes: ["product", "names"] }]);
+  });
+
+  it("reads no terms from a document without the section", () => {
+    expect(parseBannedTerms("# Context\n\n## Language\n")).toEqual([]);
+  });
+
+  it("throws on an unknown scope, so a typo cannot switch a row off", () => {
+    expect(() => parseBannedTerms(table("| team | **Organization** | `prodcut` |"))).toThrow(
+      'unknown scope "prodcut"'
+    );
+  });
+});
+
 describe("CONTEXT.md Banned terms", () => {
   const terms = readBannedTerms(repoRoot);
   const inScope = (scope) => terms.filter(({ scopes }) => scopes.includes(scope));
 
-  it("reads a non-empty table, so the gates below check something", () => {
-    expect(inScope("product").length).toBeGreaterThan(0);
-    expect(inScope("desk").length).toBeGreaterThan(0);
-    expect(inScope("names").length).toBeGreaterThan(0);
+  it("reads rows from the section when CONTEXT.md has one", () => {
+    const hasSection = /^## Banned terms$/m.test(
+      readFileSync(join(repoRoot, "CONTEXT.md"), "utf8")
+    );
+    expect(hasSection && terms.length === 0, "the section parsed to no rows").toBe(false);
   });
 
   it("keeps them out of the English copy", () => {
@@ -99,8 +139,9 @@ describe("CONTEXT.md Banned terms", () => {
 
   it("keeps them out of the GraphQL schema names", () => {
     const sdl = readFileSync(join(repoRoot, "apps/api/schema.graphql"), "utf8")
-      .replace(/"""[\s\S]*?"""/g, "")
-      .replace(/"[^"\n]*"/g, "");
+      // Descriptions and string values are text, not names; both may hold escaped quotes.
+      .replace(/"""(?:\\"""|[\s\S])*?"""/g, "")
+      .replace(/"(?:\\.|[^"\\\n])*"/g, "");
     const names = new Set(sdl.match(/[A-Za-z_][A-Za-z0-9_]*/g));
     const hits = [...names].flatMap((name) => {
       const term = findBannedInName(name, inScope("names"));

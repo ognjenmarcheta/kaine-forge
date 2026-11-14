@@ -115,11 +115,31 @@ const bannedTerms = {
     const checkKey = (node) => {
       if (!node.computed) check(node.key);
     };
+    // Every name a binding declares. A shorthand `{ teamId }` takes its name from the
+    // source object, whose own declaration is checked, so only an alias is the author's.
+    const checkBinding = (node) => {
+      if (!node) return;
+      if (node.type === "Identifier") check(node);
+      else if (node.type === "AssignmentPattern") checkBinding(node.left);
+      else if (node.type === "RestElement") checkBinding(node.argument);
+      else if (node.type === "TSParameterProperty") checkBinding(node.parameter);
+      else if (node.type === "ArrayPattern") node.elements.forEach(checkBinding);
+      else if (node.type === "ObjectPattern") {
+        for (const property of node.properties) {
+          if (property.type === "RestElement") checkBinding(property.argument);
+          else if (!property.shorthand) checkBinding(property.value);
+        }
+      }
+    };
+    const checkParams = (node) => node.params.forEach(checkBinding);
     return {
-      VariableDeclarator: (node) => {
-        if (node.id.type === "Identifier") check(node.id);
+      VariableDeclarator: (node) => checkBinding(node.id),
+      FunctionDeclaration: (node) => {
+        checkId(node);
+        checkParams(node);
       },
-      FunctionDeclaration: checkId,
+      FunctionExpression: checkParams,
+      ArrowFunctionExpression: checkParams,
       ClassDeclaration: checkId,
       TSInterfaceDeclaration: checkId,
       TSTypeAliasDeclaration: checkId,
