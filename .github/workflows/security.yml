@@ -118,11 +118,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # Same weekly key as ci-pr.yml and docker-cache.yml, so the scan sees this
-      # week's OS upgrade layers and reuses main's cache.
+      # Same daily key as ci-pr.yml and docker-cache.yml, so the scan sees today's
+      # OS upgrade layers and reuses main's cache.
       - name: Compute apt refresh key
         id: apt
-        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
 
       # Read-only cache: docker-cache.yml owns writing main's scope.
       - name: Build ${{ matrix.app }} image
@@ -130,7 +130,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          build-args: APT_REFRESH=${{ steps.apt.outputs.week }}
+          build-args: APT_REFRESH=${{ steps.apt.outputs.day }}
           tags: local/${{ matrix.app }}:main
           load: true
           cache-from: type=gha,scope=${{ matrix.app }}
