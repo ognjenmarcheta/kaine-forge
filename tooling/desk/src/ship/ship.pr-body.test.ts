@@ -96,7 +96,8 @@ describe("buildPrBody with the real template", () => {
           line: 1,
           section: "Correctness",
           summary: "Escape quotes",
-          fix: ""
+          fix: "",
+          origin: "build"
         }
       ]
     });

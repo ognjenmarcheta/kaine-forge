@@ -44,6 +44,7 @@ const finding = (over: Partial<ReviewFinding>): ReviewFinding => ({
   section: "Correctness",
   summary: "s",
   fix: "",
+  origin: "build",
   ...over
 });
 

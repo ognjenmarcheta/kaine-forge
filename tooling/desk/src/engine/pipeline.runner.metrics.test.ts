@@ -202,7 +202,18 @@ describe("lesson records", () => {
                 line: 1,
                 section: "Correctness",
                 summary: "The export has no header row",
-                fix: "Add one"
+                fix: "Add one",
+                origin: "build"
+              },
+              {
+                severity: "Consider",
+                blocking: false,
+                file: FEATURE_FILE,
+                line: 1,
+                section: "Correctness",
+                summary: "The plan never said which delimiter to use",
+                fix: "Name the delimiter in the plan",
+                origin: "plan"
               }
             ]
           })
@@ -220,7 +231,9 @@ describe("lesson records", () => {
     expect(invalidLines).toBe(0);
     expect(records.map((record) => [record.source, record.key])).toEqual([
       ["check", expect.stringMatching(/^check\/pnpm /)],
-      ["review", "review/Correctness/Consider"]
+      // A build finding keeps the key it always had; a finding the plan caused gets its own.
+      ["review", "review/Correctness/Consider"],
+      ["review", "review/plan/Correctness/Consider"]
     ]);
     expect(records[1]).toMatchObject({
       issue: ISSUE,
@@ -229,5 +242,36 @@ describe("lesson records", () => {
       file: FEATURE_FILE,
       repo: expect.stringMatching(/^[0-9a-f]{64}$/)
     });
+  });
+
+  it("records a send-back from a gate, and nothing for feedback that answers needs-you", async () => {
+    const loop = Array.from({ length: STUCK_LIMIT }, (_, index) => failingTest(index)).flat();
+    const e = await open({
+      steps: [
+        { role: "planner", output: planOutput() },
+        { role: "planner", output: planOutput({ revision: "CSV only." }) },
+        {
+          role: "builder",
+          output: builderOutput(),
+          effect: (run) => writeFeature(run),
+          trace: [...skillCalls(ROLE_SKILLS.builder), ...loop]
+        },
+        { role: "builder", output: builderOutput(), effect: (run) => writeFeature(run) },
+        { role: "reviewer", output: reviewOutput() }
+      ]
+    });
+    await e.pipeline.start(ISSUE, { override: false });
+    await e.pipeline.feedback(ISSUE, "plan", "CSV only, please.");
+    await e.pipeline.approvePlan(ISSUE);
+    expect((await stateOf(e)).stage).toBe("needs-you");
+    await e.pipeline.feedback(ISSUE, "build", "Run the test once, then read it.");
+    expect((await stateOf(e)).stage).toBe("pr-review");
+
+    const { records } = await readLessonRecords(e.stateRoot);
+    expect(records.map((record) => [record.source, record.key, record.role])).toEqual([
+      ["sendback", "sendback/plan-gate/plan", "planner"],
+      ["stuck", "stuck/pnpm --filter app test", "builder"]
+    ]);
+    expect(records[0]?.detail).toBe("CSV only, please.");
   });
 });

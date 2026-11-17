@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   AGENT_OUTPUT_ROLES,
@@ -41,7 +42,8 @@ const reviewer = (): ReviewerOutput => ({
       line: 3,
       section: "Quality Gates",
       summary: "Rename",
-      fix: ""
+      fix: "",
+      origin: "build"
     }
   ],
   acceptanceStatus: [{ criterion: "Parses output", status: "met", evidence: "a.test.ts" }],
@@ -158,6 +160,21 @@ describe("reviewer output", () => {
       reviewSections: older.reviewSections.filter((section) => section.heading !== "Correctness")
     };
     expect(storedReviewerOutputSchema.safeParse(missingAnother).success).toBe(false);
+  });
+
+  it("reads a finding written before origin as a build finding, but the agent must give it", () => {
+    const review = reviewer();
+    const finding: Record<string, unknown> = { ...review.findings[0] };
+    delete finding.origin;
+    const older = { ...review, findings: [finding] };
+    expect(storedReviewerOutputSchema.parse(older).findings[0]?.origin).toBe("build");
+    const findingsOf = z.object({
+      properties: z.object({
+        findings: z.object({ items: z.object({ required: z.array(z.string()) }) })
+      })
+    });
+    const schema = findingsOf.parse(agentOutputJsonSchema("reviewer"));
+    expect(schema.properties.findings.items.required).toContain("origin");
   });
 
   it("mirrors the headings of .ai/review.md, the checklist the reviewer reads", async () => {
