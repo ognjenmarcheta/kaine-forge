@@ -223,11 +223,21 @@ Each line is one kind of problem in one issue, with a count:
 | Source      | Key                                     | When                                       |
 | ----------- | --------------------------------------- | ------------------------------------------ |
 | `review`    | `review/<section>/<severity>`           | each finding the review accepted           |
+| `review`    | `review/plan/<section>/<severity>`      | an accepted finding that the plan caused   |
 | `check`     | `check/<first failing step>`            | a failed check, or `check/generated-drift` |
 | `stuck`     | `stuck/<the repeated command>`          | a stuck stop                               |
 | `verify`    | `verify/<violation kind>`               | a verification violation                   |
 | `denial`    | `denial/<tool>/<first command word>`    | a call the permission rules denied         |
 | `invariant` | `invariant/refs`, `invariant/read-only` | a broken engine invariant                  |
+| `sendback`  | `sendback/<gate role>/<target role>`    | your feedback at a gate sends work back    |
+
+The reviewer marks each finding with an `origin`. It is `plan` when the diff follows the
+approved plan and the plan itself missed the requirement or got it wrong, and `build` otherwise.
+A build finding keeps the `review/<section>/<severity>` key. A `sendback` key uses the step
+roles, for example `sendback/ship-gate/plan`, so it is the same in every flow. Its sample is
+your feedback text. Feedback that answers `needs-you` records no lesson.
+Both keys show where rework starts. A plan key that recurs points to the plan template, the
+issue format, or the planner prompt.
 
 A key holds no issue number, worktree path, line number, or time, so the same problem gets the
 same key in every issue. A line also keeps a short sample (240 characters at most), the file

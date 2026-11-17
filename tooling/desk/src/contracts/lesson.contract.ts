@@ -9,7 +9,8 @@ export const LESSON_SOURCES = [
   "stuck",
   "verify",
   "denial",
-  "invariant"
+  "invariant",
+  "sendback"
 ] as const;
 export const lessonSourceSchema = z.enum(LESSON_SOURCES);
 export type LessonSource = z.infer<typeof lessonSourceSchema>;

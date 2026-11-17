@@ -66,6 +66,7 @@ const critical = (over: Partial<ReviewFinding> = {}): ReviewFinding => ({
   section: "Correctness",
   summary: "The export drops the header row",
   fix: "Add the header row",
+  origin: "build",
   ...over
 });
 

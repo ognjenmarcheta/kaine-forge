@@ -9,7 +9,7 @@ import { aggregateLessons, DEFAULT_MIN_ISSUES, readLessonRecords } from "../stat
 import { resolveRepoLocation } from "../store/store.root";
 
 const USAGE =
-  "Usage: pnpm desk lessons [--min-issues N] [--source review|check|stuck|verify|denial|invariant] [--json]";
+  "Usage: pnpm desk lessons [--min-issues N] [--source review|check|stuck|verify|denial|invariant|sendback] [--json]";
 
 /** Agent text is data: no terminal control sequences reach the screen. */
 const plain = (text: string): string => stripVTControlCharacters(text);

@@ -10,7 +10,8 @@ import {
   type AgentStageRole,
   type LessonRecord,
   type LessonSource,
-  type ReviewFinding
+  type ReviewFinding,
+  type StepRole
 } from "../contracts";
 import { appendLessonRecords } from "../stats/stats.lessons";
 
@@ -27,6 +28,9 @@ export interface LessonObservation {
   readonly file?: string | null;
 }
 
+/** What recording needs: a stage gives it, and so does an owner action outside a stage. */
+export type LessonContext = Pick<StageContext, "deps" | "issue" | "log">;
+
 const KEY_LIMIT = 200;
 const FILE_LIMIT = 500;
 
@@ -35,15 +39,45 @@ const clean = (text: string, limit: number): string =>
 
 const keyOf = (...parts: string[]): string => clean(parts.join("/"), KEY_LIMIT);
 
-/** The accepted findings of a review: one observation per finding. */
+/**
+ * The accepted findings of a review: one observation per finding. A finding the plan caused
+ * gets its own key, so plan gaps that recur stand apart from build errors. A build finding keeps
+ * the key it always had, so the counts of promoted lessons go on.
+ */
 export const reviewLessons = (findings: readonly ReviewFinding[]): LessonObservation[] =>
   findings.map((finding) => ({
     role: "reviewer",
     source: "review",
-    key: keyOf("review", finding.section, finding.severity),
+    key:
+      finding.origin === "plan"
+        ? keyOf("review", "plan", finding.section, finding.severity)
+        : keyOf("review", finding.section, finding.severity),
     detail: finding.summary,
     file: finding.file
   }));
+
+const AGENT_FOR_STEP: Partial<Record<StepRole, AgentStageRole>> = {
+  plan: "planner",
+  change: "builder",
+  review: "reviewer"
+};
+
+/**
+ * The owner sent the work back from a gate. Roles, not step ids, make the key, so the same
+ * send-back has the same key in every flow. The owner's words are the sample.
+ */
+export const sendbackLessons = (
+  gate: StepRole,
+  target: StepRole,
+  text: string
+): LessonObservation[] => [
+  {
+    role: AGENT_FOR_STEP[target] ?? null,
+    source: "sendback",
+    key: keyOf("sendback", gate, target),
+    detail: text
+  }
+];
 
 /** A failed check: the first step that failed, or the generated drift. */
 export const checkLessons = (report: CheckReport): LessonObservation[] => {
@@ -129,7 +163,7 @@ export const agentRunLessons = (run: AgentRunEvidence): LessonObservation[] => {
  * hash they were made under. A failed write is logged and never fails the stage.
  */
 export const recordLessons = async (
-  context: StageContext,
+  context: LessonContext,
   observations: readonly LessonObservation[],
   repo: string | null
 ): Promise<void> => {
@@ -169,7 +203,7 @@ export const recordLessons = async (
 
 /** For observations outside an agent run: the instruction hash is read from the checkout now. */
 export const recordCheckoutLessons = async (
-  context: StageContext,
+  context: LessonContext,
   observations: readonly LessonObservation[],
   checkout: string
 ): Promise<void> => {

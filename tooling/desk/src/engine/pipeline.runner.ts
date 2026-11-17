@@ -23,6 +23,12 @@ import { agentProfileOf } from "./pipeline.agent";
 import { ARTIFACTS, readArtifactJson, readPlan, writeArtifactJson } from "./pipeline.artifacts";
 import { renameBranchForPlan } from "./pipeline.branch";
 import { allowedCommandNote, deniedCommands, skippedCommandNote } from "./pipeline.denials";
+import {
+  recordCheckoutLessons,
+  recordLessons,
+  sendbackLessons,
+  type LessonObservation
+} from "./pipeline.lessons";
 import { transition, type NeedsYouReason, type Trigger } from "./pipeline.machine";
 import { recoverIssue, stopLeftoverProcess, type RecoveryDeps } from "./pipeline.recovery";
 import { createScheduler } from "./pipeline.scheduler";
@@ -931,8 +937,12 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
     );
   };
 
-  const feedback: PipelineRunner["feedback"] = (issue, target, text) =>
-    humanAction(
+  const feedback: PipelineRunner["feedback"] = (issue, target, text) => {
+    // A send-back from a gate is the owner's verdict on the work: a lesson. Feedback that
+    // answers `needs-you` repairs a stop and records none: `needs-you` is no step, so it has
+    // no role. The machine accepts feedback nowhere else.
+    let sendback: LessonObservation[] = [];
+    return humanAction(
       issue,
       { type: "feedback", target },
       {
@@ -944,11 +954,23 @@ export const createPipelineRunner = (deps: PipelineDeps): PipelineRunner => {
           if (text.trim() === "") {
             return refused("invalid-transition", "Feedback needs text.", session.state);
           }
+          const { flowSnapshot, stage } = session.state;
+          const gate = stepRoleOf(flowSnapshot, stage);
+          const to = stepRoleOf(flowSnapshot, target);
+          sendback = gate !== null && to !== null ? sendbackLessons(gate, to, text.trim()) : [];
           await appendOwnerWords(issue, `to ${target}`, text.trim());
           return null;
+        },
+        after: async (session) => {
+          const context = { deps, issue, log: (line: string) => log(issue, line) };
+          const checkout = session.state.worktreePath;
+          await (checkout === null
+            ? recordLessons(context, sendback, null)
+            : recordCheckoutLessons(context, sendback, checkout));
         }
       }
     );
+  };
 
   const feedbackFromPr: PipelineRunner["feedbackFromPr"] = (issue, options = {}) => {
     const ownerText = options.text?.trim() ?? "";

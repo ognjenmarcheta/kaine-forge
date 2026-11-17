@@ -71,6 +71,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@babel/core": "catalog:",
     "@repo/config": "workspace:*",
     "@types/react": "catalog:mobile",
     "@types/react-dom": "catalog:mobile",

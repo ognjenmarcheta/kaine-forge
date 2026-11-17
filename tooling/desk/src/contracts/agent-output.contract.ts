@@ -230,7 +230,13 @@ export const reviewFindingSchema = z
     line: z.number().int().positive(),
     section: reviewSectionSchema,
     summary: nonEmpty,
-    fix: z.string()
+    fix: z.string(),
+    /**
+     * `plan` when the diff follows the approved plan and the plan itself missed or got the
+     * requirement wrong; `build` otherwise. The agent schema requires it (output mode); the
+     * default keeps older `review.json` artifacts without the field readable.
+     */
+    origin: z.enum(["plan", "build"]).default("build")
   })
   .strict();
 export type ReviewFinding = z.infer<typeof reviewFindingSchema>;
