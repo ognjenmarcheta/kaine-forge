@@ -25,6 +25,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "devDependencies": {
+    "@babel/core": "catalog:",
     "@repo/config": "workspace:*",
     "vitest": "catalog:"
   },
