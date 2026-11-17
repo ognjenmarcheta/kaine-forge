@@ -103,6 +103,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@babel/core": "catalog:",
     "@repo/config": "workspace:*",
     "vitest": "catalog:"
   }

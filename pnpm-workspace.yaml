@@ -7,12 +7,14 @@ packages:
 # Mobile React Native pins live in the named `mobile` catalog (Expo SDK freezes).
 catalog:
   lucide-react: "^0.577.0"
-  # Babel 7 for every workspace that bundles React Native (root, apps/mobile,
-  # packages/mobile-ui). @react-native/babel-preset, @react-native/codegen and
-  # react-native-worklets take any @babel/core as a peer, so a workspace without
-  # its own copy gets the Babel 8 that GraphQL Codegen needs on the next lockfile
-  # re-resolution, and Metro then loads a babel-preset-expo on Babel 8 that breaks
-  # `expo export`.
+  # Babel 7 for the root and for every workspace whose graph reaches react-native
+  # or expo, optional peers included (apps/api, apps/mobile, packages/auth, db,
+  # mobile-ui, sync, ui-3d). @react-native/babel-preset, @react-native/codegen and
+  # react-native-worklets take any @babel/core as a peer. A workspace without its
+  # own copy gets the Babel 8 that GraphQL Codegen needs on the next lockfile
+  # re-resolution, and shared packages such as @expo/metro-config can then link to
+  # that Babel 8 copy of expo, which breaks `expo export`. Add the devDependency
+  # to a new workspace that pulls in react-native or expo.
   "@babel/core": "^7.29.7"
   # Runtime libraries shared across workspaces
   better-auth: "^1.7.22"
