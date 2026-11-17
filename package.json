@@ -102,6 +102,7 @@
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
+    "@babel/core": "catalog:",
     "@changesets/cli": "^3.0.3",
     "@clack/prompts": "^1.9.0",
     "@commitlint/cli": "^21.2.4",
