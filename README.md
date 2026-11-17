@@ -96,7 +96,7 @@ Other templates fit other shapes better:
 
 ## Prerequisites
 
-- Node.js `>=22` (single-sourced from `.nvmrc`; CI and Docker images use Node 22)
+- Node.js `>=22.18` (`.nvmrc` pins major 22, which installs the latest 22.x; CI and Docker images use Node 22)
 - pnpm `10.29.3`
 - Docker Desktop or a compatible Docker runtime for Postgres, S3-compatible storage (RustFS), and image builds
 - [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`): the default Serena MCP server starts through `uvx`

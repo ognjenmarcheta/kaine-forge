@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.29.3",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
     "dev": "turbo run dev --filter=@repo/web --filter=@repo/api --continue=always",
