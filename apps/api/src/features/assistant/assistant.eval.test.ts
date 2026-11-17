@@ -30,14 +30,23 @@ interface ParsableSchema {
   safeParse: (value: unknown) => { success: boolean };
 }
 
+function isParsableSchema(schema: unknown): schema is ParsableSchema {
+  return (
+    typeof schema === "object" &&
+    schema !== null &&
+    "safeParse" in schema &&
+    typeof schema.safeParse === "function"
+  );
+}
+
 function schemaFor(name: string): ParsableSchema {
   const schema = tools[name]?.inputSchema;
 
-  if (!schema || typeof (schema as ParsableSchema).safeParse !== "function") {
+  if (!isParsableSchema(schema)) {
     throw new Error(`tool ${name} has no parsable inputSchema`);
   }
 
-  return schema as ParsableSchema;
+  return schema;
 }
 
 describe("assistant golden set", () => {
