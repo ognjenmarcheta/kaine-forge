@@ -553,6 +553,7 @@
   "desk.lessons.source.verify": "Verifikation",
   "desk.lessons.source.denial": "Verweigerte Berechtigung",
   "desk.lessons.source.invariant": "Engine-Invariante",
+  "desk.lessons.source.sendback": "Rücksendung durch den Owner",
   "desk.lessons.column.actions": "Aktionen",
   "desk.lessons.rank.high": "Hoch",
   "desk.lessons.rank.medium": "Mittel",

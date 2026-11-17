@@ -553,6 +553,7 @@
   "desk.lessons.source.verify": "Verification",
   "desk.lessons.source.denial": "Permission denial",
   "desk.lessons.source.invariant": "Engine invariant",
+  "desk.lessons.source.sendback": "Owner send-back",
   "desk.lessons.column.actions": "Actions",
   "desk.lessons.rank.high": "High",
   "desk.lessons.rank.medium": "Medium",

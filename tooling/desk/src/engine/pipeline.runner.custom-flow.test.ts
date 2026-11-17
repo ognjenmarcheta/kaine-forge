@@ -106,7 +106,8 @@ const critical: ReviewFinding = {
   line: 1,
   section: "Security, Auth & Tenancy",
   summary: "The export writes cells without escaping formulas",
-  fix: "Prefix cells that start with = with a quote"
+  fix: "Prefix cells that start with = with a quote",
+  origin: "build"
 };
 
 describe("a flow of the repository's own", () => {
