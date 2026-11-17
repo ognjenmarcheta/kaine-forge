@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.29.3",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
     "dev": "turbo run dev --filter=@repo/web --filter=@repo/api --continue=always",
@@ -102,6 +102,7 @@
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
+    "@babel/core": "catalog:",
     "@changesets/cli": "^3.0.3",
     "@clack/prompts": "^1.9.0",
     "@commitlint/cli": "^21.2.4",

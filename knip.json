@@ -25,7 +25,8 @@
         "vitest.coverage.config.ts",
         ".ai/fixtures/serena/verify.mjs"
       ],
-      "project": [".ai/**/*.ts", "scripts/**/*.mjs", "tooling/*.ts"]
+      "project": [".ai/**/*.ts", "scripts/**/*.mjs", "tooling/*.ts"],
+      "ignoreDependencies": ["@babel/core"]
     },
     "apps/api": {
       "entry": [

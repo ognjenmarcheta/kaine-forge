@@ -7,6 +7,11 @@ packages:
 # Mobile React Native pins live in the named `mobile` catalog (Expo SDK freezes).
 catalog:
   lucide-react: "^0.577.0"
+  # Root devDependency only. pnpm resolves missing peers from the workspace root,
+  # so this keeps every auto-installed @babel/core peer of expo and react-native
+  # on Babel 7. Without it they take the Babel 8 that GraphQL Codegen needs, and
+  # Metro loads a second babel-preset-expo that breaks `expo export`.
+  "@babel/core": "^7.29.7"
   # Runtime libraries shared across workspaces
   better-auth: "^1.7.22"
   "@better-auth/expo": "1.7.22"
