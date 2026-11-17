@@ -32,6 +32,7 @@
     "react-native-svg": "^15.0.0"
   },
   "devDependencies": {
+    "@babel/core": "catalog:",
     "@repo/config": "workspace:*",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
