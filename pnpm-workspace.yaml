@@ -195,7 +195,9 @@ overrides:
   "@xmldom/xmldom": "^0.8.15" # 2026-09-09: six GHSAs via expo>@expo/cli>@expo/plist (#258)
   defu: "^6.1.5" # GHSA-737v-mqg7-c878 via better-auth
   "nanoid@3": "^3.3.18" # GHSA-28wg-ghj8-5hjv, GHSA-2v37-7h3g-55p8 via postcss and expo-router
-  node-forge: "^1.4.2" # GHSA-7wch-p9px-956x, GHSA-jc66-7q78-782g, GHSA-8hrf-8g6f-7xwp, GHSA-hqq3-7jhf-c5jx, GHSA-5x38-2vff-x55p via expo>@expo/cli
+  # GHSA-7wch-p9px-956x, GHSA-jc66-7q78-782g, GHSA-8hrf-8g6f-7xwp, GHSA-hqq3-7jhf-c5jx, GHSA-5x38-2vff-x55p,
+  # GHSA-w4xr-hqv8-ch44, GHSA-6cv4-p8m7-4r25, GHSA-j8rw-jp99-435v, GHSA-6889-vf6x-f3g5 via expo>@expo/cli
+  node-forge: "^1.4.3"
   # Security floors from the 2026-09 audit (issue #258). All transitive dev
   # tooling; caret ranges so later patches flow and the major stays put.
   # Selector `pkg@N` keeps the floor inside the major the dependent expects.
@@ -219,6 +221,11 @@ overrides:
   expo-constants: "~55.0.17"
   expo-linking: "~55.0.16" # same Expo SDK 55 line
   "@expo/metro-runtime": "~55.0.12" # same Expo SDK 55 line
+
+# Accepted advisories; SECURITY.md "Accepted advisories" records the path, risk, and removal trigger.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf # picomatch <=4.0.7 extglob ReDoS; no fixed release; build and test tooling only
 
 # Respect the device preference in the installed native drawer (source and module).
 patchedDependencies:
