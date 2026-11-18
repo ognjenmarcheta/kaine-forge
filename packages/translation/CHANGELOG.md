@@ -1,5 +1,12 @@
 # @repo/translation
 
+## 1.15.1
+
+### Patch Changes
+
+- 9d26b01: The desk now records where rework starts. When the owner sends work back from a gate, `lessons.jsonl` gets a `sendback/<gate role>/<target role>` lesson with the owner's words as its sample. Feedback that answers `needs-you` records none. The reviewer marks each finding with an `origin`: a finding that the plan caused gets the key `review/plan/<section>/<severity>`, and a build finding keeps its old key, so the counts of promoted lessons go on. Reviews stored before the field read as build findings. The new `sendback` source has a label in English, German, and Serbian.
+- 1b07779: The new lint rule `domain/banned-terms` and a config test block the `CONTEXT.md` Banned terms in declared names under `apps/` and `packages/`, in English copy, and in the GraphQL schema. Thirteen English strings that used a banned word now use the glossary term, and the German and Serbian strings follow them: "Invite members", "set up your organization", "Recent audit events", the Work navigation group, and, on the desk, "Your turn", "Stopped", and "All work".
+
 ## 1.15.0
 
 ### Minor Changes

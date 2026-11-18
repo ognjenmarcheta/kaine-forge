@@ -1,5 +1,22 @@
 # @repo/api
 
+## 2.5.3
+
+### Patch Changes
+
+- Updated dependencies [9d26b01]
+- Updated dependencies [1b07779]
+  - @repo/translation@1.15.1
+  - @repo/auth@5.2.3
+  - @repo/email@1.3.5
+  - @repo/billing@0.1.1
+  - @repo/db@2.2.0
+  - @repo/feature-flags@1.2.0
+  - @repo/jobs@1.2.1
+  - @repo/logger@1.2.1
+  - @repo/storage@1.7.0
+  - @repo/theme@0.2.0
+
 ## 2.5.2
 
 ### Patch Changes
