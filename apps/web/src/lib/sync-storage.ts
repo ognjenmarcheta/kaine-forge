@@ -32,7 +32,7 @@ function retryWhenBusy(database: BrowserDatabase): BrowserDatabase {
     const rollsBack = /^ROLLBACK(?!\s+TO)/.test(statement);
     // Even a failed ROLLBACK ends the transaction: the driver does not use it again.
     if (rollsBack) inTransaction = false;
-    const deadline = Date.now() + BUSY_WAIT_MS;
+    const deadline = performance.now() + BUSY_WAIT_MS;
     for (let delay = 10; ; delay = Math.min(delay * 2, 250)) {
       try {
         const rows = await database.execute<TRow>(sql, params);
@@ -41,7 +41,8 @@ function retryWhenBusy(database: BrowserDatabase): BrowserDatabase {
         return rows;
       } catch (error) {
         const busy = error instanceof Error && error.message.includes(BUSY_MESSAGE);
-        if (!busy || inTransaction || rollsBack || Date.now() + delay > deadline) throw error;
+        if (!busy || inTransaction || rollsBack || performance.now() + delay > deadline)
+          throw error;
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
