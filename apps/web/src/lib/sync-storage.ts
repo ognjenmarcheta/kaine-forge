@@ -5,6 +5,49 @@ import {
 } from "@tanstack/browser-db-sqlite-persistence";
 
 type DevicePersistence = ReturnType<typeof createBrowserWASQLitePersistence>;
+type BrowserDatabase = Awaited<ReturnType<typeof openBrowserWASQLiteOPFSDatabase>>;
+
+/** SQLite's message for SQLITE_BUSY. The OPFS worker passes on the message, not the result code. */
+const BUSY_MESSAGE = "database is locked";
+/** How long a statement waits for another tab to let go of the database file. */
+const BUSY_WAIT_MS = 5_000;
+
+/**
+ * Runs a statement again while another tab holds the database file. Every tab
+ * opens the same OPFS file, and its VFS answers SQLITE_BUSY while another tab
+ * holds it. The persistence layer does not retry, so a busy read during a
+ * collection's first load crashes that collection until the page reloads. A
+ * statement turned away busy did not run, so it is safe to run again, but only
+ * outside a transaction: inside one, the busy statement is part of the work
+ * that the transaction's own error path must roll back. The persistence driver
+ * runs one statement at a time, so one flag follows the transaction.
+ */
+function retryWhenBusy(database: BrowserDatabase): BrowserDatabase {
+  let inTransaction = false;
+  async function execute<TRow = unknown>(
+    sql: string,
+    params?: ReadonlyArray<unknown>
+  ): Promise<ReadonlyArray<TRow>> {
+    const statement = sql.trimStart().toUpperCase();
+    const rollsBack = /^ROLLBACK(?!\s+TO)/.test(statement);
+    // Even a failed ROLLBACK ends the transaction: the driver does not use it again.
+    if (rollsBack) inTransaction = false;
+    const deadline = Date.now() + BUSY_WAIT_MS;
+    for (let delay = 10; ; delay = Math.min(delay * 2, 250)) {
+      try {
+        const rows = await database.execute<TRow>(sql, params);
+        if (statement.startsWith("BEGIN")) inTransaction = true;
+        if (statement.startsWith("COMMIT")) inTransaction = false;
+        return rows;
+      } catch (error) {
+        const busy = error instanceof Error && error.message.includes(BUSY_MESSAGE);
+        if (!busy || inTransaction || rollsBack || Date.now() + delay > deadline) throw error;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  return { ...database, execute };
+}
 
 /**
  * A short, stable name part for an id. wa-sqlite caps a database path at 64
@@ -90,9 +133,9 @@ async function openBrowserDatabase(
   databaseName: string,
   signal: AbortSignal
 ): Promise<OpenedDatabase | null> {
-  let database: Awaited<ReturnType<typeof openBrowserWASQLiteOPFSDatabase>>;
+  let database: BrowserDatabase;
   try {
-    database = await openBrowserWASQLiteOPFSDatabase({ databaseName, signal });
+    database = retryWhenBusy(await openBrowserWASQLiteOPFSDatabase({ databaseName, signal }));
   } catch (error) {
     if (!signal.aborted) console.warn("Synced rows stay in memory: no device storage.", error);
     return null;
