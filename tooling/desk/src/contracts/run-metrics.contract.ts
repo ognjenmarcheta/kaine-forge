@@ -53,8 +53,14 @@ export const runRecordSchema = z
     /** The flow agent that ran. Absent on records written before agents were data, and for the intake draft. */
     agentId: definitionIdSchema.optional(),
     provider: providerSchema,
-    /** `null`: the CLI's default model. */
+    /** The model the desk asked for. `null`: the CLI's default model. */
     model: z.string().min(1).nullable(),
+    /**
+     * The model the provider says it ran. It names the CLI's default, and the version behind an
+     * alias, so a model change shows in the stats. Absent when the provider does not say (Codex,
+     * OpenCode), when the run ended before it said so, and on records written before it existed.
+     */
+    resolvedModel: z.string().min(1).optional(),
     isolation: isolationSchema,
     /** The loop counters when the run started. */
     loops: loopCountersSchema,
@@ -113,7 +119,10 @@ export const runGroupSchema = z
      */
     agentId: definitionIdSchema,
     provider: providerSchema,
-    /** `null`: the CLI's default model. */
+    /**
+     * The model the runs report (`RunRecord.resolvedModel`), or else the model the desk asked
+     * for. `null`: the CLI's default model, for runs that do not report which one it was.
+     */
     model: z.string().min(1).nullable(),
     runs: count,
     /** Runs the stage accepted (result, invariants and verification held). */

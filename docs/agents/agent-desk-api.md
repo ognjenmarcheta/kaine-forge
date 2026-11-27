@@ -266,8 +266,9 @@ field existed.
 `RunStats` (`GET /api/stats`, `desk stats --json`) has `groups`, `issues`, and `invalidLines`,
 and also:
 
-- `groups`: one row for each role, agent, provider, and model. `agentId` is the agent of the
-  runs. A line written before agents were data counts for the built-in agent of its role, whose
+- `groups`: one row for each role, agent, provider, and model. `model` is the model the runs
+  report (`RunRecord.resolvedModel`), or else the model the desk asked for. `agentId` is the
+  agent of the runs. A line written before agents were data counts for the built-in agent of its role, whose
   id is the role.
 
 - `riskOutcomes`: one `{ risk, issues, shipped, sentBack }` for each of `low`, `medium`, `high`.

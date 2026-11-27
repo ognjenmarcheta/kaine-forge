@@ -38,6 +38,8 @@ export interface ReplayStep {
   readonly usage?: AgentUsage;
   readonly costUsd?: number;
   readonly resultText?: string;
+  /** The model the run reports, as a Claude run does. */
+  readonly resolvedModel?: string;
 }
 
 /** A request as the replay runner stores it. The parser is dropped. */
@@ -92,7 +94,7 @@ export const createReplayRunner = (steps: readonly ReplayStep[]): ReplayRunner =
         step?.sessionId ?? request.resumeSessionId ?? `replay-session-${++sessions}`;
       const trace = step?.trace ?? [];
       const denials = step?.denials ?? [];
-      const partial = { trace, sessionId, denials };
+      const partial = { trace, sessionId, denials, resolvedModel: step?.resolvedModel };
       for (const event of trace) request.onEvent?.(event);
 
       if (step === undefined) {
@@ -138,7 +140,8 @@ export const createReplayRunner = (steps: readonly ReplayStep[]): ReplayRunner =
           costUsd: step.costUsd,
           denials,
           trace,
-          resultText: step.resultText ?? JSON.stringify(step.structured)
+          resultText: step.resultText ?? JSON.stringify(step.structured),
+          resolvedModel: step.resolvedModel
         }
       });
     }
@@ -160,6 +163,7 @@ export const replayStepFromClaudeStream = (
       ? {}
       : { usage: summary.final.usage, resultText: summary.final.resultText }),
     ...(summary.final?.costUsd === undefined ? {} : { costUsd: summary.final.costUsd }),
+    ...(summary.model === null ? {} : { resolvedModel: summary.model }),
     ...overrides
   };
 };

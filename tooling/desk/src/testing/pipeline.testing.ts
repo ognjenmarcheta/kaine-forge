@@ -65,6 +65,8 @@ export interface ScriptedStep {
   readonly trace?: readonly AgentEvent[];
   readonly denials?: readonly AgentDenial[];
   readonly sessionId?: string;
+  /** The model the run reports, as a Claude run does. */
+  readonly resolvedModel?: string;
   /** The pid the step reports through `onSpawn`, as a real runner does after it starts a process. */
   readonly pid?: number;
   /** The step waits for this promise before it answers. For concurrency tests. */
@@ -160,6 +162,7 @@ export const createScriptedRunner = (steps: readonly ScriptedStep[]): ScriptedRu
             ...(step.failure === undefined ? {} : { failure: step.failure }),
             ...(output === undefined ? {} : { structured: jsonValueSchema.parse(output) }),
             ...(step.sessionId === undefined ? {} : { sessionId: step.sessionId }),
+            ...(step.resolvedModel === undefined ? {} : { resolvedModel: step.resolvedModel }),
             trace: step.trace ?? skillCalls(request.skills),
             ...(step.denials === undefined ? {} : { denials: step.denials })
           }
