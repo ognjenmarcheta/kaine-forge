@@ -24,6 +24,12 @@ export const GENERATED_MARKER = "harness-eval:generated";
 export const ARMS = ["with", "without"] as const;
 export const CONCLUSIONS = ["effect", "no-effect", "inconclusive"] as const;
 export const ACTIONS = ["keep", "tighten", "delete", "promote-to-lint"] as const;
+/** `2`: checked against a noise floor. `3`: also names its problem, rationale and prediction. */
+const PROTOCOLS = [2, 3] as const;
+/** The way a prediction expects a metric to move: its with-arm mean minus its without-arm mean. */
+const DIRECTIONS = ["up", "down"] as const;
+/** Equal slugs mark attempts at one problem, so the slug must not vary in case or spacing. */
+const PROBLEM_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** The two arms of a calibration: the same setup, run twice. */
 export const CALIBRATION_ARMS = ["first", "second"] as const;
 /**
@@ -36,6 +42,7 @@ const DECIDING_ACTIONS: readonly (typeof ACTIONS)[number][] = ["keep", "delete",
 
 export type Arm = (typeof ARMS)[number];
 export type CalibrationArm = (typeof CALIBRATION_ARMS)[number];
+export type Direction = (typeof DIRECTIONS)[number];
 
 export interface CalibrationTrial {
   arm: CalibrationArm;
@@ -69,10 +76,19 @@ export interface EvalRun {
   conclusion: (typeof CONCLUSIONS)[number];
   action: (typeof ACTIONS)[number];
   trials: EvalTrial[];
-  /** `2`: the conclusion is checked against a calibration's noise floor. Absent on older runs. */
-  protocol?: 2;
-  /** The calibration id a protocol 2 run is measured against. */
+  /**
+   * `2`: the conclusion is checked against a calibration's noise floor. `3`: the run also names
+   * its problem, its rationale and its prediction. Absent on older runs.
+   */
+  protocol?: (typeof PROTOCOLS)[number];
+  /** The calibration id a protocol 2 or 3 run is measured against. */
   calibration?: string;
+  /** The root cause the rule addresses, as a slug. Runs with one slug are attempts at one problem. */
+  problem?: string;
+  /** Why the rule is expected to work. Written before the trials. */
+  rationale?: string;
+  /** Written before the trials: the metrics the rule is expected to move, and which way. */
+  predicted?: Record<string, Direction>;
 }
 
 export interface LedgerData {
@@ -140,6 +156,42 @@ const parseTrial = (value: unknown, path: string): EvalTrial => {
   };
 };
 
+const requireSlug = (value: unknown, field: string): string => {
+  const slug = requireString(value, field);
+  if (!PROBLEM_SLUG.test(slug)) {
+    throw new Error(
+      `harness-eval:data: ${field} must be a lowercase slug such as stale-api-source`
+    );
+  }
+  return slug;
+};
+
+/**
+ * A prediction names a metric that both arms record, or its outcome cannot be computed: the
+ * mean of an arm with no value would read as zero and count as a move.
+ */
+const parsePredicted = (
+  value: unknown,
+  trials: readonly EvalTrial[],
+  path: string
+): Record<string, Direction> => {
+  if (!isRecord(value) || Object.keys(value).length === 0) {
+    throw new Error(`harness-eval:data: ${path}.predicted must name at least one metric`);
+  }
+  const predicted: Record<string, Direction> = {};
+  for (const [metric, raw] of Object.entries(value)) {
+    predicted[metric] = requireMember(raw, DIRECTIONS, `${path}.predicted.${metric}`);
+    for (const arm of ARMS) {
+      if (!trials.some((trial) => trial.arm === arm && Object.hasOwn(trial.metrics, metric))) {
+        throw new Error(
+          `harness-eval:data: ${path}.predicted.${metric} names a metric that no ${arm} trial records`
+        );
+      }
+    }
+  }
+  return predicted;
+};
+
 const parseRun = (value: unknown, index: number): EvalRun => {
   const path = `runs[${String(index)}]`;
   if (!isRecord(value)) {
@@ -162,14 +214,28 @@ const parseRun = (value: unknown, index: number): EvalRun => {
       parseTrial(trial, `${path}.trials[${String(trialIndex)}]`)
     )
   };
-  if (value["protocol"] === undefined) return parsed;
-  if (value["protocol"] !== 2) {
-    throw new Error(`harness-eval:data: ${path}.protocol must be 2 when it is set`);
+  const grouped: EvalRun =
+    value["problem"] === undefined
+      ? parsed
+      : { ...parsed, problem: requireSlug(value["problem"], `${path}.problem`) };
+  if (value["protocol"] === undefined) return grouped;
+  const protocol = PROTOCOLS.find((candidate) => candidate === value["protocol"]);
+  if (protocol === undefined) {
+    throw new Error(`harness-eval:data: ${path}.protocol must be 2 or 3 when it is set`);
+  }
+  const measured: EvalRun = {
+    ...grouped,
+    protocol,
+    calibration: requireString(value["calibration"], `${path}.calibration`)
+  };
+  if (protocol === 2) return measured;
+  if (grouped.problem === undefined) {
+    throw new Error(`harness-eval:data: ${path} is a protocol 3 run, so it needs a problem`);
   }
   return {
-    ...parsed,
-    protocol: 2,
-    calibration: requireString(value["calibration"], `${path}.calibration`)
+    ...measured,
+    rationale: requireString(value["rationale"], `${path}.rationale`),
+    predicted: parsePredicted(value["predicted"], parsed.trials, path)
   };
 };
 
@@ -213,7 +279,7 @@ const parseCalibration = (value: unknown, index: number): Calibration => {
 
 /**
  * The arithmetic must back the words. An inconclusive run never keeps, deletes or promotes a
- * rule. A protocol 2 run calls an effect only above its calibration's noise floor, and no
+ * rule. A protocol 2 or 3 run calls an effect only above its calibration's noise floor, and no
  * effect only within it.
  */
 const checkConclusion = (
@@ -227,7 +293,7 @@ const checkConclusion = (
       `harness-eval:data: ${path} is inconclusive, so its action cannot be ${run.action}. Use tighten and measure again.`
     );
   }
-  if (run.protocol !== 2) return;
+  if (run.protocol === undefined) return;
   const calibration = calibrations.find((candidate) => candidate.id === run.calibration);
   if (calibration === undefined) {
     throw new Error(
@@ -305,13 +371,97 @@ const armMetric = (run: EvalRun, arm: Arm, metric: string): number =>
   mean(
     run.trials
       .filter((trial) => trial.arm === arm)
-      .flatMap((trial) => (metric in trial.metrics ? [trial.metrics[metric] ?? 0] : []))
+      // Own keys only: `in` also finds `constructor` and the other names every object inherits.
+      .flatMap((trial) =>
+        Object.hasOwn(trial.metrics, metric) ? [trial.metrics[metric] ?? 0] : []
+      )
   );
 
-/** For a protocol 2 run: its noise floor and where `|Δ|` falls. Older runs print nothing extra. */
+interface PredictionOutcome {
+  /** Predicted metrics that moved the predicted way. */
+  realized: string[];
+  /** Predicted metrics that moved the other way, or did not move. */
+  missed: string[];
+}
+
+/** `null` for a run that recorded no prediction: there is nothing to check. */
+const predictionOutcome = (run: EvalRun): PredictionOutcome | null => {
+  if (run.predicted === undefined) return null;
+  const outcome: PredictionOutcome = { realized: [], missed: [] };
+  for (const [metric, direction] of Object.entries(run.predicted)) {
+    const delta = armMetric(run, "with", metric) - armMetric(run, "without", metric);
+    const moved = direction === "up" ? delta > 0 : delta < 0;
+    (moved ? outcome.realized : outcome.missed).push(metric);
+  }
+  return outcome;
+};
+
+const realizedCount = (outcome: PredictionOutcome): string =>
+  `${String(outcome.realized.length)} of ${String(outcome.realized.length + outcome.missed.length)}`;
+
+/** The problem, the rationale and the checked prediction of a run that recorded them. */
+const memoryLines = (run: EvalRun): string[] => {
+  const lines: string[] = [];
+  if (run.problem !== undefined) {
+    lines.push(
+      "",
+      `Problem \`${run.problem}\`.` +
+        (run.rationale === undefined ? "" : ` Rationale: ${run.rationale}`)
+    );
+  }
+  const outcome = predictionOutcome(run);
+  if (run.predicted === undefined || outcome === null) return lines;
+  const predicted = Object.entries(run.predicted)
+    .map(([metric, direction]) => `${metric} ${direction}`)
+    .join(", ");
+  const missed = outcome.missed
+    .map(
+      (metric) =>
+        `${metric} (Δ ${signed(armMetric(run, "with", metric) - armMetric(run, "without", metric))})`
+    )
+    .join(", ");
+  lines.push(
+    "",
+    `Predicted: ${predicted}. Realized ${realizedCount(outcome)}` +
+      (missed === "" ? "." : `; missed: ${missed}.`)
+  );
+  return lines;
+};
+
+/**
+ * One row for each run that names a problem. Attempts at one problem sit together, oldest
+ * first, so a new attempt starts from what the earlier ones tried and what they got.
+ */
+const problemIndex = (runs: readonly EvalRun[]): string[] => {
+  const problems = [...new Set(runs.flatMap((run) => (run.problem ? [run.problem] : [])))];
+  if (problems.length === 0) return [];
+  const rows = problems.flatMap((problem) =>
+    runs
+      .filter((run) => run.problem === problem)
+      // ISO dates sort as text. The sort is stable, so runs of one day keep their data order.
+      .sort((left, right) => left.date.localeCompare(right.date))
+      .map((run) => {
+        const outcome = predictionOutcome(run);
+        return (
+          `| \`${problem}\` | ${run.date} | \`${run.rule}\` | ${run.model} | ${run.conclusion} | ` +
+          `${run.action} | ${outcome === null ? "none recorded" : `realized ${realizedCount(outcome)}`} |`
+        );
+      })
+  );
+  return [
+    "### By problem",
+    [
+      "| Problem | Date | Rule | Model | Conclusion | Action | Prediction |",
+      "| --- | --- | --- | --- | --- | --- | --- |",
+      ...rows
+    ].join("\n")
+  ];
+};
+
+/** For a protocol 2 or 3 run: its noise floor and where `|Δ|` falls. Older runs print nothing extra. */
 const noiseLine = (run: EvalRun, calibrations: readonly Calibration[]): string[] => {
   const calibration = calibrations.find((candidate) => candidate.id === run.calibration);
-  if (run.protocol !== 2 || calibration === undefined) return [];
+  if (run.protocol === undefined || calibration === undefined) return [];
   const floor = noiseFloor(calibration);
   const delta = Math.abs(verdictDelta(run));
   return [
@@ -343,6 +493,7 @@ export const renderLedgerMarkdown = (data: LedgerData): string => {
         `${String(armVerdicts(run, "with").length)} with / ${String(armVerdicts(run, "without").length)} without`,
       "",
       `**Conclusion:** ${run.conclusion} · **Action:** ${run.action}`,
+      ...memoryLines(run),
       "",
       `Verdict mean: ${format(withMean)} with, ${format(withoutMean)} without ` +
         `(${signed(withMean - withoutMean)}).`,
@@ -382,6 +533,7 @@ export const renderLedgerMarkdown = (data: LedgerData): string => {
           `${actions.map((run) => `\`${run.rule}\` → ${run.action}`).join(", ")}.`
         : " Every measured rule is marked keep."),
     "",
+    ...problemIndex(data.runs),
     ...sections,
     ...calibrationLines
   ].join("\n\n");
