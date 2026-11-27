@@ -1,5 +1,11 @@
 # @repo/desk-ui
 
+## 0.6.6
+
+### Patch Changes
+
+- 7e3fb18: The flow graph and the flow canvas now run on `@xyflow/react` 13. They read the pane size from `useViewportStore`, and the canvas takes node changes as a `NodeChangeset`. What the desk shows does not change.
+
 ## 0.6.5
 
 ### Patch Changes
