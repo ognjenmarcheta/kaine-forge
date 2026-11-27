@@ -4,7 +4,7 @@ import {
   Controls,
   ReactFlow,
   useReactFlow,
-  useStore,
+  useViewportStore,
   type EdgeTypes,
   type NodeTypes
 } from "@xyflow/react";
@@ -24,8 +24,8 @@ const EDGE_TYPES: EdgeTypes = { [EDGE_TYPE]: DeskEdge };
 /** Fits the view on the first size and on a resize, never on a new model: the engineer's pan and zoom stay. */
 function AutoFit({ model }: { readonly model: FlowModel }) {
   const { fitView } = useReactFlow();
-  const width = useStore((state) => state.width);
-  const height = useStore((state) => state.height);
+  const width = useViewportStore((state) => state.width);
+  const height = useViewportStore((state) => state.height);
   const fitted = useRef<Size | null>(null);
   const latest = useRef(model);
   useEffect(() => {
@@ -42,7 +42,7 @@ function AutoFit({ model }: { readonly model: FlowModel }) {
 
 /** Zoom and Fit. Fit frames the same stages as the automatic fit. */
 function GraphControls({ model }: { readonly model: FlowModel }) {
-  const width = useStore((state) => state.width);
+  const width = useViewportStore((state) => state.width);
   return (
     <Controls
       showInteractive={false}

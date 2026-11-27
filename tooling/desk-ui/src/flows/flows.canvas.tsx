@@ -17,13 +17,13 @@ import {
   ReactFlowProvider,
   useNodesInitialized,
   useReactFlow,
-  useStore,
+  useViewportStore,
   type Connection,
   type Edge,
   type EdgeProps,
   type EdgeTypes,
   type Node,
-  type NodeChange,
+  type NodeChangeset,
   type NodeProps,
   type NodeTypes
 } from "@xyflow/react";
@@ -187,8 +187,8 @@ const FIT = { padding: 0.06, maxZoom: 1, duration: 0 } as const;
 function AutoFit({ count }: { readonly count: number }) {
   const { fitView } = useReactFlow();
   const ready = useNodesInitialized();
-  const width = useStore((state) => state.width);
-  const height = useStore((state) => state.height);
+  const width = useViewportStore((state) => state.width);
+  const height = useViewportStore((state) => state.height);
   const fitted = useRef<{ readonly size: Size; readonly count: number } | null>(null);
   useEffect(() => {
     const size = { width, height };
@@ -370,7 +370,7 @@ function Canvas({
     setChoice({ source: connection.source, target: connection.target, choices: check.choices });
   };
 
-  const onNodesChange = (changes: NodeChange<StepNode>[]): void => {
+  const onNodesChange = (changes: NodeChangeset<StepNode>): void => {
     for (const change of changes) {
       if (change.type === "position" && change.dragging === true && change.position) {
         setDrag({ id: change.id, x: change.position.x });
