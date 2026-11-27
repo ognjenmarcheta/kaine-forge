@@ -17,22 +17,22 @@ catalog:
   # to a new workspace that pulls in react-native or expo.
   "@babel/core": "^7.29.13"
   # Runtime libraries shared across workspaces
-  better-auth: "^1.7.25"
-  "@better-auth/expo": "1.7.25"
+  better-auth: "^1.7.26"
+  "@better-auth/expo": "1.7.26"
   # Organization-owned API keys (packages/auth, #709). Keep on the better-auth line.
-  "@better-auth/api-key": "1.7.25"
+  "@better-auth/api-key": "1.7.26"
   # WebAuthn passkeys (ADR 0015); same exact pin as the better-auth line it plugs into.
-  "@better-auth/passkey": "1.7.25"
+  "@better-auth/passkey": "1.7.26"
   # The passkey plugin's inferred auth types name it; @repo/auth imports its types for declaration emit (TS2742).
   "@simplewebauthn/server": "^13.3.3"
   dotenv: "^18.0.10"
   drizzle-orm: "^0.45.4"
   graphql: "^16.15.0"
   graphql-request: "^7.4.0"
-  graphql-ws: "^6.4.2"
+  graphql-ws: "^6.4.3"
   # Payment provider SDKs (packages/billing). Exact pins: Stripe pins its API version per
   # release, and the adapter sets that version explicitly.
-  stripe: "23.1.0"
+  stripe: "23.2.0"
   "@paddle/paddle-node-sdk": "3.12.0"
   # Paddle.js loader for the overlay checkout (apps/web).
   "@paddle/paddle-js": "1.6.6"
@@ -50,7 +50,7 @@ catalog:
   "@react-email/render": "^2.3.1"
   # Agent and flow definition files of the agent desk (tooling/desk). Already in the lockfile via vite.
   yaml: "^2.9.1"
-  "@tanstack/react-query": "^5.107.1"
+  "@tanstack/react-query": "^5.108.1"
   # Offline sync (ADR 0020): exact pins, the 1.0 RC set (rc.1.2 and offline-transactions 1.2.0 passed minimumReleaseAge).
   "@tanstack/db": "1.0.0-rc.1.5"
   "@tanstack/react-db": "1.0.0-rc.1.5"
@@ -63,13 +63,13 @@ catalog:
   "@tanstack/tauri-db-sqlite-persistence": "1.0.0-rc.1.5"
   # The desktop shell's commands. plugin-sql is only the Tauri driver's type peer: the shell
   # keeps its own single-connection databases, because the plugin pools connections.
-  "@tauri-apps/api": "2.12.4"
+  "@tauri-apps/api": "2.12.5"
   "@tauri-apps/plugin-sql": "2.6.0"
   "@journeyapps/wa-sqlite": "1.7.2"
   # Markdown to Word and PowerPoint export (tooling/doc-export). Exact pins: the files are
   # agent output, so a dependency update is a reviewed change. jszip reads them back for --verify,
   # and the API zips data export archives with it.
-  docx: "9.15.4"
+  docx: "9.16.0"
   pptxgenjs: "4.0.1"
   jszip: "^3.10.1"
   # Flow graph of the local agent desk (tooling/desk-ui). Brings zustand ^4 as its own nested dependency.
@@ -81,7 +81,7 @@ catalog:
   "@graphql-typed-document-node/core": "^3.2.0"
   class-variance-authority: "^0.7.1"
   clsx: "^2.1.1"
-  tailwind-merge: "^3.7.0"
+  tailwind-merge: "^3.7.1"
   sonner: "^2.0.8"
   # Cmd/Ctrl+K command menu (packages/ui CommandMenu). Exact pin; 1.1.1 is the latest release.
   cmdk: "1.1.1"
@@ -95,14 +95,14 @@ catalog:
   # Tooling
   "@playwright/test": "^1.65.1"
   # In-process Postgres for migration and tenancy tests (packages/db, apps/api).
-  "@electric-sql/pglite": "^0.5.16"
+  "@electric-sql/pglite": "^0.5.17"
   "@tailwindcss/vite": "^4.3.5"
   "@vitejs/plugin-react": "^6.3.0"
   vite: "^8.3.8"
   jsdom: "^31.0.1"
   "@testing-library/dom": "^10.4.2"
   "@testing-library/react": "^16.3.3"
-  "@testing-library/user-event": "^14.6.10"
+  "@testing-library/user-event": "^14.6.13"
   typescript: "^5.9.2"
   eslint: "^9.35.0"
   # TypeScript resolver for eslint-plugin-import (packages/config/eslint/base.js). Without it the
