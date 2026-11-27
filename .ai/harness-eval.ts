@@ -182,7 +182,7 @@ const parsePredicted = (
   for (const [metric, raw] of Object.entries(value)) {
     predicted[metric] = requireMember(raw, DIRECTIONS, `${path}.predicted.${metric}`);
     for (const arm of ARMS) {
-      if (!trials.some((trial) => trial.arm === arm && metric in trial.metrics)) {
+      if (!trials.some((trial) => trial.arm === arm && Object.hasOwn(trial.metrics, metric))) {
         throw new Error(
           `harness-eval:data: ${path}.predicted.${metric} names a metric that no ${arm} trial records`
         );
@@ -371,7 +371,10 @@ const armMetric = (run: EvalRun, arm: Arm, metric: string): number =>
   mean(
     run.trials
       .filter((trial) => trial.arm === arm)
-      .flatMap((trial) => (metric in trial.metrics ? [trial.metrics[metric] ?? 0] : []))
+      // Own keys only: `in` also finds `constructor` and the other names every object inherits.
+      .flatMap((trial) =>
+        Object.hasOwn(trial.metrics, metric) ? [trial.metrics[metric] ?? 0] : []
+      )
   );
 
 interface PredictionOutcome {
@@ -435,6 +438,8 @@ const problemIndex = (runs: readonly EvalRun[]): string[] => {
   const rows = problems.flatMap((problem) =>
     runs
       .filter((run) => run.problem === problem)
+      // ISO dates sort as text. The sort is stable, so runs of one day keep their data order.
+      .sort((left, right) => left.date.localeCompare(right.date))
       .map((run) => {
         const outcome = predictionOutcome(run);
         return (

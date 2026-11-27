@@ -232,6 +232,11 @@ describe("a protocol 3 run: problem, rationale and prediction", () => {
       /no with trial records/
     ],
     [
+      "a predicted metric that only the object prototype has",
+      { predicted: { constructor: "up" } },
+      /no with trial records/
+    ],
+    [
       "a predicted metric that one arm does not record",
       {
         predicted: { netLines: "down" },
@@ -280,11 +285,10 @@ describe("renderLedgerMarkdown", () => {
     expect(markdown).toContain("`simplicity-ladder` → delete");
   });
 
-  it("lists the attempts at one problem together, oldest first, with what each predicted", () => {
+  it("lists the attempts at one problem together, oldest first by date, with what each predicted", () => {
     const markdown = renderLedgerMarkdown({
       runs: [
-        { ...run, date: "2026-10-01", rule: "routing v1", problem: "stale-api-source" },
-        { ...run, date: "2026-10-05", rule: "ladder", problem: "speculative-abstraction" },
+        // The later attempt comes first in the data: the table orders by date, not by position.
         {
           ...run,
           date: "2026-10-20",
@@ -292,6 +296,8 @@ describe("renderLedgerMarkdown", () => {
           problem: "stale-api-source",
           predicted: { netLines: "down" }
         },
+        { ...run, date: "2026-10-05", rule: "ladder", problem: "speculative-abstraction" },
+        { ...run, date: "2026-10-01", rule: "routing v1", problem: "stale-api-source" },
         { ...run, date: "2026-10-21", rule: "ungrouped" }
       ]
     });
