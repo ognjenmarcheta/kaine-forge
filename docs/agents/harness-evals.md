@@ -72,6 +72,33 @@ passes here is also checked against the whole harness after it merges, with
 when the generated region no longer matches the data block, so a hand edit of
 the rendered tables or a data change without a render cannot merge.
 
+## Problems and predictions (protocol 3)
+
+A run marked `"protocol": 3` keeps the protocol 2 rules and adds three fields.
+They follow arXiv 2611.18856. In that study, a harness optimizer that kept each
+edit's reason, prediction and outcome under its problem did better after a model
+or task change than one that kept the harness alone, or the problem names alone.
+
+- `problem`: the root cause the rule addresses, as a slug. Runs with the same
+  slug are attempts at one problem. The **By problem** table lists them
+  together, oldest first.
+- `rationale`: one sentence that says why the rule is expected to work.
+- `predicted`: the metrics the rule is expected to move, each `up` or `down`.
+  The direction is the with-arm mean minus the without-arm mean.
+
+Write all three before the first trial. `pnpm harness:eval` refuses a protocol
+3 run without them, and a prediction for a metric that an arm does not record.
+The render then prints how many predictions the trials realized. A metric that
+did not move counts as missed. A realized prediction is not an `effect`: the
+verdict delta and the noise floor still decide the conclusion.
+
+Older runs carry a `problem` so that the table links them. They carry no
+prediction, because nobody wrote one before their trials.
+
+The study ran an automatic optimizer on benchmarks, and only its coding result
+has repeated runs. It does not show that these fields improve a rule here. They
+make each attempt's reason and outcome readable for the next attempt.
+
 ## Rubric
 
 Scored per trial, 1–5, against the paper's dimensions (task success, tool-use
@@ -272,6 +299,7 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
       "model": "claude-opus-5",
       "agent": "general-purpose (Claude Code 2.1.227)",
       "rule": "verification close, prompt-carried",
+      "problem": "unproven-completion-claims",
       "conclusion": "inconclusive",
       "action": "tighten",
       "trials": [
@@ -361,6 +389,7 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
       "model": "desktop subagents, inherited parent; exact backend identifier not exposed",
       "agent": "Codex desktop collaboration, fresh fork_turns=none; desktop build not exposed",
       "rule": "kaine-explain candidate v1, prompt-carried: visibility",
+      "problem": "explanation-hard-to-assess",
       "conclusion": "effect",
       "action": "tighten",
       "trials": [
@@ -468,6 +497,7 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
       "model": "desktop subagents, inherited parent; exact backend identifier not exposed",
       "agent": "Codex desktop collaboration, fresh fork_turns=none; desktop build not exposed",
       "rule": "kaine-explain candidate v1, prompt-carried: flow",
+      "problem": "explanation-hard-to-assess",
       "conclusion": "effect",
       "action": "tighten",
       "trials": [
@@ -575,6 +605,7 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
       "model": "desktop subagents, inherited parent; exact backend identifier not exposed",
       "agent": "Codex desktop collaboration, fresh fork_turns=none; desktop build not exposed",
       "rule": "kaine-explain candidate v1, prompt-carried: uncertain",
+      "problem": "explanation-hard-to-assess",
       "conclusion": "effect",
       "action": "tighten",
       "trials": [
@@ -682,6 +713,7 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
       "model": "claude-opus-5-5",
       "agent": "claude -p main session (Claude Code 2.1.291), MCP context7/playwright/serena via --strict-mcp-config",
       "rule": "MCP tool routing subsection (Context7 clause), injected-surface",
+      "problem": "stale-third-party-api-source",
       "conclusion": "no-effect",
       "action": "tighten",
       "protocol": 2,
@@ -779,6 +811,7 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
       "model": "claude-opus-5-5",
       "agent": "claude -p main session (Claude Code 2.1.291), MCP context7/playwright/serena via --strict-mcp-config",
       "rule": "MCP tool routing subsection v2 (installed package first), injected-surface",
+      "problem": "stale-third-party-api-source",
       "conclusion": "no-effect",
       "action": "tighten",
       "protocol": 2,
@@ -927,11 +960,24 @@ tool-use quality as well as the answer. Run it before `keep` or `delete`.
 
 6 run(s) recorded. 6 rule(s) carry an action other than keep: `verification close, prompt-carried` → tighten, `kaine-explain candidate v1, prompt-carried: visibility` → tighten, `kaine-explain candidate v1, prompt-carried: flow` → tighten, `kaine-explain candidate v1, prompt-carried: uncertain` → tighten, `MCP tool routing subsection (Context7 clause), injected-surface` → tighten, `MCP tool routing subsection v2 (installed package first), injected-surface` → tighten.
 
+### By problem
+
+| Problem                        | Date       | Rule                                                                         | Model                                                                     | Conclusion   | Action  | Prediction    |
+| ------------------------------ | ---------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------ | ------- | ------------- |
+| `unproven-completion-claims`   | 2026-09-11 | `verification close, prompt-carried`                                         | claude-opus-5                                                             | inconclusive | tighten | none recorded |
+| `explanation-hard-to-assess`   | 2026-10-02 | `kaine-explain candidate v1, prompt-carried: visibility`                     | desktop subagents, inherited parent; exact backend identifier not exposed | effect       | tighten | none recorded |
+| `explanation-hard-to-assess`   | 2026-10-02 | `kaine-explain candidate v1, prompt-carried: flow`                           | desktop subagents, inherited parent; exact backend identifier not exposed | effect       | tighten | none recorded |
+| `explanation-hard-to-assess`   | 2026-10-02 | `kaine-explain candidate v1, prompt-carried: uncertain`                      | desktop subagents, inherited parent; exact backend identifier not exposed | effect       | tighten | none recorded |
+| `stale-third-party-api-source` | 2026-10-20 | `MCP tool routing subsection (Context7 clause), injected-surface`            | claude-opus-5-5                                                           | no-effect    | tighten | none recorded |
+| `stale-third-party-api-source` | 2026-10-20 | `MCP tool routing subsection v2 (installed package first), injected-surface` | claude-opus-5-5                                                           | no-effect    | tighten | none recorded |
+
 ### 2026-09-11 · `verification close, prompt-carried`
 
 Commit `0c2c52e` · claude-opus-5 via general-purpose (Claude Code 2.1.227) · 3 with / 3 without
 
 **Conclusion:** inconclusive · **Action:** tighten
+
+Problem `unproven-completion-claims`.
 
 Verdict mean: 5 with, 4.87 without (+0.13).
 
@@ -949,6 +995,8 @@ Verdict mean: 5 with, 4.87 without (+0.13).
 Commit `fade54b6089a35c08280609a4799d3b755f3670c` · desktop subagents, inherited parent; exact backend identifier not exposed via Codex desktop collaboration, fresh fork_turns=none; desktop build not exposed · 3 with / 3 without
 
 **Conclusion:** effect · **Action:** tighten
+
+Problem `explanation-hard-to-assess`.
 
 Verdict mean: 5 with, 5 without (0).
 
@@ -970,6 +1018,8 @@ Commit `fade54b6089a35c08280609a4799d3b755f3670c` · desktop subagents, inherite
 
 **Conclusion:** effect · **Action:** tighten
 
+Problem `explanation-hard-to-assess`.
+
 Verdict mean: 5 with, 5 without (0).
 
 | Metric               | With rule | Without rule | Delta     |
@@ -989,6 +1039,8 @@ Verdict mean: 5 with, 5 without (0).
 Commit `fade54b6089a35c08280609a4799d3b755f3670c` · desktop subagents, inherited parent; exact backend identifier not exposed via Codex desktop collaboration, fresh fork_turns=none; desktop build not exposed · 3 with / 3 without
 
 **Conclusion:** effect · **Action:** tighten
+
+Problem `explanation-hard-to-assess`.
 
 Verdict mean: 5 with, 5 without (0).
 
@@ -1010,6 +1062,8 @@ Commit `18d416b + uncommitted MCP tooling patch sha256 d474e7c161d93b1d` · clau
 
 **Conclusion:** no-effect · **Action:** tighten
 
+Problem `stale-third-party-api-source`.
+
 Verdict mean: 5 with, 5 without (0).
 
 Noise floor 0.50 from calibration `version-lookup-2026-10-20`: |Δ| 0 is within it.
@@ -1029,6 +1083,8 @@ Noise floor 0.50 from calibration `version-lookup-2026-10-20`: |Δ| 0 is within 
 Commit `18d416b + uncommitted MCP tooling patch sha256 a1f61bb3db76baaa` · claude-opus-5-5 via claude -p main session (Claude Code 2.1.291), MCP context7/playwright/serena via --strict-mcp-config · 3 with / 3 without
 
 **Conclusion:** no-effect · **Action:** tighten
+
+Problem `stale-third-party-api-source`.
 
 Verdict mean: 5 with, 4.67 without (+0.33).
 

@@ -156,8 +156,8 @@ of the two means, and never less than 0.5, because means at `n = 3` move in
 steps of 1/3. One calibration serves every later run of the same agent, model
 and task family. Calibrate again after a model or CLI upgrade.
 
-`pnpm harness:eval` refuses a protocol 2 run whose words the arithmetic does
-not back:
+`pnpm harness:eval` refuses a protocol 2 or 3 run whose words the arithmetic
+does not back:
 
 - `effect` needs `|Δ|` above the noise floor.
 - `no-effect` needs `|Δ|` within it.
@@ -165,7 +165,48 @@ not back:
   any protocol. It means "not enough to decide", so its action is `tighten` and
   another measurement.
 
-Record every new run as protocol 2. Older runs stay as they were recorded.
+Older runs stay as they were recorded.
+
+## Name the problem and predict
+
+Record every new run as protocol 3 (`"protocol": 3`). It keeps the protocol 2
+rules and adds three fields. Write them in the data block before the first
+trial. They follow arXiv 2611.18856: an optimizer that kept the reason, the
+prediction and the outcome of each edit did better after a model or task change
+than one that kept the harness alone.
+
+- **`problem`.** Read the **By problem** table in `docs/agents/harness-evals.md`
+  first. Use an existing slug when its problem explains the failure you see.
+  Open a new slug only when none does.
+- **`rationale`.** One sentence: why the rule or wording is expected to work.
+- **`predicted`.** The metrics you expect to move, each `up` or `down`. The
+  direction is the with-arm mean minus the without-arm mean. Predict only what
+  a recorded failure or the rule's text supports.
+
+Read the earlier attempts at the problem before you propose a change. Do not
+repeat a direction that an attempt tried, unless new evidence supports it. Give
+an attempt less weight when its model, agent, or task family is not yours.
+
+`pnpm harness:eval` prints how many predictions the trials realized. A missed
+prediction is a finding: write in the ledger prose what the rule did instead.
+Never edit a prediction after the trials.
+
+## After a model or agent change
+
+A harness tuned on one model can do worse on the next one. In arXiv 2611.18856,
+a harness that an optimizer tuned on one model started below the unchanged
+harness on another model in all four domains. Each result in the ledger belongs
+to the model, the agent and the CLI version that its run names.
+
+1. Find the change. `pnpm desk stats` starts a new row when a Claude run
+   reports another model.
+2. Calibrate again for each task family you plan to measure.
+3. Treat each `keep` as unproven on the new model. Measure a rule again before
+   you reword it or rely on its result.
+4. Before you change a rule, compare the `pnpm desk stats --by-harness` rows of
+   the old model and the new model under the same `repo` hash. They show what
+   the model change did to the unchanged harness. With fewer than 10 runs per
+   role, the answer is "insufficient".
 
 ## Propose rewordings for a `tighten` rule
 
@@ -187,9 +228,10 @@ procedure to choose the new wording before you pay for a full run.
 - **Compose.** When two candidates each fix a different cited failure, merge
   them into one wording. A merged wording is a new candidate: it gets no
   shortcut past the full run.
-- **Measure.** Run the chosen wording as a normal protocol 2 run against an
-  existing calibration. Give its `rule` a version, for example
-  `kaine-explain v2, prompt-carried: flow`. Only this run enters the
+- **Measure.** Run the chosen wording as a normal protocol 3 run against an
+  existing calibration. Keep the `problem` of the run that asked for `tighten`,
+  and predict the metrics that the cited failures name. Give its `rule` a
+  version, for example `kaine-explain v2, prompt-carried: flow`. Only this run enters the
   `harness-eval:data` block. Write the screen transcripts and the reason for the
   choice in the ledger prose above the block.
 - **Adopt.** Edit only the canonical `.ai/` source, run `pnpm ai:install`, and
@@ -234,7 +276,8 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
 1. Name the rule, the file it lives in, and the exact text arm B will strip.
    Quote it. Grep it across `AGENTS.md`, `.ai/review.md`, `.ai/agents/*.md` and
    the installed agent directories — arm B must strip every copy the trial can
-   see.
+   see. Write the run's `problem`, `rationale` and `predicted` now (_Name the
+   problem and predict_).
 2. Run the behavioural probe for both arms. Do not proceed on a probe without a
    positive control, and never on an introspection answer. Check the task
    prompts against _Keep the arms fair_.
@@ -271,7 +314,9 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
    the rule, and say what changed. A **first** measured
    no-op records `tighten` with a note that one run cannot justify deletion, and
    files an issue for the second run; `delete` needs two no-op runs, and only
-   then open a PR removing the rule. `promote-to-lint` means file an issue naming
+   then open a PR removing the rule. The PR names the models and agents that the
+   two runs cover: a no-op on one model does not show a no-op for another agent
+   that reads the rule. `promote-to-lint` means file an issue naming
    the rule and the check that replaces it. Acting is not optional — an eval
    nobody acts on is worse than no eval, because it costs the run and buys
    nothing.
@@ -284,9 +329,9 @@ Do not invent a rule to test. If nothing is in doubt, say so and stop.
 
 ## Reporting
 
-State the rule, the file it was stripped from, the construction used, the
-per-arm verdict means and the delta, the calibration and its noise floor, the
-conclusion, and the action. For a reworded rule, also name the candidates
+State the rule, its problem, the file it was stripped from, the construction
+used, the per-arm verdict means and the delta, the calibration and its noise
+floor, the predictions realized and missed, the conclusion, and the action. For a reworded rule, also name the candidates
 screened and why the chosen one won. Say plainly
 that `n = 3` detects only large effects, and name the model, the agent and the
 CLI version — a result for one does not transfer to another.

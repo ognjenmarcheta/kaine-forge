@@ -178,6 +178,85 @@ describe("conclusions backed by the arithmetic", () => {
   });
 });
 
+describe("a protocol 3 run: problem, rationale and prediction", () => {
+  const calibration: Calibration = {
+    id: "ladder-task",
+    date: "2026-11-27",
+    model: "claude-opus-5",
+    agent: "claude",
+    taskFamily: "second notification channel",
+    trials: [
+      { arm: "first", verdict: 4, transcript: "a1" },
+      { arm: "second", verdict: 4, transcript: "b1" }
+    ]
+  };
+  const predicting: EvalRun = {
+    ...run,
+    protocol: 3,
+    calibration: calibration.id,
+    problem: "speculative-abstraction",
+    rationale: "The ladder names the reuse rungs before new code.",
+    predicted: { netLines: "down", newFiles: "up" }
+  };
+  const ledger = (over: Record<string, unknown>): string =>
+    wrap(
+      JSON.stringify({
+        schema: 1,
+        calibrations: [calibration],
+        runs: [{ ...predicting, ...over }]
+      })
+    );
+
+  it("checks each prediction against the sign of its metric delta", () => {
+    // netLines falls by 85 as predicted. newFiles was predicted to rise and falls by 3.
+    const markdown = renderLedgerMarkdown(parseLedger(ledger({})));
+
+    expect(markdown).toContain(
+      "Problem `speculative-abstraction`. Rationale: The ladder names the reuse rungs before new code."
+    );
+    expect(markdown).toContain(
+      "Predicted: netLines down, newFiles up. Realized 1 of 2; missed: newFiles (Δ -3)."
+    );
+  });
+
+  it.each([
+    ["no problem", { problem: undefined }, /needs a problem/],
+    ["a problem that is not a slug", { problem: "Speculative abstraction" }, /lowercase slug/],
+    ["no rationale", { rationale: undefined }, /rationale/],
+    ["no prediction", { predicted: undefined }, /predicted must name at least one metric/],
+    ["an empty prediction", { predicted: {} }, /predicted must name at least one metric/],
+    ["a direction that is not up or down", { predicted: { netLines: "less" } }, /up, down/],
+    [
+      "a predicted metric that no trial records",
+      { predicted: { singleCallerAbstractions: "down" } },
+      /no with trial records/
+    ],
+    [
+      "a predicted metric that one arm does not record",
+      {
+        predicted: { netLines: "down" },
+        trials: [
+          { arm: "with", verdict: 5, transcript: "t1", metrics: { netLines: 20 } },
+          { arm: "without", verdict: 2, transcript: "t2", metrics: {} }
+        ]
+      },
+      /no without trial records/
+    ],
+    [
+      "an effect within the noise floor, as a protocol 2 run",
+      {
+        trials: [
+          { arm: "with", verdict: 4, transcript: "t1", metrics: { netLines: 20, newFiles: 1 } },
+          { arm: "without", verdict: 4, transcript: "t2", metrics: { netLines: 90, newFiles: 4 } }
+        ]
+      },
+      /within the noise floor/
+    ]
+  ])("rejects %s", (_label, over, pattern) => {
+    expect(() => parseLedger(ledger(over))).toThrowError(pattern);
+  });
+});
+
 describe("renderLedgerMarkdown", () => {
   it("prompts for a first run when the ledger is empty", () => {
     expect(renderLedgerMarkdown({ runs: [] })).toContain("No runs recorded yet");
@@ -199,6 +278,30 @@ describe("renderLedgerMarkdown", () => {
 
     expect(markdown).toContain("carry an action other than keep");
     expect(markdown).toContain("`simplicity-ladder` → delete");
+  });
+
+  it("lists the attempts at one problem together, oldest first, with what each predicted", () => {
+    const markdown = renderLedgerMarkdown({
+      runs: [
+        { ...run, date: "2026-10-01", rule: "routing v1", problem: "stale-api-source" },
+        { ...run, date: "2026-10-05", rule: "ladder", problem: "speculative-abstraction" },
+        {
+          ...run,
+          date: "2026-10-20",
+          rule: "routing v2",
+          problem: "stale-api-source",
+          predicted: { netLines: "down" }
+        },
+        { ...run, date: "2026-10-21", rule: "ungrouped" }
+      ]
+    });
+    const index = markdown.slice(markdown.indexOf("### By problem"), markdown.indexOf("### 2026"));
+
+    expect(index.split("\n").filter((line) => line.startsWith("| `"))).toEqual([
+      "| `stale-api-source` | 2026-10-01 | `routing v1` | claude-opus-5 | effect | keep | none recorded |",
+      "| `stale-api-source` | 2026-10-20 | `routing v2` | claude-opus-5 | effect | keep | realized 1 of 1 |",
+      "| `speculative-abstraction` | 2026-10-05 | `ladder` | claude-opus-5 | effect | keep | none recorded |"
+    ]);
   });
 
   it("says so plainly when every rule is a keep", () => {
