@@ -1,5 +1,12 @@
 # @repo/api
 
+## 2.5.4
+
+### Patch Changes
+
+- Updated dependencies [43e3fe0]
+  - @repo/billing@0.1.2
+
 ## 2.5.3
 
 ### Patch Changes
