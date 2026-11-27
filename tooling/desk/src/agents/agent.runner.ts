@@ -130,6 +130,8 @@ export interface AgentRunResult<T> {
   readonly trace: readonly AgentEvent[];
   /** The agent's final text answer. */
   readonly resultText: string;
+  /** The model the provider says it ran, when it says so (Claude). */
+  readonly resolvedModel?: string | undefined;
 }
 
 export interface SchemaIssue {
@@ -156,6 +158,8 @@ export interface AgentRunPartial {
   readonly denials: readonly AgentDenial[];
   /** What a run that ended with a result line cost, such as a run that hit its budget. */
   readonly costUsd?: number | undefined;
+  /** The model the provider says it ran, when the stream got that far. */
+  readonly resolvedModel?: string | undefined;
 }
 
 export type AgentRunOutcome<T> =

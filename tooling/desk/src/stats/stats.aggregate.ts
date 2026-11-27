@@ -75,6 +75,9 @@ const shortHarness = (record: RunRecord): RunGroup["harness"] =>
         desk: record.harness.desk.slice(0, HARNESS_SHORT_LENGTH)
       };
 
+/** What ran when the provider says so, else what the desk asked for. */
+const modelOf = (record: RunRecord): string | null => record.resolvedModel ?? record.model;
+
 const groupOf = (records: readonly RunRecord[], byHarness: boolean): RunGroup => {
   const [first] = records;
   if (first === undefined) throw new RangeError("A run group needs at least one record");
@@ -83,7 +86,7 @@ const groupOf = (records: readonly RunRecord[], byHarness: boolean): RunGroup =>
     role: first.role,
     agentId: first.agentId ?? first.role,
     provider: first.provider,
-    model: first.model,
+    model: modelOf(first),
     runs: records.length,
     accepted: records.filter((record) => record.accepted).length,
     stuck: records.filter((record) => record.failureKind === "stuck").length,
@@ -182,7 +185,7 @@ export const aggregateRuns = (
       record.role,
       record.agentId ?? record.role,
       record.provider,
-      record.model,
+      modelOf(record),
       harness
     ]);
     byGroup.set(key, [...(byGroup.get(key) ?? []), record]);

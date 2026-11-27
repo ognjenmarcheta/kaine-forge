@@ -947,6 +947,7 @@ const recordRun = async <T>(
   const { outcome } = run;
   const trace = outcome.ok ? outcome.result.trace : outcome.partial.trace;
   const calls = trace.flatMap((event) => (event.type === "tool_call" ? [event] : []));
+  const resolvedModel = outcome.ok ? outcome.result.resolvedModel : outcome.partial.resolvedModel;
   const record: RunRecord = {
     schema: 1,
     at: run.startedAt.toISOString(),
@@ -955,6 +956,7 @@ const recordRun = async <T>(
     ...(agent === undefined ? {} : { agentId: agent.id }),
     provider: run.provider,
     model: run.model ?? null,
+    ...(resolvedModel === undefined ? {} : { resolvedModel }),
     isolation: isolationOf(deps.config, context.state()),
     loops: run.loops,
     durationMs: run.durationMs,

@@ -54,6 +54,26 @@ describe("aggregateRuns", () => {
     ]);
   });
 
+  it("groups a run under the model it reports, so a new default or alias target is a new row", () => {
+    const stats = aggregate(
+      [
+        record({ model: null, resolvedModel: "claude-opus-5-5" }),
+        record({ model: null, resolvedModel: "claude-fable-5-2" }),
+        record({ model: "opus", resolvedModel: "claude-opus-5-5" }),
+        // A run that does not say what it ran keeps the row of what the desk asked for.
+        record({ model: null }),
+        record({ model: "opus" })
+      ],
+      []
+    );
+    expect(stats.groups.map((group) => [group.model, group.runs])).toEqual([
+      [null, 1],
+      ["claude-fable-5-2", 1],
+      ["claude-opus-5-5", 2],
+      ["opus", 1]
+    ]);
+  });
+
   it("splits a role by agent, and counts a record without one for the agent of its role", () => {
     const stats = aggregate(
       [

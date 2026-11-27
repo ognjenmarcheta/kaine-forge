@@ -240,6 +240,8 @@ describe("createClaudeRunner", () => {
     expect(result.result.structured).toEqual({ word: "PINEAPPLE-42", overrideSeen: true });
     expect(result.result.sessionId).toBe("00000000-0000-4000-8000-000000000001");
     expect(result.result.costUsd).toBeGreaterThan(0);
+    // No `--model` was passed: the name comes from the stream's `init` line.
+    expect(result.result.resolvedModel).toBe("claude-haiku-4-5-20251001");
     expect(result.result.trace.some((event) => event.type === "tool_call")).toBe(true);
     expect(calls[0]?.argv[0]).toBe("claude");
     expect(calls[0]?.cwd).toBe("/work/repo");
@@ -371,7 +373,12 @@ describe("createClaudeRunner", () => {
   it("maps timeout and abort, keeping the partial trace", async () => {
     const lines = fixtureLines("claude-structured.jsonl").slice(0, 3);
     const timeout = await run(lines, { code: null, timedOut: true }).outcome;
-    expect(timeout).toMatchObject({ ok: false, failure: { kind: "timeout", timeoutMs: 60_000 } });
+    // A run that did not finish still names its model, so timeouts compare by model too.
+    expect(timeout).toMatchObject({
+      ok: false,
+      failure: { kind: "timeout", timeoutMs: 60_000 },
+      partial: { resolvedModel: "claude-haiku-4-5-20251001" }
+    });
     const aborted = await run(lines, { code: null, aborted: true }).outcome;
     expect(aborted).toMatchObject({ ok: false, failure: { kind: "aborted" } });
     if (!aborted.ok) expect(aborted.partial.trace.length).toBeGreaterThan(0);
