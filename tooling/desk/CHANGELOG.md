@@ -1,5 +1,11 @@
 # @repo/desk
 
+## 0.8.0
+
+### Minor Changes
+
+- 1198f70: A Claude run now records the model that ran as `resolvedModel` in `runs.jsonl`. `pnpm desk stats` and the Runs view group by it, so a new CLI default or a moved alias starts a new row.
+
 ## 0.7.0
 
 ### Minor Changes

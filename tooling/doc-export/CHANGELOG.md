@@ -1,5 +1,12 @@
 # @repo/doc-export
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [1198f70]
+  - @repo/desk@0.8.0
+
 ## 0.1.6
 
 ### Patch Changes
