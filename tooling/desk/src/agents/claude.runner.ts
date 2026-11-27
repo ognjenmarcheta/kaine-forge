@@ -143,7 +143,8 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
       trace: summary.events,
       sessionId: summary.sessionId,
       denials: summary.denials,
-      costUsd: summary.final?.costUsd
+      costUsd: summary.final?.costUsd,
+      resolvedModel: summary.model ?? undefined
     };
 
     if (run.aborted) return { ok: false, failure: { kind: "aborted" }, partial };
@@ -220,7 +221,8 @@ export const createClaudeRunner = (deps: ClaudeRunnerDeps = {}): AgentRunner => 
         turns: final.turns,
         denials: final.denials,
         trace: summary.events,
-        resultText: final.resultText
+        resultText: final.resultText,
+        resolvedModel: summary.model ?? undefined
       }
     };
   };

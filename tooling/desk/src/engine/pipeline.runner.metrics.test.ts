@@ -105,6 +105,7 @@ describe("run records", () => {
         {
           role: "builder",
           output: builderOutput(),
+          resolvedModel: "claude-opus-5-5",
           effect: (run) => writeFeature(run),
           trace: [
             ...skillCalls(ROLE_SKILLS.builder),
@@ -129,13 +130,15 @@ describe("run records", () => {
         record.issue,
         record.role,
         record.model,
+        record.resolvedModel,
         record.accepted,
         record.planRisk
       ])
     ).toEqual([
-      [ISSUE, "planner", null, true, "high"],
-      [ISSUE, "builder", "opus", true, "high"],
-      [ISSUE, "reviewer", null, true, "high"]
+      [ISSUE, "planner", null, undefined, true, "high"],
+      // The desk asked for the alias; the run reports the version behind it.
+      [ISSUE, "builder", "opus", "claude-opus-5-5", true, "high"],
+      [ISSUE, "reviewer", null, undefined, true, "high"]
     ]);
     expect(records[1]).toMatchObject({ provider: "claude", isolation: "host", editCalls: 1 });
   });

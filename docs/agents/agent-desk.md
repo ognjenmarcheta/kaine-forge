@@ -206,8 +206,16 @@ covers the hash of the issue's flow snapshot, which holds the agent's prompt. `h
 commit. The desk takes the fingerprint before the agent starts, so a builder that edits a skill
 does not change it. Lines written before the field existed read as `harness: null`.
 
+A Claude run also names the model that ran, as `resolvedModel`. Claude prints it when a session
+starts. It names the CLI's default model, and the version behind an alias such as `opus`. Codex
+and OpenCode do not print it, so their lines have no `resolvedModel`. A run that ended before
+Claude printed it has none either.
+
 `pnpm desk stats` prints one row per role, provider, and model: runs, accepted runs, stuck stops,
 timeouts, median duration, mean tokens, turns, and edit calls, and the cost per run and in total.
+The model of a row is the `resolvedModel` of its runs, or else the model the desk asked for. A
+new CLI default, or an alias that moves to a new version, therefore starts a new row. Lines
+without `resolvedModel` stay in the `(default)` row, or in the row of the model the desk asked for.
 Then it lists each issue with its stage (`removed` when the state is gone), loops, runs, and cost.
 Codex reports no cost and no turns, so those cells show `-`. Use the rows to choose `providers`
 and `models` for each role: change one role at a time, then compare. `--by-harness` splits each

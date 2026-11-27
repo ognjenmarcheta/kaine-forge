@@ -29,6 +29,8 @@ const streamLine = z.object({
   type: z.string(),
   subtype: z.string().optional(),
   session_id: z.string().optional(),
+  // system/init
+  model: z.string().optional(),
   message: z.object({ content: z.union([z.string(), z.array(contentBlock)]) }).optional(),
   // system/permission_denied
   tool_name: z.string().optional(),
@@ -74,6 +76,8 @@ export interface ClaudeFinal {
 export interface ClaudeStreamSummary {
   readonly events: readonly AgentEvent[];
   readonly sessionId: string | null;
+  /** The model the `init` line names: what the CLI ran, also when no `--model` was passed. */
+  readonly model: string | null;
   /** The `type: "result"` line. `null` when the stream ended without one. */
   readonly final: ClaudeFinal | null;
   readonly denials: readonly AgentDenial[];
@@ -115,6 +119,7 @@ export const createClaudeStreamParser = (): ClaudeStreamParser => {
   const calls = new Map<string, KnownCall>();
   const denials = new Map<string, AgentDenial>();
   let sessionId: string | null = null;
+  let model: string | null = null;
   let final: ClaudeFinal | null = null;
   let ignored = 0;
 
@@ -147,6 +152,11 @@ export const createClaudeStreamParser = (): ClaudeStreamParser => {
     if (entry.session_id !== undefined && sessionId === null) {
       sessionId = entry.session_id;
       out.push({ type: "session", sessionId });
+    }
+
+    // Only the `init` line: an assistant line of a subagent names the subagent's model.
+    if (entry.type === "system" && entry.subtype === "init" && model === null && entry.model) {
+      model = entry.model;
     }
 
     if (entry.type === "assistant" && Array.isArray(entry.message?.content)) {
@@ -237,6 +247,7 @@ export const createClaudeStreamParser = (): ClaudeStreamParser => {
     finish: () => ({
       events,
       sessionId,
+      model,
       final,
       denials: [...denials.values()],
       ignoredLines: ignored
